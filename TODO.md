@@ -14,7 +14,7 @@ This is a comprehensive checklist for implementing TypedLua from start to finish
 - [x] Configure Cargo.toml with all dependencies
 - [x] Set up directory structure (src/{lexer,parser,typechecker,codegen,lsp,cli})
 - [x] Initialize git repository with .gitignore
-- [ ] Create README.md
+- [x] Create README.md
 
 ### Core Infrastructure
 - [x] Implement Span struct with source location tracking
@@ -43,8 +43,8 @@ This is a comprehensive checklist for implementing TypedLua from start to finish
 - [x] Configure cargo test on push
 - [x] Add cargo fmt check
 - [x] Add cargo clippy check
-- [ ] Set up code coverage reporting (codecov or coveralls)
-- [ ] Add build status badge to README
+- [x] Set up code coverage reporting (codecov or coveralls)
+- [x] Add build status badge to README
 
 ### Testing Foundation
 - [x] Set up test directory structure
