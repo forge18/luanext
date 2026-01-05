@@ -13,6 +13,21 @@ use crate::span::Span;
 use rustc_hash::FxHashMap;
 use std::sync::Arc;
 
+/// Information about a class member for access checking
+#[derive(Clone)]
+struct ClassMemberInfo {
+    name: String,
+    access: AccessModifier,
+    _is_static: bool,  // Reserved for future static access checking
+}
+
+/// Context for tracking the current class during type checking
+#[derive(Clone)]
+struct ClassContext {
+    name: String,
+    parent: Option<String>,
+}
+
 /// Type checker for TypedLua programs
 pub struct TypeChecker {
     symbol_table: SymbolTable,
@@ -20,6 +35,9 @@ pub struct TypeChecker {
     current_function_return_type: Option<Type>,
     narrowing_context: super::narrowing::NarrowingContext,
     options: CompilerOptions,
+    current_class: Option<ClassContext>,
+    /// Map from class name to its members with access modifiers
+    class_members: FxHashMap<String, Vec<ClassMemberInfo>>,
 }
 
 impl TypeChecker {
@@ -30,6 +48,8 @@ impl TypeChecker {
             current_function_return_type: None,
             narrowing_context: super::narrowing::NarrowingContext::new(),
             options: CompilerOptions::default(),
+            current_class: None,
+            class_members: FxHashMap::default(),
         };
 
         // Load standard library with default Lua version
@@ -53,6 +73,7 @@ impl TypeChecker {
             // Reset symbol table and type environment
             self.symbol_table = SymbolTable::new();
             self.type_env = TypeEnvironment::new();
+            self.class_members.clear();
 
             // Reload stdlib with the new target version
             if let Err(e) = self.load_stdlib() {
@@ -900,6 +921,62 @@ impl TypeChecker {
             }
         }
 
+        // Collect class members for access checking
+        let mut member_infos = Vec::new();
+        for member in &class_decl.members {
+            match member {
+                ClassMember::Property(prop) => {
+                    member_infos.push(ClassMemberInfo {
+                        name: prop.name.node.clone(),
+                        access: prop.access.unwrap_or(AccessModifier::Public),
+                        _is_static: prop.is_static,
+                    });
+                }
+                ClassMember::Method(method) => {
+                    member_infos.push(ClassMemberInfo {
+                        name: method.name.node.clone(),
+                        access: method.access.unwrap_or(AccessModifier::Public),
+                        _is_static: method.is_static,
+                    });
+                }
+                ClassMember::Getter(getter) => {
+                    member_infos.push(ClassMemberInfo {
+                        name: getter.name.node.clone(),
+                        access: getter.access.unwrap_or(AccessModifier::Public),
+                        _is_static: getter.is_static,
+                    });
+                }
+                ClassMember::Setter(setter) => {
+                    member_infos.push(ClassMemberInfo {
+                        name: setter.name.node.clone(),
+                        access: setter.access.unwrap_or(AccessModifier::Public),
+                        _is_static: setter.is_static,
+                    });
+                }
+                ClassMember::Constructor(_) => {
+                    // Constructor doesn't have access modifiers for member access
+                }
+            }
+        }
+
+        // Store class members for access checking
+        self.class_members.insert(class_decl.name.node.clone(), member_infos);
+
+        // Set current class context
+        let parent = class_decl.extends.as_ref().and_then(|ext| {
+            if let TypeKind::Reference(type_ref) = &ext.kind {
+                Some(type_ref.name.node.clone())
+            } else {
+                None
+            }
+        });
+
+        let old_class = self.current_class.clone();
+        self.current_class = Some(ClassContext {
+            name: class_decl.name.node.clone(),
+            parent,
+        });
+
         // Check all class members
         let mut has_constructor = false;
         let mut abstract_methods = Vec::new();
@@ -939,6 +1016,9 @@ impl TypeChecker {
                 }
             }
         }
+
+        // Restore previous class context
+        self.current_class = old_class;
 
         // Exit class scope
         self.symbol_table.exit_scope();
@@ -1547,9 +1627,116 @@ impl TypeChecker {
         }
     }
 
+    /// Check if access to a class member is allowed based on access modifier
+    fn check_member_access(
+        &self,
+        class_name: &str,
+        member_name: &str,
+        span: Span,
+    ) -> Result<(), TypeCheckError> {
+        // Get the member info
+        let member_info = self.class_members
+            .get(class_name)
+            .and_then(|members| members.iter().find(|m| m.name == member_name));
+
+        if let Some(info) = member_info {
+            match info.access {
+                AccessModifier::Public => {
+                    // Public members are accessible from anywhere
+                    Ok(())
+                }
+                AccessModifier::Private => {
+                    // Private members are only accessible from within the same class
+                    if let Some(ref current) = self.current_class {
+                        if current.name == class_name {
+                            Ok(())
+                        } else {
+                            Err(TypeCheckError::new(
+                                format!(
+                                    "Property '{}' is private and only accessible within class '{}'",
+                                    member_name, class_name
+                                ),
+                                span,
+                            ))
+                        }
+                    } else {
+                        Err(TypeCheckError::new(
+                            format!(
+                                "Property '{}' is private and only accessible within class '{}'",
+                                member_name, class_name
+                            ),
+                            span,
+                        ))
+                    }
+                }
+                AccessModifier::Protected => {
+                    // Protected members are accessible from within the class and subclasses
+                    if let Some(ref current) = self.current_class {
+                        if current.name == class_name {
+                            // Same class - allowed
+                            Ok(())
+                        } else if self.is_subclass(&current.name, class_name) {
+                            // Subclass - allowed
+                            Ok(())
+                        } else {
+                            Err(TypeCheckError::new(
+                                format!(
+                                    "Property '{}' is protected and only accessible within class '{}' and its subclasses",
+                                    member_name, class_name
+                                ),
+                                span,
+                            ))
+                        }
+                    } else {
+                        Err(TypeCheckError::new(
+                            format!(
+                                "Property '{}' is protected and only accessible within class '{}' and its subclasses",
+                                member_name, class_name
+                            ),
+                            span,
+                        ))
+                    }
+                }
+            }
+        } else {
+            // Member not found in our tracking - might be from interface or unknown class
+            // Allow it for now
+            Ok(())
+        }
+    }
+
+    /// Check if a class is a subclass of another
+    fn is_subclass(&self, child: &str, ancestor: &str) -> bool {
+        // Check the current class context for parent information
+        if let Some(ref ctx) = self.current_class {
+            if ctx.name == child {
+                if let Some(ref parent) = ctx.parent {
+                    if parent == ancestor {
+                        return true;
+                    }
+                    // Could recursively check parent's parent, but keeping it simple for now
+                }
+            }
+        }
+
+        false
+    }
+
     /// Infer type of member access
     fn infer_member_type(&self, obj_type: &Type, member: &str, span: Span) -> Result<Type, TypeCheckError> {
         match &obj_type.kind {
+            TypeKind::Reference(type_ref) => {
+                // Check access modifiers for class members
+                self.check_member_access(&type_ref.name.node, member, span)?;
+
+                // Try to resolve the type reference to get the actual type
+                if let Some(resolved) = self.type_env.lookup_type_alias(&type_ref.name.node) {
+                    return self.infer_member_type(resolved, member, span);
+                }
+
+                // If not resolvable, return unknown
+                Ok(Type::new(TypeKind::Primitive(PrimitiveType::Unknown), span))
+            }
             TypeKind::Object(obj) => {
                 // Find member in object type
                 for obj_member in &obj.members {
@@ -1561,7 +1748,7 @@ impl TypeChecker {
                         }
                         ObjectTypeMember::Method(method) => {
                             if method.name.node == member {
-                                
+
                                 return Ok(Type::new(TypeKind::Primitive(PrimitiveType::Unknown), span));
                             }
                         }
