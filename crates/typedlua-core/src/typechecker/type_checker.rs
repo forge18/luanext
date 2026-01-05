@@ -556,9 +556,19 @@ impl TypeChecker {
     /// Check return statement
     fn check_return_statement(&mut self, return_stmt: &ReturnStatement) -> Result<(), TypeCheckError> {
         if !return_stmt.values.is_empty() {
-            // For simplicity, check only the first return value
-            
-            let return_type = self.infer_expression_type(&return_stmt.values[0])?;
+            // Infer types for all return values
+            let return_types: Result<Vec<_>, _> = return_stmt.values
+                .iter()
+                .map(|expr| self.infer_expression_type(expr))
+                .collect();
+            let return_types = return_types?;
+
+            // Create the actual return type (single value or tuple)
+            let actual_return_type = if return_types.len() == 1 {
+                return_types[0].clone()
+            } else {
+                Type::new(TypeKind::Tuple(return_types), return_stmt.span)
+            };
 
             // Check against expected return type
             if let Some(expected_type) = &self.current_function_return_type {
@@ -569,7 +579,7 @@ impl TypeChecker {
                     expected_type.clone()
                 };
 
-                if !TypeCompatibility::is_assignable(&return_type, &effective_expected_type) {
+                if !TypeCompatibility::is_assignable(&actual_return_type, &effective_expected_type) {
                     return Err(TypeCheckError::new(
                         "Return type mismatch",
                         return_stmt.span,
@@ -1056,23 +1066,84 @@ impl TypeChecker {
                         }
                     }
                     ObjectTypeMember::Method(req_method) => {
-                        // Find matching method in class
-                        let found = class_decl.members.iter().any(|member| {
+                        // Find matching method in class and validate signature
+                        let matching_method = class_decl.members.iter().find_map(|member| {
                             if let ClassMember::Method(class_method) = member {
-                                class_method.name.node == req_method.name.node
-                            } else {
-                                false
+                                if class_method.name.node == req_method.name.node {
+                                    return Some(class_method);
+                                }
                             }
+                            None
                         });
 
-                        if !found {
-                            return Err(TypeCheckError::new(
-                                format!(
-                                    "Class '{}' does not implement required method '{}' from interface",
-                                    class_decl.name.node, req_method.name.node
-                                ),
-                                class_decl.span,
-                            ));
+                        match matching_method {
+                            None => {
+                                return Err(TypeCheckError::new(
+                                    format!(
+                                        "Class '{}' does not implement required method '{}' from interface",
+                                        class_decl.name.node, req_method.name.node
+                                    ),
+                                    class_decl.span,
+                                ));
+                            }
+                            Some(class_method) => {
+                                // Check parameter count
+                                if class_method.parameters.len() != req_method.parameters.len() {
+                                    return Err(TypeCheckError::new(
+                                        format!(
+                                            "Method '{}' has {} parameters but interface requires {}",
+                                            req_method.name.node,
+                                            class_method.parameters.len(),
+                                            req_method.parameters.len()
+                                        ),
+                                        class_method.span,
+                                    ));
+                                }
+
+                                // Check parameter types
+                                for (i, (class_param, req_param)) in class_method.parameters.iter()
+                                    .zip(req_method.parameters.iter())
+                                    .enumerate()
+                                {
+                                    if let (Some(class_type), Some(req_type)) =
+                                        (&class_param.type_annotation, &req_param.type_annotation)
+                                    {
+                                        if !TypeCompatibility::is_assignable(class_type, req_type) {
+                                            return Err(TypeCheckError::new(
+                                                format!(
+                                                    "Method '{}' parameter {} has incompatible type",
+                                                    req_method.name.node, i
+                                                ),
+                                                class_method.span,
+                                            ));
+                                        }
+                                    }
+                                }
+
+                                // Check return type
+                                // MethodSignature has return_type: Type (not Option)
+                                // MethodDeclaration has return_type: Option<Type>
+                                if let Some(class_return) = &class_method.return_type {
+                                    if !TypeCompatibility::is_assignable(class_return, &req_method.return_type) {
+                                        return Err(TypeCheckError::new(
+                                            format!(
+                                                "Method '{}' has incompatible return type",
+                                                req_method.name.node
+                                            ),
+                                            class_method.span,
+                                        ));
+                                    }
+                                } else {
+                                    // Method has no return type annotation, but interface requires one
+                                    return Err(TypeCheckError::new(
+                                        format!(
+                                            "Method '{}' must have a return type annotation to match interface",
+                                            req_method.name.node
+                                        ),
+                                        class_method.span,
+                                    ));
+                                }
+                            }
                         }
                     }
                     ObjectTypeMember::Index(_) => {
