@@ -1547,9 +1547,29 @@ impl TypeChecker {
 
                             members.push(ObjectTypeMember::Property(prop_sig));
                         }
-                        ObjectProperty::Computed { .. } => {
-                            // Computed properties can't be statically typed easily
-                            // Skip for now
+                        ObjectProperty::Computed { key, value, span: computed_span } => {
+                            // Type check the key expression - should be string or number
+                            let key_type = self.infer_expression_type(key)?;
+                            match &key_type.kind {
+                                TypeKind::Primitive(PrimitiveType::String)
+                                | TypeKind::Primitive(PrimitiveType::Number)
+                                | TypeKind::Primitive(PrimitiveType::Integer)
+                                | TypeKind::Literal(_) => {
+                                    // Valid key type
+                                }
+                                _ => {
+                                    return Err(TypeCheckError::new(
+                                        format!("Computed property key must be string or number, got {:?}", key_type.kind),
+                                        *computed_span,
+                                    ));
+                                }
+                            }
+
+                            // Type check the value expression
+                            self.infer_expression_type(value)?;
+
+                            // Note: We can't add computed properties to the static object type
+                            // since we don't know the key at compile time, but we still validate them
                         }
                         ObjectProperty::Spread { value, span: spread_span } => {
                             // Check if FP features are enabled
