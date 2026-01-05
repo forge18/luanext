@@ -1335,9 +1335,68 @@ impl CodeGenerator {
                     }
                 }
             }
-            _ => {
-                // For unimplemented expressions, just write a placeholder
-                self.write("nil");
+            ExpressionKind::MethodCall(object, method, args) => {
+                self.generate_expression(object);
+                self.write(":");
+                self.write(&method.node);
+                self.write("(");
+                for (i, arg) in args.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.generate_argument(arg);
+                }
+                self.write(")");
+            }
+            ExpressionKind::Parenthesized(expr) => {
+                self.write("(");
+                self.generate_expression(expr);
+                self.write(")");
+            }
+            ExpressionKind::SelfKeyword => {
+                self.write("self");
+            }
+            ExpressionKind::SuperKeyword => {
+                // Super keyword on its own (not in member access or call)
+                // This is likely an error, but generate something reasonable
+                if let Some(parent) = self.current_class_parent.clone() {
+                    self.write(&parent);
+                } else {
+                    self.write("nil --[[super without parent class]]");
+                }
+            }
+            ExpressionKind::Template(template_lit) => {
+                // Generate template literal as concatenation
+                self.write("(");
+                let mut first = true;
+                for part in &template_lit.parts {
+                    if !first {
+                        self.write(" .. ");
+                    }
+                    first = false;
+
+                    match part {
+                        crate::ast::expression::TemplatePart::String(s) => {
+                            self.write("\"");
+                            self.write(&s.replace('\\', "\\\\").replace('"', "\\\""));
+                            self.write("\"");
+                        }
+                        crate::ast::expression::TemplatePart::Expression(expr) => {
+                            self.write("tostring(");
+                            self.generate_expression(expr);
+                            self.write(")");
+                        }
+                    }
+                }
+                if first {
+                    // Empty template literal
+                    self.write("\"\"");
+                }
+                self.write(")");
+            }
+            ExpressionKind::TypeAssertion(expr, _type_annotation) => {
+                // Type assertions are compile-time only, just generate the expression
+                self.generate_expression(expr);
             }
         }
     }
