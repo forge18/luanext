@@ -143,6 +143,10 @@ pub struct CodeGenerator<'a> {
     current_namespace: Option<Vec<String>>,
     /// Namespace exports to attach: (local_name, namespace_path_string)
     namespace_exports: Vec<(String, String)>,
+    /// Reflection: counter for assigning unique type IDs
+    next_type_id: u32,
+    /// Reflection: track registered types for __TypeRegistry
+    registered_types: std::collections::HashMap<String, u32>,
 }
 
 impl<'a> CodeGenerator<'a> {
@@ -164,6 +168,8 @@ impl<'a> CodeGenerator<'a> {
             interface_default_methods: std::collections::HashMap::new(),
             current_namespace: None,
             namespace_exports: Vec::new(),
+            next_type_id: 1,
+            registered_types: std::collections::HashMap::new(),
         }
     }
 
@@ -211,6 +217,114 @@ impl<'a> CodeGenerator<'a> {
 
         // Finalize namespace exports if any
         self.finalize_namespace();
+
+        // Generate __TypeRegistry if any types were registered
+        if !self.registered_types.is_empty() {
+            self.writeln("");
+            self.writeln("-- ============================================================");
+            self.writeln("-- Type Registry for Reflection");
+            self.writeln("-- ============================================================");
+            self.writeln("__TypeRegistry = {");
+            self.indent();
+            // Collect into a Vec to avoid borrow checker issues
+            let type_entries: Vec<(String, u32)> = self
+                .registered_types
+                .iter()
+                .map(|(k, v)| (k.clone(), *v))
+                .collect();
+            for (type_name, type_id) in type_entries {
+                self.write_indent();
+                self.writeln(&format!("[\"{}\"] = {},", type_name, type_id));
+            }
+            self.dedent();
+            self.writeln("}");
+            self.writeln("");
+
+            // Generate Reflect module
+            self.writeln("-- ============================================================");
+            self.writeln("-- Reflection Runtime Module");
+            self.writeln("-- ============================================================");
+            self.writeln("Reflect = {}");
+            self.writeln("");
+            self.writeln("-- O(1) instanceof check using ancestors table");
+            self.writeln("function Reflect.isInstance(obj, typeName)");
+            self.indent();
+            self.writeln("if type(obj) ~= \"table\" or not obj.__ancestors then");
+            self.indent();
+            self.writeln("return false");
+            self.dedent();
+            self.writeln("end");
+            self.writeln("local typeId = __TypeRegistry[typeName]");
+            self.writeln("if not typeId then return false end");
+            self.writeln("return obj.__ancestors[typeId] == true");
+            self.dedent();
+            self.writeln("end");
+            self.writeln("");
+
+            self.writeln("function Reflect.typeof(obj)");
+            self.indent();
+            self.writeln("if type(obj) == \"table\" and obj.__typeName then");
+            self.indent();
+            self.writeln("return {");
+            self.indent();
+            self.writeln("id = obj.__typeId,");
+            self.writeln("name = obj.__typeName,");
+            self.writeln("kind = \"class\"");
+            self.dedent();
+            self.writeln("}");
+            self.dedent();
+            self.writeln("end");
+            self.writeln("return nil");
+            self.dedent();
+            self.writeln("end");
+            self.writeln("");
+
+            self.writeln("function Reflect.getFields(obj)");
+            self.indent();
+            self.writeln("if type(obj) == \"table\" and obj._buildAllFields then");
+            self.indent();
+            self.writeln("return obj:_buildAllFields()");
+            self.dedent();
+            self.writeln("end");
+            self.writeln("return {}");
+            self.dedent();
+            self.writeln("end");
+            self.writeln("");
+
+            self.writeln("function Reflect.getMethods(obj)");
+            self.indent();
+            self.writeln("if type(obj) == \"table\" and obj._buildAllMethods then");
+            self.indent();
+            self.writeln("return obj:_buildAllMethods()");
+            self.dedent();
+            self.writeln("end");
+            self.writeln("return {}");
+            self.dedent();
+            self.writeln("end");
+            self.writeln("");
+
+            self.writeln("function Reflect.forName(name)");
+            self.indent();
+            self.writeln("-- Try global lookup first (for registered types)");
+            self.writeln("_G = _G or getfenv(0)");
+            self.writeln("if _G[name] and _G[name].__typeName == name then");
+            self.indent();
+            self.writeln("return _G[name]");
+            self.dedent();
+            self.writeln("end");
+            self.writeln("-- Try type registry lookup");
+            self.writeln("local typeId = __TypeRegistry[name]");
+            self.writeln("if typeId then");
+            self.indent();
+            self.writeln("-- Lookup by typeId would require reverse registry");
+            self.writeln("-- For now, rely on global lookup above");
+            self.dedent();
+            self.writeln("end");
+            self.writeln("return nil");
+            self.dedent();
+            self.writeln("end");
+            self.writeln("");
+        }
 
         self.output.clone()
     }
@@ -1021,6 +1135,260 @@ impl<'a> CodeGenerator<'a> {
                 }
             }
         }
+
+        self.writeln("");
+
+        // ============================================================
+        // Reflection Metadata Generation
+        // ============================================================
+
+        // Assign a unique type ID
+        let type_id = self.next_type_id;
+        self.next_type_id += 1;
+
+        // Register this type for __TypeRegistry
+        self.registered_types.insert(class_name.clone(), type_id);
+
+        // Generate __typeName
+        self.write_indent();
+        self.write(&class_name);
+        self.write(".__typeName = \"");
+        self.write(&class_name);
+        self.writeln("\"");
+
+        // Generate __typeId
+        self.write_indent();
+        self.write(&class_name);
+        self.writeln(&format!(".__typeId = {}", type_id));
+
+        // Generate __ownFields - array of field metadata
+        self.write_indent();
+        self.write(&class_name);
+        self.writeln(".__ownFields = {");
+
+        self.indent();
+        for member in &class_decl.members {
+            if let ClassMember::Property(prop) = member {
+                let prop_name = self.resolve(prop.name.node).to_string();
+                self.write_indent();
+                self.write(&format!(
+                    "{{ name = \"{}\", type = \"\", modifiers = {{}}",
+                    prop_name
+                ));
+                self.writeln(" },");
+            }
+        }
+        self.dedent();
+        self.write_indent();
+        self.writeln("}");
+
+        // Generate __ownMethods - array of method metadata
+        self.write_indent();
+        self.write(&class_name);
+        self.writeln(".__ownMethods = {");
+
+        self.indent();
+        for member in &class_decl.members {
+            if let ClassMember::Method(method) = member {
+                let method_name = self.resolve(method.name.node).to_string();
+                self.write_indent();
+                self.write(&format!(
+                    "{{ name = \"{}\", params = {{}}, returnType = \"\" }}",
+                    method_name
+                ));
+                self.writeln(",");
+            }
+        }
+        self.dedent();
+        self.write_indent();
+        self.writeln("}");
+
+        // Generate __ancestors table for O(1) instanceof checks
+        self.write_indent();
+        self.write(&class_name);
+        self.writeln(".__ancestors = {");
+
+        self.indent();
+        self.write_indent();
+        self.write(&format!("[{}] = true", type_id));
+        self.writeln(",");
+
+        self.dedent();
+        self.write_indent();
+        self.writeln("}");
+
+        // Merge parent ancestors (done after table is closed)
+        if let Some(base_name) = &base_class_name {
+            let base_name_str = self.resolve(*base_name);
+            self.write_indent();
+            self.writeln(&format!(
+                "if {} and {}.__ancestors then",
+                base_name_str, base_name_str
+            ));
+            self.indent();
+            self.write_indent();
+            self.writeln(&format!(
+                "for k, v in pairs({}.__ancestors) do",
+                base_name_str
+            ));
+            self.indent();
+            self.write_indent();
+            self.writeln(&format!("{}.__ancestors[k] = v", class_name));
+            self.dedent();
+            self.write_indent();
+            self.writeln("end");
+            self.dedent();
+            self.write_indent();
+            self.writeln("end");
+        }
+
+        // Generate __parent reference for reflective access
+        if let Some(base_name) = &base_class_name {
+            let base_name_str = self.resolve(*base_name);
+            self.write_indent();
+            self.write(&class_name);
+            self.writeln(&format!(".__parent = {}", base_name_str));
+        }
+
+        // Generate lazy _buildAllFields() function
+        self.writeln("");
+        self.write_indent();
+        self.writeln(&format!("function {}._buildAllFields()", class_name));
+        self.indent();
+        self.write_indent();
+        self.writeln(&format!(
+            "if {}._allFieldsCache then return {}._allFieldsCache end",
+            class_name, class_name
+        ));
+        self.write_indent();
+        self.writeln("local fields = {}");
+        self.write_indent();
+        self.writeln("local idx = 1");
+
+        // Add own fields
+        self.write_indent();
+        self.writeln("-- Copy own fields");
+        self.write_indent();
+        self.writeln(&format!(
+            "for _, f in ipairs({}.__ownFields) do",
+            class_name
+        ));
+        self.indent();
+        self.write_indent();
+        self.writeln("fields[idx] = f");
+        self.write_indent();
+        self.writeln("idx = idx + 1");
+        self.dedent();
+        self.writeln("end");
+
+        // Add inherited fields
+        if let Some(base_name) = &base_class_name {
+            let base_name_str = self.resolve(*base_name);
+            self.write_indent();
+            self.writeln(&format!("-- Inherit fields from {}", base_name_str));
+            self.write_indent();
+            self.writeln(&format!(
+                "if {} and {}._buildAllFields then",
+                base_name_str, base_name_str
+            ));
+            self.indent();
+            self.write_indent();
+            self.writeln(&format!(
+                "local inherited = {}:_buildAllFields()",
+                base_name_str
+            ));
+            self.write_indent();
+            self.writeln("for _, f in ipairs(inherited) do");
+            self.indent();
+            self.write_indent();
+            self.writeln("fields[idx] = f");
+            self.write_indent();
+            self.writeln("idx = idx + 1");
+            self.dedent();
+            self.writeln("end");
+            self.dedent();
+            self.write_indent();
+            self.writeln("end");
+        }
+
+        // Cache and return
+        self.write_indent();
+        self.writeln(&format!("{}._allFieldsCache = fields", class_name));
+        self.write_indent();
+        self.writeln("return fields");
+        self.dedent();
+        self.write_indent();
+        self.writeln("end");
+
+        // Generate lazy _buildAllMethods() function
+        self.writeln("");
+        self.write_indent();
+        self.writeln(&format!("function {}._buildAllMethods()", class_name));
+        self.indent();
+        self.write_indent();
+        self.writeln(&format!(
+            "if {}._allMethodsCache then return {}._allMethodsCache end",
+            class_name, class_name
+        ));
+        self.write_indent();
+        self.writeln("local methods = {}");
+        self.write_indent();
+        self.writeln("local idx = 1");
+
+        // Add own methods
+        self.write_indent();
+        self.writeln("-- Copy own methods");
+        self.write_indent();
+        self.writeln(&format!(
+            "for _, m in ipairs({}.__ownMethods) do",
+            class_name
+        ));
+        self.indent();
+        self.write_indent();
+        self.writeln("methods[idx] = m");
+        self.write_indent();
+        self.writeln("idx = idx + 1");
+        self.dedent();
+        self.writeln("end");
+
+        // Add inherited methods
+        if let Some(base_name) = &base_class_name {
+            let base_name_str = self.resolve(*base_name);
+            self.write_indent();
+            self.writeln(&format!("-- Inherit methods from {}", base_name_str));
+            self.write_indent();
+            self.writeln(&format!(
+                "if {} and {}._buildAllMethods then",
+                base_name_str, base_name_str
+            ));
+            self.indent();
+            self.write_indent();
+            self.writeln(&format!(
+                "local inherited = {}:_buildAllMethods()",
+                base_name_str
+            ));
+            self.write_indent();
+            self.writeln("for _, m in ipairs(inherited) do");
+            self.indent();
+            self.write_indent();
+            self.writeln("methods[idx] = m");
+            self.write_indent();
+            self.writeln("idx = idx + 1");
+            self.dedent();
+            self.writeln("end");
+            self.dedent();
+            self.write_indent();
+            self.writeln("end");
+        }
+
+        // Cache and return
+        self.write_indent();
+        self.writeln(&format!("{}._allMethodsCache = methods", class_name));
+        self.write_indent();
+        self.writeln("return methods");
+        self.dedent();
+        self.write_indent();
+        self.writeln("end");
 
         self.writeln("");
 

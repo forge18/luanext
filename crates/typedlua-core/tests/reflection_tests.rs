@@ -1,5 +1,3 @@
-#![cfg(feature = "unimplemented")]
-
 use std::sync::Arc;
 use typedlua_core::codegen::CodeGenerator;
 use typedlua_core::config::CompilerOptions;
@@ -277,11 +275,11 @@ fn test_lazy_building_functions_generated() {
 
             // Should have caching
             assert!(
-                output.contains("__allFieldsCache"),
+                output.contains("_allFieldsCache"),
                 "Should cache all fields"
             );
             assert!(
-                output.contains("__allMethodsCache"),
+                output.contains("_allMethodsCache"),
                 "Should cache all methods"
             );
         }
@@ -488,29 +486,29 @@ fn test_caching_happens_once() {
 
             // Should check cache before building
             assert!(
-                output.contains("if Base.__allFieldsCache then"),
+                output.contains("if Base._allFieldsCache then"),
                 "Base should check fields cache"
             );
             assert!(
-                output.contains("if Base.__allMethodsCache then"),
+                output.contains("if Base._allMethodsCache then"),
                 "Base should check methods cache"
             );
             assert!(
-                output.contains("if Derived.__allFieldsCache then"),
+                output.contains("if Derived._allFieldsCache then"),
                 "Derived should check fields cache"
             );
             assert!(
-                output.contains("if Derived.__allMethodsCache then"),
+                output.contains("if Derived._allMethodsCache then"),
                 "Derived should check methods cache"
             );
 
             // Should set cache after building
             assert!(
-                output.contains("Base.__allFieldsCache = fields"),
+                output.contains("Base._allFieldsCache = fields"),
                 "Base should cache fields"
             );
             assert!(
-                output.contains("Derived.__allFieldsCache = fields"),
+                output.contains("Derived._allFieldsCache = fields"),
                 "Derived should cache fields"
             );
         }
