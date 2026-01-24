@@ -49,6 +49,7 @@ impl StatementParser for Parser<'_> {
             TokenKind::Throw => self.parse_throw_statement(),
             TokenKind::Try => self.parse_try_statement(),
             TokenKind::Rethrow => self.parse_rethrow_statement(),
+            TokenKind::Namespace => self.parse_namespace_declaration(),
             _ => {
                 // Expression statement
                 let expr = self.parse_expression()?;
@@ -439,7 +440,10 @@ impl Parser<'_> {
                     let span = name.span.combine(&return_type.span);
 
                     let body = if self.check(&TokenKind::LeftBrace) {
-                        Some(self.parse_block()?)
+                        self.consume(TokenKind::LeftBrace, "Expected '{'")?;
+                        let block = self.parse_block()?;
+                        self.consume(TokenKind::RightBrace, "Expected '}' after method body")?;
+                        Some(block)
                     } else {
                         None
                     };
@@ -1662,6 +1666,53 @@ impl Parser<'_> {
         Ok(Statement::Rethrow(start_span))
     }
 
+    fn parse_namespace_declaration(&mut self) -> Result<Statement, ParserError> {
+        let start_span = self.current_span();
+
+        if self.has_namespace {
+            return Err(ParserError {
+                message: "Only one namespace declaration allowed per file".to_string(),
+                span: start_span,
+            });
+        }
+
+        if !self.is_first_statement {
+            return Err(ParserError {
+                message: "Namespace declaration must be the first statement".to_string(),
+                span: start_span,
+            });
+        }
+
+        self.consume(TokenKind::Namespace, "Expected 'namespace'")?;
+
+        let mut path = Vec::new();
+
+        loop {
+            let name = self.parse_identifier()?;
+            path.push(name);
+
+            if self.match_token(&[TokenKind::Dot]) {
+                continue;
+            } else {
+                break;
+            }
+        }
+
+        self.consume(
+            TokenKind::Semicolon,
+            "Expected ';' after namespace declaration",
+        )?;
+
+        self.has_namespace = true;
+
+        let end_span = self.current_span();
+
+        Ok(Statement::Namespace(NamespaceDeclaration {
+            path,
+            span: start_span.combine(&end_span),
+        }))
+    }
+
     fn parse_try_statement(&mut self) -> Result<Statement, ParserError> {
         let start_span = self.current_span();
         self.consume(TokenKind::Try, "Expected 'try'")?;
@@ -2126,6 +2177,7 @@ impl Spannable for Statement {
             Statement::Throw(t) => t.span,
             Statement::Try(t) => t.span,
             Statement::Rethrow(s) => *s,
+            Statement::Namespace(n) => n.span,
         }
     }
 }

@@ -14,6 +14,7 @@ pub enum SymbolKind {
     TypeAlias,
     Enum,
     Parameter,
+    Namespace,
 }
 
 /// A symbol in the symbol table

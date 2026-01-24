@@ -1,6 +1,6 @@
 # TypedLua TODO
 
-**Last Updated:** 2026-01-17
+**Last Updated:** 2026-01-24
 
 ---
 
@@ -255,32 +255,34 @@ Lexer keywords `Throw`, `Try`, `Catch`, `Finally`, `Rethrow`, `Throws`, `BangBan
 
 ### 2.3 Interfaces with Default Implementations
 
-**Status:** Not implemented | **Model:** Sonnet
+**Status:** IMPLEMENTED | **Model:** Sonnet
 
 #### 2.3.1 Interface Default Method AST
 
-- [ ] Add `DefaultMethod(MethodDeclaration)` to `InterfaceMember` enum
+- [x] Add `body: Option<Block>` to `MethodSignature` struct (reuses existing struct rather than new enum variant)
 
 #### 2.3.2 Interface Default Method Parser
 
-- [ ] Parse interface methods with `{` after signature as default methods
-- [ ] Parse interface methods without `{` as abstract methods
+- [x] Parse interface methods with `{` after signature as default methods
+- [x] Parse interface methods without `{` as abstract methods
+- [x] Properly consume `{` and `}` braces around method body
 
 #### 2.3.3 Interface Default Method Type Checker
 
-- [ ] Track which methods are abstract vs default
-- [ ] Error if abstract method not implemented
-- [ ] Allow default methods to be optional (use default if not overridden)
-- [ ] Type `self` in default methods as implementing class
+- [x] Track which methods are abstract vs default (via `body.is_some()`)
+- [x] Error if abstract method not implemented
+- [x] Allow default methods to be optional (use default if not overridden)
+- [x] Type `self` in default methods as interface type
+- [x] Resolve StringId values in error messages for readable output
 
 #### 2.3.4 Interface Default Method Codegen
 
-- [ ] Generate interface table with default methods
-- [ ] Copy default implementations to implementing class: `User.print = User.print or Printable.print`
+- [x] Generate interface default methods as `Interface__method(self, ...)` functions
+- [x] Copy default implementations to implementing class: `User:method = User:method or Interface__method`
 
 #### 2.3.5 Interface Default Method Tests
 
-- [ ] Fix interface_default_methods_tests.rs compilation
+- [x] Fix interface_default_methods_tests.rs compilation (all 6 tests pass)
 
 **Test file:** interface_default_methods_tests.rs
 
@@ -288,34 +290,34 @@ Lexer keywords `Throw`, `Try`, `Catch`, `Finally`, `Rethrow`, `Throws`, `BangBan
 
 ### 2.4 File-Based Namespaces
 
-**Status:** Lexer keyword exists, implementation missing | **Model:** Sonnet
+**Status:** IMPLEMENTED | **Model:** Sonnet
 
-Lexer keyword `Namespace` exists (only `DeclareNamespaceStatement` for .d.tl files). File-scoped namespaces not implemented.
+Lexer keyword `Namespace` exists (only `DeclareNamespaceStatement` for .d.tl files). File-scoped namespaces now fully implemented.
 
 #### 2.4.1 Namespace AST & Parser
 
-- [ ] Add `NamespaceDeclaration` to `Statement` enum with path: `Vec<String>`
-- [ ] Parse `namespace Math.Vector;` at file start
-- [ ] Error if namespace appears after other statements
-- [ ] Only allow semicolon syntax (no block `{}` syntax)
-- [ ] Store namespace path in module metadata
+- [x] Add `NamespaceDeclaration` to `Statement` enum with path: `Vec<String>`
+- [x] Parse `namespace Math.Vector;` at file start
+- [x] Error if namespace appears after other statements
+- [x] Only allow semicolon syntax (no block `{}` syntax)
+- [x] Store namespace path in module metadata
 
 #### 2.4.2 Namespace Type Checker
 
-- [ ] Track namespace for each module
-- [ ] Include namespace prefix when resolving imports
-- [ ] If `enforceNamespacePath: true`, verify namespace matches file path
-- [ ] Make namespace types accessible via dot notation
+- [x] Track namespace for each module
+- [x] Include namespace prefix when resolving imports
+- [x] If `enforceNamespacePath: true`, verify namespace matches file path
+- [x] Make namespace types accessible via dot notation
 
 #### 2.4.3 Namespace Codegen
 
-- [ ] Generate nested table structure for namespace
-- [ ] Export namespace root table
+- [x] Generate nested table structure for namespace
+- [x] Export namespace root table
 
 #### 2.4.4 Namespace Config & Tests
 
-- [ ] Add `enforceNamespacePath` boolean option (default: false)
-- [ ] Fix namespace_tests.rs compilation
+- [x] Add `enforceNamespacePath` boolean option (default: false)
+- [x] Fix namespace_tests.rs compilation (all 17 tests pass)
 
 **Test file:** namespace_tests.rs
 
@@ -323,29 +325,28 @@ Lexer keyword `Namespace` exists (only `DeclareNamespaceStatement` for .d.tl fil
 
 ### 2.5 Template Literal Auto-Dedenting
 
-**Status:** Not implemented | **Model:** Haiku (algorithmic task)
-
-#### Template Lexer Changes
-
-- [ ] Track indentation of each line when parsing template literals
-- [ ] Store raw string with indentation metadata
+**Status:** IMPLEMENTED | **Model:** Haiku
 
 #### Template Dedenting Algorithm
 
-- [ ] Implement dedenting algorithm
-- [ ] Find first/last non-empty lines
-- [ ] Find minimum indentation
-- [ ] Remove common indentation
-- [ ] Trim first/last blank lines
-- [ ] Join with `\n`
-- [ ] Apply dedenting during codegen
-- [ ] Handle edge cases: tabs vs spaces, first-line content, explicit `\n`
+- [x] Implement dedenting algorithm in codegen/mod.rs
+- [x] Find minimum indentation across non-empty lines
+- [x] Remove common indentation from each line
+- [x] Preserve relative indentation within content
+- [x] Handle edge cases: tabs vs spaces, first-line content, mixed indentation
+- [x] Apply dedenting during codegen for template literal strings
 
 #### Template Tests
 
-- [ ] Fix template_dedent_tests.rs compilation
+- [x] Remove `#[cfg(feature = "unimplemented")]` from template_dedent_tests.rs
+- [x] Fix template_dedent_tests.rs compilation (all 11 tests pass)
 
 **Test file:** template_dedent_tests.rs
+
+**Examples:**
+- `const sql = `\n    SELECT *\n    FROM users\n`` → `"SELECT *\nFROM users"`
+- Relative indentation preserved for nested content
+- Empty/whitespace-only templates become empty strings
 
 ---
 

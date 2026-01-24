@@ -54,6 +54,56 @@ impl LuaTarget {
     }
 }
 
+/// Dedent a multi-line template literal string.
+/// Removes common leading whitespace from non-empty lines, trims leading/trailing blank lines.
+pub fn dedent(s: &str) -> String {
+    let lines: Vec<&str> = s.lines().collect();
+
+    if lines.is_empty() {
+        return String::new();
+    }
+
+    let non_empty_indices: Vec<usize> = lines
+        .iter()
+        .enumerate()
+        .filter(|(_, &line)| !line.trim().is_empty())
+        .map(|(i, _)| i)
+        .collect();
+
+    if non_empty_indices.is_empty() {
+        return String::new();
+    }
+
+    let min_indent = non_empty_indices
+        .iter()
+        .map(|&i| {
+            let line = lines[i];
+            let stripped = line.trim_start();
+            line.len() - stripped.len()
+        })
+        .min()
+        .unwrap_or(0);
+
+    let result_lines: Vec<String> = lines
+        .iter()
+        .enumerate()
+        .map(|(_, &line)| {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                String::new()
+            } else if line.len() >= min_indent {
+                line[min_indent..].to_string()
+            } else {
+                line.to_string()
+            }
+        })
+        .collect();
+
+    let result = result_lines.join("\n");
+
+    result
+}
+
 /// Code generation mode for modules
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CodeGenMode {
@@ -89,6 +139,10 @@ pub struct CodeGenerator<'a> {
     interner: &'a StringInterner,
     /// Track interface default methods: (interface_name, method_name) -> default_function_name
     interface_default_methods: std::collections::HashMap<(String, String), String>,
+    /// Current namespace path for the file (if any)
+    current_namespace: Option<Vec<String>>,
+    /// Namespace exports to attach: (local_name, namespace_path_string)
+    namespace_exports: Vec<(String, String)>,
 }
 
 impl<'a> CodeGenerator<'a> {
@@ -108,6 +162,8 @@ impl<'a> CodeGenerator<'a> {
             current_source_index: 0,
             interner,
             interface_default_methods: std::collections::HashMap::new(),
+            current_namespace: None,
+            namespace_exports: Vec::new(),
         }
     }
 
@@ -152,6 +208,9 @@ impl<'a> CodeGenerator<'a> {
 
         // Finalize module exports if any
         self.finalize_module();
+
+        // Finalize namespace exports if any
+        self.finalize_namespace();
 
         self.output.clone()
     }
@@ -411,6 +470,7 @@ impl<'a> CodeGenerator<'a> {
             Statement::Throw(throw_stmt) => self.generate_throw_statement(throw_stmt),
             Statement::Try(try_stmt) => self.generate_try_statement(try_stmt),
             Statement::Rethrow(span) => self.generate_rethrow_statement(*span),
+            Statement::Namespace(ns) => self.generate_namespace_declaration(ns),
         }
     }
 
@@ -624,6 +684,16 @@ impl<'a> CodeGenerator<'a> {
         self.dedent();
         self.write_indent();
         self.writeln("end");
+
+        // If in a namespace, attach the function to the namespace
+        if let Some(ns_path) = &self.current_namespace {
+            let ns_full_path = ns_path.join(".");
+            self.namespace_exports
+                .push((fn_name.clone(), ns_full_path.clone()));
+
+            self.write_indent();
+            self.writeln(&format!("{}.{} = {}", ns_full_path, fn_name, fn_name));
+        }
     }
 
     fn generate_if_statement(&mut self, if_stmt: &IfStatement) {
@@ -2037,30 +2107,46 @@ impl<'a> CodeGenerator<'a> {
                 }
             }
             ExpressionKind::Template(template_lit) => {
-                // Generate template literal as concatenation
+                // Generate template literal as concatenation with dedenting
                 self.write("(");
                 let mut first = true;
+
+                let mut string_parts: Vec<String> = Vec::new();
+                let mut expression_parts: Vec<&Expression> = Vec::new();
+
                 for part in &template_lit.parts {
+                    match part {
+                        crate::ast::expression::TemplatePart::String(s) => {
+                            string_parts.push(s.clone());
+                        }
+                        crate::ast::expression::TemplatePart::Expression(expr) => {
+                            expression_parts.push(expr);
+                        }
+                    }
+                }
+
+                let mut string_iter = string_parts.iter().peekable();
+                let mut expression_iter = expression_parts.iter().peekable();
+
+                while let Some(s) = string_iter.next() {
                     if !first {
                         self.write(" .. ");
                     }
                     first = false;
 
-                    match part {
-                        crate::ast::expression::TemplatePart::String(s) => {
-                            self.write("\"");
-                            self.write(&s.replace('\\', "\\\\").replace('"', "\\\""));
-                            self.write("\"");
-                        }
-                        crate::ast::expression::TemplatePart::Expression(expr) => {
-                            self.write("tostring(");
-                            self.generate_expression(expr);
-                            self.write(")");
-                        }
+                    let dedented = dedent(s);
+                    self.write("\"");
+                    self.write(&dedented.replace('\\', "\\\\").replace('"', "\\\""));
+                    self.write("\"");
+
+                    if expression_iter.peek().is_some() {
+                        self.write(" .. tostring(");
+                        self.generate_expression(expression_iter.next().unwrap());
+                        self.write(")");
                     }
                 }
+
                 if first {
-                    // Empty template literal
                     self.write("\"\"");
                 }
                 self.write(")");
@@ -2767,6 +2853,10 @@ impl<'a> CodeGenerator<'a> {
     }
 
     fn finalize_module(&mut self) {
+        if self.current_namespace.is_some() {
+            return;
+        }
+
         // If there are exports or default export, create module table
         if !self.exports.is_empty() || self.has_default_export {
             self.writeln("");
@@ -2787,6 +2877,17 @@ impl<'a> CodeGenerator<'a> {
             }
 
             self.writeln("return M");
+        }
+    }
+
+    fn finalize_namespace(&mut self) {
+        if let Some(ns_path) = &self.current_namespace {
+            if !ns_path.is_empty() {
+                let ns_root = ns_path[0].clone();
+                self.writeln("");
+                self.write("return ");
+                self.writeln(&ns_root);
+            }
         }
     }
 
@@ -3051,6 +3152,33 @@ impl<'a> CodeGenerator<'a> {
     fn generate_rethrow_statement(&mut self, _span: Span) {
         self.write_indent();
         self.writeln("error(__error)");
+    }
+
+    fn generate_namespace_declaration(&mut self, ns: &NamespaceDeclaration) {
+        let path: Vec<String> = ns
+            .path
+            .iter()
+            .map(|ident| self.resolve(ident.node))
+            .collect();
+
+        if path.is_empty() {
+            return;
+        }
+
+        self.current_namespace = Some(path.clone());
+
+        self.write_indent();
+        self.writeln(&format!("-- Namespace: {}", path.join(".")));
+
+        self.write_indent();
+        self.writeln(&format!("local {} = {}", path[0], "{}"));
+
+        for i in 1..path.len() {
+            self.write_indent();
+            self.writeln(&format!("{}.{} = {}", path[0], path[i], "{}"));
+        }
+
+        self.writeln("");
     }
 
     fn generate_try_statement(&mut self, stmt: &TryStatement) {

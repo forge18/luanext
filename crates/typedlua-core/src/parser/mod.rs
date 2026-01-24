@@ -38,6 +38,8 @@ pub struct Parser<'a> {
     diagnostic_handler: Arc<dyn DiagnosticHandler>,
     interner: &'a StringInterner,
     common: &'a CommonIdentifiers,
+    has_namespace: bool,
+    is_first_statement: bool,
 }
 
 impl<'a> Parser<'a> {
@@ -53,6 +55,8 @@ impl<'a> Parser<'a> {
             diagnostic_handler,
             interner,
             common,
+            has_namespace: false,
+            is_first_statement: true,
         }
     }
 
@@ -74,10 +78,14 @@ impl<'a> Parser<'a> {
     pub fn parse(&mut self) -> Result<Program, ParserError> {
         let start_span = self.current_span();
         let mut statements = Vec::new();
+        self.is_first_statement = true;
 
         while !self.is_at_end() {
             match self.parse_statement() {
-                Ok(stmt) => statements.push(stmt),
+                Ok(stmt) => {
+                    statements.push(stmt);
+                    self.is_first_statement = false;
+                }
                 Err(e) => {
                     self.report_error(&e.message, e.span);
                     // Error recovery: skip to next statement
@@ -459,6 +467,7 @@ impl Spannable for crate::ast::statement::Statement {
             Throw(t) => t.span,
             Try(t) => t.span,
             Rethrow(s) => *s,
+            Namespace(n) => n.span,
         }
     }
 }

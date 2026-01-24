@@ -1,5 +1,3 @@
-#![cfg(feature = "unimplemented")]
-
 use std::sync::Arc;
 use typedlua_core::ast::statement::Statement;
 use typedlua_core::codegen::CodeGenerator;
@@ -71,8 +69,8 @@ fn test_parse_single_level_namespace() {
     assert_eq!(program.statements.len(), 1);
 
     match &program.statements[0] {
-        Statement::DeclareNamespace(ns) => {
-            let name = interner.resolve(ns.name.node);
+        Statement::Namespace(ns) => {
+            let name = interner.resolve(ns.path[0].node);
             assert_eq!(name, "Math");
         }
         _ => panic!("Expected namespace statement"),
@@ -87,8 +85,8 @@ fn test_parse_multi_level_namespace() {
     assert_eq!(program.statements.len(), 1);
 
     match &program.statements[0] {
-        Statement::DeclareNamespace(ns) => {
-            let name = interner.resolve(ns.name.node);
+        Statement::Namespace(ns) => {
+            let name = interner.resolve(ns.path.last().unwrap().node);
             assert_eq!(name, "Utils");
         }
         _ => panic!("Expected namespace statement"),
@@ -138,8 +136,8 @@ fn test_namespace_with_exports() {
 
     // First statement should be namespace
     match &program.statements[0] {
-        Statement::DeclareNamespace(ns) => {
-            let name = interner.resolve(ns.name.node);
+        Statement::Namespace(ns) => {
+            let name = interner.resolve(ns.path[1].node);
             assert_eq!(name, "Vector");
         }
         _ => panic!("Expected namespace statement"),

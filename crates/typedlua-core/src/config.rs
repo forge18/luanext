@@ -99,6 +99,10 @@ pub struct CompilerOptions {
     /// Module search paths for package imports
     #[serde(default = "default_module_paths")]
     pub module_paths: Vec<String>,
+
+    /// Enforce that namespace declarations match file paths (default: false)
+    #[serde(default)]
+    pub enforce_namespace_path: bool,
 }
 
 fn default_true() -> bool {
@@ -131,6 +135,7 @@ impl Default for CompilerOptions {
             pretty: true,
             module_mode: ModuleMode::Require,
             module_paths: default_module_paths(),
+            enforce_namespace_path: false,
         }
     }
 }
@@ -233,6 +238,9 @@ impl CompilerConfig {
         if let Some(ref module_paths) = overrides.module_paths {
             self.compiler_options.module_paths = module_paths.clone();
         }
+        if let Some(enforce_namespace_path) = overrides.enforce_namespace_path {
+            self.compiler_options.enforce_namespace_path = enforce_namespace_path;
+        }
     }
 }
 
@@ -255,6 +263,7 @@ pub struct CliOverrides {
     pub pretty: Option<bool>,
     pub module_mode: Option<ModuleMode>,
     pub module_paths: Option<Vec<String>>,
+    pub enforce_namespace_path: Option<bool>,
 }
 
 #[cfg(test)]

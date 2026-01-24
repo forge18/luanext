@@ -41,6 +41,7 @@ pub enum TypeKind {
     Infer(Ident),                 // infer R - captures type in conditional
     TypePredicate(TypePredicate), // x is T - type guard predicate
     Variadic(Box<Type>),          // ...T[] - variadic return type
+    Namespace(Vec<String>),       // File-based namespace type
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

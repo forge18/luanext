@@ -229,6 +229,7 @@ impl CompletionProvider {
                 SymbolKind::TypeAlias => CompletionItemKind::STRUCT,
                 SymbolKind::Enum => CompletionItemKind::ENUM,
                 SymbolKind::Parameter => CompletionItemKind::VARIABLE,
+                SymbolKind::Namespace => CompletionItemKind::MODULE,
             };
 
             items.push(CompletionItem {
@@ -256,6 +257,7 @@ impl CompletionProvider {
             SymbolKind::TypeAlias => "type",
             SymbolKind::Enum => "enum",
             SymbolKind::Parameter => "param",
+            SymbolKind::Namespace => "namespace",
         };
 
         // Simple type display

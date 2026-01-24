@@ -73,6 +73,8 @@ pub struct TypeChecker<'a> {
     module_resolver: Option<Arc<crate::module_resolver::ModuleResolver>>,
     /// Stack of whether we're inside a catch block (for rethrow validation)
     in_catch_block: Vec<bool>,
+    /// Current namespace path for this module
+    current_namespace: Option<Vec<String>>,
     diagnostic_handler: Arc<dyn DiagnosticHandler>,
     interner: &'a crate::string_interner::StringInterner,
     common: &'a crate::string_interner::CommonIdentifiers,
@@ -97,6 +99,7 @@ impl<'a> TypeChecker<'a> {
             current_module_id: None,
             module_resolver: None,
             in_catch_block: Vec::new(),
+            current_namespace: None,
             diagnostic_handler,
             interner,
             common,
@@ -216,7 +219,8 @@ impl<'a> TypeChecker<'a> {
             Statement::TypeAlias(alias) => self.check_type_alias(alias),
             Statement::Enum(enum_decl) => self.check_enum_declaration(enum_decl),
             Statement::Class(class_decl) => self.check_class_declaration(class_decl),
-            Statement::Import(_) | Statement::Export(_) => Ok(()), // Module system will be implemented in a future version
+            Statement::Import(import) => self.check_import_statement(import),
+            Statement::Export(_) => Ok(()), // Module system will be implemented in a future version
             // Declaration file statements - register them in the symbol table
             Statement::DeclareFunction(func) => self.register_declare_function(func),
             Statement::DeclareNamespace(ns) => self.register_declare_namespace(ns),
@@ -227,6 +231,8 @@ impl<'a> TypeChecker<'a> {
             Statement::Throw(throw_stmt) => self.check_throw_statement(throw_stmt),
             Statement::Try(try_stmt) => self.check_try_statement(try_stmt),
             Statement::Rethrow(span) => self.check_rethrow_statement(*span),
+            // File-based namespace declaration
+            Statement::Namespace(ns_decl) => self.check_namespace_declaration(ns_decl),
         }
     }
 
@@ -1389,7 +1395,8 @@ impl<'a> TypeChecker<'a> {
                             return Err(TypeCheckError::new(
                                 format!(
                                     "Class '{}' does not implement required property '{}' from interface",
-                                    class_decl.name.node, req_prop.name.node
+                                    self.interner.resolve(class_decl.name.node),
+                                    self.interner.resolve(req_prop.name.node)
                                 ),
                                 class_decl.span,
                             ));
@@ -1412,7 +1419,8 @@ impl<'a> TypeChecker<'a> {
                                     return Err(TypeCheckError::new(
                                         format!(
                                             "Class '{}' does not implement required method '{}' from interface",
-                                            class_decl.name.node, req_method.name.node
+                                            self.interner.resolve(class_decl.name.node),
+                                            self.interner.resolve(req_method.name.node)
                                         ),
                                         class_decl.span,
                                     ));
@@ -1425,7 +1433,7 @@ impl<'a> TypeChecker<'a> {
                                     return Err(TypeCheckError::new(
                                         format!(
                                             "Method '{}' has {} parameters but interface requires {}",
-                                            req_method.name.node,
+                                            self.interner.resolve(req_method.name.node),
                                             class_method.parameters.len(),
                                             req_method.parameters.len()
                                         ),
@@ -1447,7 +1455,7 @@ impl<'a> TypeChecker<'a> {
                                             return Err(TypeCheckError::new(
                                                 format!(
                                                     "Method '{}' parameter {} has incompatible type",
-                                                    req_method.name.node, i
+                                                    self.interner.resolve(req_method.name.node), i
                                                 ),
                                                 class_method.span,
                                             ));
@@ -1466,7 +1474,7 @@ impl<'a> TypeChecker<'a> {
                                         return Err(TypeCheckError::new(
                                             format!(
                                                 "Method '{}' has incompatible return type",
-                                                req_method.name.node
+                                                self.interner.resolve(req_method.name.node)
                                             ),
                                             class_method.span,
                                         ));
@@ -1476,7 +1484,7 @@ impl<'a> TypeChecker<'a> {
                                     return Err(TypeCheckError::new(
                                         format!(
                                             "Method '{}' must have a return type annotation to match interface",
-                                            req_method.name.node
+                                            self.interner.resolve(req_method.name.node)
                                         ),
                                         class_method.span,
                                     ));
@@ -3658,6 +3666,93 @@ impl<'a> TypeChecker<'a> {
                 span,
             ));
         }
+        Ok(())
+    }
+
+    fn check_import_statement(&mut self, import: &ImportDeclaration) -> Result<(), TypeCheckError> {
+        match &import.clause {
+            ImportClause::Default(name) => {
+                let name_str = self.interner.resolve(name.node);
+                let any_type = Type::new(TypeKind::Primitive(PrimitiveType::Unknown), import.span);
+                let symbol = Symbol::new(
+                    name_str.to_string(),
+                    SymbolKind::Variable,
+                    any_type,
+                    import.span,
+                );
+                self.symbol_table
+                    .declare(symbol)
+                    .map_err(|e| TypeCheckError::new(e, import.span))?;
+            }
+            ImportClause::Named(specifiers) | ImportClause::TypeOnly(specifiers) => {
+                for spec in specifiers {
+                    let name_str = self.interner.resolve(spec.imported.node);
+                    let any_type =
+                        Type::new(TypeKind::Primitive(PrimitiveType::Unknown), spec.span);
+                    let symbol = Symbol::new(
+                        name_str.to_string(),
+                        SymbolKind::Variable,
+                        any_type,
+                        spec.span,
+                    );
+                    self.symbol_table
+                        .declare(symbol)
+                        .map_err(|e| TypeCheckError::new(e, spec.span))?;
+                }
+            }
+            ImportClause::Namespace(name) => {
+                let name_str = self.interner.resolve(name.node);
+                let any_type = Type::new(TypeKind::Primitive(PrimitiveType::Unknown), import.span);
+                let symbol = Symbol::new(
+                    name_str.to_string(),
+                    SymbolKind::Variable,
+                    any_type,
+                    import.span,
+                );
+                self.symbol_table
+                    .declare(symbol)
+                    .map_err(|e| TypeCheckError::new(e, import.span))?;
+            }
+        }
+        Ok(())
+    }
+
+    fn check_namespace_declaration(
+        &mut self,
+        ns: &NamespaceDeclaration,
+    ) -> Result<(), TypeCheckError> {
+        if self.current_namespace.is_some() {
+            return Err(TypeCheckError::new(
+                "Only one namespace declaration allowed per file",
+                ns.span,
+            ));
+        }
+
+        let path: Vec<String> = ns
+            .path
+            .iter()
+            .map(|ident| self.interner.resolve(ident.node).to_string())
+            .collect();
+
+        self.current_namespace = Some(path.clone());
+
+        let namespace_type = Type::new(TypeKind::Namespace(path.clone()), ns.span);
+
+        let namespace_name = path
+            .first()
+            .ok_or_else(|| TypeCheckError::new("Namespace path cannot be empty", ns.span))?;
+
+        let symbol = Symbol::new(
+            namespace_name.clone(),
+            SymbolKind::Namespace,
+            namespace_type,
+            ns.span,
+        );
+
+        self.symbol_table
+            .declare(symbol)
+            .map_err(|e| TypeCheckError::new(e, ns.span))?;
+
         Ok(())
     }
 

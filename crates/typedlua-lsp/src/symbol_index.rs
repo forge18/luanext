@@ -1,6 +1,6 @@
 use lsp_types::{SymbolInformation, SymbolKind, Uri};
 use std::collections::{HashMap, HashSet};
-use typedlua_core::ast::statement::{ExportKind, ImportClause, Statement};
+use typedlua_core::ast::statement::{ExportKind, ImportClause, OperatorKind, Statement};
 use typedlua_core::ast::Program;
 use typedlua_core::module_resolver::ModuleId;
 use typedlua_core::string_interner::StringInterner;
@@ -411,6 +411,46 @@ impl SymbolIndex {
                                 kind: SymbolKind::PROPERTY,
                                 uri: uri.clone(),
                                 span: setter.name.span.clone(),
+                                container_name: Some(class_name.clone()),
+                            };
+                            self.workspace_symbols
+                                .entry(name.to_lowercase())
+                                .or_insert_with(Vec::new)
+                                .push(symbol);
+                        }
+                        ClassMember::Operator(op) => {
+                            let op_symbol = match op.operator {
+                                OperatorKind::Add => "+",
+                                OperatorKind::Subtract => "-",
+                                OperatorKind::Multiply => "*",
+                                OperatorKind::Divide => "/",
+                                OperatorKind::Modulo => "%",
+                                OperatorKind::Power => "^",
+                                OperatorKind::Equal => "==",
+                                OperatorKind::NotEqual => "~=",
+                                OperatorKind::LessThan => "<",
+                                OperatorKind::LessThanOrEqual => "<=",
+                                OperatorKind::GreaterThan => ">",
+                                OperatorKind::GreaterThanOrEqual => ">=",
+                                OperatorKind::Concatenate => "..",
+                                OperatorKind::Length => "#",
+                                OperatorKind::Index => "[]",
+                                OperatorKind::NewIndex => "[]=",
+                                OperatorKind::Call => "()",
+                                OperatorKind::UnaryMinus => "unm",
+                                OperatorKind::FloorDivide => "//",
+                                OperatorKind::BitwiseAnd => "&",
+                                OperatorKind::BitwiseOr => "|",
+                                OperatorKind::BitwiseXor => "~",
+                                OperatorKind::ShiftLeft => "<<",
+                                OperatorKind::ShiftRight => ">>",
+                            };
+                            let name = format!("operator {}", op_symbol);
+                            let symbol = WorkspaceSymbolInfo {
+                                name: name.clone(),
+                                kind: SymbolKind::OPERATOR,
+                                uri: uri.clone(),
+                                span: op.span.clone(),
                                 container_name: Some(class_name.clone()),
                             };
                             self.workspace_symbols

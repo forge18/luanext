@@ -2,7 +2,7 @@ use crate::document::Document;
 use lsp_types::*;
 
 use std::sync::Arc;
-use typedlua_core::ast::statement::{ClassMember, Statement};
+use typedlua_core::ast::statement::{ClassMember, OperatorKind, Statement};
 use typedlua_core::diagnostics::CollectingDiagnosticHandler;
 use typedlua_core::string_interner::StringInterner;
 use typedlua_core::{Lexer, Parser, Span};
@@ -215,6 +215,44 @@ impl SymbolsProvider {
                 selection_range: span_to_range(&setter.name.span),
                 children: None,
             }),
+            ClassMember::Operator(op) => {
+                let op_symbol = match op.operator {
+                    OperatorKind::Add => "+",
+                    OperatorKind::Subtract => "-",
+                    OperatorKind::Multiply => "*",
+                    OperatorKind::Divide => "/",
+                    OperatorKind::Modulo => "%",
+                    OperatorKind::Power => "^",
+                    OperatorKind::Equal => "==",
+                    OperatorKind::NotEqual => "~=",
+                    OperatorKind::LessThan => "<",
+                    OperatorKind::LessThanOrEqual => "<=",
+                    OperatorKind::GreaterThan => ">",
+                    OperatorKind::GreaterThanOrEqual => ">=",
+                    OperatorKind::Concatenate => "..",
+                    OperatorKind::Length => "#",
+                    OperatorKind::Index => "[]",
+                    OperatorKind::NewIndex => "[]=",
+                    OperatorKind::Call => "()",
+                    OperatorKind::UnaryMinus => "unm",
+                    OperatorKind::FloorDivide => "//",
+                    OperatorKind::BitwiseAnd => "&",
+                    OperatorKind::BitwiseOr => "|",
+                    OperatorKind::BitwiseXor => "~",
+                    OperatorKind::ShiftLeft => "<<",
+                    OperatorKind::ShiftRight => ">>",
+                };
+                Some(DocumentSymbol {
+                    name: format!("operator {}", op_symbol),
+                    detail: None,
+                    kind: SymbolKind::OPERATOR,
+                    tags: None,
+                    deprecated: None,
+                    range: span_to_range(&op.span),
+                    selection_range: span_to_range(&op.span),
+                    children: None,
+                })
+            }
         }
     }
 }

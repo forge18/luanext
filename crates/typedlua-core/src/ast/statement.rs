@@ -26,6 +26,9 @@ pub enum Statement {
     Try(TryStatement),
     Rethrow(Span),
 
+    // File-based namespace declaration
+    Namespace(NamespaceDeclaration),
+
     // Declaration file statements
     DeclareFunction(DeclareFunctionStatement),
     DeclareNamespace(DeclareNamespaceStatement),
@@ -486,6 +489,12 @@ pub struct DeclareConstStatement {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThrowStatement {
     pub expression: Expression,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NamespaceDeclaration {
+    pub path: Vec<Ident>,
     pub span: Span,
 }
 

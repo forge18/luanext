@@ -64,6 +64,7 @@ impl HoverProvider {
             SymbolKind::TypeAlias => "type",
             SymbolKind::Enum => "enum",
             SymbolKind::Parameter => "parameter",
+            SymbolKind::Namespace => "namespace",
         };
 
         Some(Hover {
@@ -109,6 +110,7 @@ impl HoverProvider {
             TypeKind::Parenthesized(inner) => Self::format_type(inner, interner),
             TypeKind::TypePredicate(_) => "type predicate".to_string(),
             TypeKind::Variadic(_) => "variadic".to_string(),
+            TypeKind::Namespace(_) => "namespace".to_string(),
         }
     }
 

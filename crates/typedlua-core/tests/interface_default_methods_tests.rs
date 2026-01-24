@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use typedlua_core::codegen::CodeGenerator;
 use typedlua_core::config::CompilerOptions;
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
+use typedlua_core::diagnostics::{CollectingDiagnosticHandler, DiagnosticHandler};
 use typedlua_core::lexer::Lexer;
 use typedlua_core::parser::Parser;
 use typedlua_core::string_interner::StringInterner;
@@ -22,6 +22,12 @@ fn compile_and_check(source: &str) -> Result<String, String> {
     let program = parser
         .parse()
         .map_err(|e| format!("Parsing failed: {:?}", e))?;
+
+    // Check for parse errors
+    if handler.has_errors() {
+        let diagnostics = handler.get_diagnostics();
+        return Err(format!("Parser reported errors: {:?}", diagnostics));
+    }
 
     // Type check
     let mut type_checker = TypeChecker::new(handler.clone(), &interner, &common_ids)
