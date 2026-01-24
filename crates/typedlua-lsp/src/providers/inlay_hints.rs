@@ -35,7 +35,7 @@ impl InlayHintsProvider {
             Err(_) => return hints,
         };
 
-        let mut type_checker = TypeChecker::new(handler, &interner, common_ids);
+        let mut type_checker = TypeChecker::new(handler, &interner, &common_ids);
         if type_checker.check_program(&ast).is_err() {
             return hints;
         }

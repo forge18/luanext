@@ -28,7 +28,7 @@ impl SignatureHelpProvider {
         let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
         let ast = parser.parse().ok()?;
 
-        let mut type_checker = TypeChecker::new(handler, &interner, common_ids);
+        let mut type_checker = TypeChecker::new(handler, &interner, &common_ids);
         type_checker.check_program(&ast).ok()?;
 
         // Look up the function symbol

@@ -45,7 +45,7 @@ impl DiagnosticsProvider {
         };
 
         // Type check the document
-        let mut type_checker = TypeChecker::new(handler.clone(), &interner, common_ids);
+        let mut type_checker = TypeChecker::new(handler.clone(), &interner, &common_ids);
         if let Err(_) = type_checker.check_program(&ast) {
             return Self::convert_diagnostics(handler);
         }
