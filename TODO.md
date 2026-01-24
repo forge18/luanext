@@ -208,43 +208,48 @@ Lexer keywords `Throw`, `Try`, `Catch`, `Finally`, `Rethrow`, `Throws`, `BangBan
 
 ### 2.2 Rich Enums (Java-style)
 
-**Status:** Not implemented | **Model:** Sonnet
+**Status:** IMPLEMENTED | **Model:** Sonnet
 
 #### 2.2.1 Rich Enum AST Extensions
 
-- [ ] Create `EnumField` struct
-- [ ] Extend `EnumDeclaration` with fields, constructor, methods
-- [ ] Update `EnumMember` to include constructor arguments
+- [x] Create `EnumField` struct
+- [x] Extend `EnumDeclaration` with fields, constructor, methods
+- [x] Update `EnumMember` to include constructor arguments
 
 #### 2.2.2 Rich Enum Parser
 
-- [ ] Parse enum members with constructor arguments syntax
-- [ ] Parse field declarations inside enum
-- [ ] Parse constructor inside enum
-- [ ] Parse methods inside enum
+- [x] Parse enum members with constructor arguments syntax
+- [x] Parse field declarations inside enum
+- [x] Parse constructor inside enum
+- [x] Parse methods inside enum
 
 #### 2.2.3 Rich Enum Type Checker
 
-- [ ] Validate constructor parameters match field declarations
-- [ ] Validate enum member arguments match constructor signature
-- [ ] Type check methods with `self` bound to enum type
-- [ ] Auto-generate signatures for `name()`, `ordinal()`, `values()`, `valueOf()`
+- [x] Validate constructor parameters match field declarations
+- [x] Validate enum member arguments match constructor signature
+- [x] Type check methods with `self` bound to enum type
+- [x] Auto-generate signatures for `name()`, `ordinal()`, `values()`, `valueOf()`
 
 #### 2.2.4 Rich Enum Codegen
 
-- [ ] Generate enum constructor function
-- [ ] Generate enum instances as constants
-- [ ] Generate `name()` and `ordinal()` methods
-- [ ] Generate `values()` static method
-- [ ] Generate `valueOf()` with O(1) hash lookup
-- [ ] Generate static `__byName` lookup table
-- [ ] Prevent instantiation via metatable
+- [x] Generate enum constructor function
+- [x] Generate enum instances as constants
+- [x] Generate `name()` and `ordinal()` methods
+- [x] Generate `values()` static method
+- [x] Generate `valueOf()` with O(1) hash lookup
+- [x] Generate static `__byName` lookup table
+- [x] Generate custom enum methods
+- [x] Prevent instantiation via metatable
 
 #### 2.2.5 Rich Enum Tests
 
-- [ ] Fix rich_enum_tests.rs compilation
+- [x] Fix rich_enum_tests.rs compilation (4 pass, 2 ignored for O2/O3 optimizations)
 
 **Test file:** rich_enum_tests.rs
+
+**Known Issues:**
+- [ ] O2 optimization - precompute instances as literal tables (deferred)
+- [ ] O3 optimization - add inline hints (deferred)
 
 ---
 
@@ -419,29 +424,29 @@ All 15 optimization passes are registered. O1 passes (constant folding, dead cod
 - [x] Constant folding (numeric + boolean expressions)
 - [x] Dead code elimination (after return/break/continue)
 - [x] Algebraic simplification (x+0=x, x*1=x, x*0=0, etc.)
-- [x] Table pre-allocation (analysis pass - scaffolded)
-- [x] Global localization (analysis pass - scaffolded)
+- [ ] Table pre-allocation (scaffolded)
+- [ ] Global localization (scaffolded)
 
 **3.3 O2 Optimizations - Standard (SCAFFOLDED - analysis only):**
 
-- [x] Function inlining (threshold: 5 statements) - analysis only
-- [x] Loop optimization - analysis only
+- [ ] Function inlining (threshold: 5 statements)
+- [ ] Loop optimization - analysis only
 - [ ] Null coalescing optimization (inline vs IIFE) - needs null coalescing feature
 - [ ] Safe navigation optimization - needs safe navigation feature
 - [ ] Exception handling optimization - needs exception handling feature
-- [x] String concatenation optimization - analysis only
-- [x] Dead store elimination - analysis only
+- [ ] String concatenation optimization
+- [ ] Dead store elimination
 - [ ] Method to function call conversion
-- [x] Tail call optimization - analysis only (Lua handles TCO automatically)
+- [ ] Tail call optimization (Lua handles TCO automatically)
 - [ ] Rich enum optimization - needs rich enum feature
 
-**3.4 O3 Optimizations - Aggressive (SCAFFOLDED - analysis only):**
+**3.4 O3 Optimizations - Aggressive (SCAFFOLDED):**
 
-- [x] Devirtualization - analysis only
-- [x] Generic specialization - analysis only
-- [x] Operator inlining - analysis only
-- [x] Interface method inlining - analysis only
-- [x] Aggressive inlining (threshold: 15 statements) - analysis only
+- [ ] Devirtualization
+- [ ] Generic specialization
+- [ ] Operator inlining
+- [ ] Interface method inlining
+- [ ] Aggressive inlining (threshold: 15 statements)
 
 **Test files:** optimizer_integration_tests.rs, o1_combined_tests.rs, o3_combined_tests.rs
 
