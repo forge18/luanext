@@ -480,11 +480,11 @@ All 15 optimization passes are registered. O1 passes (constant folding, dead cod
   - [x] O2/O3 optimization: Use `xpcall` with `debug.traceback` for better stack traces
   - [x] O2/O3 optimization: Skip type checking handler for untyped catches (use debug.traceback directly)
 
-- [ ] String concatenation optimization
-  - [ ] Detect consecutive `..` operations inside loops or large literals
-  - [ ] Introduce temporary table accumulation and `table.concat` emission
-  - [ ] Add optional preallocation hint based on estimated length
-  - [ ] Write micro‑benchmarks comparing naive vs optimized concatenation
+- [x] String concatenation optimization
+  - [x] Detect consecutive `..` operations
+  - [x] Transform to `table.concat({a, b, c})` for 3+ parts
+  - [x] Handle nested concatenations and parentheses
+  - [ ] Loop-based concatenation optimization (DEFERRED - requires block transformation)
 
 - [ ] Dead store elimination
   - [ ] Perform liveness analysis on local variables within basic blocks

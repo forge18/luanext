@@ -66,7 +66,9 @@ impl Optimizer {
         inlining_pass.set_interner(interner.clone());
         self.passes.push(Box::new(inlining_pass));
         self.passes.push(Box::new(LoopOptimizationPass));
-        self.passes.push(Box::new(StringConcatOptimizationPass));
+        let mut concat_pass = StringConcatOptimizationPass::default();
+        concat_pass.set_interner(interner.clone());
+        self.passes.push(Box::new(concat_pass));
         self.passes.push(Box::new(DeadStoreEliminationPass));
         self.passes.push(Box::new(TailCallOptimizationPass));
 

@@ -2896,9 +2896,21 @@ impl LoopOptimizationPass {
 // O2: String Concatenation Optimization Pass
 // =============================================================================
 
-/// String concatenation optimization pass
-/// Converts multiple concatenations to table.concat for 3+ parts
-pub struct StringConcatOptimizationPass;
+const MIN_CONCAT_PARTS_FOR_OPTIMIZATION: usize = 3;
+
+pub struct StringConcatOptimizationPass {
+    next_temp_id: usize,
+    interner: Option<Arc<StringInterner>>,
+}
+
+impl Default for StringConcatOptimizationPass {
+    fn default() -> Self {
+        Self {
+            next_temp_id: 0,
+            interner: None,
+        }
+    }
+}
 
 impl OptimizationPass for StringConcatOptimizationPass {
     fn name(&self) -> &'static str {
@@ -2910,47 +2922,197 @@ impl OptimizationPass for StringConcatOptimizationPass {
     }
 
     fn run(&mut self, program: &mut Program) -> Result<bool, CompilationError> {
-        // Analyze string concatenation patterns
-        // When 3+ parts are concatenated, using table.concat is more efficient
-        // This is analysis-only - codegen handles the transformation
+        self.next_temp_id = 0;
 
-        for stmt in &program.statements {
-            self.analyze_concat_in_statement(stmt);
+        let mut changed = false;
+        let mut i = 0;
+        while i < program.statements.len() {
+            if self.optimize_statement(&mut program.statements[i]) {
+                changed = true;
+            }
+            i += 1;
         }
 
-        Ok(false)
+        Ok(changed)
     }
 }
 
 impl StringConcatOptimizationPass {
-    fn analyze_concat_in_statement(&self, stmt: &Statement) {
+    pub fn set_interner(&mut self, interner: Arc<StringInterner>) {
+        self.interner = Some(interner);
+    }
+
+    fn optimize_statement(&mut self, stmt: &mut Statement) -> bool {
         match stmt {
-            Statement::Variable(decl) => {
-                self.count_concat_parts(&decl.initializer);
-            }
-            Statement::Expression(expr) => {
-                self.count_concat_parts(expr);
-            }
+            Statement::Variable(decl) => self.optimize_concat_in_variable(decl),
+            Statement::Expression(expr) => self.optimize_concat_in_expression(expr),
             Statement::Function(func) => {
-                for s in &func.body.statements {
-                    self.analyze_concat_in_statement(s);
+                let mut changed = false;
+                for s in &mut func.body.statements {
+                    if self.optimize_statement(s) {
+                        changed = true;
+                    }
                 }
+                changed
             }
             Statement::Return(ret) => {
-                for expr in &ret.values {
-                    self.count_concat_parts(expr);
+                let mut changed = false;
+                for expr in &mut ret.values {
+                    if self.optimize_concat_expression(expr) {
+                        changed = true;
+                    }
                 }
+                changed
             }
-            _ => {}
+            Statement::If(if_stmt) => {
+                let mut changed = false;
+                for s in &mut if_stmt.then_block.statements {
+                    if self.optimize_statement(s) {
+                        changed = true;
+                    }
+                }
+                for else_if in &mut if_stmt.else_ifs {
+                    for s in &mut else_if.block.statements {
+                        if self.optimize_statement(s) {
+                            changed = true;
+                        }
+                    }
+                }
+                if let Some(else_block) = &mut if_stmt.else_block {
+                    for s in &mut else_block.statements {
+                        if self.optimize_statement(s) {
+                            changed = true;
+                        }
+                    }
+                }
+                changed
+            }
+            Statement::While(while_stmt) => {
+                let mut changed = false;
+                for s in &mut while_stmt.body.statements {
+                    if self.optimize_statement(s) {
+                        changed = true;
+                    }
+                }
+                changed
+            }
+            Statement::For(for_stmt) => match &mut **for_stmt {
+                ForStatement::Generic(for_gen) => {
+                    let mut changed = false;
+                    for s in &mut for_gen.body.statements {
+                        if self.optimize_statement(s) {
+                            changed = true;
+                        }
+                    }
+                    changed
+                }
+                ForStatement::Numeric(for_num) => {
+                    let mut changed = false;
+                    for s in &mut for_num.body.statements {
+                        if self.optimize_statement(s) {
+                            changed = true;
+                        }
+                    }
+                    changed
+                }
+            },
+            Statement::Repeat(repeat_stmt) => {
+                let mut changed = false;
+                for s in &mut repeat_stmt.body.statements {
+                    if self.optimize_statement(s) {
+                        changed = true;
+                    }
+                }
+                changed
+            }
+            _ => false,
         }
     }
 
-    fn count_concat_parts(&self, expr: &Expression) -> usize {
-        if let ExpressionKind::Binary(BinaryOp::Concatenate, left, right) = &expr.kind {
-            self.count_concat_parts(left) + self.count_concat_parts(right)
-        } else {
-            1
+    fn optimize_concat_in_variable(&mut self, decl: &mut VariableDeclaration) -> bool {
+        self.optimize_concat_expression(&mut decl.initializer)
+    }
+
+    fn optimize_concat_in_expression(&mut self, expr: &mut Expression) -> bool {
+        self.optimize_concat_expression(expr)
+    }
+
+    fn optimize_concat_expression(&mut self, expr: &mut Expression) -> bool {
+        if let ExpressionKind::Binary(BinaryOp::Concatenate, _left, _right) = &expr.kind {
+            let parts = self.flatten_concat_chain(expr);
+            if parts.len() >= MIN_CONCAT_PARTS_FOR_OPTIMIZATION {
+                self.replace_with_table_concat(expr, &parts);
+                return true;
+            }
         }
+        false
+    }
+
+    fn flatten_concat_chain(&self, expr: &Expression) -> Vec<Expression> {
+        fn flatten_inner(expr: &Expression, result: &mut Vec<Expression>) {
+            match &expr.kind {
+                ExpressionKind::Binary(BinaryOp::Concatenate, left, right) => {
+                    flatten_inner(left, result);
+                    flatten_inner(right, result);
+                }
+                ExpressionKind::Parenthesized(inner) => {
+                    flatten_inner(inner, result);
+                }
+                _ => {
+                    result.push(expr.clone());
+                }
+            }
+        }
+        let mut parts = Vec::new();
+        flatten_inner(expr, &mut parts);
+        parts
+    }
+
+    fn replace_with_table_concat(&self, expr: &mut Expression, parts: &[Expression]) {
+        let table_expr = Expression::new(
+            ExpressionKind::Array(
+                parts
+                    .iter()
+                    .map(|p| ArrayElement::Expression(p.clone()))
+                    .collect(),
+            ),
+            Span::dummy(),
+        );
+
+        let concat_call = Expression::new(
+            ExpressionKind::Call(
+                Box::new(Expression::new(
+                    ExpressionKind::Member(
+                        Box::new(Expression::new(
+                            ExpressionKind::Identifier(self.interner_get_or_intern("table")),
+                            Span::dummy(),
+                        )),
+                        Spanned::new(self.interner_get_or_intern("concat"), Span::dummy()),
+                    ),
+                    Span::dummy(),
+                )),
+                vec![Argument {
+                    value: table_expr,
+                    is_spread: false,
+                    span: Span::dummy(),
+                }],
+            ),
+            Span::dummy(),
+        );
+
+        *expr = concat_call;
+    }
+
+    fn interner_get_or_intern(&self, name: &str) -> StringId {
+        if let Some(interner) = self.get_interner() {
+            interner.get_or_intern(name)
+        } else {
+            unsafe { std::hint::unreachable_unchecked() }
+        }
+    }
+
+    fn get_interner(&self) -> Option<&Arc<StringInterner>> {
+        self.interner.as_ref()
     }
 }
 
