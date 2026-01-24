@@ -4,7 +4,7 @@ use std::fmt;
 /// Represents a location in source code with line and column information
 /// Uses u32 instead of usize for memory efficiency (16 bytes vs 32 bytes on 64-bit)
 /// This supports files up to 4GB and 4 billion lines, which is more than sufficient
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct Span {
     /// Starting byte offset in the source
     pub start: u32,

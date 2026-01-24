@@ -11,9 +11,9 @@ fn parse_and_check(source: &str) -> Result<(), TypeCheckError> {
     let mut lexer = Lexer::new(source, handler.clone(), &mut interner);
     let tokens = lexer.tokenize().expect("Lexing failed");
     let mut parser = Parser::new(tokens, handler.clone(), &mut interner, &common);
-    let program = parser.parse().expect("Parsing failed");
+    let mut program = parser.parse().expect("Parsing failed");
     let mut type_checker = TypeChecker::new(handler, &interner, &common);
-    type_checker.check_program(&program)
+    type_checker.check_program(&mut program)
 }
 
 #[test]

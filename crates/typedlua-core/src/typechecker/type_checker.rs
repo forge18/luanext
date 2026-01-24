@@ -178,11 +178,11 @@ impl<'a> TypeChecker<'a> {
                 return Err(format!("Failed to parse {}: {:?}", filename, e));
             }
 
-            let program = program.unwrap();
+            let mut program = program.unwrap();
 
             // Process declarations from the stdlib
             // Only process declaration statements - these populate the type environment
-            for statement in program.statements.iter() {
+            for statement in program.statements.iter_mut() {
                 // Ignore errors from stdlib - we just want to populate the type environment
                 let _ = self.check_statement(statement);
             }
@@ -192,15 +192,15 @@ impl<'a> TypeChecker<'a> {
     }
 
     /// Type check a program
-    pub fn check_program(&mut self, program: &Program) -> Result<(), TypeCheckError> {
-        for statement in &program.statements {
+    pub fn check_program(&mut self, program: &mut Program) -> Result<(), TypeCheckError> {
+        for statement in program.statements.iter_mut() {
             self.check_statement(statement)?;
         }
         Ok(())
     }
 
     /// Type check a statement
-    fn check_statement(&mut self, stmt: &Statement) -> Result<(), TypeCheckError> {
+    fn check_statement(&mut self, stmt: &mut Statement) -> Result<(), TypeCheckError> {
         match stmt {
             Statement::Variable(decl) => self.check_variable_declaration(decl),
             Statement::Function(decl) => self.check_function_declaration(decl),
@@ -239,10 +239,10 @@ impl<'a> TypeChecker<'a> {
     /// Check variable declaration
     fn check_variable_declaration(
         &mut self,
-        decl: &VariableDeclaration,
+        decl: &mut VariableDeclaration,
     ) -> Result<(), TypeCheckError> {
         // Infer the type of the initializer
-        let init_type = self.infer_expression_type(&decl.initializer)?;
+        let init_type = self.infer_expression_type(&mut decl.initializer)?;
 
         // Get the declared type or use inferred type
         let var_type = if let Some(type_ann) = &decl.type_annotation {
@@ -390,7 +390,7 @@ impl<'a> TypeChecker<'a> {
     /// Check function declaration
     fn check_function_declaration(
         &mut self,
-        decl: &FunctionDeclaration,
+        decl: &mut FunctionDeclaration,
     ) -> Result<(), TypeCheckError> {
         // For generic functions, we still declare them in the symbol table
         // but we'll instantiate their type parameters when they're called
@@ -510,7 +510,7 @@ impl<'a> TypeChecker<'a> {
         self.current_function_return_type = decl.return_type.clone();
 
         // Check function body
-        self.check_block(&decl.body)?;
+        self.check_block(&mut decl.body)?;
 
         // Restore previous return type
         self.current_function_return_type = old_return_type;
@@ -522,9 +522,9 @@ impl<'a> TypeChecker<'a> {
     }
 
     /// Check if statement
-    fn check_if_statement(&mut self, if_stmt: &IfStatement) -> Result<(), TypeCheckError> {
+    fn check_if_statement(&mut self, if_stmt: &mut IfStatement) -> Result<(), TypeCheckError> {
         // Check condition
-        self.infer_expression_type(&if_stmt.condition)?;
+        self.infer_expression_type(&mut if_stmt.condition)?;
 
         // Collect current variable and function types for narrowing
         // This includes both variables and functions so type predicates can be checked
@@ -545,14 +545,14 @@ impl<'a> TypeChecker<'a> {
         // Check then block with narrowed context
         let saved_context = self.narrowing_context.clone();
         self.narrowing_context = then_context;
-        self.check_block(&if_stmt.then_block)?;
+        self.check_block(&mut if_stmt.then_block)?;
 
         // Restore context for else-if and else
         self.narrowing_context = else_context.clone();
 
         // Check else-if clauses
-        for else_if in &if_stmt.else_ifs {
-            self.infer_expression_type(&else_if.condition)?;
+        for else_if in if_stmt.else_ifs.iter_mut() {
+            self.infer_expression_type(&mut else_if.condition)?;
 
             // Further narrow based on else-if condition
             let (elseif_then, elseif_else) = super::narrowing::narrow_type_from_condition(
@@ -563,12 +563,12 @@ impl<'a> TypeChecker<'a> {
             );
 
             self.narrowing_context = elseif_then;
-            self.check_block(&else_if.block)?;
+            self.check_block(&mut else_if.block)?;
             self.narrowing_context = elseif_else;
         }
 
         // Check else block
-        if let Some(else_block) = &if_stmt.else_block {
+        if let Some(else_block) = &mut if_stmt.else_block {
             self.check_block(else_block)?;
         }
 
@@ -579,14 +579,17 @@ impl<'a> TypeChecker<'a> {
     }
 
     /// Check while statement
-    fn check_while_statement(&mut self, while_stmt: &WhileStatement) -> Result<(), TypeCheckError> {
-        self.infer_expression_type(&while_stmt.condition)?;
-        self.check_block(&while_stmt.body)?;
+    fn check_while_statement(
+        &mut self,
+        while_stmt: &mut WhileStatement,
+    ) -> Result<(), TypeCheckError> {
+        self.infer_expression_type(&mut while_stmt.condition)?;
+        self.check_block(&mut while_stmt.body)?;
         Ok(())
     }
 
     /// Check for statement
-    fn check_for_statement(&mut self, for_stmt: &ForStatement) -> Result<(), TypeCheckError> {
+    fn check_for_statement(&mut self, for_stmt: &mut ForStatement) -> Result<(), TypeCheckError> {
         match for_stmt {
             ForStatement::Numeric(numeric) => {
                 self.symbol_table.enter_scope();
@@ -605,13 +608,13 @@ impl<'a> TypeChecker<'a> {
                     .map_err(|e| TypeCheckError::new(e, numeric.span))?;
 
                 // Check start, end, step expressions
-                self.infer_expression_type(&numeric.start)?;
-                self.infer_expression_type(&numeric.end)?;
-                if let Some(step) = &numeric.step {
+                self.infer_expression_type(&mut numeric.start)?;
+                self.infer_expression_type(&mut numeric.end)?;
+                if let Some(step) = &mut numeric.step {
                     self.infer_expression_type(step)?;
                 }
 
-                self.check_block(&numeric.body)?;
+                self.check_block(&mut numeric.body)?;
                 self.symbol_table.exit_scope();
             }
             ForStatement::Generic(generic) => {
@@ -634,11 +637,11 @@ impl<'a> TypeChecker<'a> {
                 }
 
                 // Check iterators
-                for iter in &generic.iterators {
+                for iter in &mut generic.iterators {
                     self.infer_expression_type(iter)?;
                 }
 
-                self.check_block(&generic.body)?;
+                self.check_block(&mut generic.body)?;
                 self.symbol_table.exit_scope();
             }
         }
@@ -648,11 +651,11 @@ impl<'a> TypeChecker<'a> {
     /// Check repeat statement
     fn check_repeat_statement(
         &mut self,
-        repeat_stmt: &RepeatStatement,
+        repeat_stmt: &mut RepeatStatement,
     ) -> Result<(), TypeCheckError> {
         self.symbol_table.enter_scope();
-        self.check_block(&repeat_stmt.body)?;
-        self.infer_expression_type(&repeat_stmt.until)?;
+        self.check_block(&mut repeat_stmt.body)?;
+        self.infer_expression_type(&mut repeat_stmt.until)?;
         self.symbol_table.exit_scope();
         Ok(())
     }
@@ -660,13 +663,13 @@ impl<'a> TypeChecker<'a> {
     /// Check return statement
     fn check_return_statement(
         &mut self,
-        return_stmt: &ReturnStatement,
+        return_stmt: &mut ReturnStatement,
     ) -> Result<(), TypeCheckError> {
         if !return_stmt.values.is_empty() {
             // Infer types for all return values
             let return_types: Result<Vec<_>, _> = return_stmt
                 .values
-                .iter()
+                .iter_mut()
                 .map(|expr| self.infer_expression_type(expr))
                 .collect();
             let return_types = return_types?;
@@ -716,9 +719,9 @@ impl<'a> TypeChecker<'a> {
     }
 
     /// Check block
-    fn check_block(&mut self, block: &Block) -> Result<(), TypeCheckError> {
+    fn check_block(&mut self, block: &mut Block) -> Result<(), TypeCheckError> {
         self.symbol_table.enter_scope();
-        for stmt in &block.statements {
+        for stmt in &mut block.statements {
             self.check_statement(stmt)?;
         }
         self.symbol_table.exit_scope();
@@ -728,7 +731,7 @@ impl<'a> TypeChecker<'a> {
     /// Check interface declaration
     fn check_interface_declaration(
         &mut self,
-        iface: &InterfaceDeclaration,
+        iface: &mut InterfaceDeclaration,
     ) -> Result<(), TypeCheckError> {
         // For generic interfaces, we need to register them differently
         // For now, we'll register generic interfaces similar to generic type aliases
@@ -837,9 +840,9 @@ impl<'a> TypeChecker<'a> {
         );
 
         // Type-check default method bodies (if any)
-        for member in &iface.members {
+        for member in iface.members.iter_mut() {
             if let InterfaceMember::Method(method) = member {
-                if let Some(body) = &method.body {
+                if let Some(body) = &mut method.body {
                     self.symbol_table.enter_scope();
 
                     let self_symbol = Symbol::new(
@@ -936,7 +939,7 @@ impl<'a> TypeChecker<'a> {
     /// Check enum declaration
     fn check_enum_declaration(
         &mut self,
-        enum_decl: &EnumDeclaration,
+        enum_decl: &mut EnumDeclaration,
     ) -> Result<(), TypeCheckError> {
         let enum_name = self.interner.resolve(enum_decl.name.node).to_string();
 
@@ -980,7 +983,7 @@ impl<'a> TypeChecker<'a> {
     /// Check rich enum declaration with fields, constructor, and methods
     fn check_rich_enum_declaration(
         &mut self,
-        enum_decl: &EnumDeclaration,
+        enum_decl: &mut EnumDeclaration,
     ) -> Result<(), TypeCheckError> {
         let enum_name = self.interner.resolve(enum_decl.name.node).to_string();
 
@@ -1015,7 +1018,7 @@ impl<'a> TypeChecker<'a> {
 
         let enum_self_type = enum_type.clone();
 
-        if let Some(ref constructor) = enum_decl.constructor {
+        if let Some(ref mut constructor) = enum_decl.constructor {
             self.symbol_table.enter_scope();
             let self_symbol = Symbol::new(
                 "self".to_string(),
@@ -1026,11 +1029,11 @@ impl<'a> TypeChecker<'a> {
             self.symbol_table
                 .declare(self_symbol)
                 .map_err(|e| TypeCheckError::new(e, constructor.span))?;
-            self.check_block(&constructor.body)?;
+            self.check_block(&mut constructor.body)?;
             self.symbol_table.exit_scope();
         }
 
-        for method in &enum_decl.methods {
+        for method in enum_decl.methods.iter_mut() {
             self.symbol_table.enter_scope();
             let self_symbol = Symbol::new(
                 "self".to_string(),
@@ -1041,7 +1044,7 @@ impl<'a> TypeChecker<'a> {
             self.symbol_table
                 .declare(self_symbol)
                 .map_err(|e| TypeCheckError::new(e, method.span))?;
-            self.check_block(&method.body)?;
+            self.check_block(&mut method.body)?;
             self.symbol_table.exit_scope();
         }
 
@@ -1088,10 +1091,10 @@ impl<'a> TypeChecker<'a> {
     /// Check class declaration
     fn check_class_declaration(
         &mut self,
-        class_decl: &ClassDeclaration,
+        class_decl: &mut ClassDeclaration,
     ) -> Result<(), TypeCheckError> {
         // Check decorators
-        self.check_decorators(&class_decl.decorators)?;
+        self.check_decorators(&mut class_decl.decorators)?;
 
         // Enter a new scope for the class
         self.symbol_table.enter_scope();
@@ -1188,9 +1191,9 @@ impl<'a> TypeChecker<'a> {
         }
 
         // Validate parent constructor arguments if present
-        if let Some(parent_args) = &class_decl.parent_constructor_args {
+        if let Some(parent_args) = &mut class_decl.parent_constructor_args {
             // Type check each parent constructor argument
-            for arg in parent_args {
+            for arg in parent_args.iter_mut() {
                 self.infer_expression_type(arg)?;
             }
 
@@ -1321,7 +1324,7 @@ impl<'a> TypeChecker<'a> {
         let mut has_constructor = false;
         let mut abstract_methods = Vec::new();
 
-        for member in &class_decl.members {
+        for member in class_decl.members.iter_mut() {
             match member {
                 ClassMember::Property(prop) => {
                     self.check_class_property(prop)?;
@@ -1505,7 +1508,7 @@ impl<'a> TypeChecker<'a> {
     /// Check decorators
     fn check_decorators(
         &mut self,
-        decorators: &[crate::ast::statement::Decorator],
+        decorators: &mut [crate::ast::statement::Decorator],
     ) -> Result<(), TypeCheckError> {
         // Check if decorators are enabled
         if !decorators.is_empty() && !self.options.enable_decorators {
@@ -1522,8 +1525,8 @@ impl<'a> TypeChecker<'a> {
         // 3. Checking decorator arguments are type-compatible
         // This is simplified for now - decorators are allowed but not deeply validated
 
-        for decorator in decorators {
-            self.check_decorator_expression(&decorator.expression)?;
+        for decorator in decorators.iter_mut() {
+            self.check_decorator_expression(&mut decorator.expression)?;
         }
 
         Ok(())
@@ -1532,7 +1535,7 @@ impl<'a> TypeChecker<'a> {
     /// Check a decorator expression
     fn check_decorator_expression(
         &mut self,
-        expr: &crate::ast::statement::DecoratorExpression,
+        expr: &mut crate::ast::statement::DecoratorExpression,
     ) -> Result<(), TypeCheckError> {
         use crate::ast::statement::DecoratorExpression;
 
@@ -1554,7 +1557,7 @@ impl<'a> TypeChecker<'a> {
                 self.check_decorator_expression(callee)?;
 
                 // Type check all arguments
-                for arg in arguments {
+                for arg in arguments.iter_mut() {
                     self.infer_expression_type(arg)?;
                 }
 
@@ -1569,12 +1572,15 @@ impl<'a> TypeChecker<'a> {
     }
 
     /// Check class property
-    fn check_class_property(&mut self, prop: &PropertyDeclaration) -> Result<(), TypeCheckError> {
+    fn check_class_property(
+        &mut self,
+        prop: &mut PropertyDeclaration,
+    ) -> Result<(), TypeCheckError> {
         // Check decorators
-        self.check_decorators(&prop.decorators)?;
+        self.check_decorators(&mut prop.decorators)?;
 
         // Check initializer if present
-        if let Some(initializer) = &prop.initializer {
+        if let Some(initializer) = &mut prop.initializer {
             let init_type = self.infer_expression_type(initializer)?;
 
             // Verify initializer type is assignable to declared type
@@ -1593,7 +1599,10 @@ impl<'a> TypeChecker<'a> {
     }
 
     /// Check constructor
-    fn check_constructor(&mut self, ctor: &ConstructorDeclaration) -> Result<(), TypeCheckError> {
+    fn check_constructor(
+        &mut self,
+        ctor: &mut ConstructorDeclaration,
+    ) -> Result<(), TypeCheckError> {
         // Enter constructor scope
         self.symbol_table.enter_scope();
 
@@ -1636,7 +1645,7 @@ impl<'a> TypeChecker<'a> {
         }
 
         // Check constructor body
-        self.check_block(&ctor.body)?;
+        self.check_block(&mut ctor.body)?;
 
         // Exit constructor scope
         self.symbol_table.exit_scope();
@@ -1645,9 +1654,9 @@ impl<'a> TypeChecker<'a> {
     }
 
     /// Check class method
-    fn check_class_method(&mut self, method: &MethodDeclaration) -> Result<(), TypeCheckError> {
+    fn check_class_method(&mut self, method: &mut MethodDeclaration) -> Result<(), TypeCheckError> {
         // Check decorators
-        self.check_decorators(&method.decorators)?;
+        self.check_decorators(&mut method.decorators)?;
 
         // Check override keyword if present
         if method.is_override {
@@ -1762,7 +1771,7 @@ impl<'a> TypeChecker<'a> {
         self.current_function_return_type = method.return_type.clone();
 
         // Check method body
-        if let Some(body) = &method.body {
+        if let Some(body) = &mut method.body {
             self.check_block(body)?;
         }
 
@@ -1776,9 +1785,9 @@ impl<'a> TypeChecker<'a> {
     }
 
     /// Check class getter
-    fn check_class_getter(&mut self, getter: &GetterDeclaration) -> Result<(), TypeCheckError> {
+    fn check_class_getter(&mut self, getter: &mut GetterDeclaration) -> Result<(), TypeCheckError> {
         // Check decorators
-        self.check_decorators(&getter.decorators)?;
+        self.check_decorators(&mut getter.decorators)?;
 
         // Enter getter scope
         self.symbol_table.enter_scope();
@@ -1814,7 +1823,7 @@ impl<'a> TypeChecker<'a> {
         self.current_function_return_type = Some(getter.return_type.clone());
 
         // Check getter body
-        self.check_block(&getter.body)?;
+        self.check_block(&mut getter.body)?;
 
         // Restore previous return type
         self.current_function_return_type = old_return_type;
@@ -1826,9 +1835,9 @@ impl<'a> TypeChecker<'a> {
     }
 
     /// Check class setter
-    fn check_class_setter(&mut self, setter: &SetterDeclaration) -> Result<(), TypeCheckError> {
+    fn check_class_setter(&mut self, setter: &mut SetterDeclaration) -> Result<(), TypeCheckError> {
         // Check decorators
-        self.check_decorators(&setter.decorators)?;
+        self.check_decorators(&mut setter.decorators)?;
 
         // Enter setter scope
         self.symbol_table.enter_scope();
@@ -1875,7 +1884,7 @@ impl<'a> TypeChecker<'a> {
         )?;
 
         // Check setter body
-        self.check_block(&setter.body)?;
+        self.check_block(&mut setter.body)?;
 
         // Exit setter scope
         self.symbol_table.exit_scope();
@@ -1886,7 +1895,7 @@ impl<'a> TypeChecker<'a> {
     /// Check operator declaration
     fn check_operator_declaration(
         &mut self,
-        op: &OperatorDeclaration,
+        op: &mut OperatorDeclaration,
     ) -> Result<(), TypeCheckError> {
         if op.operator == OperatorKind::NewIndex {
             if op.parameters.len() != 2 {
@@ -1987,7 +1996,7 @@ impl<'a> TypeChecker<'a> {
         let old_return_type = self.current_function_return_type.clone();
         self.current_function_return_type = op.return_type.clone();
 
-        self.check_block(&op.body)?;
+        self.check_block(&mut op.body)?;
 
         self.current_function_return_type = old_return_type;
 
@@ -2192,10 +2201,10 @@ impl<'a> TypeChecker<'a> {
     }
 
     /// Infer the type of an expression
-    fn infer_expression_type(&mut self, expr: &Expression) -> Result<Type, TypeCheckError> {
+    fn infer_expression_type(&mut self, expr: &mut Expression) -> Result<Type, TypeCheckError> {
         let span = expr.span;
 
-        match &expr.kind {
+        match &mut expr.kind {
             ExpressionKind::Literal(lit) => Ok(Type::new(TypeKind::Literal(lit.clone()), span)),
 
             ExpressionKind::Identifier(name) => {
@@ -2230,6 +2239,26 @@ impl<'a> TypeChecker<'a> {
             ExpressionKind::Call(callee, args) => {
                 let callee_type = self.infer_expression_type(callee)?;
                 self.infer_call_type(&callee_type, args, span)
+            }
+
+            ExpressionKind::MethodCall(object, method, args) => {
+                let obj_type = self.infer_expression_type(object)?;
+                let method_name = self.interner.resolve(method.node);
+                let method_type = self.infer_method_type(&obj_type, &method_name, args, span)?;
+
+                if let ExpressionKind::Identifier(obj_name) = &object.kind {
+                    let obj_name_str = self.interner.resolve(*obj_name);
+                    if self.class_members.contains_key(&obj_name_str) {
+                        let class_id = self.interner.get_or_intern(&obj_name_str);
+                        expr.receiver_class = Some(ReceiverClassInfo {
+                            class_name: class_id,
+                            is_static: false,
+                        });
+                    }
+                }
+
+                expr.annotated_type = Some(method_type.clone());
+                Ok(method_type)
             }
 
             ExpressionKind::Member(object, member) => {
@@ -2473,8 +2502,8 @@ impl<'a> TypeChecker<'a> {
             }
 
             ExpressionKind::Try(try_expr) => {
-                let expr_type = self.infer_expression_type(&try_expr.expression)?;
-                let catch_type = self.infer_expression_type(&try_expr.catch_expression)?;
+                let expr_type = self.infer_expression_type(&mut try_expr.expression)?;
+                let catch_type = self.infer_expression_type(&mut try_expr.catch_expression)?;
 
                 if TypeCompatibility::is_assignable(&expr_type, &catch_type) {
                     Ok(catch_type)
@@ -2859,10 +2888,10 @@ impl<'a> TypeChecker<'a> {
     /// Type check match expression
     fn check_match_expression(
         &mut self,
-        match_expr: &MatchExpression,
+        match_expr: &mut MatchExpression,
     ) -> Result<Type, TypeCheckError> {
         // Type check the value being matched
-        let value_type = self.infer_expression_type(&match_expr.value)?;
+        let value_type = self.infer_expression_type(&mut match_expr.value)?;
 
         if match_expr.arms.is_empty() {
             return Err(TypeCheckError::new(
@@ -2877,7 +2906,7 @@ impl<'a> TypeChecker<'a> {
         // Type check each arm and collect result types
         let mut arm_types = Vec::new();
 
-        for arm in &match_expr.arms {
+        for arm in match_expr.arms.iter_mut() {
             // Enter a new scope for this arm
             self.symbol_table.enter_scope();
 
@@ -2888,7 +2917,7 @@ impl<'a> TypeChecker<'a> {
             self.check_pattern(&arm.pattern, &narrowed_type)?;
 
             // Check the guard if present
-            if let Some(guard) = &arm.guard {
+            if let Some(guard) = &mut arm.guard {
                 let guard_type = self.infer_expression_type(guard)?;
                 // Guard should be boolean (primitive or literal)
                 let is_boolean =
@@ -2904,11 +2933,11 @@ impl<'a> TypeChecker<'a> {
             }
 
             // Check the arm body
-            let arm_type = match &arm.body {
+            let arm_type = match &mut arm.body {
                 MatchArmBody::Expression(expr) => self.infer_expression_type(expr)?,
                 MatchArmBody::Block(block) => {
                     // Type check the block
-                    for stmt in &block.statements {
+                    for stmt in &mut block.statements {
                         self.check_statement(stmt)?;
                     }
                     // Return type is void for blocks without explicit return
@@ -3654,8 +3683,8 @@ impl<'a> TypeChecker<'a> {
         exports
     }
 
-    fn check_throw_statement(&mut self, stmt: &ThrowStatement) -> Result<(), TypeCheckError> {
-        self.infer_expression_type(&stmt.expression)?;
+    fn check_throw_statement(&mut self, stmt: &mut ThrowStatement) -> Result<(), TypeCheckError> {
+        self.infer_expression_type(&mut stmt.expression)?;
         Ok(())
     }
 
@@ -3756,21 +3785,21 @@ impl<'a> TypeChecker<'a> {
         Ok(())
     }
 
-    fn check_try_statement(&mut self, stmt: &TryStatement) -> Result<(), TypeCheckError> {
-        self.check_block(&stmt.try_block)?;
+    fn check_try_statement(&mut self, stmt: &mut TryStatement) -> Result<(), TypeCheckError> {
+        self.check_block(&mut stmt.try_block)?;
 
-        for catch_clause in &stmt.catch_clauses {
+        for catch_clause in stmt.catch_clauses.iter_mut() {
             self.check_catch_clause(catch_clause)?;
         }
 
-        if let Some(finally_block) = &stmt.finally_block {
+        if let Some(finally_block) = &mut stmt.finally_block {
             self.check_block(finally_block)?;
         }
 
         Ok(())
     }
 
-    fn check_catch_clause(&mut self, clause: &CatchClause) -> Result<(), TypeCheckError> {
+    fn check_catch_clause(&mut self, clause: &mut CatchClause) -> Result<(), TypeCheckError> {
         self.symbol_table.enter_scope();
 
         let _catch_var_type = match &clause.pattern {
@@ -3823,7 +3852,7 @@ impl<'a> TypeChecker<'a> {
         };
 
         self.in_catch_block.push(true);
-        let result = self.check_block(&clause.body);
+        let result = self.check_block(&mut clause.body);
         self.in_catch_block.pop();
 
         self.symbol_table.exit_scope();
@@ -3846,10 +3875,10 @@ mod tests {
         let mut lexer = Lexer::new(source, handler.clone(), &interner);
         let tokens = lexer.tokenize().expect("Lexing failed");
         let mut parser = Parser::new(tokens, handler.clone(), &interner, &common);
-        let program = parser.parse().expect("Parsing failed");
+        let mut program = parser.parse().expect("Parsing failed");
 
         let mut type_checker = TypeChecker::new(handler, &interner, &common);
-        type_checker.check_program(&program)
+        type_checker.check_program(&mut program)
     }
 
     #[test]

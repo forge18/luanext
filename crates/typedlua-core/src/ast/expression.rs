@@ -9,11 +9,41 @@ use super::statement::{Block, Parameter};
 pub struct Expression {
     pub kind: ExpressionKind,
     pub span: Span,
+    pub annotated_type: Option<Type>,
+    pub receiver_class: Option<ReceiverClassInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReceiverClassInfo {
+    pub class_name: StringId,
+    pub is_static: bool,
 }
 
 impl Expression {
     pub fn new(kind: ExpressionKind, span: Span) -> Self {
-        Expression { kind, span }
+        Expression {
+            kind,
+            span,
+            annotated_type: None,
+            receiver_class: None,
+        }
+    }
+}
+
+impl Default for Expression {
+    fn default() -> Self {
+        Expression {
+            kind: ExpressionKind::default(),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        }
+    }
+}
+
+impl Default for ExpressionKind {
+    fn default() -> Self {
+        ExpressionKind::SelfKeyword
     }
 }
 

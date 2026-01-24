@@ -1,6 +1,6 @@
 # TypedLua TODO
 
-**Last Updated:** 2026-01-24 (Dead Store Elimination complete)
+**Last Updated:** 2026-01-24 (Method to function call conversion - PHASE 2 COMPLETE, ready for PHASE 3)
 
 ---
 
@@ -426,9 +426,9 @@ All 16 optimization passes are registered. O1 passes (constant folding, dead cod
 - [x] Table pre-allocation (adds table.create() hints for Lua 5.2+)
 - [x] Global localization - caches frequently-used globals in local variables
 
-**3.3 O2 Optimizations - Standard (COMPLETE - 6/6 passes):**
+**3.3 O2 Optimizations - Standard (COMPLETE - 7/7 passes):**
 
-### 3.3 O2 Optimizations - Standard (COMPLETE - 6/6 passes)
+### 3.3 O2 Optimizations - Standard (COMPLETE - 7/7 passes)
 
 - [x] Function inlining
   - [x] Define inlining policy (size thresholds: 5, 10 statements; recursion safety rules)
@@ -494,32 +494,37 @@ All 16 optimization passes are registered. O1 passes (constant folding, dead cod
   - [x] Handle nested function bodies and arrow functions recursively
   - [x] Preserve variables captured by closures
 
-- [ ] Method to function call conversion (O2)
-  - [ ] PHASE 1: Add type annotation storage to AST
-    - [ ] Add `annotated_type: Option<Type>` field to `Expression` struct in ast/expression.rs
-    - [ ] Update `Expression::new()` to initialize `annotated_type: None`
-    - [ ] Update all 65 Expression struct construction sites across 4 files:
-      - [ ] parser/expression.rs (~42 sites)
-      - [ ] parser/statement.rs (~5 sites)
-      - [ ] typechecker/narrowing_integration.rs (~12 sites)
-      - [ ] optimizer/passes.rs (~6 sites)
-    - [ ] Verify all tests pass after AST change
+- [ ] Method to function call conversion (O2) - IN PROGRESS
+  - [x] PHASE 1: Add type annotation storage to AST
+    - [x] Add `annotated_type: Option<Type>` field to `Expression` struct in ast/expression.rs
+    - [x] Add `receiver_class: Option<ReceiverClassInfo>` field to `Expression` struct
+    - [x] Add `ReceiverClassInfo` struct with `class_name: StringId` and `is_static: bool`
+    - [x] Add `Default` implementations for `Expression`, `ExpressionKind`, and `Span`
+    - [x] Update all ~45 Expression struct construction sites in parser/expression.rs
 
-  - [ ] PHASE 2: Populate type annotations in type checker
-    - [ ] Store type inference result in `Expression::annotated_type` for all expressions
-    - [ ] Handle OptionalMethodCall to use `infer_method_type()` instead of Unknown
-    - [ ] Add handling for regular MethodCall to use `infer_method_type()`
+  - [x] PHASE 2: Populate type annotations in type checker
+    - [x] Change `infer_expression_type(&Expression)` to `(&mut Expression)` to enable mutation
+    - [x] Add handling for regular MethodCall to use `infer_method_type()`
+    - [x] Set `receiver_class` when method call receiver is a known class identifier
+    - [x] Set `annotated_type` with inferred return type for MethodCall expressions
+  - [x] PHASE 2: Populate type annotations in type checker - COMPLETE
+    - [x] Change `infer_expression_type(&Expression)` to `(&mut Expression)` to enable mutation
+    - [x] Add handling for regular MethodCall to use `infer_method_type()`
+    - [x] Set `receiver_class` when method call receiver is a known class identifier
+    - [x] Set `annotated_type` with inferred return type for MethodCall expressions
+    - [x] Fix remaining ~25+ call sites affected by signature change (COMPLETE - all compile)
+    - [x] Update function signatures: check_statement, check_variable_declaration, check_function_declaration, check_if_statement, check_while_statement, check_for_statement, check_repeat_statement, check_return_statement, check_block, check_interface_declaration, check_enum_declaration, check_rich_enum_declaration, check_class_declaration, check_class_property, check_constructor, check_class_method, check_class_getter, check_class_setter, check_operator_declaration, check_try_statement, check_catch_clause, check_decorators, check_decorator_expression, check_throw_statement
 
   - [ ] PHASE 3: Create MethodToFunctionConversionPass
-    - [ ] Create pass struct in optimizer/passes.rs
-    - [ ] Implement `OptimizationPass` trait (name, min_level, run)
-    - [ ] Implement visitor that scans for MethodCall with known receiver type
-    - [ ] Transform MethodCall → Call with direct class.method invocation
-    - [ ] Handle receiver expressions:
-      - [ ] New expressions (always known type)
-      - [ ] Identifier known to be a class name
-      - [ ] Member access on known class type
-      - [ ] Optional chaining (preserve optional semantics)
+  - [ ] Create pass struct in optimizer/passes.rs
+  - [ ] Implement `OptimizationPass` trait (name, min_level, run)
+  - [ ] Implement visitor that scans for MethodCall with known receiver type
+  - [ ] Transform MethodCall → Call with direct class.method invocation
+  - [ ] Handle receiver expressions:
+    - [ ] New expressions (always known type)
+    - [x] Identifier known to be a class name
+    - [ ] Member access on known class type
+    - [ ] Optional chaining (preserve optional semantics)
 
   - [ ] PHASE 4: Register and test
     - [ ] Register pass in optimizer/mod.rs for O2 level

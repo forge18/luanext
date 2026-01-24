@@ -34,6 +34,7 @@ impl Parser<'_> {
             return Ok(Expression {
                 kind: ExpressionKind::Assignment(Box::new(expr), op, Box::new(right)),
                 span,
+                ..Default::default()
             });
         }
 
@@ -101,6 +102,7 @@ impl Parser<'_> {
                 span: start_span.combine(&end_span),
             }),
             span: start_span.combine(&end_span),
+            ..Default::default()
         })
     }
 
@@ -124,6 +126,7 @@ impl Parser<'_> {
                     Box::new(else_expr),
                 ),
                 span,
+                ..Default::default()
             });
         }
 
@@ -165,6 +168,7 @@ impl Parser<'_> {
                 span: start_span.combine(&end_span),
             }),
             span: start_span.combine(&end_span),
+            ..Default::default()
         })
     }
 
@@ -177,6 +181,7 @@ impl Parser<'_> {
             expr = Expression {
                 kind: ExpressionKind::Binary(BinaryOp::Or, Box::new(expr), Box::new(right)),
                 span,
+                ..Default::default()
             };
         }
 
@@ -196,6 +201,7 @@ impl Parser<'_> {
                     Box::new(right),
                 ),
                 span,
+                ..Default::default()
             };
         }
 
@@ -211,6 +217,7 @@ impl Parser<'_> {
             expr = Expression {
                 kind: ExpressionKind::Binary(BinaryOp::And, Box::new(expr), Box::new(right)),
                 span,
+                ..Default::default()
             };
         }
 
@@ -226,6 +233,7 @@ impl Parser<'_> {
             expr = Expression {
                 kind: ExpressionKind::Binary(BinaryOp::BitwiseOr, Box::new(expr), Box::new(right)),
                 span,
+                ..Default::default()
             };
         }
 
@@ -241,6 +249,7 @@ impl Parser<'_> {
             expr = Expression {
                 kind: ExpressionKind::Binary(BinaryOp::BitwiseXor, Box::new(expr), Box::new(right)),
                 span,
+                ..Default::default()
             };
         }
 
@@ -256,6 +265,7 @@ impl Parser<'_> {
             expr = Expression {
                 kind: ExpressionKind::Binary(BinaryOp::BitwiseAnd, Box::new(expr), Box::new(right)),
                 span,
+                ..Default::default()
             };
         }
 
@@ -271,6 +281,7 @@ impl Parser<'_> {
             expr = Expression {
                 kind: ExpressionKind::Binary(op, Box::new(expr), Box::new(right)),
                 span,
+                ..Default::default()
             };
         }
 
@@ -286,6 +297,7 @@ impl Parser<'_> {
             expr = Expression {
                 kind: ExpressionKind::Binary(op, Box::new(expr), Box::new(right)),
                 span,
+                ..Default::default()
             };
         }
 
@@ -305,6 +317,7 @@ impl Parser<'_> {
                     Box::new(right),
                 ),
                 span,
+                ..Default::default()
             };
         }
 
@@ -320,6 +333,7 @@ impl Parser<'_> {
             expr = Expression {
                 kind: ExpressionKind::Binary(op, Box::new(expr), Box::new(right)),
                 span,
+                ..Default::default()
             };
         }
 
@@ -335,6 +349,7 @@ impl Parser<'_> {
             expr = Expression {
                 kind: ExpressionKind::Binary(op, Box::new(expr), Box::new(right)),
                 span,
+                ..Default::default()
             };
         }
 
@@ -350,6 +365,7 @@ impl Parser<'_> {
             expr = Expression {
                 kind: ExpressionKind::Binary(op, Box::new(expr), Box::new(right)),
                 span,
+                ..Default::default()
             };
         }
 
@@ -365,6 +381,7 @@ impl Parser<'_> {
             return Ok(Expression {
                 kind: ExpressionKind::Binary(BinaryOp::Power, Box::new(expr), Box::new(right)),
                 span,
+                ..Default::default()
             });
         }
 
@@ -386,6 +403,7 @@ impl Parser<'_> {
                 return Ok(Expression {
                     kind: ExpressionKind::New(callee, args),
                     span,
+                    ..Default::default()
                 });
             } else {
                 return Err(ParserError {
@@ -402,6 +420,7 @@ impl Parser<'_> {
             return Ok(Expression {
                 kind: ExpressionKind::Unary(op, Box::new(expr)),
                 span,
+                ..Default::default()
             });
         }
 
@@ -420,6 +439,7 @@ impl Parser<'_> {
                     expr = Expression {
                         kind: ExpressionKind::Member(Box::new(expr), member),
                         span,
+                        ..Default::default()
                     };
                 }
                 TokenKind::LeftBracket => {
@@ -430,6 +450,7 @@ impl Parser<'_> {
                     expr = Expression {
                         kind: ExpressionKind::Index(Box::new(expr), Box::new(index)),
                         span,
+                        ..Default::default()
                     };
                 }
                 TokenKind::LeftParen => {
@@ -441,6 +462,7 @@ impl Parser<'_> {
                     expr = Expression {
                         kind: ExpressionKind::Call(Box::new(expr), arguments),
                         span,
+                        ..Default::default()
                     };
                 }
                 TokenKind::ColonColon => {
@@ -454,6 +476,7 @@ impl Parser<'_> {
                     expr = Expression {
                         kind: ExpressionKind::MethodCall(Box::new(expr), method, arguments),
                         span,
+                        ..Default::default()
                     };
                 }
                 TokenKind::PipeOp => {
@@ -463,6 +486,7 @@ impl Parser<'_> {
                     expr = Expression {
                         kind: ExpressionKind::Pipe(Box::new(expr), Box::new(right)),
                         span,
+                        ..Default::default()
                     };
                 }
                 TokenKind::QuestionDot => {
@@ -479,6 +503,7 @@ impl Parser<'_> {
                                     Box::new(index),
                                 ),
                                 span,
+                                ..Default::default()
                             };
                         }
                         TokenKind::LeftParen => {
@@ -490,6 +515,7 @@ impl Parser<'_> {
                             expr = Expression {
                                 kind: ExpressionKind::OptionalCall(Box::new(expr), arguments),
                                 span,
+                                ..Default::default()
                             };
                         }
                         TokenKind::ColonColon => {
@@ -507,6 +533,7 @@ impl Parser<'_> {
                                     arguments,
                                 ),
                                 span,
+                                ..Default::default()
                             };
                         }
                         _ => {
@@ -515,6 +542,7 @@ impl Parser<'_> {
                             expr = Expression {
                                 kind: ExpressionKind::OptionalMember(Box::new(expr), member),
                                 span,
+                                ..Default::default()
                             };
                         }
                     }
@@ -526,6 +554,7 @@ impl Parser<'_> {
                     expr = Expression {
                         kind: ExpressionKind::ErrorChain(Box::new(expr), Box::new(right)),
                         span,
+                        ..Default::default()
                     };
                 }
                 _ => break,
@@ -544,6 +573,7 @@ impl Parser<'_> {
                 Ok(Expression {
                     kind: ExpressionKind::Literal(Literal::Nil),
                     span: start_span,
+                    ..Default::default()
                 })
             }
             TokenKind::True => {
@@ -551,6 +581,7 @@ impl Parser<'_> {
                 Ok(Expression {
                     kind: ExpressionKind::Literal(Literal::Boolean(true)),
                     span: start_span,
+                    ..Default::default()
                 })
             }
             TokenKind::False => {
@@ -558,6 +589,7 @@ impl Parser<'_> {
                 Ok(Expression {
                     kind: ExpressionKind::Literal(Literal::Boolean(false)),
                     span: start_span,
+                    ..Default::default()
                 })
             }
             TokenKind::Number(s) => {
@@ -569,6 +601,7 @@ impl Parser<'_> {
                 Ok(Expression {
                     kind: ExpressionKind::Literal(Literal::Number(num)),
                     span: start_span,
+                    ..Default::default()
                 })
             }
             TokenKind::String(s) => {
@@ -577,6 +610,7 @@ impl Parser<'_> {
                 Ok(Expression {
                     kind: ExpressionKind::Literal(Literal::String(string)),
                     span: start_span,
+                    ..Default::default()
                 })
             }
             TokenKind::Identifier(name) => {
@@ -585,6 +619,7 @@ impl Parser<'_> {
                 Ok(Expression {
                     kind: ExpressionKind::Identifier(id),
                     span: start_span,
+                    ..Default::default()
                 })
             }
             TokenKind::LeftParen => {
@@ -607,6 +642,7 @@ impl Parser<'_> {
                     expr = Expression {
                         kind: ExpressionKind::Parenthesized(Box::new(expr)),
                         span: start_span.combine(&end_span),
+                        ..Default::default()
                     };
                 }
 
@@ -624,6 +660,7 @@ impl Parser<'_> {
                 Ok(Expression {
                     kind: ExpressionKind::SuperKeyword,
                     span: start_span,
+                    ..Default::default()
                 })
             }
             _ => Err(ParserError {
@@ -680,6 +717,7 @@ impl Parser<'_> {
         Ok(Expression {
             kind: ExpressionKind::Object(properties),
             span: start_span.combine(&end_span),
+            ..Default::default()
         })
     }
 
@@ -709,6 +747,7 @@ impl Parser<'_> {
         Ok(Expression {
             kind: ExpressionKind::Array(elements),
             span: start_span.combine(&end_span),
+            ..Default::default()
         })
     }
 
@@ -745,6 +784,7 @@ impl Parser<'_> {
                 span: start_span.combine(&end_span),
             }),
             span: start_span.combine(&end_span),
+            ..Default::default()
         })
     }
 
@@ -771,6 +811,7 @@ impl Parser<'_> {
                 span: start_span.combine(&end_span),
             }),
             span: start_span.combine(&end_span),
+            ..Default::default()
         })
     }
 
@@ -840,6 +881,7 @@ impl Parser<'_> {
                 span: start_span,
             }),
             span: start_span,
+            ..Default::default()
         })
     }
 
