@@ -494,17 +494,50 @@ All 15 optimization passes are registered. O1 passes (constant folding, dead cod
   - [x] Handle nested function bodies and arrow functions recursively
   - [x] Preserve variables captured by closures
 
-- [ ] Method to function call conversion
-  - [ ] Scan method call sites where receiver type is known and method is static
-  - [ ] Transform call to direct function invocation (removing `self` argument handling)
-  - [ ] Adjust generated Lua to call the function without method table lookup
-  - [ ] Add tests for class method calls that become plain functions
+- [ ] Method to function call conversion (O2)
+  - [ ] PHASE 1: Add type annotation storage to AST
+    - [ ] Add `annotated_type: Option<Type>` field to `Expression` struct in ast/expression.rs
+    - [ ] Update `Expression::new()` to initialize `annotated_type: None`
+    - [ ] Update all 65 Expression struct construction sites across 4 files:
+      - [ ] parser/expression.rs (~42 sites)
+      - [ ] parser/statement.rs (~5 sites)
+      - [ ] typechecker/narrowing_integration.rs (~12 sites)
+      - [ ] optimizer/passes.rs (~6 sites)
+    - [ ] Verify all tests pass after AST change
 
-- [ ] Tail call optimization
-  - [ ] Review Lua runtime tail‑call behavior for generated functions
-  - [ ] Ensure optimizer does not insert statements that break tail‑position
-  - [ ] Add a pass that verifies tail‑call positions remain unchanged after other optimizations
-  - [ ] Write tests for tail‑recursive functions and non‑tail calls
+  - [ ] PHASE 2: Populate type annotations in type checker
+    - [ ] Store type inference result in `Expression::annotated_type` for all expressions
+    - [ ] Handle OptionalMethodCall to use `infer_method_type()` instead of Unknown
+    - [ ] Add handling for regular MethodCall to use `infer_method_type()`
+
+  - [ ] PHASE 3: Create MethodToFunctionConversionPass
+    - [ ] Create pass struct in optimizer/passes.rs
+    - [ ] Implement `OptimizationPass` trait (name, min_level, run)
+    - [ ] Implement visitor that scans for MethodCall with known receiver type
+    - [ ] Transform MethodCall → Call with direct class.method invocation
+    - [ ] Handle receiver expressions:
+      - [ ] New expressions (always known type)
+      - [ ] Identifier known to be a class name
+      - [ ] Member access on known class type
+      - [ ] Optional chaining (preserve optional semantics)
+
+  - [ ] PHASE 4: Register and test
+    - [ ] Register pass in optimizer/mod.rs for O2 level
+    - [ ] Add tests in tests/method_to_function_tests.rs:
+      - [ ] Test new expression conversion
+      - [ ] Test class identifier conversion
+      - [ ] Test chained method calls
+      - [ ] Test optional method calls (should not convert)
+      - [ ] Test static method calls (should convert)
+      - [ ] Test preservation of argument evaluation order
+    - [ ] Run full test suite to verify no regressions
+
+  - [x] Tail call optimization
+    - [x] Review Lua runtime tail‑call behavior for generated functions
+    - [x] Ensure optimizer does not insert statements that break tail‑position
+    - [x] Add a pass that verifies tail‑call positions remain unchanged after other optimizations
+    - [x] Write tests for tail‑recursive functions and non‑tail calls
+    - [x] Test file: tail_call_optimization_tests.rs (21 tests pass)
   
 - [ ] Rich enum optimization
   - [ ] Precompute enum instance tables during codegen (static lookup tables)
