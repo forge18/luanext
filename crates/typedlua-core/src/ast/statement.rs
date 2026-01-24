@@ -232,6 +232,7 @@ pub struct MethodSignature {
     pub type_parameters: Option<Vec<TypeParameter>>,
     pub parameters: Vec<Parameter>,
     pub return_type: Type,
+    pub body: Option<Block>,
     pub span: Span,
 }
 
@@ -261,12 +262,39 @@ pub struct TypeAliasDeclaration {
 pub struct EnumDeclaration {
     pub name: Ident,
     pub members: Vec<EnumMember>,
+    pub fields: Vec<EnumField>,
+    pub constructor: Option<EnumConstructor>,
+    pub methods: Vec<EnumMethod>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EnumField {
+    pub name: Ident,
+    pub type_annotation: Type,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EnumConstructor {
+    pub parameters: Vec<Parameter>,
+    pub body: Block,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EnumMethod {
+    pub name: Ident,
+    pub parameters: Vec<Parameter>,
+    pub return_type: Option<Type>,
+    pub body: Block,
     pub span: Span,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnumMember {
     pub name: Ident,
+    pub arguments: Vec<Expression>,
     pub value: Option<EnumValue>,
     pub span: Span,
 }

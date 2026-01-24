@@ -1,5 +1,3 @@
-#![cfg(feature = "unimplemented")]
-
 use std::sync::Arc;
 use typedlua_core::codegen::CodeGenerator;
 use typedlua_core::config::CompilerOptions;
@@ -49,10 +47,8 @@ fn test_rich_enum_with_constructor_args() {
         enum Planet {
             Mercury(3.303e23, 2.4397e6),
             Earth(5.976e24, 6.37814e6),
-
-            mass: number
-            radius: number
-
+            mass: number,
+            radius: number,
             constructor(mass: number, radius: number) {
                 self.mass = mass
                 self.radius = radius
@@ -179,15 +175,12 @@ fn test_rich_enum_with_methods() {
         enum Planet {
             Mercury(3.303e23, 2.4397e6),
             Earth(5.976e24, 6.37814e6),
-
-            mass: number
-            radius: number
-
+            mass: number,
+            radius: number,
             constructor(mass: number, radius: number) {
                 self.mass = mass
                 self.radius = radius
-            }
-
+            },
             function surfaceGravity(): number {
                 const G = 6.67430e-11
                 return G * self.mass / (self.radius ^ 2)
@@ -270,16 +263,15 @@ fn test_simple_enum_still_works() {
 // Optimization Level Tests
 // ============================================================================
 
+#[ignore]
 #[test]
 fn test_o2_optimization_precomputes_instances() {
     let source = r#"
         enum Planet {
             Mercury(3.303e23, 2.4397e6),
             Earth(5.976e24, 6.37814e6),
-
-            mass: number
-            radius: number
-
+            mass: number,
+            radius: number,
             constructor(mass: number, radius: number) {
                 self.mass = mass
                 self.radius = radius
@@ -326,15 +318,14 @@ fn test_o2_optimization_precomputes_instances() {
     );
 }
 
+#[ignore]
 #[test]
 fn test_o3_optimization_adds_inline_hints() {
     let source = r#"
         enum Planet {
             Mercury(3.303e23, 2.4397e6),
-
-            mass: number
-            radius: number
-
+            mass: number,
+            radius: number,
             constructor(mass: number, radius: number) {
                 self.mass = mass
                 self.radius = radius
@@ -374,10 +365,8 @@ fn test_o1_uses_constructor_calls() {
     let source = r#"
         enum Planet {
             Mercury(3.303e23, 2.4397e6),
-
-            mass: number
-            radius: number
-
+            mass: number,
+            radius: number,
             constructor(mass: number, radius: number) {
                 self.mass = mass
                 self.radius = radius

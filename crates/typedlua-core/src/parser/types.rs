@@ -273,6 +273,7 @@ impl Parser<'_> {
                             type_parameters,
                             parameters,
                             return_type,
+                            body: None,
                             span,
                         },
                     ));

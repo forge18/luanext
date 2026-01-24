@@ -1,4 +1,5 @@
 use super::{ExpressionParser, Parser, ParserError, PatternParser, TypeParser};
+use crate::ast::pattern::Pattern;
 use crate::ast::statement::*;
 use crate::ast::types::{PrimitiveType, Type, TypeKind};
 use crate::ast::Ident;
@@ -437,11 +438,18 @@ impl Parser<'_> {
                     let return_type = self.parse_type()?;
                     let span = name.span.combine(&return_type.span);
 
+                    let body = if self.check(&TokenKind::LeftBrace) {
+                        Some(self.parse_block()?)
+                    } else {
+                        None
+                    };
+
                     members.push(InterfaceMember::Method(MethodSignature {
                         name,
                         type_parameters,
                         parameters,
                         return_type,
+                        body,
                         span,
                     }));
                 } else {
@@ -547,43 +555,139 @@ impl Parser<'_> {
         self.consume(TokenKind::LeftBrace, "Expected '{' after enum name")?;
 
         let mut members = Vec::new();
+        let mut fields = Vec::new();
+        let mut constructor = None;
+        let mut methods = Vec::new();
+        let mut is_rich_enum = false;
+
         while !self.check(&TokenKind::RightBrace) && !self.is_at_end() {
-            let member_start = self.current_span();
-            let member_name = self.parse_identifier()?;
+            let token = &self.current().kind;
 
-            let value = if self.match_token(&[TokenKind::Equal]) {
-                match &self.current().kind {
-                    TokenKind::Number(s) => {
-                        let val = s.parse::<f64>().map_err(|_| ParserError {
-                            message: "Invalid number in enum value".to_string(),
-                            span: self.current_span(),
-                        })?;
-                        self.advance();
-                        Some(EnumValue::Number(val))
+            if matches!(token, TokenKind::Identifier(_)) {
+                let member_start = self.current_span();
+                let member_name = self.parse_identifier()?;
+
+                if self.check(&TokenKind::Colon) {
+                    self.consume(TokenKind::Colon, "Expected ':' in field declaration")?;
+                    let field_type = self.parse_type()?;
+                    let field_end = self.current_span();
+                    fields.push(EnumField {
+                        name: member_name,
+                        type_annotation: field_type,
+                        span: member_start.combine(&field_end),
+                    });
+                    is_rich_enum = true;
+                } else if self.check(&TokenKind::LeftParen) {
+                    self.consume(TokenKind::LeftParen, "Expected '(' after enum member name")?;
+                    let mut arguments = Vec::new();
+                    while !self.check(&TokenKind::RightParen) && !self.is_at_end() {
+                        let arg = self.parse_expression()?;
+                        arguments.push(arg);
+                        if !self.check(&TokenKind::RightParen) {
+                            self.consume(TokenKind::Comma, "Expected ',' between arguments")?;
+                        }
                     }
-                    TokenKind::String(s) => {
-                        let val = s.clone();
-                        self.advance();
-                        Some(EnumValue::String(val))
-                    }
-                    _ => {
-                        return Err(ParserError {
-                            message: "Enum value must be a number or string".to_string(),
-                            span: self.current_span(),
-                        })
-                    }
+                    self.consume(TokenKind::RightParen, "Expected ')' after arguments")?;
+                    let member_end = self.current_span();
+
+                    members.push(EnumMember {
+                        name: member_name,
+                        arguments,
+                        value: None,
+                        span: member_start.combine(&member_end),
+                    });
+                    is_rich_enum = true;
+                } else {
+                    let value = if self.match_token(&[TokenKind::Equal]) {
+                        match &self.current().kind {
+                            TokenKind::Number(s) => {
+                                let val = s.parse::<f64>().map_err(|_| ParserError {
+                                    message: "Invalid number in enum value".to_string(),
+                                    span: self.current_span(),
+                                })?;
+                                self.advance();
+                                Some(EnumValue::Number(val))
+                            }
+                            TokenKind::String(s) => {
+                                let val = s.clone();
+                                self.advance();
+                                Some(EnumValue::String(val))
+                            }
+                            _ => {
+                                return Err(ParserError {
+                                    message: "Enum value must be a number or string".to_string(),
+                                    span: self.current_span(),
+                                })
+                            }
+                        }
+                    } else {
+                        None
+                    };
+
+                    let member_end = self.current_span();
+
+                    members.push(EnumMember {
+                        name: member_name,
+                        arguments: Vec::new(),
+                        value,
+                        span: member_start.combine(&member_end),
+                    });
                 }
+            } else if matches!(token, TokenKind::Constructor) {
+                let constructor_start = self.current_span();
+                self.advance();
+                self.consume(TokenKind::LeftParen, "Expected '(' after 'constructor'")?;
+                let params = self.parse_typed_parameter_list()?;
+                self.consume(
+                    TokenKind::RightParen,
+                    "Expected ')' after constructor parameters",
+                )?;
+                self.consume(
+                    TokenKind::LeftBrace,
+                    "Expected '{' after constructor parameters",
+                )?;
+                let body = self.parse_block()?;
+                self.consume(TokenKind::RightBrace, "Expected '}' after constructor body")?;
+                let constructor_end = self.current_span();
+                constructor = Some(EnumConstructor {
+                    parameters: params,
+                    body,
+                    span: constructor_start.combine(&constructor_end),
+                });
+                is_rich_enum = true;
+            } else if matches!(token, TokenKind::Function) {
+                let method_start = self.current_span();
+                self.advance();
+                let method_name = self.parse_identifier()?;
+                self.consume(TokenKind::LeftParen, "Expected '(' after method name")?;
+                let params = self.parse_typed_parameter_list()?;
+                self.consume(
+                    TokenKind::RightParen,
+                    "Expected ')' after method parameters",
+                )?;
+                let return_type = if self.match_token(&[TokenKind::Colon]) {
+                    Some(self.parse_type()?)
+                } else {
+                    None
+                };
+                self.consume(TokenKind::LeftBrace, "Expected '{' after method signature")?;
+                let body = self.parse_block()?;
+                self.consume(TokenKind::RightBrace, "Expected '}' after method body")?;
+                let method_end = self.current_span();
+                methods.push(EnumMethod {
+                    name: method_name,
+                    parameters: params,
+                    return_type,
+                    body,
+                    span: method_start.combine(&method_end),
+                });
+                is_rich_enum = true;
             } else {
-                None
-            };
-
-            let member_end = self.current_span();
-
-            members.push(EnumMember {
-                name: member_name,
-                value,
-                span: member_start.combine(&member_end),
-            });
+                return Err(ParserError {
+                    message: format!("Unexpected token in enum body: {:?}", token),
+                    span: self.current_span(),
+                });
+            }
 
             if !self.check(&TokenKind::RightBrace) {
                 self.consume(TokenKind::Comma, "Expected ',' between enum members")?;
@@ -596,6 +700,9 @@ impl Parser<'_> {
         Ok(Statement::Enum(EnumDeclaration {
             name,
             members,
+            fields: if is_rich_enum { fields } else { Vec::new() },
+            constructor: if is_rich_enum { constructor } else { None },
+            methods: if is_rich_enum { methods } else { Vec::new() },
             span: start_span.combine(&end_span),
         }))
     }
@@ -1936,6 +2043,42 @@ impl Parser<'_> {
                 name,
                 type_annotation,
                 default,
+                span: param_start.combine(&param_end),
+            });
+
+            if !self.match_token(&[TokenKind::Comma]) {
+                break;
+            }
+        }
+
+        Ok(params)
+    }
+
+    fn parse_typed_parameter_list(&mut self) -> Result<Vec<Parameter>, ParserError> {
+        let mut params = Vec::new();
+
+        if self.check(&TokenKind::RightParen) {
+            return Ok(params);
+        }
+
+        loop {
+            let param_start = self.current_span();
+
+            let name = self.parse_identifier()?;
+
+            self.consume(TokenKind::Colon, "Expected ':' after parameter name")?;
+            let type_annotation = self.parse_type()?;
+
+            let param_end = self.current_span();
+
+            let pattern = Pattern::Identifier(name.clone());
+
+            params.push(Parameter {
+                pattern,
+                type_annotation: Some(type_annotation),
+                default: None,
+                is_rest: false,
+                is_optional: false,
                 span: param_start.combine(&param_end),
             });
 

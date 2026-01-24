@@ -1346,6 +1346,7 @@ mod tests {
                     TypeKind::Primitive(PrimitiveType::Number),
                     make_span(),
                 )),
+                throws: None,
                 span: make_span(),
             }),
             make_span(),

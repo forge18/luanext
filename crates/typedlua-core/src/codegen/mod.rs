@@ -87,6 +87,8 @@ pub struct CodeGenerator<'a> {
     current_source_index: usize,
     /// String interner for resolving identifiers
     interner: &'a StringInterner,
+    /// Track interface default methods: (interface_name, method_name) -> default_function_name
+    interface_default_methods: std::collections::HashMap<(String, String), String>,
 }
 
 impl<'a> CodeGenerator<'a> {
@@ -105,6 +107,7 @@ impl<'a> CodeGenerator<'a> {
             import_map: std::collections::HashMap::new(),
             current_source_index: 0,
             interner,
+            interface_default_methods: std::collections::HashMap::new(),
         }
     }
 
@@ -389,9 +392,11 @@ impl<'a> CodeGenerator<'a> {
                 self.writeln("");
             }
             Statement::Block(block) => self.generate_block(block),
-            Statement::Interface(_) | Statement::TypeAlias(_) | Statement::Enum(_) => {
+            Statement::Interface(iface_decl) => self.generate_interface_declaration(iface_decl),
+            Statement::TypeAlias(_) => {
                 // Type-only declarations are erased
             }
+            Statement::Enum(decl) => self.generate_enum_declaration(decl),
             Statement::Class(class_decl) => self.generate_class_declaration(class_decl),
             Statement::Import(import) => self.generate_import(import),
             Statement::Export(export) => self.generate_export(export),
@@ -902,10 +907,90 @@ impl<'a> CodeGenerator<'a> {
             }
         }
 
+        // Copy default methods from implemented interfaces
+        self.writeln("");
+        for impl_type in &class_decl.implements {
+            if let crate::ast::types::TypeKind::Reference(type_ref) = &impl_type.kind {
+                let interface_name = self.resolve(type_ref.name.node).to_string();
+
+                // Get all method names that the class already has
+                let class_methods: std::collections::HashSet<String> = class_decl
+                    .members
+                    .iter()
+                    .filter_map(|member| {
+                        if let ClassMember::Method(method) = member {
+                            Some(self.resolve(method.name.node).to_string())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                // For each interface method with a default, copy it if not overridden
+                let default_methods: Vec<(String, String)> = self
+                    .interface_default_methods
+                    .iter()
+                    .filter(|((iface_name, _), _)| iface_name == &interface_name)
+                    .filter(|((_, method_name), _)| !class_methods.contains(method_name))
+                    .map(|((_, method_name), default_fn_name)| {
+                        (method_name.clone(), default_fn_name.clone())
+                    })
+                    .collect();
+
+                for (method_name, default_fn_name) in default_methods {
+                    self.write_indent();
+                    self.write(&class_name);
+                    self.write(":");
+                    self.write(&method_name);
+                    self.write(" = ");
+                    self.write(&class_name);
+                    self.write(":");
+                    self.write(&method_name);
+                    self.write(" or ");
+                    self.writeln(&default_fn_name);
+                }
+            }
+        }
+
         self.writeln("");
 
         // Restore previous parent class context
         self.current_class_parent = prev_parent;
+    }
+
+    fn generate_interface_declaration(&mut self, iface_decl: &InterfaceDeclaration) {
+        let interface_name = self.resolve(iface_decl.name.node).to_string();
+
+        for member in &iface_decl.members {
+            if let InterfaceMember::Method(method) = member {
+                if let Some(body) = &method.body {
+                    let method_name = self.resolve(method.name.node).to_string();
+                    let default_fn_name = format!("{}__{}", interface_name, method_name);
+
+                    self.writeln("");
+                    self.write_indent();
+                    self.write("function ");
+                    self.write(&default_fn_name);
+                    self.write("(self");
+
+                    for param in &method.parameters {
+                        self.write(", ");
+                        self.generate_pattern(&param.pattern);
+                    }
+                    self.writeln(")");
+                    self.indent();
+
+                    self.generate_block(body);
+
+                    self.dedent();
+                    self.write_indent();
+                    self.writeln("end");
+
+                    self.interface_default_methods
+                        .insert((interface_name.clone(), method_name), default_fn_name);
+                }
+            }
+        }
     }
 
     fn generate_class_constructor(&mut self, class_name: &str, ctor: &ConstructorDeclaration) {
@@ -2720,6 +2805,239 @@ impl<'a> CodeGenerator<'a> {
             Statement::TypeAlias(decl) => Some(decl.name.node),
             Statement::Enum(decl) => Some(decl.name.node),
             _ => None,
+        }
+    }
+
+    fn generate_enum_declaration(&mut self, enum_decl: &EnumDeclaration) {
+        let enum_name = self.resolve(enum_decl.name.node).to_string();
+
+        if enum_decl.fields.is_empty()
+            && enum_decl.constructor.is_none()
+            && enum_decl.methods.is_empty()
+        {
+            self.write_indent();
+            self.write("local ");
+            self.write(&enum_name);
+            self.write(" = {");
+            self.writeln("");
+            self.indent();
+            for (i, member) in enum_decl.members.iter().enumerate() {
+                self.write_indent();
+                let member_name = self.resolve(member.name.node);
+                self.write(&member_name);
+                self.write(" = ");
+                if let Some(value) = &member.value {
+                    match value {
+                        EnumValue::Number(n) => self.write(&n.to_string()),
+                        EnumValue::String(s) => {
+                            self.write("\"");
+                            self.write(s);
+                            self.write("\"");
+                        }
+                    }
+                } else {
+                    self.write(&i.to_string());
+                }
+                if i < enum_decl.members.len() - 1 {
+                    self.write(",");
+                }
+                self.writeln("");
+            }
+            self.dedent();
+            self.write_indent();
+            self.writeln("}");
+        } else {
+            self.generate_rich_enum_declaration(enum_decl, &enum_name);
+        }
+    }
+
+    fn generate_rich_enum_declaration(&mut self, enum_decl: &EnumDeclaration, enum_name: &str) {
+        let mt_name = format!("{}__mt", enum_name);
+
+        self.writeln("");
+        self.write_indent();
+        self.writeln(&format!("local {} = {}", enum_name, "{}"));
+
+        self.write_indent();
+        self.writeln(&format!("{}.__index = {}", enum_name, enum_name));
+
+        self.write_indent();
+        self.write(&format!("local {} = {{}}", mt_name));
+        self.writeln("");
+        self.write_indent();
+        self.writeln(&format!("setmetatable({}, {})", mt_name, enum_name));
+
+        self.write_indent();
+        self.writeln(&format!("setmetatable({}, {{", enum_name));
+        self.indent();
+        self.write_indent();
+        self.writeln(&format!("__metatable = {}", mt_name));
+        self.write_indent();
+        self.writeln("__call = function()");
+        self.indent();
+        self.write_indent();
+        self.writeln(&format!(
+            "error(\"Cannot instantiate enum {} directly\")",
+            enum_name
+        ));
+        self.dedent();
+        self.write_indent();
+        self.writeln("end");
+        self.dedent();
+        self.write_indent();
+        self.writeln("})");
+
+        self.write_indent();
+        self.write("function ");
+        self.write(&mt_name);
+        self.writeln(".__index(table, key)");
+        self.indent();
+        self.write_indent();
+        self.writeln("return nil");
+        self.dedent();
+        self.write_indent();
+        self.writeln("end");
+
+        self.writeln("");
+        self.write_indent();
+        self.write("local function ");
+        self.write(enum_name);
+        self.write("__new(name, ordinal");
+
+        for field in &enum_decl.fields {
+            self.write(", ");
+            self.write(&self.resolve(field.name.node));
+        }
+        self.writeln(")");
+        self.indent();
+        self.write_indent();
+        self.write("local self = setmetatable({}, ");
+        self.write(enum_name);
+        self.writeln(")");
+        self.dedent();
+
+        self.writeln("");
+        self.write_indent();
+        self.writeln(&format!("{}.__values = {{}}", enum_name));
+
+        self.writeln("");
+        self.write_indent();
+        self.write(&format!("{}.__byName = {{", enum_name));
+        for (i, member) in enum_decl.members.iter().enumerate() {
+            let member_name = self.resolve(member.name.node);
+            self.write(&member_name);
+            self.write(" = ");
+            self.write(enum_name);
+            self.write(".");
+            self.write(&member_name);
+            if i < enum_decl.members.len() - 1 {
+                self.write(", ");
+            }
+        }
+        self.writeln("}");
+
+        for (i, member) in enum_decl.members.iter().enumerate() {
+            self.writeln("");
+            self.write_indent();
+            self.write(enum_name);
+            self.write(".");
+            let member_name = self.resolve(member.name.node);
+            self.write(&member_name);
+            self.write(" = ");
+            self.write(enum_name);
+            self.write("__new(\"");
+            self.write(&member_name);
+            self.write("\", ");
+            self.write(&i.to_string());
+
+            for arg in &member.arguments {
+                self.write(", ");
+                self.generate_expression(arg);
+            }
+            self.writeln(")");
+
+            self.write_indent();
+            self.write("table.insert(");
+            self.write(enum_name);
+            self.write(".__values, ");
+            self.write(enum_name);
+            self.write(".");
+            self.write(&member_name);
+            self.writeln(")");
+        }
+        self.write_indent();
+        self.writeln(&format!("setmetatable({}, {})", enum_name, mt_name));
+
+        self.writeln("");
+        self.write_indent();
+        self.writeln(&format!("function {}:name()", enum_name));
+        self.indent();
+        self.write_indent();
+        self.writeln("return self.__name");
+        self.dedent();
+        self.write_indent();
+        self.writeln("end");
+
+        self.writeln("");
+        self.write_indent();
+        self.writeln(&format!("function {}:ordinal()", enum_name));
+        self.indent();
+        self.write_indent();
+        self.writeln("return self.__ordinal");
+        self.dedent();
+        self.write_indent();
+        self.writeln("end");
+
+        self.writeln("");
+        self.write_indent();
+        self.writeln(&format!("function {}.values()", enum_name));
+        self.indent();
+        self.write_indent();
+        let values_return = format!("return {}.__values", enum_name);
+        self.writeln(&values_return);
+        self.dedent();
+        self.write_indent();
+        self.writeln("end");
+
+        self.writeln("");
+        self.write_indent();
+        self.write(&format!("function {}.valueOf(name)", enum_name));
+        self.writeln("");
+        self.indent();
+        self.write_indent();
+        self.writeln(&format!("return {}.__byName[name]", enum_name));
+        self.dedent();
+        self.write_indent();
+        self.writeln("end");
+
+        for method in &enum_decl.methods {
+            self.writeln("");
+            self.write_indent();
+            self.write(&format!(
+                "function {}:{}",
+                enum_name,
+                self.resolve(method.name.node)
+            ));
+            self.write("(");
+            for (i, param) in method.parameters.iter().enumerate() {
+                if i > 0 {
+                    self.write(", ");
+                }
+                match &param.pattern {
+                    Pattern::Identifier(ident) => {
+                        self.write(&self.resolve(ident.node));
+                    }
+                    _ => {
+                        self.write("_");
+                    }
+                }
+            }
+            self.writeln(")");
+            self.indent();
+            self.generate_block(&method.body);
+            self.dedent();
+            self.write_indent();
+            self.writeln("end");
         }
     }
 

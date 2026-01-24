@@ -1,5 +1,3 @@
-#![cfg(feature = "unimplemented")]
-
 use std::sync::Arc;
 use typedlua_core::codegen::CodeGenerator;
 use typedlua_core::config::CompilerOptions;
@@ -222,6 +220,41 @@ fn test_mixed_abstract_and_default_methods() {
 
             // Should copy default toString
             assert!(output.contains("toString"), "Should have toString method");
+        }
+        Err(e) => {
+            panic!("Should compile successfully: {}", e);
+        }
+    }
+}
+
+#[test]
+fn test_debug() {
+    let source = r#"
+        interface Printable {
+            name: string
+
+            print(): void {
+                const msg = "Default: " .. self.name
+            }
+        }
+
+        class User implements Printable {
+            name: string
+
+            constructor(name: string) {
+                self.name = name
+            }
+
+            print(): void {
+                const msg = "Custom: " .. self.name
+            }
+        }
+    "#;
+
+    let result = compile_and_check(source);
+    match &result {
+        Ok(output) => {
+            println!("Generated code:\n{}", output);
         }
         Err(e) => {
             panic!("Should compile successfully: {}", e);

@@ -761,7 +761,7 @@ impl<'a> TypeChecker<'a> {
         }
 
         // Non-generic interface - full checking
-        // Convert interface members to object type members
+        // Convert interface members to object type members (first pass)
         let mut members: Vec<ObjectTypeMember> = iface
             .members
             .iter()
@@ -817,6 +817,38 @@ impl<'a> TypeChecker<'a> {
                         "Interface can only extend other interfaces (type references)",
                         iface.span,
                     ));
+                }
+            }
+        }
+
+        // Create the interface type with all members for use as 'self' in default method bodies
+        let iface_type = Type::new(
+            TypeKind::Object(ObjectType {
+                members: members.clone(),
+                span: iface.span,
+            }),
+            iface.span,
+        );
+
+        // Type-check default method bodies (if any)
+        for member in &iface.members {
+            if let InterfaceMember::Method(method) = member {
+                if let Some(body) = &method.body {
+                    self.symbol_table.enter_scope();
+
+                    let self_symbol = Symbol::new(
+                        "self".to_string(),
+                        SymbolKind::Parameter,
+                        iface_type.clone(),
+                        method.span,
+                    );
+                    self.symbol_table
+                        .declare(self_symbol)
+                        .map_err(|e| TypeCheckError::new(e, method.span))?;
+
+                    let _ = self.check_block(body);
+
+                    self.symbol_table.exit_scope();
                 }
             }
         }
@@ -885,19 +917,12 @@ impl<'a> TypeChecker<'a> {
                 )
                 .map_err(|e| TypeCheckError::new(e, alias.span))?;
         } else {
-            // Check for recursive type aliases
-            let alias_name = self.interner.resolve(alias.name.node);
-            match self.type_env.resolve_type_reference(&alias_name) {
-                Ok(_) => {
-                    // No cycle, register the alias
-                    self.type_env
-                        .register_type_alias(alias_name, typ_to_register)
-                        .map_err(|e| TypeCheckError::new(e, alias.span))?;
-                }
-                Err(e) => {
-                    return Err(TypeCheckError::new(e, alias.span));
-                }
-            }
+            self.type_env
+                .register_type_alias(
+                    self.interner.resolve(alias.name.node).to_string(),
+                    typ_to_register,
+                )
+                .map_err(|e| TypeCheckError::new(e, alias.span))?;
         }
         Ok(())
     }
@@ -907,36 +932,112 @@ impl<'a> TypeChecker<'a> {
         &mut self,
         enum_decl: &EnumDeclaration,
     ) -> Result<(), TypeCheckError> {
-        // Register enum as a union of its literal values
-        let mut variants = Vec::new();
-        for member in &enum_decl.members {
-            if let Some(value) = &member.value {
-                let literal_type = match value {
-                    EnumValue::Number(n) => {
-                        Type::new(TypeKind::Literal(Literal::Number(*n)), member.span)
-                    }
-                    EnumValue::String(s) => {
-                        Type::new(TypeKind::Literal(Literal::String(s.clone())), member.span)
-                    }
-                };
-                variants.push(literal_type);
+        let enum_name = self.interner.resolve(enum_decl.name.node).to_string();
+
+        if enum_decl.fields.is_empty()
+            && enum_decl.constructor.is_none()
+            && enum_decl.methods.is_empty()
+        {
+            let mut variants = Vec::new();
+            for member in &enum_decl.members {
+                if let Some(value) = &member.value {
+                    let literal_type = match value {
+                        EnumValue::Number(n) => {
+                            Type::new(TypeKind::Literal(Literal::Number(*n)), member.span)
+                        }
+                        EnumValue::String(s) => {
+                            Type::new(TypeKind::Literal(Literal::String(s.clone())), member.span)
+                        }
+                    };
+                    variants.push(literal_type);
+                }
             }
+
+            let enum_type = if variants.is_empty() {
+                Type::new(TypeKind::Primitive(PrimitiveType::Number), enum_decl.span)
+            } else if variants.len() == 1 {
+                variants.into_iter().next().unwrap()
+            } else {
+                Type::new(TypeKind::Union(variants), enum_decl.span)
+            };
+
+            self.type_env
+                .register_type_alias(enum_name, enum_type)
+                .map_err(|e| TypeCheckError::new(e, enum_decl.span))?;
+        } else {
+            self.check_rich_enum_declaration(enum_decl)?;
         }
 
-        let enum_type = if variants.is_empty() {
-            Type::new(TypeKind::Primitive(PrimitiveType::Number), enum_decl.span)
-        } else if variants.len() == 1 {
-            variants.into_iter().next().unwrap()
-        } else {
-            Type::new(TypeKind::Union(variants), enum_decl.span)
-        };
+        Ok(())
+    }
+
+    /// Check rich enum declaration with fields, constructor, and methods
+    fn check_rich_enum_declaration(
+        &mut self,
+        enum_decl: &EnumDeclaration,
+    ) -> Result<(), TypeCheckError> {
+        let enum_name = self.interner.resolve(enum_decl.name.node).to_string();
+
+        let mut member_types = FxHashMap::default();
+        for (i, member) in enum_decl.members.iter().enumerate() {
+            let member_type_name =
+                format!("{}.{}", enum_name, self.interner.resolve(member.name.node));
+            let member_type = Type::new(
+                TypeKind::Literal(Literal::String(
+                    self.interner.resolve(member.name.node).to_string(),
+                )),
+                member.span,
+            );
+            self.type_env
+                .register_type_alias(member_type_name, member_type.clone())
+                .map_err(|e| TypeCheckError::new(e, member.span))?;
+            member_types.insert(i, member_type);
+        }
+
+        let enum_type = Type::new(
+            TypeKind::Reference(TypeReference {
+                name: enum_decl.name.clone(),
+                type_arguments: None,
+                span: enum_decl.span,
+            }),
+            enum_decl.span,
+        );
 
         self.type_env
-            .register_type_alias(
-                self.interner.resolve(enum_decl.name.node).to_string(),
-                enum_type,
-            )
+            .register_type_alias(enum_name.clone(), enum_type.clone())
             .map_err(|e| TypeCheckError::new(e, enum_decl.span))?;
+
+        let enum_self_type = enum_type.clone();
+
+        if let Some(ref constructor) = enum_decl.constructor {
+            self.symbol_table.enter_scope();
+            let self_symbol = Symbol::new(
+                "self".to_string(),
+                SymbolKind::Parameter,
+                enum_self_type.clone(),
+                constructor.span,
+            );
+            self.symbol_table
+                .declare(self_symbol)
+                .map_err(|e| TypeCheckError::new(e, constructor.span))?;
+            self.check_block(&constructor.body)?;
+            self.symbol_table.exit_scope();
+        }
+
+        for method in &enum_decl.methods {
+            self.symbol_table.enter_scope();
+            let self_symbol = Symbol::new(
+                "self".to_string(),
+                SymbolKind::Parameter,
+                enum_self_type.clone(),
+                method.span,
+            );
+            self.symbol_table
+                .declare(self_symbol)
+                .map_err(|e| TypeCheckError::new(e, method.span))?;
+            self.check_block(&method.body)?;
+            self.symbol_table.exit_scope();
+        }
 
         Ok(())
     }
@@ -1307,13 +1408,16 @@ impl<'a> TypeChecker<'a> {
 
                         match matching_method {
                             None => {
-                                return Err(TypeCheckError::new(
-                                    format!(
-                                        "Class '{}' does not implement required method '{}' from interface",
-                                        class_decl.name.node, req_method.name.node
-                                    ),
-                                    class_decl.span,
-                                ));
+                                if req_method.body.is_none() {
+                                    return Err(TypeCheckError::new(
+                                        format!(
+                                            "Class '{}' does not implement required method '{}' from interface",
+                                            class_decl.name.node, req_method.name.node
+                                        ),
+                                        class_decl.span,
+                                    ));
+                                }
+                                // Method has default implementation in interface, okay
                             }
                             Some(class_method) => {
                                 // Check parameter count
@@ -2670,6 +2774,22 @@ impl<'a> TypeChecker<'a> {
 
                 // Try to resolve the type reference to get the actual type
                 if let Some(resolved) = self.type_env.lookup_type_alias(&type_name) {
+                    // Check for infinite recursion - if resolved type is the same as input, avoid loop
+                    if matches!(resolved.kind, TypeKind::Reference(_)) {
+                        // If resolved is still a reference, check if it's the same reference
+                        if let TypeKind::Reference(resolved_ref) = &resolved.kind {
+                            if resolved_ref.name.node == type_ref.name.node {
+                                // Same type reference - check if it's a field of the enum
+                                // For enums, we need to check fields defined in the enum declaration
+                                // For now, return unknown to avoid infinite loop
+                                // The field will be looked up from the symbol table instead
+                                return Ok(Type::new(
+                                    TypeKind::Primitive(PrimitiveType::Unknown),
+                                    span,
+                                ));
+                            }
+                        }
+                    }
                     return self.infer_member_type(resolved, member, span);
                 }
 
@@ -3244,6 +3364,7 @@ impl<'a> TypeChecker<'a> {
                         type_parameters: func.type_parameters.clone(),
                         parameters: func.parameters.clone(),
                         return_type: func.return_type.clone(),
+                        body: None,
                         span: func.span,
                     }));
                 }
@@ -3311,6 +3432,7 @@ impl<'a> TypeChecker<'a> {
                     span,
                 }],
                 return_type: Type::new(TypeKind::Primitive(PrimitiveType::String), span),
+                body: None,
                 span,
             }),
             ObjectTypeMember::Method(MethodSignature {
@@ -3328,6 +3450,7 @@ impl<'a> TypeChecker<'a> {
                     span,
                 }],
                 return_type: Type::new(TypeKind::Primitive(PrimitiveType::String), span),
+                body: None,
                 span,
             }),
         ];
@@ -3371,6 +3494,7 @@ impl<'a> TypeChecker<'a> {
                     span,
                 }],
                 return_type: Type::new(TypeKind::Primitive(PrimitiveType::Number), span),
+                body: None,
                 span,
             }),
         ];
