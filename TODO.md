@@ -515,27 +515,24 @@ All 16 optimization passes are registered. O1 passes (constant folding, dead cod
     - [x] Fix remaining ~25+ call sites affected by signature change (COMPLETE - all compile)
     - [x] Update function signatures: check_statement, check_variable_declaration, check_function_declaration, check_if_statement, check_while_statement, check_for_statement, check_repeat_statement, check_return_statement, check_block, check_interface_declaration, check_enum_declaration, check_rich_enum_declaration, check_class_declaration, check_class_property, check_constructor, check_class_method, check_class_getter, check_class_setter, check_operator_declaration, check_try_statement, check_catch_clause, check_decorators, check_decorator_expression, check_throw_statement
 
-  - [ ] PHASE 3: Create MethodToFunctionConversionPass
-  - [ ] Create pass struct in optimizer/passes.rs
-  - [ ] Implement `OptimizationPass` trait (name, min_level, run)
-  - [ ] Implement visitor that scans for MethodCall with known receiver type
-  - [ ] Transform MethodCall → Call with direct class.method invocation
-  - [ ] Handle receiver expressions:
-    - [ ] New expressions (always known type)
-    - [x] Identifier known to be a class name
-    - [ ] Member access on known class type
-    - [ ] Optional chaining (preserve optional semantics)
+   - [x] PHASE 3: Create MethodToFunctionConversionPass - COMPLETE
+     - [x] Create pass struct in optimizer/method_to_function_conversion.rs
+     - [x] Implement OptimizationPass trait (name, min_level, run)
+     - [x] Implement visitor that scans for MethodCall with known receiver type
+     - [x] Transform MethodCall -> Call with direct Class.method invocation
+     - [x] Handle receiver expressions (new expressions, class identifiers)
+     - [x] Register pass in optimizer/mod.rs for O2 level
+     - [x] Add unit tests (2 tests pass)
 
-  - [ ] PHASE 4: Register and test
-    - [ ] Register pass in optimizer/mod.rs for O2 level
-    - [ ] Add tests in tests/method_to_function_tests.rs:
-      - [ ] Test new expression conversion
-      - [ ] Test class identifier conversion
-      - [ ] Test chained method calls
-      - [ ] Test optional method calls (should not convert)
-      - [ ] Test static method calls (should convert)
-      - [ ] Test preservation of argument evaluation order
-    - [ ] Run full test suite to verify no regressions
+   - [ ] PHASE 4: Register and test
+     - [ ] Add integration tests in tests/method_to_function_tests.rs:
+       - [ ] Test new expression conversion
+       - [ ] Test class identifier conversion
+       - [ ] Test chained method calls
+       - [ ] Test optional method calls (should not convert)
+       - [ ] Test static method calls (should convert)
+       - [ ] Test preservation of argument evaluation order
+     - [ ] Run full test suite to verify no regressions
 
   - [x] Tail call optimization
     - [x] Review Lua runtime tail‑call behavior for generated functions

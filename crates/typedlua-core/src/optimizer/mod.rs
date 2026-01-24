@@ -11,6 +11,9 @@ use passes::*;
 mod rich_enum_optimization;
 use rich_enum_optimization::*;
 
+mod method_to_function_conversion;
+use method_to_function_conversion::*;
+
 /// Trait for optimization passes that transform the AST
 pub trait OptimizationPass {
     /// Get the name of this optimization pass
@@ -75,6 +78,10 @@ impl Optimizer {
         self.passes.push(Box::new(DeadStoreEliminationPass));
         self.passes.push(Box::new(TailCallOptimizationPass));
         self.passes.push(Box::new(RichEnumOptimizationPass));
+        self.passes
+            .push(Box::new(MethodToFunctionConversionPass::new(
+                interner.clone(),
+            )));
 
         // O3 passes - Aggressive optimizations (5 passes)
         self.passes
