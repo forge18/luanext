@@ -24,7 +24,7 @@ fn compile_and_check(source: &str) -> Result<String, String> {
         .map_err(|e| format!("Parsing failed: {:?}", e))?;
 
     // Type check
-    let mut type_checker = TypeChecker::new(handler.clone(), &interner, common_ids)
+    let mut type_checker = TypeChecker::new(handler.clone(), &interner, &common_ids)
         .with_options(CompilerOptions::default());
     type_checker
         .check_program(&program)
@@ -282,7 +282,7 @@ fn test_decorator_disabled() {
     options.enable_decorators = false;
 
     let mut type_checker =
-        TypeChecker::new(handler.clone(), &interner, common_ids).with_options(options);
+        TypeChecker::new(handler.clone(), &interner, &common_ids).with_options(options);
     let result = type_checker.check_program(&program);
 
     assert!(result.is_err(), "Decorators should fail when disabled");

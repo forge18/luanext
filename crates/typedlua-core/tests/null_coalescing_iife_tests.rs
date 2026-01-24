@@ -28,7 +28,7 @@ fn compile_with_optimization(source: &str) -> Result<String, String> {
     let mut options = CompilerOptions::default();
 
     let mut type_checker =
-        TypeChecker::new(handler.clone(), &interner, common_ids).with_options(options.clone());
+        TypeChecker::new(handler.clone(), &interner, &common_ids).with_options(options.clone());
     type_checker
         .check_program(&program)
         .map_err(|e| e.message)?;

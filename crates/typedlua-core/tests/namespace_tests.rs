@@ -49,7 +49,7 @@ fn compile_and_check(source: &str, options: CompilerOptions) -> Result<String, S
 
     // Type check
     let mut type_checker =
-        TypeChecker::new(handler.clone(), &interner, common_ids).with_options(options);
+        TypeChecker::new(handler.clone(), &interner, &common_ids).with_options(options);
     type_checker
         .check_program(&program)
         .map_err(|e| e.message)?;

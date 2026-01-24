@@ -24,7 +24,7 @@ fn compile_and_check(source: &str) -> Result<String, String> {
         .map_err(|e| format!("Parsing failed: {:?}", e))?;
 
     // Type check
-    let mut type_checker = TypeChecker::new(handler.clone(), &interner, common_ids)
+    let mut type_checker = TypeChecker::new(handler.clone(), &interner, &common_ids)
         .with_options(CompilerOptions::default());
     type_checker
         .check_program(&program)
@@ -297,7 +297,7 @@ fn test_o2_optimization_precomputes_instances() {
     let program = parser.parse().unwrap();
 
     // Type check
-    let mut type_checker = TypeChecker::new(handler.clone(), &interner, common_ids)
+    let mut type_checker = TypeChecker::new(handler.clone(), &interner, &common_ids)
         .with_options(CompilerOptions::default());
     type_checker.check_program(&program).unwrap();
 
@@ -352,7 +352,7 @@ fn test_o3_optimization_adds_inline_hints() {
     let program = parser.parse().unwrap();
 
     // Type check
-    let mut type_checker = TypeChecker::new(handler.clone(), &interner, common_ids)
+    let mut type_checker = TypeChecker::new(handler.clone(), &interner, &common_ids)
         .with_options(CompilerOptions::default());
     type_checker.check_program(&program).unwrap();
 
@@ -395,7 +395,7 @@ fn test_o1_uses_constructor_calls() {
     let program = parser.parse().unwrap();
 
     // Type check
-    let mut type_checker = TypeChecker::new(handler.clone(), &interner, common_ids)
+    let mut type_checker = TypeChecker::new(handler.clone(), &interner, &common_ids)
         .with_options(CompilerOptions::default());
     type_checker.check_program(&program).unwrap();
 

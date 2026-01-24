@@ -14,7 +14,7 @@ fn type_check(source: &str) -> Result<(), String> {
     let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
     let program = parser.parse().map_err(|e| format!("{:?}", e))?;
 
-    let mut checker = TypeChecker::new(handler, &interner, common_ids);
+    let mut checker = TypeChecker::new(handler, &interner, &common_ids);
     checker.check_program(&program).map_err(|e| e.message)?;
 
     Ok(())

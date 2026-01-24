@@ -23,7 +23,7 @@ fn type_check(source: &str) -> Result<(), String> {
         .map_err(|e| format!("Parsing failed: {:?}", e))?;
 
     // Type check
-    let mut type_checker = TypeChecker::new(handler.clone(), &interner, common_ids)
+    let mut type_checker = TypeChecker::new(handler.clone(), &interner, &common_ids)
         .with_options(CompilerOptions::default());
     type_checker
         .check_program(&program)

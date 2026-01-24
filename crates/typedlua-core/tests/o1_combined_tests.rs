@@ -24,7 +24,7 @@ fn compile_with_o1(source: &str) -> Result<String, String> {
     let options = CompilerOptions::default();
 
     let mut type_checker =
-        TypeChecker::new(handler.clone(), &interner, common_ids).with_options(options);
+        TypeChecker::new(handler.clone(), &interner, &common_ids).with_options(options);
     type_checker
         .check_program(&program)
         .map_err(|e| e.message)?;

@@ -25,7 +25,7 @@ fn compile_and_generate(source: &str) -> Result<String, String> {
 
     // Type check
     let mut type_checker =
-        TypeChecker::new(handler, &interner, common_ids).with_options(CompilerOptions::default());
+        TypeChecker::new(handler, &interner, &common_ids).with_options(CompilerOptions::default());
     type_checker
         .check_program(&program)
         .map_err(|e| e.message)?;

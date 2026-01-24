@@ -281,7 +281,7 @@ class Circle implements Shape {
         Arc::new(SymbolTable::new()),
     );
 
-    let mut types_checker = TypeChecker::new(types_handler.clone(), &interner, common_ids.clone());
+    let mut types_checker = TypeChecker::new(types_handler.clone(), &interner, &common_ids);
     // Type check FIRST to populate symbol table
     let types_result = types_checker.check_program(&types_ast);
     if types_result.is_err() || types_handler.has_errors() {
@@ -315,7 +315,7 @@ class Circle implements Shape {
     );
 
     let mut circle_checker =
-        TypeChecker::new(circle_handler.clone(), &interner, common_ids.clone());
+        TypeChecker::new(circle_handler.clone(), &interner, &common_ids);
     // Type check FIRST to populate symbol table
     let circle_result = circle_checker.check_program(&circle_ast);
     if circle_result.is_err() {
@@ -383,7 +383,7 @@ const user: User = { name: "Alice", age: 30 }
         Arc::new(SymbolTable::new()),
     );
 
-    let mut types_checker = TypeChecker::new(types_handler.clone(), &interner, common_ids.clone());
+    let mut types_checker = TypeChecker::new(types_handler.clone(), &interner, &common_ids);
     types_checker
         .check_program(&types_ast)
         .expect("Failed to type check types.tl");
@@ -413,7 +413,7 @@ const user: User = { name: "Alice", age: 30 }
     );
 
     let mut middle_checker =
-        TypeChecker::new(middle_handler.clone(), &interner, common_ids.clone());
+        TypeChecker::new(middle_handler.clone(), &interner, &common_ids);
     middle_checker
         .check_program(&middle_ast)
         .expect("Failed to type check middle.tl");
@@ -455,7 +455,7 @@ const user: User = { name: "Alice", age: 30 }
         Arc::new(SymbolTable::new()),
     );
 
-    let mut main_checker = TypeChecker::new(main_handler.clone(), &interner, common_ids.clone());
+    let mut main_checker = TypeChecker::new(main_handler.clone(), &interner, &common_ids);
     let main_result = main_checker.check_program(&main_ast);
     if main_result.is_err() || main_handler.has_errors() {
         eprintln!("=== MAIN TYPE CHECK FAILED (test_re_export_type) ===");
