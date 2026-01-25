@@ -1,0 +1,946 @@
+//! O3 Operator Inlining Pass
+//!
+//! Converts operator overload calls to direct function calls, enabling
+//! subsequent inlining by FunctionInliningPass (O2).
+//!
+//! Conversion Criteria:
+//! 1. Operator body contains 5 or fewer statements
+//! 2. Operator has no side effects (no external state mutation)
+//! 3. Operator is called frequently (heuristic: 3+ call sites)
+
+use crate::ast::expression::{BinaryOp, Expression, ExpressionKind, UnaryOp};
+use crate::ast::pattern::Pattern;
+use crate::ast::statement::{Block, ClassMember, Statement};
+use crate::ast::types::{Type, TypeKind};
+use crate::ast::Program;
+use crate::config::OptimizationLevel;
+use crate::errors::CompilationError;
+use crate::optimizer::OptimizationPass;
+use crate::span::Span;
+use crate::string_interner::{StringId, StringInterner};
+use rustc_hash::FxHashMap;
+use std::sync::Arc;
+
+const MAX_INLINE_STATEMENTS: usize = 5;
+const MIN_CALL_FREQUENCY: usize = 3;
+
+#[derive(Debug, Clone)]
+struct OperatorInfo {
+    class_name: StringId,
+    operator: crate::ast::statement::OperatorKind,
+    body: Block,
+    param_names: Vec<StringId>,
+    statement_count: usize,
+    has_side_effects: bool,
+    call_count: usize,
+}
+
+pub struct OperatorInliningPass {
+    operator_catalog: FxHashMap<(StringId, crate::ast::statement::OperatorKind), OperatorInfo>,
+    interner: Arc<StringInterner>,
+}
+
+impl OperatorInliningPass {
+    pub fn new(interner: Arc<StringInterner>) -> Self {
+        Self {
+            operator_catalog: FxHashMap::default(),
+            interner,
+        }
+    }
+
+    fn extract_param_name(pattern: &Pattern) -> Option<StringId> {
+        match pattern {
+            Pattern::Identifier(ident) => Some(ident.node),
+            _ => None,
+        }
+    }
+
+    fn build_operator_catalog(&mut self, program: &Program) {
+        for stmt in &program.statements {
+            self.catalog_statement(stmt);
+        }
+    }
+
+    fn catalog_statement(&mut self, stmt: &Statement) {
+        match stmt {
+            Statement::Class(class) => {
+                let class_name = class.name.node;
+                for member in &class.members {
+                    if let ClassMember::Operator(op) = member {
+                        let param_names: Vec<StringId> = op
+                            .parameters
+                            .iter()
+                            .filter_map(|p| Self::extract_param_name(&p.pattern))
+                            .collect();
+
+                        let statement_count = count_statements(&op.body);
+                        let has_side_effects = has_side_effects(&op.body);
+
+                        let info = OperatorInfo {
+                            class_name,
+                            operator: op.operator,
+                            body: op.body.clone(),
+                            param_names,
+                            statement_count,
+                            has_side_effects,
+                            call_count: 0,
+                        };
+
+                        self.operator_catalog
+                            .insert((class_name, op.operator), info);
+                    }
+                }
+            }
+            Statement::Function(func) => {
+                self.catalog_block(&func.body);
+            }
+            Statement::If(if_stmt) => {
+                self.catalog_expression(&if_stmt.condition);
+                self.catalog_block(&if_stmt.then_block);
+                for else_if in &if_stmt.else_ifs {
+                    self.catalog_expression(&else_if.condition);
+                    self.catalog_block(&else_if.block);
+                }
+                if let Some(else_block) = &if_stmt.else_block {
+                    self.catalog_block(else_block);
+                }
+            }
+            Statement::While(while_stmt) => {
+                self.catalog_expression(&while_stmt.condition);
+                self.catalog_block(&while_stmt.body);
+            }
+            Statement::For(for_stmt) => {
+                use crate::ast::statement::ForStatement;
+                match &**for_stmt {
+                    ForStatement::Numeric(for_num) => {
+                        self.catalog_expression(&for_num.start);
+                        self.catalog_expression(&for_num.end);
+                        if let Some(step) = &for_num.step {
+                            self.catalog_expression(step);
+                        }
+                        self.catalog_block(&for_num.body);
+                    }
+                    ForStatement::Generic(for_gen) => {
+                        for expr in &for_gen.iterators {
+                            self.catalog_expression(expr);
+                        }
+                        self.catalog_block(&for_gen.body);
+                    }
+                }
+            }
+            Statement::Repeat(repeat_stmt) => {
+                self.catalog_expression(&repeat_stmt.until);
+                self.catalog_block(&repeat_stmt.body);
+            }
+            Statement::Return(return_stmt) => {
+                for expr in &return_stmt.values {
+                    self.catalog_expression(expr);
+                }
+            }
+            Statement::Block(block) => self.catalog_block(block),
+            Statement::Try(try_stmt) => {
+                self.catalog_block(&try_stmt.try_block);
+                for clause in &try_stmt.catch_clauses {
+                    self.catalog_block(&clause.body);
+                }
+                if let Some(finally) = &try_stmt.finally_block {
+                    self.catalog_block(finally);
+                }
+            }
+            Statement::Expression(expr) => {
+                self.catalog_expression(expr);
+            }
+            _ => {}
+        }
+    }
+
+    fn catalog_block(&mut self, block: &Block) {
+        for stmt in &block.statements {
+            self.catalog_statement(stmt);
+        }
+    }
+
+    fn catalog_expression(&mut self, expr: &Expression) {
+        match &expr.kind {
+            ExpressionKind::Binary(op, left, right) => {
+                self.catalog_expression(left);
+                self.catalog_expression(right);
+                self.count_operator_call(op, left, right);
+            }
+            ExpressionKind::Unary(op, operand) => {
+                self.catalog_expression(operand);
+                self.count_unary_operator_call(op, operand);
+            }
+            ExpressionKind::Call(func, args, _) => {
+                self.catalog_expression(func);
+                for arg in args {
+                    self.catalog_expression(&arg.value);
+                }
+            }
+            ExpressionKind::MethodCall(obj, _, args, _) => {
+                self.catalog_expression(obj);
+                for arg in args {
+                    self.catalog_expression(&arg.value);
+                }
+            }
+            ExpressionKind::Conditional(cond, then_expr, else_expr) => {
+                self.catalog_expression(cond);
+                self.catalog_expression(then_expr);
+                self.catalog_expression(else_expr);
+            }
+            ExpressionKind::Pipe(left, right) => {
+                self.catalog_expression(left);
+                self.catalog_expression(right);
+            }
+            ExpressionKind::Match(match_expr) => {
+                self.catalog_expression(&match_expr.value);
+                for arm in &match_expr.arms {
+                    match &arm.body {
+                        crate::ast::expression::MatchArmBody::Expression(e) => {
+                            self.catalog_expression(e);
+                        }
+                        crate::ast::expression::MatchArmBody::Block(block) => {
+                            self.catalog_block(block);
+                        }
+                    }
+                }
+            }
+            ExpressionKind::Arrow(arrow) => {
+                for param in &arrow.parameters {
+                    if let Some(default) = &param.default {
+                        self.catalog_expression(default);
+                    }
+                }
+                match &arrow.body {
+                    crate::ast::expression::ArrowBody::Expression(e) => {
+                        self.catalog_expression(e);
+                    }
+                    crate::ast::expression::ArrowBody::Block(block) => {
+                        self.catalog_block(block);
+                    }
+                }
+            }
+            ExpressionKind::New(callee, args) => {
+                self.catalog_expression(callee);
+                for arg in args {
+                    self.catalog_expression(&arg.value);
+                }
+            }
+            ExpressionKind::Try(try_expr) => {
+                self.catalog_expression(&try_expr.expression);
+                self.catalog_expression(&try_expr.catch_expression);
+            }
+            ExpressionKind::ErrorChain(left, right) => {
+                self.catalog_expression(left);
+                self.catalog_expression(right);
+            }
+            ExpressionKind::OptionalMember(obj, _) => self.catalog_expression(obj),
+            ExpressionKind::OptionalIndex(obj, index) => {
+                self.catalog_expression(obj);
+                self.catalog_expression(index);
+            }
+            ExpressionKind::OptionalCall(obj, args, _) => {
+                self.catalog_expression(obj);
+                for arg in args {
+                    self.catalog_expression(&arg.value);
+                }
+            }
+            ExpressionKind::OptionalMethodCall(obj, _, args, _) => {
+                self.catalog_expression(obj);
+                for arg in args {
+                    self.catalog_expression(&arg.value);
+                }
+            }
+            ExpressionKind::Assignment(left, _, right) => {
+                self.catalog_expression(left);
+                self.catalog_expression(right);
+            }
+            ExpressionKind::Member(obj, _) => self.catalog_expression(obj),
+            ExpressionKind::Index(obj, index) => {
+                self.catalog_expression(obj);
+                self.catalog_expression(index);
+            }
+            ExpressionKind::Array(elements) => {
+                for elem in elements {
+                    match elem {
+                        crate::ast::expression::ArrayElement::Expression(e) => {
+                            self.catalog_expression(e);
+                        }
+                        crate::ast::expression::ArrayElement::Spread(e) => {
+                            self.catalog_expression(e);
+                        }
+                    }
+                }
+            }
+            ExpressionKind::Object(props) => {
+                for prop in props {
+                    match prop {
+                        crate::ast::expression::ObjectProperty::Property { value, .. } => {
+                            self.catalog_expression(value);
+                        }
+                        crate::ast::expression::ObjectProperty::Computed { key, value, .. } => {
+                            self.catalog_expression(key);
+                            self.catalog_expression(value);
+                        }
+                        crate::ast::expression::ObjectProperty::Spread { value, .. } => {
+                            self.catalog_expression(value);
+                        }
+                    }
+                }
+            }
+            ExpressionKind::Parenthesized(inner) => self.catalog_expression(inner),
+            ExpressionKind::TypeAssertion(expr, _) => self.catalog_expression(expr),
+            ExpressionKind::Identifier(_)
+            | ExpressionKind::Literal(_)
+            | ExpressionKind::SelfKeyword
+            | ExpressionKind::SuperKeyword
+            | ExpressionKind::Template(_)
+            | ExpressionKind::Function(_) => {}
+        }
+    }
+
+    fn count_operator_call(&mut self, op: &BinaryOp, left: &Expression, _right: &Expression) {
+        let operator_kind = binary_op_to_operator_kind(op);
+        if operator_kind.is_none() {
+            return;
+        }
+        let operator_kind = operator_kind.unwrap();
+
+        if let Some(left_type) = &left.annotated_type {
+            if let Some(class_id) = get_class_from_type(left_type) {
+                if let Some(info) = self.operator_catalog.get_mut(&(class_id, operator_kind)) {
+                    info.call_count += 1;
+                }
+            }
+        }
+    }
+
+    fn count_unary_operator_call(&mut self, op: &UnaryOp, operand: &Expression) {
+        let operator_kind = unary_op_to_operator_kind(op);
+        if operator_kind.is_none() {
+            return;
+        }
+        let operator_kind = operator_kind.unwrap();
+
+        if let Some(operand_type) = &operand.annotated_type {
+            if let Some(class_id) = get_class_from_type(operand_type) {
+                if let Some(info) = self.operator_catalog.get_mut(&(class_id, operator_kind)) {
+                    info.call_count += 1;
+                }
+            }
+        }
+    }
+
+    fn can_inline(&self, info: &OperatorInfo) -> bool {
+        if info.statement_count > MAX_INLINE_STATEMENTS {
+            return false;
+        }
+        if info.has_side_effects {
+            return false;
+        }
+        if info.call_count < MIN_CALL_FREQUENCY {
+            return false;
+        }
+        true
+    }
+
+    fn convert_operator_call(
+        &self,
+        op: &BinaryOp,
+        left: &Expression,
+        right: &Expression,
+        span: Span,
+    ) -> Option<ExpressionKind> {
+        let operator_kind = binary_op_to_operator_kind(op)?;
+        let class_id = get_class_from_type(left.annotated_type.as_ref()?)?;
+        let info = self.operator_catalog.get(&(class_id, operator_kind))?;
+        if !self.can_inline(info) {
+            return None;
+        }
+
+        let class_name_str = self.interner.resolve(class_id);
+        let class_ident_id = self.interner.get_or_intern(&class_name_str);
+        let metamethod_name = operator_kind_to_metamethod_name(operator_kind);
+        let method_ident_id = self.interner.get_or_intern(&metamethod_name);
+
+        let func_expr = Expression {
+            kind: ExpressionKind::Member(
+                Box::new(Expression {
+                    kind: ExpressionKind::Identifier(class_ident_id),
+                    span,
+                    annotated_type: None,
+                    receiver_class: None,
+                }),
+                crate::ast::Spanned::new(method_ident_id, span),
+            ),
+            span,
+            annotated_type: None,
+            receiver_class: None,
+        };
+
+        let mut args = Vec::new();
+        args.push(crate::ast::expression::Argument {
+            value: left.clone(),
+            is_spread: false,
+            span,
+        });
+        args.push(crate::ast::expression::Argument {
+            value: right.clone(),
+            is_spread: false,
+            span,
+        });
+
+        Some(ExpressionKind::Call(Box::new(func_expr), args, None))
+    }
+}
+
+fn binary_op_to_operator_kind(op: &BinaryOp) -> Option<crate::ast::statement::OperatorKind> {
+    match op {
+        BinaryOp::Add => Some(crate::ast::statement::OperatorKind::Add),
+        BinaryOp::Subtract => Some(crate::ast::statement::OperatorKind::Subtract),
+        BinaryOp::Multiply => Some(crate::ast::statement::OperatorKind::Multiply),
+        BinaryOp::Divide => Some(crate::ast::statement::OperatorKind::Divide),
+        BinaryOp::Modulo => Some(crate::ast::statement::OperatorKind::Modulo),
+        BinaryOp::Power => Some(crate::ast::statement::OperatorKind::Power),
+        BinaryOp::Concatenate => Some(crate::ast::statement::OperatorKind::Concatenate),
+        BinaryOp::Equal => Some(crate::ast::statement::OperatorKind::Equal),
+        BinaryOp::NotEqual => Some(crate::ast::statement::OperatorKind::NotEqual),
+        BinaryOp::LessThan => Some(crate::ast::statement::OperatorKind::LessThan),
+        BinaryOp::LessThanOrEqual => Some(crate::ast::statement::OperatorKind::LessThanOrEqual),
+        BinaryOp::GreaterThan => Some(crate::ast::statement::OperatorKind::GreaterThan),
+        BinaryOp::GreaterThanOrEqual => {
+            Some(crate::ast::statement::OperatorKind::GreaterThanOrEqual)
+        }
+        BinaryOp::BitwiseAnd => Some(crate::ast::statement::OperatorKind::BitwiseAnd),
+        BinaryOp::BitwiseOr => Some(crate::ast::statement::OperatorKind::BitwiseOr),
+        BinaryOp::BitwiseXor => Some(crate::ast::statement::OperatorKind::BitwiseXor),
+        BinaryOp::ShiftLeft => Some(crate::ast::statement::OperatorKind::ShiftLeft),
+        BinaryOp::ShiftRight => Some(crate::ast::statement::OperatorKind::ShiftRight),
+        BinaryOp::IntegerDivide => Some(crate::ast::statement::OperatorKind::FloorDivide),
+        _ => None,
+    }
+}
+
+fn unary_op_to_operator_kind(op: &UnaryOp) -> Option<crate::ast::statement::OperatorKind> {
+    match op {
+        UnaryOp::Negate => Some(crate::ast::statement::OperatorKind::UnaryMinus),
+        UnaryOp::Length => Some(crate::ast::statement::OperatorKind::Length),
+        _ => None,
+    }
+}
+
+fn operator_kind_to_metamethod_name(op: crate::ast::statement::OperatorKind) -> String {
+    match op {
+        crate::ast::statement::OperatorKind::Add => "__add",
+        crate::ast::statement::OperatorKind::Subtract => "__sub",
+        crate::ast::statement::OperatorKind::Multiply => "__mul",
+        crate::ast::statement::OperatorKind::Divide => "__div",
+        crate::ast::statement::OperatorKind::Modulo => "__mod",
+        crate::ast::statement::OperatorKind::Power => "__pow",
+        crate::ast::statement::OperatorKind::Concatenate => "__concat",
+        crate::ast::statement::OperatorKind::FloorDivide => "__idiv",
+        crate::ast::statement::OperatorKind::Equal => "__eq",
+        crate::ast::statement::OperatorKind::NotEqual => "__eq",
+        crate::ast::statement::OperatorKind::LessThan => "__lt",
+        crate::ast::statement::OperatorKind::LessThanOrEqual => "__le",
+        crate::ast::statement::OperatorKind::GreaterThan => "__lt",
+        crate::ast::statement::OperatorKind::GreaterThanOrEqual => "__le",
+        crate::ast::statement::OperatorKind::BitwiseAnd => "__band",
+        crate::ast::statement::OperatorKind::BitwiseOr => "__bor",
+        crate::ast::statement::OperatorKind::BitwiseXor => "__bxor",
+        crate::ast::statement::OperatorKind::ShiftLeft => "__shl",
+        crate::ast::statement::OperatorKind::ShiftRight => "__shr",
+        crate::ast::statement::OperatorKind::Index => "__index",
+        crate::ast::statement::OperatorKind::NewIndex => "__newindex",
+        crate::ast::statement::OperatorKind::Call => "__call",
+        crate::ast::statement::OperatorKind::UnaryMinus => "__unm",
+        crate::ast::statement::OperatorKind::Length => "__len",
+    }
+    .to_string()
+}
+
+fn get_class_from_type(t: &Type) -> Option<StringId> {
+    match &t.kind {
+        TypeKind::Reference(type_ref) => Some(type_ref.name.node),
+        _ => None,
+    }
+}
+
+fn count_statements(block: &Block) -> usize {
+    block.statements.len()
+}
+
+fn has_side_effects(block: &Block) -> bool {
+    for stmt in &block.statements {
+        if statement_has_side_effects(stmt) {
+            return true;
+        }
+    }
+    false
+}
+
+fn statement_has_side_effects(stmt: &Statement) -> bool {
+    match stmt {
+        Statement::Expression(expr) => expression_has_side_effects(expr),
+        Statement::Variable(decl) => expression_has_side_effects(&decl.initializer),
+        Statement::Return(return_stmt) => {
+            return_stmt.values.iter().any(expression_has_side_effects)
+        }
+        Statement::If(if_stmt) => {
+            expression_has_side_effects(&if_stmt.condition)
+                || block_has_side_effects(&if_stmt.then_block)
+                || if_stmt.else_ifs.iter().any(|ei| {
+                    expression_has_side_effects(&ei.condition) || block_has_side_effects(&ei.block)
+                })
+                || if_stmt
+                    .else_block
+                    .as_ref()
+                    .map(|b| block_has_side_effects(b))
+                    .unwrap_or(false)
+        }
+        Statement::While(while_stmt) => {
+            expression_has_side_effects(&while_stmt.condition)
+                || block_has_side_effects(&while_stmt.body)
+        }
+        _ => true,
+    }
+}
+
+fn block_has_side_effects(block: &Block) -> bool {
+    block.statements.iter().any(statement_has_side_effects)
+}
+
+fn expression_has_side_effects(expr: &Expression) -> bool {
+    match &expr.kind {
+        ExpressionKind::Call(_, args, _) => args
+            .iter()
+            .any(|arg| expression_has_side_effects(&arg.value)),
+        ExpressionKind::MethodCall(_, _, args, _) => args
+            .iter()
+            .any(|arg| expression_has_side_effects(&arg.value)),
+        ExpressionKind::Assignment(left, _, right) => {
+            expression_has_side_effects(left) || expression_has_side_effects(right)
+        }
+        ExpressionKind::Binary(_, left, right) => {
+            expression_has_side_effects(left) || expression_has_side_effects(right)
+        }
+        ExpressionKind::Unary(_, operand) => expression_has_side_effects(operand),
+        ExpressionKind::Conditional(cond, then_expr, else_expr) => {
+            expression_has_side_effects(cond)
+                || expression_has_side_effects(then_expr)
+                || expression_has_side_effects(else_expr)
+        }
+        ExpressionKind::Pipe(left, right) => {
+            expression_has_side_effects(left) || expression_has_side_effects(right)
+        }
+        ExpressionKind::Match(match_expr) => {
+            expression_has_side_effects(&match_expr.value)
+                || match_expr.arms.iter().any(|arm| match &arm.body {
+                    crate::ast::expression::MatchArmBody::Expression(e) => {
+                        expression_has_side_effects(e)
+                    }
+                    crate::ast::expression::MatchArmBody::Block(b) => block_has_side_effects(b),
+                })
+        }
+        ExpressionKind::Arrow(arrow) => {
+            arrow.parameters.iter().any(|p| {
+                p.default
+                    .as_ref()
+                    .map(|d| expression_has_side_effects(d))
+                    .unwrap_or(false)
+            }) || match &arrow.body {
+                crate::ast::expression::ArrowBody::Expression(e) => expression_has_side_effects(e),
+                crate::ast::expression::ArrowBody::Block(b) => block_has_side_effects(b),
+            }
+        }
+        ExpressionKind::New(callee, args) => {
+            expression_has_side_effects(callee)
+                || args
+                    .iter()
+                    .any(|arg| expression_has_side_effects(&arg.value))
+        }
+        ExpressionKind::Try(try_expr) => {
+            expression_has_side_effects(&try_expr.expression)
+                || expression_has_side_effects(&try_expr.catch_expression)
+        }
+        ExpressionKind::ErrorChain(left, right) => {
+            expression_has_side_effects(left) || expression_has_side_effects(right)
+        }
+        ExpressionKind::OptionalCall(obj, args, _) => {
+            expression_has_side_effects(obj)
+                || args
+                    .iter()
+                    .any(|arg| expression_has_side_effects(&arg.value))
+        }
+        ExpressionKind::OptionalMethodCall(obj, _, args, _) => {
+            expression_has_side_effects(obj)
+                || args
+                    .iter()
+                    .any(|arg| expression_has_side_effects(&arg.value))
+        }
+        ExpressionKind::Function(_) => false,
+        ExpressionKind::Literal(_)
+        | ExpressionKind::Identifier(_)
+        | ExpressionKind::SelfKeyword => false,
+        _ => true,
+    }
+}
+
+impl OptimizationPass for OperatorInliningPass {
+    fn name(&self) -> &'static str {
+        "operator-inlining"
+    }
+
+    fn min_level(&self) -> OptimizationLevel {
+        OptimizationLevel::O3
+    }
+
+    fn run(&mut self, program: &mut Program) -> Result<bool, CompilationError> {
+        self.build_operator_catalog(program);
+
+        let mut changed = false;
+        for stmt in &mut program.statements {
+            changed |= self.process_statement(stmt);
+        }
+
+        Ok(changed)
+    }
+}
+
+impl OperatorInliningPass {
+    fn process_statement(&mut self, stmt: &mut Statement) -> bool {
+        match stmt {
+            Statement::Function(func) => {
+                let mut changed = false;
+                for s in &mut func.body.statements {
+                    changed |= self.process_statement(s);
+                }
+                changed
+            }
+            Statement::If(if_stmt) => {
+                let mut changed = self.process_expression(&mut if_stmt.condition);
+                changed |= self.process_block(&mut if_stmt.then_block);
+                for else_if in &mut if_stmt.else_ifs {
+                    changed |= self.process_expression(&mut else_if.condition);
+                    changed |= self.process_block(&mut else_if.block);
+                }
+                if let Some(else_block) = &mut if_stmt.else_block {
+                    changed |= self.process_block(else_block);
+                }
+                changed
+            }
+            Statement::While(while_stmt) => {
+                let mut changed = self.process_expression(&mut while_stmt.condition);
+                changed |= self.process_block(&mut while_stmt.body);
+                changed
+            }
+            Statement::For(for_stmt) => {
+                use crate::ast::statement::ForStatement;
+                let body = match &mut **for_stmt {
+                    ForStatement::Numeric(for_num) => &mut for_num.body,
+                    ForStatement::Generic(for_gen) => &mut for_gen.body,
+                };
+                self.process_block(body)
+            }
+            Statement::Repeat(repeat_stmt) => {
+                let mut changed = self.process_expression(&mut repeat_stmt.until);
+                changed |= self.process_block(&mut repeat_stmt.body);
+                changed
+            }
+            Statement::Return(return_stmt) => {
+                let mut changed = false;
+                for value in &mut return_stmt.values {
+                    changed |= self.process_expression(value);
+                }
+                changed
+            }
+            Statement::Expression(expr) => self.process_expression(expr),
+            Statement::Block(block) => self.process_block(block),
+            Statement::Try(try_stmt) => {
+                let mut changed = self.process_block(&mut try_stmt.try_block);
+                for clause in &mut try_stmt.catch_clauses {
+                    changed |= self.process_block(&mut clause.body);
+                }
+                if let Some(finally) = &mut try_stmt.finally_block {
+                    changed |= self.process_block(finally);
+                }
+                changed
+            }
+            _ => false,
+        }
+    }
+
+    fn process_block(&mut self, block: &mut Block) -> bool {
+        let mut changed = false;
+        for stmt in &mut block.statements {
+            changed |= self.process_statement(stmt);
+        }
+        changed
+    }
+
+    fn process_expression(&mut self, expr: &mut Expression) -> bool {
+        match &mut expr.kind {
+            ExpressionKind::Binary(op, left, right) => {
+                let mut changed = self.process_expression(left);
+                changed |= self.process_expression(right);
+
+                if let Some(new_kind) = self.convert_operator_call(op, left, right, expr.span) {
+                    expr.kind = new_kind;
+                    changed = true;
+                }
+
+                changed
+            }
+            ExpressionKind::Call(func, args, _) => {
+                let mut changed = self.process_expression(func);
+                for arg in args.iter_mut() {
+                    changed |= self.process_expression(&mut arg.value);
+                }
+                changed
+            }
+            ExpressionKind::MethodCall(obj, _, args, _) => {
+                let mut changed = self.process_expression(obj);
+                for arg in args.iter_mut() {
+                    changed |= self.process_expression(&mut arg.value);
+                }
+                changed
+            }
+            ExpressionKind::Unary(_op, operand) => self.process_expression(operand),
+            ExpressionKind::Conditional(cond, then_expr, else_expr) => {
+                let mut changed = self.process_expression(cond);
+                changed |= self.process_expression(then_expr);
+                changed |= self.process_expression(else_expr);
+                changed
+            }
+            ExpressionKind::Pipe(left, right) => {
+                let mut changed = self.process_expression(left);
+                changed |= self.process_expression(right);
+                changed
+            }
+            ExpressionKind::Match(match_expr) => {
+                let mut changed = self.process_expression(&mut match_expr.value);
+                for arm in &mut match_expr.arms {
+                    match &mut arm.body {
+                        crate::ast::expression::MatchArmBody::Expression(e) => {
+                            changed |= self.process_expression(e);
+                        }
+                        crate::ast::expression::MatchArmBody::Block(block) => {
+                            changed |= self.process_block(block);
+                        }
+                    }
+                }
+                changed
+            }
+            ExpressionKind::Arrow(arrow) => {
+                let mut changed = false;
+                for param in &mut arrow.parameters {
+                    if let Some(default) = &mut param.default {
+                        changed |= self.process_expression(default);
+                    }
+                }
+                match &mut arrow.body {
+                    crate::ast::expression::ArrowBody::Expression(e) => {
+                        changed |= self.process_expression(e);
+                    }
+                    crate::ast::expression::ArrowBody::Block(block) => {
+                        changed |= self.process_block(block);
+                    }
+                }
+                changed
+            }
+            ExpressionKind::New(callee, args) => {
+                let mut changed = self.process_expression(callee);
+                for arg in args {
+                    changed |= self.process_expression(&mut arg.value);
+                }
+                changed
+            }
+            ExpressionKind::Try(try_expr) => {
+                let mut changed = self.process_expression(&mut try_expr.expression);
+                changed |= self.process_expression(&mut try_expr.catch_expression);
+                changed
+            }
+            ExpressionKind::ErrorChain(left, right) => {
+                let mut changed = self.process_expression(left);
+                changed |= self.process_expression(right);
+                changed
+            }
+            ExpressionKind::OptionalMember(obj, _) => self.process_expression(obj),
+            ExpressionKind::OptionalIndex(obj, index) => {
+                let mut changed = self.process_expression(obj);
+                changed |= self.process_expression(index);
+                changed
+            }
+            ExpressionKind::OptionalCall(obj, args, _) => {
+                let mut changed = self.process_expression(obj);
+                for arg in args {
+                    changed |= self.process_expression(&mut arg.value);
+                }
+                changed
+            }
+            ExpressionKind::OptionalMethodCall(obj, _, args, _) => {
+                let mut changed = self.process_expression(obj);
+                for arg in args {
+                    changed |= self.process_expression(&mut arg.value);
+                }
+                changed
+            }
+            ExpressionKind::Assignment(left, _op, right) => {
+                let mut changed = self.process_expression(left);
+                changed |= self.process_expression(right);
+                changed
+            }
+            ExpressionKind::Member(obj, _) => self.process_expression(obj),
+            ExpressionKind::Index(obj, index) => {
+                let mut changed = self.process_expression(obj);
+                changed |= self.process_expression(index);
+                changed
+            }
+            ExpressionKind::Array(elements) => {
+                let mut changed = false;
+                for elem in elements {
+                    match elem {
+                        crate::ast::expression::ArrayElement::Expression(e) => {
+                            changed |= self.process_expression(e);
+                        }
+                        crate::ast::expression::ArrayElement::Spread(e) => {
+                            changed |= self.process_expression(e);
+                        }
+                    }
+                }
+                changed
+            }
+            ExpressionKind::Object(props) => {
+                let mut changed = false;
+                for prop in props {
+                    match prop {
+                        crate::ast::expression::ObjectProperty::Property { value, .. } => {
+                            changed |= self.process_expression(value);
+                        }
+                        crate::ast::expression::ObjectProperty::Computed { key, value, .. } => {
+                            changed |= self.process_expression(key);
+                            changed |= self.process_expression(value);
+                        }
+                        crate::ast::expression::ObjectProperty::Spread { value, .. } => {
+                            changed |= self.process_expression(value);
+                        }
+                    }
+                }
+                changed
+            }
+            ExpressionKind::Parenthesized(inner) => self.process_expression(inner),
+            ExpressionKind::TypeAssertion(expr, _) => self.process_expression(expr),
+            ExpressionKind::Identifier(_)
+            | ExpressionKind::Literal(_)
+            | ExpressionKind::SelfKeyword
+            | ExpressionKind::SuperKeyword
+            | ExpressionKind::Template(_)
+            | ExpressionKind::Function(_) => false,
+        }
+    }
+}
+
+impl Default for OperatorInliningPass {
+    #[allow(clippy::arc_with_non_send_sync)]
+    fn default() -> Self {
+        Self::new(Arc::new(StringInterner::new()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ast::types::{PrimitiveType, Type, TypeKind};
+
+    #[test]
+    fn test_operator_catalog_build() {
+        let interner = Arc::new(StringInterner::new());
+        let mut pass = OperatorInliningPass::new(interner);
+
+        let program = Program::new(vec![], Span::dummy());
+        pass.build_operator_catalog(&program);
+
+        assert!(pass.operator_catalog.is_empty());
+    }
+
+    #[test]
+    fn test_binary_op_to_operator_kind() {
+        assert_eq!(
+            binary_op_to_operator_kind(&BinaryOp::Add),
+            Some(crate::ast::statement::OperatorKind::Add)
+        );
+        assert_eq!(
+            binary_op_to_operator_kind(&BinaryOp::Subtract),
+            Some(crate::ast::statement::OperatorKind::Subtract)
+        );
+        assert_eq!(
+            binary_op_to_operator_kind(&BinaryOp::Multiply),
+            Some(crate::ast::statement::OperatorKind::Multiply)
+        );
+        assert_eq!(binary_op_to_operator_kind(&BinaryOp::And), None);
+    }
+
+    #[test]
+    fn test_operator_kind_to_metamethod_name() {
+        assert_eq!(
+            operator_kind_to_metamethod_name(crate::ast::statement::OperatorKind::Add),
+            "__add"
+        );
+        assert_eq!(
+            operator_kind_to_metamethod_name(crate::ast::statement::OperatorKind::Multiply),
+            "__mul"
+        );
+    }
+
+    #[test]
+    fn test_get_class_from_type() {
+        let type_id = StringId::from_u32(1);
+        let ref_type = Type::new(
+            TypeKind::Reference(crate::ast::types::TypeReference {
+                name: crate::ast::Spanned::new(type_id, Span::dummy()),
+                type_arguments: None,
+                span: Span::dummy(),
+            }),
+            Span::dummy(),
+        );
+
+        let result = get_class_from_type(&ref_type);
+        assert_eq!(result, Some(type_id));
+
+        let primitive_type = Type::new(TypeKind::Primitive(PrimitiveType::Number), Span::dummy());
+        let result = get_class_from_type(&primitive_type);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_count_statements() {
+        let block = Block {
+            statements: vec![
+                Statement::Return(crate::ast::statement::ReturnStatement {
+                    values: vec![],
+                    span: Span::dummy(),
+                }),
+                Statement::Return(crate::ast::statement::ReturnStatement {
+                    values: vec![],
+                    span: Span::dummy(),
+                }),
+            ],
+            span: Span::dummy(),
+        };
+
+        assert_eq!(count_statements(&block), 2);
+    }
+
+    #[test]
+    fn test_has_side_effects() {
+        let block = Block {
+            statements: vec![Statement::Expression(Expression::new(
+                ExpressionKind::Identifier(StringId::from_u32(1)),
+                Span::dummy(),
+            ))],
+            span: Span::dummy(),
+        };
+
+        assert!(!has_side_effects(&block));
+    }
+}

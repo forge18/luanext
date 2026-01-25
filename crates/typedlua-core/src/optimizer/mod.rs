@@ -17,6 +17,9 @@ use method_to_function_conversion::*;
 mod devirtualization;
 use devirtualization::DevirtualizationPass;
 
+mod operator_inlining;
+use operator_inlining::OperatorInliningPass;
+
 /// Trait for optimization passes that transform the AST
 pub trait OptimizationPass {
     /// Get the name of this optimization pass
@@ -87,10 +90,11 @@ impl Optimizer {
             )));
 
         // O3 passes - Aggressive optimizations (5 passes)
+        // self.passes
+        //     .push(Box::new(AggressiveInliningPass::default()));
         self.passes
-            .push(Box::new(AggressiveInliningPass::default()));
-        self.passes.push(Box::new(OperatorInliningPass));
-        self.passes.push(Box::new(InterfaceMethodInliningPass));
+            .push(Box::new(OperatorInliningPass::new(interner.clone())));
+        // self.passes.push(Box::new(InterfaceMethodInliningPass));
         self.passes
             .push(Box::new(DevirtualizationPass::new(interner.clone())));
         let mut generic_spec_pass = GenericSpecializationPass::default();
