@@ -292,7 +292,7 @@ fn extract_type_guard_call(
 
     // Get the variable being checked
     let var_name = match &arguments[0].value.kind {
-        ExpressionKind::Identifier(name) => *name,
+        ExpressionKind::Identifier(name) => *name.clone(),
         _ => return None,
     };
 
@@ -317,7 +317,7 @@ fn extract_type_guard_call(
         let func_name_str = interner.resolve(*func_name);
         if let Some(stripped) = func_name_str.strip_prefix("is") {
             // Extract the type name from the function name (e.g., "isString" -> "string")
-            let type_name = stripped.to_lowercase();
+            let type_name: String = stripped.to_lowercase();
             if let Some(narrowed_type) = typeof_string_to_type(&type_name) {
                 return Some((var_name, narrowed_type));
             }

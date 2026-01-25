@@ -14,7 +14,7 @@ pub fn apply_utility_type(
     type_args: &[Type],
     span: Span,
     interner: &StringInterner,
-    common_ids: &crate::string_interner::CommonIdentifiers,
+    common_ids: &typedlua_parser::string_interner::CommonIdentifiers,
 ) -> Result<Type, String> {
     match name {
         "Partial" => partial(type_args, span),
@@ -173,7 +173,7 @@ fn record(
     type_args: &[Type],
     span: Span,
     _interner: &StringInterner,
-    common_ids: &crate::string_interner::CommonIdentifiers,
+    common_ids: &typedlua_parser::string_interner::CommonIdentifiers,
 ) -> Result<Type, String> {
     if type_args.len() != 2 {
         return Err(format!(
@@ -631,7 +631,7 @@ pub fn evaluate_keyof(typ: &Type, type_env: &super::TypeEnvironment) -> Result<T
 /// Evaluate a conditional type: T extends U ? X : Y
 /// Also handles infer keyword: T extends Array<infer U> ? U : never
 pub fn evaluate_conditional_type(
-    conditional: &crate::ast::types::ConditionalType,
+    conditional: &typedlua_parser::ast::types::ConditionalType,
     type_env: &super::TypeEnvironment,
 ) -> Result<Type, String> {
     use super::type_compat::TypeCompatibility;
@@ -663,7 +663,7 @@ pub fn evaluate_conditional_type(
 
         for member_type in union_types {
             // Create a new conditional for each union member
-            let member_conditional = crate::ast::types::ConditionalType {
+            let member_conditional = typedlua_parser::ast::types::ConditionalType {
                 check_type: Box::new(member_type.clone()),
                 extends_type: conditional.extends_type.clone(),
                 true_type: conditional.true_type.clone(),
@@ -1130,7 +1130,7 @@ mod tests {
     }
 
     fn make_object_type(properties: Vec<(&str, Type, bool, bool)>) -> Type {
-        let interner = crate::string_interner::StringInterner::new();
+        let interner = typedlua_parser::string_interner::StringInterner::new();
         let members = properties
             .into_iter()
             .map(|(name, typ, optional, readonly)| {
@@ -1265,7 +1265,7 @@ mod tests {
         let value_type = Type::new(TypeKind::Primitive(PrimitiveType::Number), make_span());
 
         let (interner, common_ids) =
-            crate::string_interner::StringInterner::new_with_common_identifiers();
+            typedlua_parser::string_interner::StringInterner::new_with_common_identifiers();
         let result = record(&[key_type, value_type], make_span(), &interner, &common_ids).unwrap();
 
         if let TypeKind::Object(obj_type) = &result.kind {

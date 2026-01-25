@@ -147,7 +147,7 @@ mod tests {
             members: vec![EnumMember {
                 name: Spanned::new(interner.get_or_intern("Red"), Span::dummy()),
                 arguments: vec![],
-                value: Some(crate::ast::statement::EnumValue::Number(1.0)),
+                value: Some(typedlua_parser::ast::statement::EnumValue::Number(1.0)),
                 span: Span::dummy(),
             }],
             fields: vec![],

@@ -2228,10 +2228,10 @@ impl CodeGenerator {
 
                 for part in &template_lit.parts {
                     match part {
-                        crate::ast::expression::TemplatePart::String(s) => {
+                        typedlua_parser::ast::expression::TemplatePart::String(s) => {
                             string_parts.push(s.clone());
                         }
-                        crate::ast::expression::TemplatePart::Expression(expr) => {
+                        typedlua_parser::ast::expression::TemplatePart::Expression(expr) => {
                             expression_parts.push(expr);
                         }
                     }
@@ -3066,7 +3066,10 @@ impl CodeGenerator {
         }
     }
 
-    fn get_declaration_name(&self, stmt: &Statement) -> Option<crate::string_interner::StringId> {
+    fn get_declaration_name(
+        &self,
+        stmt: &Statement,
+    ) -> Option<typedlua_parser::string_interner::StringId> {
         match stmt {
             Statement::Variable(decl) => {
                 if let Pattern::Identifier(ident) = &decl.pattern {

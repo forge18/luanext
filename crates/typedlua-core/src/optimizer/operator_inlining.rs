@@ -27,7 +27,7 @@ const MIN_CALL_FREQUENCY: usize = 3;
 #[derive(Debug, Clone)]
 struct OperatorInfo {
     class_name: StringId,
-    operator: crate::ast::statement::OperatorKind,
+    operator: typedlua_parser::ast::statement::OperatorKind,
     body: Block,
     param_names: Vec<StringId>,
     statement_count: usize,
@@ -36,7 +36,7 @@ struct OperatorInfo {
 }
 
 pub struct OperatorInliningPass {
-    operator_catalog: FxHashMap<(StringId, crate::ast::statement::OperatorKind), OperatorInfo>,
+    operator_catalog: FxHashMap<(StringId, typedlua_parser::ast::statement::OperatorKind), OperatorInfo>,
     interner: Arc<StringInterner>,
 }
 
@@ -196,10 +196,10 @@ impl OperatorInliningPass {
                 self.catalog_expression(&match_expr.value);
                 for arm in &match_expr.arms {
                     match &arm.body {
-                        crate::ast::expression::MatchArmBody::Expression(e) => {
+                        typedlua_parser::ast::expression::MatchArmBody::Expression(e) => {
                             self.catalog_expression(e);
                         }
-                        crate::ast::expression::MatchArmBody::Block(block) => {
+                        typedlua_parser::ast::expression::MatchArmBody::Block(block) => {
                             self.catalog_block(block);
                         }
                     }
@@ -212,10 +212,10 @@ impl OperatorInliningPass {
                     }
                 }
                 match &arrow.body {
-                    crate::ast::expression::ArrowBody::Expression(e) => {
+                    typedlua_parser::ast::expression::ArrowBody::Expression(e) => {
                         self.catalog_expression(e);
                     }
-                    crate::ast::expression::ArrowBody::Block(block) => {
+                    typedlua_parser::ast::expression::ArrowBody::Block(block) => {
                         self.catalog_block(block);
                     }
                 }
@@ -263,10 +263,10 @@ impl OperatorInliningPass {
             ExpressionKind::Array(elements) => {
                 for elem in elements {
                     match elem {
-                        crate::ast::expression::ArrayElement::Expression(e) => {
+                        typedlua_parser::ast::expression::ArrayElement::Expression(e) => {
                             self.catalog_expression(e);
                         }
-                        crate::ast::expression::ArrayElement::Spread(e) => {
+                        typedlua_parser::ast::expression::ArrayElement::Spread(e) => {
                             self.catalog_expression(e);
                         }
                     }
@@ -275,14 +275,14 @@ impl OperatorInliningPass {
             ExpressionKind::Object(props) => {
                 for prop in props {
                     match prop {
-                        crate::ast::expression::ObjectProperty::Property { value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Property { value, .. } => {
                             self.catalog_expression(value);
                         }
-                        crate::ast::expression::ObjectProperty::Computed { key, value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Computed { key, value, .. } => {
                             self.catalog_expression(key);
                             self.catalog_expression(value);
                         }
-                        crate::ast::expression::ObjectProperty::Spread { value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Spread { value, .. } => {
                             self.catalog_expression(value);
                         }
                     }
@@ -371,7 +371,7 @@ impl OperatorInliningPass {
                     annotated_type: None,
                     receiver_class: None,
                 }),
-                crate::ast::Spanned::new(method_ident_id, span),
+                typedlua_parser::ast::Spanned::new(method_ident_id, span),
             ),
             span,
             annotated_type: None,
@@ -379,12 +379,12 @@ impl OperatorInliningPass {
         };
 
         let mut args = Vec::new();
-        args.push(crate::ast::expression::Argument {
+        args.push(typedlua_parser::ast::expression::Argument {
             value: left.clone(),
             is_spread: false,
             span,
         });
-        args.push(crate::ast::expression::Argument {
+        args.push(typedlua_parser::ast::expression::Argument {
             value: right.clone(),
             is_spread: false,
             span,
@@ -394,67 +394,67 @@ impl OperatorInliningPass {
     }
 }
 
-fn binary_op_to_operator_kind(op: &BinaryOp) -> Option<crate::ast::statement::OperatorKind> {
+fn binary_op_to_operator_kind(op: &BinaryOp) -> Option<typedlua_parser::ast::statement::OperatorKind> {
     match op {
-        BinaryOp::Add => Some(crate::ast::statement::OperatorKind::Add),
-        BinaryOp::Subtract => Some(crate::ast::statement::OperatorKind::Subtract),
-        BinaryOp::Multiply => Some(crate::ast::statement::OperatorKind::Multiply),
-        BinaryOp::Divide => Some(crate::ast::statement::OperatorKind::Divide),
-        BinaryOp::Modulo => Some(crate::ast::statement::OperatorKind::Modulo),
-        BinaryOp::Power => Some(crate::ast::statement::OperatorKind::Power),
-        BinaryOp::Concatenate => Some(crate::ast::statement::OperatorKind::Concatenate),
-        BinaryOp::Equal => Some(crate::ast::statement::OperatorKind::Equal),
-        BinaryOp::NotEqual => Some(crate::ast::statement::OperatorKind::NotEqual),
-        BinaryOp::LessThan => Some(crate::ast::statement::OperatorKind::LessThan),
-        BinaryOp::LessThanOrEqual => Some(crate::ast::statement::OperatorKind::LessThanOrEqual),
-        BinaryOp::GreaterThan => Some(crate::ast::statement::OperatorKind::GreaterThan),
+        BinaryOp::Add => Some(typedlua_parser::ast::statement::OperatorKind::Add),
+        BinaryOp::Subtract => Some(typedlua_parser::ast::statement::OperatorKind::Subtract),
+        BinaryOp::Multiply => Some(typedlua_parser::ast::statement::OperatorKind::Multiply),
+        BinaryOp::Divide => Some(typedlua_parser::ast::statement::OperatorKind::Divide),
+        BinaryOp::Modulo => Some(typedlua_parser::ast::statement::OperatorKind::Modulo),
+        BinaryOp::Power => Some(typedlua_parser::ast::statement::OperatorKind::Power),
+        BinaryOp::Concatenate => Some(typedlua_parser::ast::statement::OperatorKind::Concatenate),
+        BinaryOp::Equal => Some(typedlua_parser::ast::statement::OperatorKind::Equal),
+        BinaryOp::NotEqual => Some(typedlua_parser::ast::statement::OperatorKind::NotEqual),
+        BinaryOp::LessThan => Some(typedlua_parser::ast::statement::OperatorKind::LessThan),
+        BinaryOp::LessThanOrEqual => Some(typedlua_parser::ast::statement::OperatorKind::LessThanOrEqual),
+        BinaryOp::GreaterThan => Some(typedlua_parser::ast::statement::OperatorKind::GreaterThan),
         BinaryOp::GreaterThanOrEqual => {
-            Some(crate::ast::statement::OperatorKind::GreaterThanOrEqual)
+            Some(typedlua_parser::ast::statement::OperatorKind::GreaterThanOrEqual)
         }
-        BinaryOp::BitwiseAnd => Some(crate::ast::statement::OperatorKind::BitwiseAnd),
-        BinaryOp::BitwiseOr => Some(crate::ast::statement::OperatorKind::BitwiseOr),
-        BinaryOp::BitwiseXor => Some(crate::ast::statement::OperatorKind::BitwiseXor),
-        BinaryOp::ShiftLeft => Some(crate::ast::statement::OperatorKind::ShiftLeft),
-        BinaryOp::ShiftRight => Some(crate::ast::statement::OperatorKind::ShiftRight),
-        BinaryOp::IntegerDivide => Some(crate::ast::statement::OperatorKind::FloorDivide),
+        BinaryOp::BitwiseAnd => Some(typedlua_parser::ast::statement::OperatorKind::BitwiseAnd),
+        BinaryOp::BitwiseOr => Some(typedlua_parser::ast::statement::OperatorKind::BitwiseOr),
+        BinaryOp::BitwiseXor => Some(typedlua_parser::ast::statement::OperatorKind::BitwiseXor),
+        BinaryOp::ShiftLeft => Some(typedlua_parser::ast::statement::OperatorKind::ShiftLeft),
+        BinaryOp::ShiftRight => Some(typedlua_parser::ast::statement::OperatorKind::ShiftRight),
+        BinaryOp::IntegerDivide => Some(typedlua_parser::ast::statement::OperatorKind::FloorDivide),
         _ => None,
     }
 }
 
-fn unary_op_to_operator_kind(op: &UnaryOp) -> Option<crate::ast::statement::OperatorKind> {
+fn unary_op_to_operator_kind(op: &UnaryOp) -> Option<typedlua_parser::ast::statement::OperatorKind> {
     match op {
-        UnaryOp::Negate => Some(crate::ast::statement::OperatorKind::UnaryMinus),
-        UnaryOp::Length => Some(crate::ast::statement::OperatorKind::Length),
+        UnaryOp::Negate => Some(typedlua_parser::ast::statement::OperatorKind::UnaryMinus),
+        UnaryOp::Length => Some(typedlua_parser::ast::statement::OperatorKind::Length),
         _ => None,
     }
 }
 
-fn operator_kind_to_metamethod_name(op: crate::ast::statement::OperatorKind) -> String {
+fn operator_kind_to_metamethod_name(op: typedlua_parser::ast::statement::OperatorKind) -> String {
     match op {
-        crate::ast::statement::OperatorKind::Add => "__add",
-        crate::ast::statement::OperatorKind::Subtract => "__sub",
-        crate::ast::statement::OperatorKind::Multiply => "__mul",
-        crate::ast::statement::OperatorKind::Divide => "__div",
-        crate::ast::statement::OperatorKind::Modulo => "__mod",
-        crate::ast::statement::OperatorKind::Power => "__pow",
-        crate::ast::statement::OperatorKind::Concatenate => "__concat",
-        crate::ast::statement::OperatorKind::FloorDivide => "__idiv",
-        crate::ast::statement::OperatorKind::Equal => "__eq",
-        crate::ast::statement::OperatorKind::NotEqual => "__eq",
-        crate::ast::statement::OperatorKind::LessThan => "__lt",
-        crate::ast::statement::OperatorKind::LessThanOrEqual => "__le",
-        crate::ast::statement::OperatorKind::GreaterThan => "__lt",
-        crate::ast::statement::OperatorKind::GreaterThanOrEqual => "__le",
-        crate::ast::statement::OperatorKind::BitwiseAnd => "__band",
-        crate::ast::statement::OperatorKind::BitwiseOr => "__bor",
-        crate::ast::statement::OperatorKind::BitwiseXor => "__bxor",
-        crate::ast::statement::OperatorKind::ShiftLeft => "__shl",
-        crate::ast::statement::OperatorKind::ShiftRight => "__shr",
-        crate::ast::statement::OperatorKind::Index => "__index",
-        crate::ast::statement::OperatorKind::NewIndex => "__newindex",
-        crate::ast::statement::OperatorKind::Call => "__call",
-        crate::ast::statement::OperatorKind::UnaryMinus => "__unm",
-        crate::ast::statement::OperatorKind::Length => "__len",
+        typedlua_parser::ast::statement::OperatorKind::Add => "__add",
+        typedlua_parser::ast::statement::OperatorKind::Subtract => "__sub",
+        typedlua_parser::ast::statement::OperatorKind::Multiply => "__mul",
+        typedlua_parser::ast::statement::OperatorKind::Divide => "__div",
+        typedlua_parser::ast::statement::OperatorKind::Modulo => "__mod",
+        typedlua_parser::ast::statement::OperatorKind::Power => "__pow",
+        typedlua_parser::ast::statement::OperatorKind::Concatenate => "__concat",
+        typedlua_parser::ast::statement::OperatorKind::FloorDivide => "__idiv",
+        typedlua_parser::ast::statement::OperatorKind::Equal => "__eq",
+        typedlua_parser::ast::statement::OperatorKind::NotEqual => "__eq",
+        typedlua_parser::ast::statement::OperatorKind::LessThan => "__lt",
+        typedlua_parser::ast::statement::OperatorKind::LessThanOrEqual => "__le",
+        typedlua_parser::ast::statement::OperatorKind::GreaterThan => "__lt",
+        typedlua_parser::ast::statement::OperatorKind::GreaterThanOrEqual => "__le",
+        typedlua_parser::ast::statement::OperatorKind::BitwiseAnd => "__band",
+        typedlua_parser::ast::statement::OperatorKind::BitwiseOr => "__bor",
+        typedlua_parser::ast::statement::OperatorKind::BitwiseXor => "__bxor",
+        typedlua_parser::ast::statement::OperatorKind::ShiftLeft => "__shl",
+        typedlua_parser::ast::statement::OperatorKind::ShiftRight => "__shr",
+        typedlua_parser::ast::statement::OperatorKind::Index => "__index",
+        typedlua_parser::ast::statement::OperatorKind::NewIndex => "__newindex",
+        typedlua_parser::ast::statement::OperatorKind::Call => "__call",
+        typedlua_parser::ast::statement::OperatorKind::UnaryMinus => "__unm",
+        typedlua_parser::ast::statement::OperatorKind::Length => "__len",
     }
     .to_string()
 }
@@ -536,10 +536,10 @@ fn expression_has_side_effects(expr: &Expression) -> bool {
         ExpressionKind::Match(match_expr) => {
             expression_has_side_effects(&match_expr.value)
                 || match_expr.arms.iter().any(|arm| match &arm.body {
-                    crate::ast::expression::MatchArmBody::Expression(e) => {
+                    typedlua_parser::ast::expression::MatchArmBody::Expression(e) => {
                         expression_has_side_effects(e)
                     }
-                    crate::ast::expression::MatchArmBody::Block(b) => block_has_side_effects(b),
+                    typedlua_parser::ast::expression::MatchArmBody::Block(b) => block_has_side_effects(b),
                 })
         }
         ExpressionKind::Arrow(arrow) => {
@@ -549,8 +549,8 @@ fn expression_has_side_effects(expr: &Expression) -> bool {
                     .map(|d| expression_has_side_effects(d))
                     .unwrap_or(false)
             }) || match &arrow.body {
-                crate::ast::expression::ArrowBody::Expression(e) => expression_has_side_effects(e),
-                crate::ast::expression::ArrowBody::Block(b) => block_has_side_effects(b),
+                typedlua_parser::ast::expression::ArrowBody::Expression(e) => expression_has_side_effects(e),
+                typedlua_parser::ast::expression::ArrowBody::Block(b) => block_has_side_effects(b),
             }
         }
         ExpressionKind::New(callee, args) => {
@@ -721,10 +721,10 @@ impl OperatorInliningPass {
                 let mut changed = self.process_expression(&mut match_expr.value);
                 for arm in &mut match_expr.arms {
                     match &mut arm.body {
-                        crate::ast::expression::MatchArmBody::Expression(e) => {
+                        typedlua_parser::ast::expression::MatchArmBody::Expression(e) => {
                             changed |= self.process_expression(e);
                         }
-                        crate::ast::expression::MatchArmBody::Block(block) => {
+                        typedlua_parser::ast::expression::MatchArmBody::Block(block) => {
                             changed |= self.process_block(block);
                         }
                     }
@@ -739,10 +739,10 @@ impl OperatorInliningPass {
                     }
                 }
                 match &mut arrow.body {
-                    crate::ast::expression::ArrowBody::Expression(e) => {
+                    typedlua_parser::ast::expression::ArrowBody::Expression(e) => {
                         changed |= self.process_expression(e);
                     }
-                    crate::ast::expression::ArrowBody::Block(block) => {
+                    typedlua_parser::ast::expression::ArrowBody::Block(block) => {
                         changed |= self.process_block(block);
                     }
                 }
@@ -800,10 +800,10 @@ impl OperatorInliningPass {
                 let mut changed = false;
                 for elem in elements {
                     match elem {
-                        crate::ast::expression::ArrayElement::Expression(e) => {
+                        typedlua_parser::ast::expression::ArrayElement::Expression(e) => {
                             changed |= self.process_expression(e);
                         }
-                        crate::ast::expression::ArrayElement::Spread(e) => {
+                        typedlua_parser::ast::expression::ArrayElement::Spread(e) => {
                             changed |= self.process_expression(e);
                         }
                     }
@@ -814,14 +814,14 @@ impl OperatorInliningPass {
                 let mut changed = false;
                 for prop in props {
                     match prop {
-                        crate::ast::expression::ObjectProperty::Property { value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Property { value, .. } => {
                             changed |= self.process_expression(value);
                         }
-                        crate::ast::expression::ObjectProperty::Computed { key, value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Computed { key, value, .. } => {
                             changed |= self.process_expression(key);
                             changed |= self.process_expression(value);
                         }
-                        crate::ast::expression::ObjectProperty::Spread { value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Spread { value, .. } => {
                             changed |= self.process_expression(value);
                         }
                     }
@@ -867,15 +867,15 @@ mod tests {
     fn test_binary_op_to_operator_kind() {
         assert_eq!(
             binary_op_to_operator_kind(&BinaryOp::Add),
-            Some(crate::ast::statement::OperatorKind::Add)
+            Some(typedlua_parser::ast::statement::OperatorKind::Add)
         );
         assert_eq!(
             binary_op_to_operator_kind(&BinaryOp::Subtract),
-            Some(crate::ast::statement::OperatorKind::Subtract)
+            Some(typedlua_parser::ast::statement::OperatorKind::Subtract)
         );
         assert_eq!(
             binary_op_to_operator_kind(&BinaryOp::Multiply),
-            Some(crate::ast::statement::OperatorKind::Multiply)
+            Some(typedlua_parser::ast::statement::OperatorKind::Multiply)
         );
         assert_eq!(binary_op_to_operator_kind(&BinaryOp::And), None);
     }
@@ -883,11 +883,11 @@ mod tests {
     #[test]
     fn test_operator_kind_to_metamethod_name() {
         assert_eq!(
-            operator_kind_to_metamethod_name(crate::ast::statement::OperatorKind::Add),
+            operator_kind_to_metamethod_name(typedlua_parser::ast::statement::OperatorKind::Add),
             "__add"
         );
         assert_eq!(
-            operator_kind_to_metamethod_name(crate::ast::statement::OperatorKind::Multiply),
+            operator_kind_to_metamethod_name(typedlua_parser::ast::statement::OperatorKind::Multiply),
             "__mul"
         );
     }
@@ -896,8 +896,8 @@ mod tests {
     fn test_get_class_from_type() {
         let type_id = StringId::from_u32(1);
         let ref_type = Type::new(
-            TypeKind::Reference(crate::ast::types::TypeReference {
-                name: crate::ast::Spanned::new(type_id, Span::dummy()),
+            TypeKind::Reference(typedlua_parser::ast::types::TypeReference {
+                name: typedlua_parser::ast::Spanned::new(type_id, Span::dummy()),
                 type_arguments: None,
                 span: Span::dummy(),
             }),
@@ -916,11 +916,11 @@ mod tests {
     fn test_count_statements() {
         let block = Block {
             statements: vec![
-                Statement::Return(crate::ast::statement::ReturnStatement {
+                Statement::Return(typedlua_parser::ast::statement::ReturnStatement {
                     values: vec![],
                     span: Span::dummy(),
                 }),
-                Statement::Return(crate::ast::statement::ReturnStatement {
+                Statement::Return(typedlua_parser::ast::statement::ReturnStatement {
                     values: vec![],
                     span: Span::dummy(),
                 }),

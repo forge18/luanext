@@ -242,7 +242,7 @@ impl DevirtualizationPass {
 
     fn process_block(
         &self,
-        block: &mut crate::ast::statement::Block,
+        block: &mut typedlua_parser::ast::statement::Block,
         hierarchy: &ClassHierarchy,
     ) -> bool {
         let mut changed = false;
@@ -319,10 +319,10 @@ impl DevirtualizationPass {
                 let mut changed = self.process_expression(&mut match_expr.value, hierarchy);
                 for arm in &mut match_expr.arms {
                     match &mut arm.body {
-                        crate::ast::expression::MatchArmBody::Expression(e) => {
+                        typedlua_parser::ast::expression::MatchArmBody::Expression(e) => {
                             changed |= self.process_expression(e, hierarchy);
                         }
-                        crate::ast::expression::MatchArmBody::Block(block) => {
+                        typedlua_parser::ast::expression::MatchArmBody::Block(block) => {
                             changed |= self.process_block(block, hierarchy);
                         }
                     }
@@ -337,10 +337,10 @@ impl DevirtualizationPass {
                     }
                 }
                 match &mut arrow.body {
-                    crate::ast::expression::ArrowBody::Expression(e) => {
+                    typedlua_parser::ast::expression::ArrowBody::Expression(e) => {
                         changed |= self.process_expression(e, hierarchy);
                     }
-                    crate::ast::expression::ArrowBody::Block(block) => {
+                    typedlua_parser::ast::expression::ArrowBody::Block(block) => {
                         changed |= self.process_block(block, hierarchy);
                     }
                 }
@@ -394,10 +394,10 @@ impl DevirtualizationPass {
                 let mut changed = false;
                 for elem in elements {
                     match elem {
-                        crate::ast::expression::ArrayElement::Expression(expr) => {
+                        typedlua_parser::ast::expression::ArrayElement::Expression(expr) => {
                             changed |= self.process_expression(expr, hierarchy);
                         }
-                        crate::ast::expression::ArrayElement::Spread(expr) => {
+                        typedlua_parser::ast::expression::ArrayElement::Spread(expr) => {
                             changed |= self.process_expression(expr, hierarchy);
                         }
                     }
@@ -407,7 +407,7 @@ impl DevirtualizationPass {
             ExpressionKind::Object(props) => {
                 let mut changed = false;
                 for prop in props {
-                    if let crate::ast::expression::ObjectProperty::Property { value, .. } = prop {
+                    if let typedlua_parser::ast::expression::ObjectProperty::Property { value, .. } = prop {
                         changed |= self.process_expression(value, hierarchy);
                     }
                 }

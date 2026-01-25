@@ -1,3 +1,6 @@
+use crate::config::OptimizationLevel;
+use crate::errors::CompilationError;
+use crate::optimizer::OptimizationPass;
 use std::sync::Arc;
 use typedlua_parser::ast::expression::{Expression, ExpressionKind, ReceiverClassInfo};
 use typedlua_parser::ast::statement::Statement;
@@ -80,7 +83,7 @@ impl MethodToFunctionConversionPass {
         }
     }
 
-    fn convert_in_block(&mut self, block: &mut crate::ast::statement::Block) -> bool {
+    fn convert_in_block(&mut self, block: &mut typedlua_parser::ast::statement::Block) -> bool {
         let mut changed = false;
         for stmt in &mut block.statements {
             changed |= self.convert_in_statement(stmt);
@@ -145,10 +148,10 @@ impl MethodToFunctionConversionPass {
                 let mut changed = self.convert_in_expression(&mut match_expr.value);
                 for arm in &mut match_expr.arms {
                     match &mut arm.body {
-                        crate::ast::expression::MatchArmBody::Expression(expr) => {
+                        typedlua_parser::ast::expression::MatchArmBody::Expression(expr) => {
                             changed |= self.convert_in_expression(expr);
                         }
-                        crate::ast::expression::MatchArmBody::Block(block) => {
+                        typedlua_parser::ast::expression::MatchArmBody::Block(block) => {
                             changed |= self.convert_in_block(block);
                         }
                     }
@@ -163,10 +166,10 @@ impl MethodToFunctionConversionPass {
                     }
                 }
                 match &mut arrow.body {
-                    crate::ast::expression::ArrowBody::Expression(expr) => {
+                    typedlua_parser::ast::expression::ArrowBody::Expression(expr) => {
                         changed |= self.convert_in_expression(expr);
                     }
-                    crate::ast::expression::ArrowBody::Block(block) => {
+                    typedlua_parser::ast::expression::ArrowBody::Block(block) => {
                         changed |= self.convert_in_block(block);
                     }
                 }
@@ -228,8 +231,8 @@ impl MethodToFunctionConversionPass {
         &self,
         obj: &Expression,
         receiver_info: &ReceiverClassInfo,
-        method_name: &crate::ast::Ident,
-        args: &[crate::ast::expression::Argument],
+        method_name: &typedlua_parser::ast::Ident,
+        args: &[typedlua_parser::ast::expression::Argument],
         span: Span,
     ) -> Option<ExpressionKind> {
         let class_name_str = self.interner.resolve(receiver_info.class_name);
@@ -251,7 +254,7 @@ impl MethodToFunctionConversionPass {
         };
 
         let mut new_args = Vec::with_capacity(args.len() + 1);
-        new_args.push(crate::ast::expression::Argument {
+        new_args.push(typedlua_parser::ast::expression::Argument {
             value: obj.clone(),
             is_spread: false,
             span,
@@ -294,10 +297,10 @@ impl Default for MethodToFunctionConversionPass {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::expression::{ExpressionKind, Literal};
-    use crate::ast::statement::{Block, Statement};
-    use crate::ast::types::{PrimitiveType, Type, TypeKind};
-    use crate::ast::Spanned;
+    use typedlua_parser::ast::expression::{ExpressionKind, Literal};
+    use typedlua_parser::ast::statement::{Block, Statement};
+    use typedlua_parser::ast::types::{PrimitiveType, Type, TypeKind};
+    use typedlua_parser::ast::Spanned;
     use typedlua_parser::span::Span;
 
     #[test]
@@ -323,7 +326,7 @@ mod tests {
             receiver_class: None,
         };
 
-        let arguments = vec![crate::ast::expression::Argument {
+        let arguments = vec![typedlua_parser::ast::expression::Argument {
             value: arg_expr,
             is_spread: false,
             span: Span::dummy(),

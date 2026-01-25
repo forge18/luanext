@@ -166,14 +166,23 @@ impl ConstantFoldingPass {
                 let mut changed = false;
                 for field in fields {
                     match field {
-                        crate::ast::expression::ObjectProperty::Property { value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Property {
+                            value,
+                            ..
+                        } => {
                             changed |= self.fold_expression(value);
                         }
-                        crate::ast::expression::ObjectProperty::Computed { key, value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Computed {
+                            key,
+                            value,
+                            ..
+                        } => {
                             changed |= self.fold_expression(key);
                             changed |= self.fold_expression(value);
                         }
-                        crate::ast::expression::ObjectProperty::Spread { value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Spread {
+                            value, ..
+                        } => {
                             changed |= self.fold_expression(value);
                         }
                     }
@@ -588,13 +597,21 @@ impl TablePreallocationPass {
                 let mut count = 1; // Count this table
                 for field in fields {
                     match field {
-                        crate::ast::expression::ObjectProperty::Property { value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Property {
+                            value,
+                            ..
+                        } => {
                             count += self.count_tables_in_expression(value);
                         }
-                        crate::ast::expression::ObjectProperty::Computed { value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Computed {
+                            value,
+                            ..
+                        } => {
                             count += self.count_tables_in_expression(value);
                         }
-                        crate::ast::expression::ObjectProperty::Spread { value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Spread {
+                            value, ..
+                        } => {
                             count += self.count_tables_in_expression(value);
                         }
                     }
@@ -605,10 +622,10 @@ impl TablePreallocationPass {
                 let mut count = 1; // Count this array
                 for elem in elements {
                     match elem {
-                        crate::ast::expression::ArrayElement::Expression(expr) => {
+                        typedlua_parser::ast::expression::ArrayElement::Expression(expr) => {
                             count += self.count_tables_in_expression(expr);
                         }
-                        crate::ast::expression::ArrayElement::Spread(expr) => {
+                        typedlua_parser::ast::expression::ArrayElement::Spread(expr) => {
                             count += self.count_tables_in_expression(expr);
                         }
                     }
@@ -677,7 +694,7 @@ impl GlobalLocalizationPass {
     fn collect_declared_locals(
         &self,
         block: &Block,
-        locals: &mut HashSet<crate::string_interner::StringId>,
+        locals: &mut HashSet<typedlua_parser::string_interner::StringId>,
     ) {
         for stmt in &block.statements {
             match stmt {
@@ -698,7 +715,7 @@ impl GlobalLocalizationPass {
     fn collect_pattern_names(
         &self,
         pattern: &Pattern,
-        locals: &mut HashSet<crate::string_interner::StringId>,
+        locals: &mut HashSet<typedlua_parser::string_interner::StringId>,
     ) {
         match pattern {
             Pattern::Identifier(ident) => {
@@ -707,13 +724,13 @@ impl GlobalLocalizationPass {
             Pattern::Array(arr) => {
                 for elem in &arr.elements {
                     match elem {
-                        crate::ast::pattern::ArrayPatternElement::Pattern(p) => {
+                        typedlua_parser::ast::pattern::ArrayPatternElement::Pattern(p) => {
                             self.collect_pattern_names(p, locals);
                         }
-                        crate::ast::pattern::ArrayPatternElement::Rest(ident) => {
+                        typedlua_parser::ast::pattern::ArrayPatternElement::Rest(ident) => {
                             locals.insert(ident.node);
                         }
-                        crate::ast::pattern::ArrayPatternElement::Hole => {}
+                        typedlua_parser::ast::pattern::ArrayPatternElement::Hole => {}
                     }
                 }
             }
@@ -732,7 +749,7 @@ impl GlobalLocalizationPass {
     }
 
     /// Check if a name looks like it was created by this pass (starts with underscore)
-    fn is_localized_name(&self, name: crate::string_interner::StringId) -> bool {
+    fn is_localized_name(&self, name: typedlua_parser::string_interner::StringId) -> bool {
         let resolved = self.interner.resolve(name);
         resolved.starts_with('_')
     }
@@ -740,14 +757,14 @@ impl GlobalLocalizationPass {
     fn localize_in_block(
         &self,
         block: &mut Block,
-        mut declared_locals: HashSet<crate::string_interner::StringId>,
+        mut declared_locals: HashSet<typedlua_parser::string_interner::StringId>,
     ) -> bool {
         let mut changed = false;
 
         // First, collect all locally declared names (variables and functions)
         self.collect_declared_locals(block, &mut declared_locals);
 
-        let mut global_usage: HashMap<crate::string_interner::StringId, usize> = HashMap::new();
+        let mut global_usage: HashMap<typedlua_parser::string_interner::StringId, usize> = HashMap::new();
 
         for stmt in &block.statements {
             self.collect_global_usage_optimized(stmt, &mut global_usage, &declared_locals);
@@ -787,8 +804,8 @@ impl GlobalLocalizationPass {
 
     fn create_local_declaration(
         &self,
-        global_name: crate::string_interner::StringId,
-        local_name: crate::string_interner::StringId,
+        global_name: typedlua_parser::string_interner::StringId,
+        local_name: typedlua_parser::string_interner::StringId,
         span: Span,
     ) -> VariableDeclaration {
         let local_ident = Spanned::new(local_name, span);
@@ -805,8 +822,8 @@ impl GlobalLocalizationPass {
 
     fn create_local_name(
         &self,
-        original: crate::string_interner::StringId,
-    ) -> crate::string_interner::StringId {
+        original: typedlua_parser::string_interner::StringId,
+    ) -> typedlua_parser::string_interner::StringId {
         let name = self.interner.resolve(original);
         let local_name = format!("_{}", name);
         self.interner.get_or_intern(&local_name)
@@ -815,8 +832,8 @@ impl GlobalLocalizationPass {
     fn collect_global_usage_optimized(
         &self,
         stmt: &Statement,
-        usage: &mut HashMap<crate::string_interner::StringId, usize>,
-        declared_locals: &HashSet<crate::string_interner::StringId>,
+        usage: &mut HashMap<typedlua_parser::string_interner::StringId, usize>,
+        declared_locals: &HashSet<typedlua_parser::string_interner::StringId>,
     ) {
         match stmt {
             Statement::Variable(decl) => {
@@ -893,8 +910,8 @@ impl GlobalLocalizationPass {
     fn collect_from_expression_optimized(
         &self,
         expr: &Expression,
-        usage: &mut HashMap<crate::string_interner::StringId, usize>,
-        declared_locals: &HashSet<crate::string_interner::StringId>,
+        usage: &mut HashMap<typedlua_parser::string_interner::StringId, usize>,
+        declared_locals: &HashSet<typedlua_parser::string_interner::StringId>,
     ) {
         match &expr.kind {
             ExpressionKind::Identifier(name) => {
@@ -1000,15 +1017,15 @@ impl GlobalLocalizationPass {
 
     fn collect_from_arrow_body(
         &self,
-        body: &crate::ast::expression::ArrowBody,
-        usage: &mut HashMap<crate::string_interner::StringId, usize>,
-        declared_locals: &HashSet<crate::string_interner::StringId>,
+        body: &typedlua_parser::ast::expression::ArrowBody,
+        usage: &mut HashMap<typedlua_parser::string_interner::StringId, usize>,
+        declared_locals: &HashSet<typedlua_parser::string_interner::StringId>,
     ) {
         match body {
-            crate::ast::expression::ArrowBody::Expression(expr) => {
+            typedlua_parser::ast::expression::ArrowBody::Expression(expr) => {
                 self.collect_from_expression_optimized(expr, usage, declared_locals);
             }
-            crate::ast::expression::ArrowBody::Block(block) => {
+            typedlua_parser::ast::expression::ArrowBody::Block(block) => {
                 for stmt in &block.statements {
                     self.collect_global_usage_optimized(stmt, usage, declared_locals);
                 }
@@ -1018,15 +1035,15 @@ impl GlobalLocalizationPass {
 
     fn collect_from_match_arm_body(
         &self,
-        body: &crate::ast::expression::MatchArmBody,
-        usage: &mut HashMap<crate::string_interner::StringId, usize>,
-        declared_locals: &HashSet<crate::string_interner::StringId>,
+        body: &typedlua_parser::ast::expression::MatchArmBody,
+        usage: &mut HashMap<typedlua_parser::string_interner::StringId, usize>,
+        declared_locals: &HashSet<typedlua_parser::string_interner::StringId>,
     ) {
         match body {
-            crate::ast::expression::MatchArmBody::Expression(expr) => {
+            typedlua_parser::ast::expression::MatchArmBody::Expression(expr) => {
                 self.collect_from_expression_optimized(expr, usage, declared_locals);
             }
-            crate::ast::expression::MatchArmBody::Block(block) => {
+            typedlua_parser::ast::expression::MatchArmBody::Block(block) => {
                 for stmt in &block.statements {
                     self.collect_global_usage_optimized(stmt, usage, declared_locals);
                 }
@@ -1037,8 +1054,8 @@ impl GlobalLocalizationPass {
     fn replace_global_usages(
         &self,
         stmt: &mut Statement,
-        frequently_used: &[(crate::string_interner::StringId, usize)],
-        declared_locals: &HashSet<crate::string_interner::StringId>,
+        frequently_used: &[(typedlua_parser::string_interner::StringId, usize)],
+        declared_locals: &HashSet<typedlua_parser::string_interner::StringId>,
     ) {
         match stmt {
             Statement::Variable(decl) => {
@@ -1125,8 +1142,8 @@ impl GlobalLocalizationPass {
     fn replace_in_expression(
         &self,
         expr: &mut Expression,
-        frequently_used: &[(crate::string_interner::StringId, usize)],
-        declared_locals: &HashSet<crate::string_interner::StringId>,
+        frequently_used: &[(typedlua_parser::string_interner::StringId, usize)],
+        declared_locals: &HashSet<typedlua_parser::string_interner::StringId>,
     ) {
         match &mut expr.kind {
             ExpressionKind::Identifier(name) => {
@@ -1238,15 +1255,15 @@ impl GlobalLocalizationPass {
 
     fn replace_in_arrow_body(
         &self,
-        body: &mut crate::ast::expression::ArrowBody,
-        frequently_used: &[(crate::string_interner::StringId, usize)],
-        declared_locals: &HashSet<crate::string_interner::StringId>,
+        body: &mut typedlua_parser::ast::expression::ArrowBody,
+        frequently_used: &[(typedlua_parser::string_interner::StringId, usize)],
+        declared_locals: &HashSet<typedlua_parser::string_interner::StringId>,
     ) {
         match body {
-            crate::ast::expression::ArrowBody::Expression(expr) => {
+            typedlua_parser::ast::expression::ArrowBody::Expression(expr) => {
                 self.replace_in_expression(expr, frequently_used, declared_locals);
             }
-            crate::ast::expression::ArrowBody::Block(block) => {
+            typedlua_parser::ast::expression::ArrowBody::Block(block) => {
                 for stmt in &mut block.statements {
                     self.replace_global_usages(stmt, frequently_used, declared_locals);
                 }
@@ -1256,15 +1273,15 @@ impl GlobalLocalizationPass {
 
     fn replace_in_match_arm_body(
         &self,
-        body: &mut crate::ast::expression::MatchArmBody,
-        frequently_used: &[(crate::string_interner::StringId, usize)],
-        declared_locals: &HashSet<crate::string_interner::StringId>,
+        body: &mut typedlua_parser::ast::expression::MatchArmBody,
+        frequently_used: &[(typedlua_parser::string_interner::StringId, usize)],
+        declared_locals: &HashSet<typedlua_parser::string_interner::StringId>,
     ) {
         match body {
-            crate::ast::expression::MatchArmBody::Expression(expr) => {
+            typedlua_parser::ast::expression::MatchArmBody::Expression(expr) => {
                 self.replace_in_expression(expr, frequently_used, declared_locals);
             }
-            crate::ast::expression::MatchArmBody::Block(block) => {
+            typedlua_parser::ast::expression::MatchArmBody::Block(block) => {
                 for stmt in &mut block.statements {
                     self.replace_global_usages(stmt, frequently_used, declared_locals);
                 }
@@ -2107,7 +2124,7 @@ impl FunctionInliningPass {
                         .collect();
                     Statement::Variable(VariableDeclaration {
                         kind: VariableKind::Local,
-                        pattern: Pattern::Identifier(crate::ast::Spanned::new(
+                        pattern: Pattern::Identifier(typedlua_parser::ast::Spanned::new(
                             *return_var,
                             Span::dummy(),
                         )),
@@ -2337,7 +2354,7 @@ impl LoopOptimizationPass {
 
     fn optimize_while_loop(
         &mut self,
-        while_stmt: &mut crate::ast::statement::WhileStatement,
+        while_stmt: &mut typedlua_parser::ast::statement::WhileStatement,
     ) -> bool {
         let mut changed = false;
         if let ExpressionKind::Literal(Literal::Boolean(false)) = &while_stmt.condition.kind {
@@ -2353,7 +2370,7 @@ impl LoopOptimizationPass {
 
     fn optimize_repeat_loop(
         &mut self,
-        repeat_stmt: &mut crate::ast::statement::RepeatStatement,
+        repeat_stmt: &mut typedlua_parser::ast::statement::RepeatStatement,
     ) -> bool {
         let mut changed = false;
         if let ExpressionKind::Literal(Literal::Boolean(true)) = &repeat_stmt.until.kind {
@@ -2452,13 +2469,13 @@ impl LoopOptimizationPass {
                 self.collect_modified_in_block(&try_stmt.try_block, modified);
                 for catch in &try_stmt.catch_clauses {
                     match &catch.pattern {
-                        crate::ast::statement::CatchPattern::Typed { variable, .. } => {
+                        typedlua_parser::ast::statement::CatchPattern::Typed { variable, .. } => {
                             modified.insert(variable.node);
                         }
-                        crate::ast::statement::CatchPattern::MultiTyped { variable, .. } => {
+                        typedlua_parser::ast::statement::CatchPattern::MultiTyped { variable, .. } => {
                             modified.insert(variable.node);
                         }
-                        crate::ast::statement::CatchPattern::Untyped { variable, .. } => {
+                        typedlua_parser::ast::statement::CatchPattern::Untyped { variable, .. } => {
                             modified.insert(variable.node);
                         }
                     }
@@ -2485,13 +2502,13 @@ impl LoopOptimizationPass {
             Pattern::Array(array_pattern) => {
                 for elem in &array_pattern.elements {
                     match elem {
-                        crate::ast::pattern::ArrayPatternElement::Pattern(p) => {
+                        typedlua_parser::ast::pattern::ArrayPatternElement::Pattern(p) => {
                             self.collect_modified_in_pattern(p, modified);
                         }
-                        crate::ast::pattern::ArrayPatternElement::Rest(id) => {
+                        typedlua_parser::ast::pattern::ArrayPatternElement::Rest(id) => {
                             modified.insert(id.node);
                         }
-                        crate::ast::pattern::ArrayPatternElement::Hole => {}
+                        typedlua_parser::ast::pattern::ArrayPatternElement::Hole => {}
                     }
                 }
             }
@@ -2556,14 +2573,14 @@ impl LoopOptimizationPass {
             ExpressionKind::Object(properties) => {
                 for prop in properties {
                     match prop {
-                        crate::ast::expression::ObjectProperty::Property {
+                        typedlua_parser::ast::expression::ObjectProperty::Property {
                             key: _,
                             value,
                             span: _,
                         } => {
                             self.collect_modified_in_expression(value, modified);
                         }
-                        crate::ast::expression::ObjectProperty::Computed {
+                        typedlua_parser::ast::expression::ObjectProperty::Computed {
                             key,
                             value,
                             span: _,
@@ -2571,7 +2588,7 @@ impl LoopOptimizationPass {
                             self.collect_modified_in_expression(key, modified);
                             self.collect_modified_in_expression(value, modified);
                         }
-                        crate::ast::expression::ObjectProperty::Spread { value, span: _ } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Spread { value, span: _ } => {
                             self.collect_modified_in_expression(value, modified);
                         }
                     }
@@ -2585,10 +2602,10 @@ impl LoopOptimizationPass {
                     self.collect_modified_in_pattern(&param.pattern, modified);
                 }
                 match &arrow.body {
-                    crate::ast::expression::ArrowBody::Expression(expr) => {
+                    typedlua_parser::ast::expression::ArrowBody::Expression(expr) => {
                         self.collect_modified_in_expression(expr, modified);
                     }
-                    crate::ast::expression::ArrowBody::Block(block) => {
+                    typedlua_parser::ast::expression::ArrowBody::Block(block) => {
                         self.collect_modified_in_block(block, modified);
                     }
                 }
@@ -2610,10 +2627,10 @@ impl LoopOptimizationPass {
                         self.collect_modified_in_expression(guard, modified);
                     }
                     match &arm.body {
-                        crate::ast::expression::MatchArmBody::Expression(expr) => {
+                        typedlua_parser::ast::expression::MatchArmBody::Expression(expr) => {
                             self.collect_modified_in_expression(expr, modified);
                         }
-                        crate::ast::expression::MatchArmBody::Block(block) => {
+                        typedlua_parser::ast::expression::MatchArmBody::Block(block) => {
                             self.collect_modified_in_block(block, modified);
                         }
                     }
@@ -2622,8 +2639,8 @@ impl LoopOptimizationPass {
             ExpressionKind::Template(template) => {
                 for part in &template.parts {
                     match part {
-                        crate::ast::expression::TemplatePart::String(_) => {}
-                        crate::ast::expression::TemplatePart::Expression(expr) => {
+                        typedlua_parser::ast::expression::TemplatePart::String(_) => {}
+                        typedlua_parser::ast::expression::TemplatePart::Expression(expr) => {
                             self.collect_modified_in_expression(expr, modified);
                         }
                     }
@@ -2730,12 +2747,12 @@ impl LoopOptimizationPass {
                 ArrayElement::Spread(e) => self.is_invariant_expression(e, loop_vars),
             }),
             ExpressionKind::Object(properties) => properties.iter().all(|prop| match prop {
-                crate::ast::expression::ObjectProperty::Property {
+                typedlua_parser::ast::expression::ObjectProperty::Property {
                     key: _,
                     value,
                     span: _,
                 } => self.is_invariant_expression(value, loop_vars),
-                crate::ast::expression::ObjectProperty::Computed {
+                typedlua_parser::ast::expression::ObjectProperty::Computed {
                     key,
                     value,
                     span: _,
@@ -2743,17 +2760,17 @@ impl LoopOptimizationPass {
                     self.is_invariant_expression(key, loop_vars)
                         && self.is_invariant_expression(value, loop_vars)
                 }
-                crate::ast::expression::ObjectProperty::Spread { value, span: _ } => {
+                typedlua_parser::ast::expression::ObjectProperty::Spread { value, span: _ } => {
                     self.is_invariant_expression(value, loop_vars)
                 }
             }),
             ExpressionKind::Function(_) => true,
             ExpressionKind::Arrow(arrow) => {
                 let body_invariant = match &arrow.body {
-                    crate::ast::expression::ArrowBody::Expression(expr) => {
+                    typedlua_parser::ast::expression::ArrowBody::Expression(expr) => {
                         self.is_invariant_expression(expr, loop_vars)
                     }
-                    crate::ast::expression::ArrowBody::Block(block) => {
+                    typedlua_parser::ast::expression::ArrowBody::Block(block) => {
                         block.statements.iter().all(|s| match s {
                             Statement::Variable(decl) => {
                                 self.is_invariant_expression(&decl.initializer, loop_vars)
@@ -2777,10 +2794,10 @@ impl LoopOptimizationPass {
                 self.is_invariant_expression(&match_expr.value, loop_vars)
                     && match_expr.arms.iter().all(|arm| {
                         let body_invariant = match &arm.body {
-                            crate::ast::expression::MatchArmBody::Expression(expr) => {
+                            typedlua_parser::ast::expression::MatchArmBody::Expression(expr) => {
                                 self.is_invariant_expression(expr, loop_vars)
                             }
-                            crate::ast::expression::MatchArmBody::Block(block) => {
+                            typedlua_parser::ast::expression::MatchArmBody::Block(block) => {
                                 block.statements.iter().all(|s| match s {
                                     Statement::Variable(decl) => {
                                         self.is_invariant_expression(&decl.initializer, loop_vars)
@@ -2793,8 +2810,8 @@ impl LoopOptimizationPass {
                     })
             }
             ExpressionKind::Template(template) => template.parts.iter().all(|part| match part {
-                crate::ast::expression::TemplatePart::String(_) => true,
-                crate::ast::expression::TemplatePart::Expression(expr) => {
+                typedlua_parser::ast::expression::TemplatePart::String(_) => true,
+                typedlua_parser::ast::expression::TemplatePart::Expression(expr) => {
                     self.is_invariant_expression(expr, loop_vars)
                 }
             }),
@@ -3190,10 +3207,10 @@ impl DeadStoreEliminationPass {
         match &mut expr.kind {
             ExpressionKind::Function(func) => self.eliminate_dead_stores_in_block(&mut func.body),
             ExpressionKind::Arrow(arrow) => match &mut arrow.body {
-                crate::ast::expression::ArrowBody::Block(block) => {
+                typedlua_parser::ast::expression::ArrowBody::Block(block) => {
                     self.eliminate_dead_stores_in_block(block)
                 }
-                crate::ast::expression::ArrowBody::Expression(inner) => {
+                typedlua_parser::ast::expression::ArrowBody::Expression(inner) => {
                     self.eliminate_dead_stores_in_expression(inner)
                 }
             },
@@ -3227,10 +3244,10 @@ impl DeadStoreEliminationPass {
                 let mut changed = false;
                 for elem in elements {
                     match elem {
-                        crate::ast::expression::ArrayElement::Expression(e) => {
+                        typedlua_parser::ast::expression::ArrayElement::Expression(e) => {
                             changed |= self.eliminate_dead_stores_in_expression(e);
                         }
-                        crate::ast::expression::ArrayElement::Spread(e) => {
+                        typedlua_parser::ast::expression::ArrayElement::Spread(e) => {
                             changed |= self.eliminate_dead_stores_in_expression(e);
                         }
                     }
@@ -3241,14 +3258,14 @@ impl DeadStoreEliminationPass {
                 let mut changed = false;
                 for prop in properties {
                     match prop {
-                        crate::ast::expression::ObjectProperty::Property { value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Property { value, .. } => {
                             changed |= self.eliminate_dead_stores_in_expression(value);
                         }
-                        crate::ast::expression::ObjectProperty::Computed { key, value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Computed { key, value, .. } => {
                             changed |= self.eliminate_dead_stores_in_expression(key);
                             changed |= self.eliminate_dead_stores_in_expression(value);
                         }
-                        crate::ast::expression::ObjectProperty::Spread { value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Spread { value, .. } => {
                             changed |= self.eliminate_dead_stores_in_expression(value);
                         }
                     }
@@ -3413,13 +3430,13 @@ impl DeadStoreEliminationPass {
                 self.collect_block_reads(&try_stmt.try_block, &mut live);
                 for catch in &try_stmt.catch_clauses {
                     match &catch.pattern {
-                        crate::ast::statement::CatchPattern::Typed { variable, .. } => {
+                        typedlua_parser::ast::statement::CatchPattern::Typed { variable, .. } => {
                             live.insert(variable.node);
                         }
-                        crate::ast::statement::CatchPattern::MultiTyped { variable, .. } => {
+                        typedlua_parser::ast::statement::CatchPattern::MultiTyped { variable, .. } => {
                             live.insert(variable.node);
                         }
-                        crate::ast::statement::CatchPattern::Untyped { variable, .. } => {
+                        typedlua_parser::ast::statement::CatchPattern::Untyped { variable, .. } => {
                             live.insert(variable.node);
                         }
                     }
@@ -3448,13 +3465,13 @@ impl DeadStoreEliminationPass {
             Pattern::Array(arr) => {
                 for elem in &arr.elements {
                     match elem {
-                        crate::ast::pattern::ArrayPatternElement::Pattern(p) => {
+                        typedlua_parser::ast::pattern::ArrayPatternElement::Pattern(p) => {
                             self.collect_names_from_pattern(p, names);
                         }
-                        crate::ast::pattern::ArrayPatternElement::Rest(ident) => {
+                        typedlua_parser::ast::pattern::ArrayPatternElement::Rest(ident) => {
                             names.push(ident.node);
                         }
-                        crate::ast::pattern::ArrayPatternElement::Hole => {}
+                        typedlua_parser::ast::pattern::ArrayPatternElement::Hole => {}
                     }
                 }
             }
@@ -3556,10 +3573,10 @@ impl DeadStoreEliminationPass {
             ExpressionKind::Array(elements) => {
                 for elem in elements {
                     match elem {
-                        crate::ast::expression::ArrayElement::Expression(e) => {
+                        typedlua_parser::ast::expression::ArrayElement::Expression(e) => {
                             self.collect_expression_reads_into(e, reads);
                         }
-                        crate::ast::expression::ArrayElement::Spread(e) => {
+                        typedlua_parser::ast::expression::ArrayElement::Spread(e) => {
                             self.collect_expression_reads_into(e, reads);
                         }
                     }
@@ -3568,14 +3585,14 @@ impl DeadStoreEliminationPass {
             ExpressionKind::Object(properties) => {
                 for prop in properties {
                     match prop {
-                        crate::ast::expression::ObjectProperty::Property { value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Property { value, .. } => {
                             self.collect_expression_reads_into(value, reads);
                         }
-                        crate::ast::expression::ObjectProperty::Computed { key, value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Computed { key, value, .. } => {
                             self.collect_expression_reads_into(key, reads);
                             self.collect_expression_reads_into(value, reads);
                         }
-                        crate::ast::expression::ObjectProperty::Spread { value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Spread { value, .. } => {
                             self.collect_expression_reads_into(value, reads);
                         }
                     }
@@ -3585,10 +3602,10 @@ impl DeadStoreEliminationPass {
                 self.collect_block_reads(&func.body, reads);
             }
             ExpressionKind::Arrow(arrow) => match &arrow.body {
-                crate::ast::expression::ArrowBody::Expression(expr) => {
+                typedlua_parser::ast::expression::ArrowBody::Expression(expr) => {
                     self.collect_expression_reads_into(expr, reads);
                 }
-                crate::ast::expression::ArrowBody::Block(block) => {
+                typedlua_parser::ast::expression::ArrowBody::Block(block) => {
                     self.collect_block_reads(block, reads);
                 }
             },
@@ -3605,10 +3622,10 @@ impl DeadStoreEliminationPass {
                 self.collect_expression_reads_into(&match_expr.value, reads);
                 for arm in &match_expr.arms {
                     match &arm.body {
-                        crate::ast::expression::MatchArmBody::Expression(expr) => {
+                        typedlua_parser::ast::expression::MatchArmBody::Expression(expr) => {
                             self.collect_expression_reads_into(expr, reads);
                         }
-                        crate::ast::expression::MatchArmBody::Block(block) => {
+                        typedlua_parser::ast::expression::MatchArmBody::Block(block) => {
                             self.collect_block_reads(block, reads);
                         }
                     }
@@ -3616,7 +3633,7 @@ impl DeadStoreEliminationPass {
             }
             ExpressionKind::Template(template) => {
                 for part in &template.parts {
-                    if let crate::ast::expression::TemplatePart::Expression(expr) = part {
+                    if let typedlua_parser::ast::expression::TemplatePart::Expression(expr) = part {
                         self.collect_expression_reads_into(expr, reads);
                     }
                 }
@@ -3838,10 +3855,10 @@ impl DeadStoreEliminationPass {
             ExpressionKind::Match(match_expr) => {
                 self.expression_captures_variables(&match_expr.value)
                     || match_expr.arms.iter().any(|arm| match &arm.body {
-                        crate::ast::expression::MatchArmBody::Expression(expr) => {
+                        typedlua_parser::ast::expression::MatchArmBody::Expression(expr) => {
                             self.expression_captures_variables(expr)
                         }
-                        crate::ast::expression::MatchArmBody::Block(block) => {
+                        typedlua_parser::ast::expression::MatchArmBody::Block(block) => {
                             self.block_captures_variables(block)
                         }
                     })
@@ -4049,7 +4066,7 @@ impl OptimizationPass for OperatorInliningPass {
                 let _method_count = class
                     .members
                     .iter()
-                    .filter(|m| matches!(m, crate::ast::statement::ClassMember::Method(_)))
+                    .filter(|m| matches!(m, typedlua_parser::ast::statement::ClassMember::Method(_)))
                     .count();
             }
         }
@@ -4086,7 +4103,7 @@ impl OptimizationPass for InterfaceMethodInliningPass {
                 _interface_method_count += iface
                     .members
                     .iter()
-                    .filter(|m| matches!(m, crate::ast::statement::InterfaceMember::Method(_)))
+                    .filter(|m| matches!(m, typedlua_parser::ast::statement::InterfaceMember::Method(_)))
                     .count();
             }
         }
@@ -4180,7 +4197,7 @@ impl GenericSpecializationPass {
 
         // Create specialized function by instantiating with type substitutions
         let mut specialized_func = instantiate_function_declaration(func, &substitutions);
-        specialized_func.name = crate::ast::Spanned::new(specialized_name, func.name.span);
+        specialized_func.name = typedlua_parser::ast::Spanned::new(specialized_name, func.name.span);
 
         // Add to cache and to list of new functions
         self.specializations.insert(cache_key, specialized_name);

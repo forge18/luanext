@@ -1041,7 +1041,7 @@ impl AggressiveInliningPass {
                         .collect();
                     Statement::Variable(VariableDeclaration {
                         kind: VariableKind::Local,
-                        pattern: Pattern::Identifier(crate::ast::Spanned::new(
+                        pattern: Pattern::Identifier(typedlua_parser::ast::Spanned::new(
                             *return_var,
                             Span::dummy(),
                         )),
