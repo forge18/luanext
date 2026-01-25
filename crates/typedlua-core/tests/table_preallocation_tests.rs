@@ -22,7 +22,7 @@ fn test_optimizer_registration() {
         interner,
     );
 
-    assert_eq!(optimizer.pass_count(), 15);
+    assert_eq!(optimizer.pass_count(), 16);
     let names = optimizer.pass_names();
     assert!(names.contains(&"constant-folding"));
     assert!(names.contains(&"dead-code-elimination"));
@@ -42,7 +42,7 @@ fn test_optimizer_auto_level() {
         interner,
     );
 
-    assert_eq!(optimizer.pass_count(), 15);
+    assert_eq!(optimizer.pass_count(), 16);
 }
 
 #[test]
@@ -56,7 +56,7 @@ fn test_optimizer_o0_level() {
     );
 
     // O0 should still register all passes (but will not run them)
-    assert_eq!(optimizer.pass_count(), 15);
+    assert_eq!(optimizer.pass_count(), 16);
 }
 
 #[test]
@@ -70,7 +70,7 @@ fn test_optimizer_o2_level() {
     );
 
     // O2 should include O1 and O2 passes
-    assert_eq!(optimizer.pass_count(), 15);
+    assert_eq!(optimizer.pass_count(), 16);
 }
 
 #[test]
@@ -84,7 +84,7 @@ fn test_optimizer_o3_level() {
     );
 
     // O3 should include all passes
-    assert_eq!(optimizer.pass_count(), 15);
+    assert_eq!(optimizer.pass_count(), 16);
 }
 
 #[test]
