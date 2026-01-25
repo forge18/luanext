@@ -1284,7 +1284,7 @@ use crate::string_interner::StringId;
 enum InlineResult {
     /// Direct expression substitution - for simple single-return functions
     /// The expression can be directly substituted for the call
-    Direct(Expression),
+    Direct(Box<Expression>),
     /// Complex inlining - contains statements to insert and the result variable
     Replaced {
         stmts: Vec<Statement>,
@@ -1539,12 +1539,10 @@ impl FunctionInliningPass {
                     changed |= self.inline_in_expression(&mut arg.value);
                 }
                 // Also try to inline this call itself (for nested inlining)
-                if let Some(result) = self.try_inline_call(expr) {
-                    if let InlineResult::Direct(_) = result {
-                        changed = true;
-                    }
-                    // Note: For Replaced, we can't easily insert statements here,
-                    // so we rely on the fixed-point iteration to catch it in the next pass
+                // Note: For Replaced, we can't easily insert statements here,
+                // so we rely on the fixed-point iteration to catch it in the next pass
+                if let Some(InlineResult::Direct(_)) = self.try_inline_call(expr) {
+                    changed = true;
                 }
                 changed
             }
@@ -1655,13 +1653,13 @@ impl FunctionInliningPass {
         if let ExpressionKind::Call(func, args) = &expr.kind.clone() {
             if let ExpressionKind::Identifier(func_name) = &func.kind {
                 if let Some(func_decl) = self.find_function_definition(expr, *func_name) {
-                    if self.is_inlinable(&func_decl) {
+                    if self.is_inlinable(func_decl) {
                         let result = self.inline_call(func_decl.clone(), args);
                         // Replace the call expression based on the inline result
                         match &result {
                             InlineResult::Direct(inlined_expr) => {
                                 // Direct substitution - replace call with the inlined expression
-                                *expr = inlined_expr.clone();
+                                *expr = (**inlined_expr).clone();
                             }
                             InlineResult::Replaced { result_var, .. } => {
                                 // Reference the result variable
@@ -1733,7 +1731,7 @@ impl FunctionInliningPass {
                                 .iter()
                                 .any(|s| self.contains_call_to(s, name))
                     })
-                    || if_stmt.else_block.as_ref().map_or(false, |eb| {
+                    || if_stmt.else_block.as_ref().is_some_and(|eb| {
                         eb.statements.iter().any(|s| self.contains_call_to(s, name))
                     })
             }
@@ -1923,7 +1921,7 @@ impl FunctionInliningPass {
                     || if_stmt
                         .else_block
                         .as_ref()
-                        .map_or(false, |eb| self.block_has_closures(eb))
+                        .is_some_and(|eb| self.block_has_closures(eb))
             }
             Statement::While(while_stmt) => {
                 self.expr_has_closures(&while_stmt.condition)
@@ -2014,7 +2012,7 @@ impl FunctionInliningPass {
                     // Simple case: directly substitute the return expression
                     let mut inlined_expr = ret.values[0].clone();
                     self.inline_expression(&mut inlined_expr, &param_subst);
-                    return InlineResult::Direct(inlined_expr);
+                    return InlineResult::Direct(Box::new(inlined_expr));
                 }
             }
         }
@@ -2679,7 +2677,8 @@ impl LoopOptimizationPass {
         for stmt in &block.statements {
             match stmt {
                 Statement::Variable(decl) => {
-                    if self.is_invariant_expression(&decl.initializer, loop_vars) {}
+                    // TODO: If invariant, hoist outside loop
+                    let _ = self.is_invariant_expression(&decl.initializer, loop_vars);
                     new_statements.push(stmt.clone());
                 }
                 _ => new_statements.push(stmt.clone()),
@@ -2898,18 +2897,10 @@ impl LoopOptimizationPass {
 
 const MIN_CONCAT_PARTS_FOR_OPTIMIZATION: usize = 3;
 
+#[derive(Default)]
 pub struct StringConcatOptimizationPass {
     next_temp_id: usize,
     interner: Option<Arc<StringInterner>>,
-}
-
-impl Default for StringConcatOptimizationPass {
-    fn default() -> Self {
-        Self {
-            next_temp_id: 0,
-            interner: None,
-        }
-    }
 }
 
 impl OptimizationPass for StringConcatOptimizationPass {
@@ -3913,7 +3904,7 @@ impl DeadStoreEliminationPass {
                     || if_stmt
                         .else_block
                         .as_ref()
-                        .map_or(false, |eb| self.block_captures_variables(eb))
+                        .is_some_and(|eb| self.block_captures_variables(eb))
             }
             Statement::While(while_stmt) => self.block_captures_variables(&while_stmt.body),
             Statement::For(for_stmt) => match &**for_stmt {
@@ -3930,7 +3921,7 @@ impl DeadStoreEliminationPass {
                     || try_stmt
                         .finally_block
                         .as_ref()
-                        .map_or(false, |fb| self.block_captures_variables(fb))
+                        .is_some_and(|fb| self.block_captures_variables(fb))
             }
             _ => false,
         }
@@ -4138,50 +4129,6 @@ impl OptimizationPass for InterfaceMethodInliningPass {
         }
 
         // Analysis only
-        Ok(false)
-    }
-}
-
-// =============================================================================
-// O3: Devirtualization Pass
-// =============================================================================
-
-/// Devirtualization pass
-/// Converts virtual method calls to direct calls when type is known
-pub struct DevirtualizationPass;
-
-impl OptimizationPass for DevirtualizationPass {
-    fn name(&self) -> &'static str {
-        "devirtualization"
-    }
-
-    fn min_level(&self) -> OptimizationLevel {
-        OptimizationLevel::O3
-    }
-
-    fn run(&mut self, program: &mut Program) -> Result<bool, CompilationError> {
-        // Collect class methods for potential devirtualization
-        let mut _class_methods: std::collections::HashMap<
-            crate::string_interner::StringId,
-            Vec<crate::string_interner::StringId>,
-        > = std::collections::HashMap::new();
-
-        for stmt in &program.statements {
-            if let Statement::Class(class) = stmt {
-                let class_name = class.name.node;
-                let mut methods = Vec::new();
-
-                for member in &class.members {
-                    if let crate::ast::statement::ClassMember::Method(method) = member {
-                        methods.push(method.name.node);
-                    }
-                }
-
-                _class_methods.insert(class_name, methods);
-            }
-        }
-
-        // Analysis only - requires type flow information
         Ok(false)
     }
 }

@@ -822,7 +822,7 @@ impl Parser<'_> {
         let kind = if is_default {
             // export default expression
             let expr = self.parse_expression()?;
-            ExportKind::Default(expr)
+            ExportKind::Default(Box::new(expr))
         } else if self.check(&TokenKind::LeftBrace) {
             // export { a, b as c } [from './source']
             self.consume(TokenKind::LeftBrace, "Expected '{'")?;
@@ -1749,7 +1749,7 @@ impl Parser<'_> {
             None
         };
 
-        let end_span = if let Some(ref last_catch) = catch_clauses.last() {
+        let end_span = if let Some(last_catch) = catch_clauses.last() {
             last_catch.span
         } else if let Some(ref fin) = finally_block {
             fin.span

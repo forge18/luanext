@@ -26,10 +26,10 @@ fn compile_with_optimization(source: &str, level: OptimizationLevel) -> Result<S
         .parse()
         .map_err(|e| format!("Parsing failed: {:?}", e))?;
 
-    let mut options = CompilerOptions::default();
+    let options = CompilerOptions::default();
 
     let mut type_checker =
-        TypeChecker::new(handler.clone(), &interner, &common_ids).with_options(options.clone());
+        TypeChecker::new(handler.clone(), &interner, &common_ids).with_options(options);
     type_checker
         .check_program(&mut program)
         .map_err(|e| e.message)?;
@@ -502,7 +502,7 @@ fn test_optimization_chained_optional() {
 // O2 optimization - skip nil check for guaranteed non-nil object literals
 fn test_o2_optimization_object_literal() {
     let source = r#"
-        const result = {x: 1, y: 2}?.x
+        return {x: 1, y: 2}?.x
     "#;
 
     let result = compile_with_optimization(source, OptimizationLevel::O2);
@@ -522,7 +522,7 @@ fn test_o2_optimization_object_literal() {
 // O2 optimization - skip nil check for guaranteed non-nil array literals
 fn test_o2_optimization_array_literal() {
     let source = r#"
-        const result = [1, 2, 3]?.[0]
+        return [1, 2, 3]?.[0]
     "#;
 
     let result = compile_with_optimization(source, OptimizationLevel::O2);
@@ -580,7 +580,7 @@ fn test_o2_vs_regular_optional_chaining() {
     // Test 1: Guaranteed non-nil should skip checks
     let optimized_source = r#"
         const obj = {value: 42}
-        const result = obj?.value
+        return obj?.value
     "#;
 
     let result1 = compile_with_optimization(optimized_source, OptimizationLevel::O2);
@@ -590,7 +590,7 @@ fn test_o2_vs_regular_optional_chaining() {
     // Test 2: Potentially nil should include checks
     let unoptimized_source = r#"
         const obj: {value: number} | nil = nil
-        const result = obj?.value
+        return obj?.value
     "#;
 
     let result2 = compile_with_optimization(unoptimized_source, OptimizationLevel::O2);

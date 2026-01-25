@@ -343,7 +343,7 @@ pub enum ExportKind {
         specifiers: Vec<ExportSpecifier>,
         source: Option<String>,
     },
-    Default(Expression),
+    Default(Box<Expression>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

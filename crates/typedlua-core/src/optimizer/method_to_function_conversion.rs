@@ -286,6 +286,7 @@ impl OptimizationPass for MethodToFunctionConversionPass {
 }
 
 impl Default for MethodToFunctionConversionPass {
+    #[allow(clippy::arc_with_non_send_sync)]
     fn default() -> Self {
         Self {
             interner: Arc::new(StringInterner::new()),

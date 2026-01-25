@@ -77,7 +77,7 @@ fn test_four_part_concat_chain() {
 #[test]
 fn test_no_optimization_for_two_parts() {
     let source = r#"
-        const result = "hello" .. "world"
+        return "hello" .. "world"
     "#;
 
     let output = compile_with_optimization_level(source, OptimizationLevel::O2).unwrap();

@@ -681,7 +681,7 @@ impl Parser<'_> {
                 // Spread operator
                 let value = self.parse_expression()?;
                 let span = start_span.combine(&value.span);
-                properties.push(ObjectProperty::Spread { value, span });
+                properties.push(ObjectProperty::Spread { value: Box::new(value), span });
             } else if self.check(&TokenKind::LeftBracket) {
                 // Computed property: [expr] = value
                 self.advance();
@@ -690,7 +690,7 @@ impl Parser<'_> {
                 self.consume(TokenKind::Equal, "Expected '=' after property key")?;
                 let value = self.parse_expression()?;
                 let span = start_span.combine(&value.span);
-                properties.push(ObjectProperty::Computed { key, value, span });
+                properties.push(ObjectProperty::Computed { key: Box::new(key), value: Box::new(value), span });
             } else {
                 // Regular property: key = value or key: value
                 let key = self.parse_identifier()?;
@@ -703,7 +703,7 @@ impl Parser<'_> {
                 }
                 let value = self.parse_expression()?;
                 let span = key.span.combine(&value.span);
-                properties.push(ObjectProperty::Property { key, value, span });
+                properties.push(ObjectProperty::Property { key, value: Box::new(value), span });
             }
 
             if !self.check(&TokenKind::RightBrace) {
@@ -834,7 +834,7 @@ impl Parser<'_> {
             MatchArmBody::Block(block)
         } else {
             let expr = self.parse_expression()?;
-            MatchArmBody::Expression(expr)
+            MatchArmBody::Expression(Box::new(expr))
         };
 
         let end_span = self.current_span();
@@ -870,7 +870,7 @@ impl Parser<'_> {
                     let handler = self.diagnostic_handler.clone();
                     let mut temp_parser = Parser::new(tokens, handler, self.interner, self.common);
                     let expr = temp_parser.parse_expression()?;
-                    ast_parts.push(crate::ast::expression::TemplatePart::Expression(expr));
+                    ast_parts.push(crate::ast::expression::TemplatePart::Expression(Box::new(expr)));
                 }
             }
         }

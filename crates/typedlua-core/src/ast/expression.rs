@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::statement::{Block, Parameter};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Expression {
     pub kind: ExpressionKind,
     pub span: Span,
@@ -30,24 +30,7 @@ impl Expression {
     }
 }
 
-impl Default for Expression {
-    fn default() -> Self {
-        Expression {
-            kind: ExpressionKind::default(),
-            span: Span::default(),
-            annotated_type: None,
-            receiver_class: None,
-        }
-    }
-}
-
-impl Default for ExpressionKind {
-    fn default() -> Self {
-        ExpressionKind::SelfKeyword
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub enum ExpressionKind {
     Identifier(StringId),
     Literal(Literal),
@@ -66,6 +49,7 @@ pub enum ExpressionKind {
     Pipe(Box<Expression>, Box<Expression>),
     Match(MatchExpression),
     Parenthesized(Box<Expression>),
+    #[default]
     SelfKeyword,
     SuperKeyword,
     Template(TemplateLiteral),
@@ -157,16 +141,16 @@ pub enum ArrayElement {
 pub enum ObjectProperty {
     Property {
         key: Ident,
-        value: Expression,
+        value: Box<Expression>,
         span: Span,
     },
     Computed {
-        key: Expression,
-        value: Expression,
+        key: Box<Expression>,
+        value: Box<Expression>,
         span: Span,
     },
     Spread {
-        value: Expression,
+        value: Box<Expression>,
         span: Span,
     },
 }
@@ -211,7 +195,7 @@ pub struct MatchArm {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MatchArmBody {
-    Expression(Expression),
+    Expression(Box<Expression>),
     Block(Block),
 }
 
@@ -224,7 +208,7 @@ pub struct TemplateLiteral {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TemplatePart {
     String(String),
-    Expression(Expression),
+    Expression(Box<Expression>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -90,8 +90,7 @@ pub fn dedent(s: &str) -> String {
 
     let result_lines: Vec<String> = lines
         .iter()
-        .enumerate()
-        .map(|(_, &line)| {
+        .map(|&line| {
             let trimmed = line.trim();
             if trimmed.is_empty() {
                 String::new()
@@ -103,9 +102,7 @@ pub fn dedent(s: &str) -> String {
         })
         .collect();
 
-    let result = result_lines.join("\n");
-
-    result
+    result_lines.join("\n")
 }
 
 /// Code generation mode for modules
@@ -460,6 +457,8 @@ impl CodeGenerator {
 
             // Generate module code with source map support
             // Create a new interner for this module (bundles can have multiple independent modules)
+            // Note: Arc used for shared ownership with CodeGenerator; threading not used here
+            #[allow(clippy::arc_with_non_send_sync)]
             let interner = Arc::new(StringInterner::new());
             let mut generator = CodeGenerator::new(interner.clone())
                 .with_target(target)
@@ -2519,10 +2518,10 @@ impl CodeGenerator {
                     }
                 }
 
-                let mut string_iter = string_parts.iter().peekable();
+                let string_iter = string_parts.iter();
                 let mut expression_iter = expression_parts.iter().peekable();
 
-                while let Some(s) = string_iter.next() {
+                for s in string_iter {
                     if !first {
                         self.write(" .. ");
                     }

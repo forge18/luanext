@@ -166,12 +166,12 @@ impl<'a> TypeChecker<'a> {
         for (filename, source) in stdlib_files {
             // Parse the stdlib file
             let handler = Arc::new(crate::diagnostics::CollectingDiagnosticHandler::new());
-            let mut lexer = Lexer::new(source, handler.clone(), &self.interner);
+            let mut lexer = Lexer::new(source, handler.clone(), self.interner);
             let tokens = lexer
                 .tokenize()
                 .map_err(|e| format!("Failed to lex {}: {:?}", filename, e))?;
 
-            let mut parser = Parser::new(tokens, handler.clone(), &self.interner, &self.common);
+            let mut parser = Parser::new(tokens, handler.clone(), self.interner, self.common);
             let program = parser.parse();
 
             if let Err(ref e) = program {
@@ -539,7 +539,7 @@ impl<'a> TypeChecker<'a> {
             &if_stmt.condition,
             &self.narrowing_context,
             &variable_types,
-            &self.interner,
+            self.interner,
         );
 
         // Check then block with narrowed context
@@ -559,7 +559,7 @@ impl<'a> TypeChecker<'a> {
                 &else_if.condition,
                 &self.narrowing_context,
                 &variable_types,
-                &self.interner,
+                self.interner,
             );
 
             self.narrowing_context = elseif_then;
@@ -897,7 +897,7 @@ impl<'a> TypeChecker<'a> {
             };
 
             if let Some(name) = name {
-                if !seen_names.insert(name.clone()) {
+                if !seen_names.insert(*name) {
                     return Err(TypeCheckError::new(
                         format!("Duplicate property '{}' in interface", name),
                         span,
@@ -1062,7 +1062,7 @@ impl<'a> TypeChecker<'a> {
             if TypeEnvironment::is_utility_type(&name) {
                 return self
                     .type_env
-                    .resolve_utility_type(&name, type_args, span, &self.interner, &self.common)
+                    .resolve_utility_type(&name, type_args, span, self.interner, self.common)
                     .map_err(|e| TypeCheckError::new(e, span));
             }
 
@@ -2246,12 +2246,14 @@ impl<'a> TypeChecker<'a> {
                 let method_name = self.interner.resolve(method.node);
                 let method_type = self.infer_method_type(&obj_type, &method_name, args, span)?;
 
-                if let ExpressionKind::Identifier(obj_name) = &object.kind {
-                    let obj_name_str = self.interner.resolve(*obj_name);
-                    if self.class_members.contains_key(&obj_name_str) {
-                        let class_id = self.interner.get_or_intern(&obj_name_str);
+                // Set receiver_class based on inferred type (not variable name)
+                // This enables method-to-function conversion optimization
+                if let TypeKind::Reference(type_ref) = &obj_type.kind {
+                    let type_name = self.interner.resolve(type_ref.name.node);
+                    // Only set for classes (not interfaces) - check class_members
+                    if self.class_members.contains_key(&type_name) {
                         expr.receiver_class = Some(ReceiverClassInfo {
-                            class_name: class_id,
+                            class_name: type_ref.name.node,
                             is_static: false,
                         });
                     }
@@ -3303,7 +3305,7 @@ impl<'a> TypeChecker<'a> {
             }
             TypeKind::Mapped(mapped) => {
                 use super::evaluate_mapped_type;
-                evaluate_mapped_type(mapped, &self.type_env, &self.interner)
+                evaluate_mapped_type(mapped, &self.type_env, self.interner)
             }
             TypeKind::Conditional(conditional) => {
                 use super::evaluate_conditional_type;
