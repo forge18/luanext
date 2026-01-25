@@ -713,11 +713,223 @@ Created:
 
 ---
 
-- [ ] Generic specialization
-  - [ ] Detect generic function instantiations with concrete type arguments
-  - [ ] Generate specialized monomorphic versions of generic functions
-  - [ ] Inline specialized versions where beneficial
-  - [ ] Write tests for generic function performance and correctness
+#### Generic Specialization (O3) - DETAILED BREAKDOWN
+
+**Status:** NOT STARTED | **Model:** Sonnet | **Prerequisites:** Type instantiation in generics.rs
+
+**Overview:** Converts polymorphic generic functions into specialized monomorphic versions when called with concrete type arguments. Currently generics generate identical Lua code regardless of type parameters. This optimization eliminates type dispatch overhead.
+
+---
+
+##### Current State
+
+- Generic type parameters exist in AST (`FunctionDeclaration.type_parameters`)
+- Type instantiation logic exists in `typechecker/generics.rs` but only handles **types**, not function bodies
+- Placeholder `GenericSpecializationPass` exists at `passes.rs:4195` but is empty
+- **Gap**: Call expressions (`Call`, `MethodCall`) don't track type arguments
+
+**Key Files to Modify:**
+
+| File | Purpose |
+|------|---------|
+| `ast/expression.rs` | Add `type_arguments` to `Call` and `MethodCall` |
+| `typechecker/type_checker.rs` | Track type args at call sites, export generic function info |
+| `typechecker/generics.rs` | Extend to substitute in statements/expressions |
+| `optimizer/passes.rs` | Replace placeholder with full implementation |
+
+---
+
+##### Phase 1: AST & Type System Extensions
+
+**Goal:** Track type arguments at call sites and store generic function definitions
+
+**Files:** `ast/expression.rs`, `typechecker/type_checker.rs`
+
+- [ ] Add `type_arguments: Option<Vec<Type>>` to `ExpressionKind::Call`
+  ```rust
+  Call(Box<Expression>, Vec<Argument>, Option<Vec<Type>>),
+  ```
+
+- [ ] Add `type_arguments: Option<Vec<Type>>` to `ExpressionKind::MethodCall`
+  ```rust
+  MethodCall(Box<Expression>, Ident, Vec<Argument>, Option<Vec<Type>>),
+  ```
+
+- [ ] Create `GenericFunctionInfo` struct for type checker tracking:
+  ```rust
+  pub struct GenericFunctionInfo {
+      pub name: StringId,
+      pub type_parameters: Vec<TypeParameter>,
+      pub signature: FunctionType,
+  }
+  ```
+
+- [ ] Add `generic_functions: HashMap<StringId, GenericFunctionInfo>` to type checker context
+
+- [ ] Populate `generic_functions` map when type-checking generic function declarations
+
+- [ ] In `infer_call_type()`, detect if callee is a generic function
+
+- [ ] If explicit type args provided, record in call expression's new `type_arguments` field
+
+- [ ] If implicit, infer type arguments using `infer_type_arguments()` and record them
+
+---
+
+##### Phase 2: Body Substitution Infrastructure
+
+**Goal:** Extend generic instantiation to handle AST nodes (statements, expressions)
+
+**Files:** `typechecker/generics.rs`
+
+- [ ] Create `SubstitutionMap` type alias:
+  ```rust
+  type SubstitutionMap = FxHashMap<StringId, Type>;
+  ```
+
+- [ ] Create `instantiate_statement(&Statement, &SubstitutionMap) -> Statement`
+
+- [ ] Create `instantiate_expression(&Expression, &SubstitutionMap) -> Expression`
+
+- [ ] Create `instantiate_block(&Block, &SubstitutionMap) -> Block`
+
+- [ ] Implement recursive substitution for statements:
+  - [ ] `Statement::Variable` - substitute type annotations in declarations
+  - [ ] `Statement::Return` - substitute return expression types
+  - [ ] `Statement::If/While/For` - substitute in body blocks
+  - [ ] `Statement::Function` - substitute parameter types, body
+  - [ ] `Statement::Expression` - handle calls with type args
+
+- [ ] Implement recursive substitution for expressions:
+  - [ ] `ExpressionKind::Call` - substitute in function type args if present
+  - [ ] `ExpressionKind::Identifier` - no-op
+  - [ ] `ExpressionKind::Member/Index` - substitute object/index types
+  - [ ] `ExpressionKind::Literal` - no-op
+  - [ ] Handle all expression variants recursively
+
+---
+
+##### Phase 3: Specialization Pass Implementation
+
+**Goal:** Create the full optimization pass that specializes generic functions
+
+**Files:** `optimizer/passes.rs` (replace existing placeholder)
+
+- [ ] Replace empty `GenericSpecializationPass::run()` implementation
+
+- [ ] Create `SpecializationCache`:
+  ```rust
+  struct SpecializationCache {
+      next_id: usize,
+      cache: FxHashMap<(StringId, Vec<Type>), StringId>, // (func_name, type_args) -> specialized_name
+  }
+  ```
+
+- [ ] Implement call site collector:
+  - [ ] Scan all `Call`/`MethodCall` expressions in AST
+  - [ ] Filter for calls with concrete type arguments:
+    - Concrete: numbers, strings, booleans, classes, arrays, interfaces
+    - Not concrete: `any`, unions, type parameters
+  - [ ] Deduplicate by type argument signature
+
+- [ ] Implement function body specialization:
+  - [ ] Clone original `FunctionDeclaration` body
+  - [ ] Create substitution map from type params to concrete args
+  - [ ] Apply body substitution to clone
+  - [ ] Generate unique name: `originalName__specializationId`
+    - Example: `map__0`, `map__1`, `identity__2`
+
+- [ ] Implement specialized function injection:
+  - [ ] Add specialized function declarations to program statements
+  - [ ] Replace call expression with direct call to specialized version
+
+- [ ] Handle nested generic calls (generic calling generic):
+  - [ ] Process inner calls first (bottom-up) or track dependencies
+
+---
+
+##### Phase 4: Integration with Existing Optimizer
+
+**Goal:** Ensure specialized functions work well with other O2/O3 passes
+
+**Files:** `optimizer/mod.rs`, `optimizer/passes.rs`
+
+- [ ] Ensure `FunctionInliningPass` can inline the specialized functions
+  - [ ] Set appropriate size thresholds (specialized functions may be larger)
+  - [ ] After specialization, inlining becomes more effective
+
+- [ ] Ensure `AggressiveInliningPass` (O3) handles specialized functions
+
+- [ ] Consider pass ordering:
+  - [ ] GenericSpecializationPass should run before inlining passes
+  - [ ] This allows inlining to see concrete types
+
+---
+
+##### Phase 5: Testing & Validation
+
+**Goal:** Comprehensive tests for correctness and performance
+
+**Files:** `tests/generic_specialization_tests.rs` (NEW)
+
+- [ ] Unit tests for body substitution:
+  - [ ] `test_substitute_variable_type`
+  - [ ] `test_substitute_return_type`
+  - [ ] `test_substitute_nested_generic`
+
+- [ ] Integration tests:
+  - [ ] `test_generic_specialization_basic` - simple function with one type arg
+    ```lua
+    function id<T>(x: T): T return x end
+    local n = id<number>(5)  -- specialized to id__0(x: number): number
+    local s = id<string>("hi") -- specialized to id__1(x: string): string
+    ```
+  - [ ] `test_generic_specialization_multiple` - multiple type parameters
+    ```lua
+    function pair<A, B>(a: A, b: B): {a: A, b: B}
+    end
+    local p = pair<number, string>(1, "x")
+    ```
+  - [ ] `test_generic_specialization_inferred` - implicit type arguments
+  - [ ] `test_generic_specialization_caching` - same args reused (only one specialization)
+  - [ ] `test_generic_specialization_nested` - generic calling generic
+    ```lua
+    function apply<T, U>(f: (T) -> U, x: T): U
+    end
+    function double(x: number): number return x * 2 end
+    local r = apply<number, number>(double, 5)
+    ```
+  - [ ] `test_generic_specialization_method` - class methods with type params
+  - [ ] `test_generic_specialization_no_regression` - calls without type args still work
+
+- [ ] Performance tests:
+  - [ ] Benchmark specialized vs non-specialized code generation
+  - [ ] Verify reduced runtime overhead for hot paths
+
+---
+
+##### Key Design Decisions
+
+1. **Where to specialize**: In the optimizer (O3), not type checker - separation of concerns
+2. **When to specialize**: Only with **concrete** type arguments (numbers, strings, classes, arrays) - not with other type parameters
+3. **Naming convention**: `originalName__specializationId` for specialized versions (e.g., `map__0`, `map__1`)
+4. **Cache key**: `(function_name, type_args_signature)` tuple using structural type comparison
+5. **Bottom-up processing**: Inner generic calls must be specialized before outer calls
+
+---
+
+##### Files Modified/Created
+
+```
+Modified:
+- ast/expression.rs              # Add type_arguments to Call/MethodCall
+- typechecker/type_checker.rs    # Track generic functions, populate type_args
+- typechecker/generics.rs        # Add body substitution functions
+- optimizer/passes.rs            # Replace placeholder with full implementation
+
+Created:
+- tests/generic_specialization_tests.rs # Test suite (15+ tests)
+```
 
 - [ ] Operator inlining
   - [ ] Identify frequently used operator overloads
