@@ -1,6 +1,9 @@
 use crate::span::Span;
 use std::sync::Mutex;
 
+// Bridge implementation for parser crate compatibility
+// This allows core's diagnostic handlers to be used with the parser crate's Lexer and Parser
+
 /// Diagnostic severity level
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DiagnosticLevel {
@@ -545,6 +548,163 @@ impl DiagnosticHandler for CollectingDiagnosticHandler {
 
     fn get_diagnostics(&self) -> Vec<Diagnostic> {
         self.diagnostics.lock().unwrap().clone()
+    }
+}
+
+// Bridge implementations for parser crate compatibility
+// These allow the core's diagnostic handlers to work with typedlua_parser's Lexer and Parser
+
+/// Convert a parser diagnostic to a core diagnostic
+fn convert_parser_diagnostic(diag: typedlua_parser::Diagnostic) -> Diagnostic {
+    let level = match diag.level {
+        typedlua_parser::diagnostics::DiagnosticLevel::Error => DiagnosticLevel::Error,
+        typedlua_parser::diagnostics::DiagnosticLevel::Warning => DiagnosticLevel::Warning,
+        typedlua_parser::diagnostics::DiagnosticLevel::Info => DiagnosticLevel::Info,
+    };
+
+    let code = diag.code.map(|c| DiagnosticCode::new(c.prefix, c.code));
+
+    let related_information = diag
+        .related_information
+        .into_iter()
+        .map(|r| DiagnosticRelatedInformation {
+            span: r.span,
+            message: r.message,
+        })
+        .collect();
+
+    let suggestions = diag
+        .suggestions
+        .into_iter()
+        .map(|s| DiagnosticSuggestion {
+            span: s.span,
+            replacement: s.replacement,
+            message: s.message,
+        })
+        .collect();
+
+    Diagnostic {
+        level,
+        span: diag.span,
+        message: diag.message,
+        code,
+        related_information,
+        suggestions,
+    }
+}
+
+impl typedlua_parser::DiagnosticHandler for ConsoleDiagnosticHandler {
+    fn report(&self, diagnostic: typedlua_parser::Diagnostic) {
+        DiagnosticHandler::report(self, convert_parser_diagnostic(diagnostic));
+    }
+
+    fn has_errors(&self) -> bool {
+        DiagnosticHandler::has_errors(self)
+    }
+
+    fn error_count(&self) -> usize {
+        DiagnosticHandler::error_count(self)
+    }
+
+    fn warning_count(&self) -> usize {
+        DiagnosticHandler::warning_count(self)
+    }
+
+    fn get_diagnostics(&self) -> Vec<typedlua_parser::Diagnostic> {
+        // Convert core diagnostics back to parser diagnostics
+        DiagnosticHandler::get_diagnostics(self)
+            .into_iter()
+            .map(|d| {
+                let level = match d.level {
+                    DiagnosticLevel::Error => typedlua_parser::diagnostics::DiagnosticLevel::Error,
+                    DiagnosticLevel::Warning => typedlua_parser::diagnostics::DiagnosticLevel::Warning,
+                    DiagnosticLevel::Info => typedlua_parser::diagnostics::DiagnosticLevel::Info,
+                };
+                let code = d
+                    .code
+                    .map(|c| typedlua_parser::diagnostics::DiagnosticCode::new(c.prefix, c.code));
+                typedlua_parser::Diagnostic {
+                    level,
+                    span: d.span,
+                    message: d.message,
+                    code,
+                    related_information: d
+                        .related_information
+                        .into_iter()
+                        .map(|r| typedlua_parser::diagnostics::DiagnosticRelatedInformation {
+                            span: r.span,
+                            message: r.message,
+                        })
+                        .collect(),
+                    suggestions: d
+                        .suggestions
+                        .into_iter()
+                        .map(|s| typedlua_parser::diagnostics::DiagnosticSuggestion {
+                            span: s.span,
+                            replacement: s.replacement,
+                            message: s.message,
+                        })
+                        .collect(),
+                }
+            })
+            .collect()
+    }
+}
+
+impl typedlua_parser::DiagnosticHandler for CollectingDiagnosticHandler {
+    fn report(&self, diagnostic: typedlua_parser::Diagnostic) {
+        DiagnosticHandler::report(self, convert_parser_diagnostic(diagnostic));
+    }
+
+    fn has_errors(&self) -> bool {
+        DiagnosticHandler::has_errors(self)
+    }
+
+    fn error_count(&self) -> usize {
+        DiagnosticHandler::error_count(self)
+    }
+
+    fn warning_count(&self) -> usize {
+        DiagnosticHandler::warning_count(self)
+    }
+
+    fn get_diagnostics(&self) -> Vec<typedlua_parser::Diagnostic> {
+        DiagnosticHandler::get_diagnostics(self)
+            .into_iter()
+            .map(|d| {
+                let level = match d.level {
+                    DiagnosticLevel::Error => typedlua_parser::diagnostics::DiagnosticLevel::Error,
+                    DiagnosticLevel::Warning => typedlua_parser::diagnostics::DiagnosticLevel::Warning,
+                    DiagnosticLevel::Info => typedlua_parser::diagnostics::DiagnosticLevel::Info,
+                };
+                let code = d
+                    .code
+                    .map(|c| typedlua_parser::diagnostics::DiagnosticCode::new(c.prefix, c.code));
+                typedlua_parser::Diagnostic {
+                    level,
+                    span: d.span,
+                    message: d.message,
+                    code,
+                    related_information: d
+                        .related_information
+                        .into_iter()
+                        .map(|r| typedlua_parser::diagnostics::DiagnosticRelatedInformation {
+                            span: r.span,
+                            message: r.message,
+                        })
+                        .collect(),
+                    suggestions: d
+                        .suggestions
+                        .into_iter()
+                        .map(|s| typedlua_parser::diagnostics::DiagnosticSuggestion {
+                            span: s.span,
+                            replacement: s.replacement,
+                            message: s.message,
+                        })
+                        .collect(),
+                }
+            })
+            .collect()
     }
 }
 

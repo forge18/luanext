@@ -1,0 +1,9 @@
+[submodule "crates/lua-sourcemap"]
+	path = crates/lua-sourcemap
+	url = /Users/forge18/Repos/lua-sourcemap
+[submodule "crates/typedlua-parser"]
+	path = crates/typedlua-parser
+	url = /Users/forge18/Repos/typedlua-parser
+[submodule "crates/typedlua-lsp"]
+	path = crates/typedlua-lsp
+	url = /Users/forge18/Repos/typedlua-lsp

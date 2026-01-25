@@ -1,5 +1,4 @@
 pub mod arena;
-pub mod ast;
 pub mod cache;
 pub mod codegen;
 pub mod config;
@@ -7,14 +6,19 @@ pub mod di;
 pub mod diagnostics;
 pub mod errors;
 pub mod fs;
-pub mod lexer;
 pub mod module_resolver;
 pub mod optimizer;
-pub mod parser;
-pub mod span;
 pub mod stdlib;
-pub mod string_interner;
 pub mod typechecker;
+
+// Re-exports from ecosystem crates - these replace local modules
+pub use lua_sourcemap as sourcemap;
+pub use typedlua_parser as parser_crate;
+pub use typedlua_parser::ast;
+pub use typedlua_parser::lexer;
+pub use typedlua_parser::parser;
+pub use typedlua_parser::span;
+pub use typedlua_parser::string_interner;
 
 pub use arena::Arena;
 pub use ast::{Program, Spanned};

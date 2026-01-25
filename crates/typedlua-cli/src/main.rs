@@ -361,7 +361,7 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
 
             let mut type_checker = TypeChecker::new(handler.clone(), &interner, &common_ids);
 
-            if type_checker.check_program(&program).is_err() {
+            if type_checker.check_program(&mut program).is_err() {
                 return CompilationResult {
                     file_path: file_path.clone(),
                     result: Err(CompilationError {

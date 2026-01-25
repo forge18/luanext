@@ -19,6 +19,8 @@ bumpalo.workspace = true
 rustc-hash.workspace = true
 tracing.workspace = true
 typedlua-runtime = { path = "../typedlua-runtime" }
+lua-sourcemap = { path = "../lua-sourcemap" }
+typedlua-parser = { path = "../typedlua-parser" }
 
 [dev-dependencies]
 insta.workspace = true

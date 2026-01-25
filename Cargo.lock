@@ -724,6 +724,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lua-sourcemap"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "matchers"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1345,6 +1354,7 @@ dependencies = [
  "criterion",
  "dhat",
  "insta",
+ "lua-sourcemap",
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
@@ -1352,6 +1362,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tracing",
+ "typedlua-parser",
  "typedlua-runtime",
 ]
 
@@ -1368,6 +1379,15 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "typedlua-core",
+]
+
+[[package]]
+name = "typedlua-parser"
+version = "0.1.0"
+dependencies = [
+ "rustc-hash 2.1.1",
+ "serde",
+ "thiserror",
 ]
 
 [[package]]
