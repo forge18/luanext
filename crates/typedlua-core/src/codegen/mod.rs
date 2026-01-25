@@ -2202,7 +2202,7 @@ impl CodeGenerator {
                     }
                 }
             }
-            ExpressionKind::Call(callee, args) => {
+            ExpressionKind::Call(callee, args, _) => {
                 // Check for super() constructor call
                 if matches!(&callee.kind, ExpressionKind::SuperKeyword) {
                     // super() in constructor - call Parent._init(self, args)
@@ -2436,7 +2436,7 @@ impl CodeGenerator {
                 // For chained pipes or more complex right expressions,
                 // we check if right is a call and prepend left to its arguments
                 match &right.kind {
-                    ExpressionKind::Call(callee, arguments) => {
+                    ExpressionKind::Call(callee, arguments, _) => {
                         // right is already a function call, prepend left as first argument
                         self.generate_expression(callee);
                         self.write("(");
@@ -2467,7 +2467,7 @@ impl CodeGenerator {
                     }
                 }
             }
-            ExpressionKind::MethodCall(object, method, args) => {
+            ExpressionKind::MethodCall(object, method, args, _) => {
                 self.generate_expression(object);
                 self.write(":");
                 let method_str = self.resolve(method.node);
@@ -2607,7 +2607,7 @@ impl CodeGenerator {
                     self.writeln("] else return nil end end)()");
                 }
             }
-            ExpressionKind::OptionalCall(callee, _args) => {
+            ExpressionKind::OptionalCall(callee, _args, _) => {
                 // Optional call: func?.()
                 // O2 optimization: Skip nil check for guaranteed non-nil expressions
                 if self.optimization_level.effective() >= OptimizationLevel::O2
@@ -2627,7 +2627,7 @@ impl CodeGenerator {
                     self.writeln("; if __t then return __t() else return nil end end)()");
                 }
             }
-            ExpressionKind::OptionalMethodCall(object, method, args) => {
+            ExpressionKind::OptionalMethodCall(object, method, args, _) => {
                 // Optional method call: obj?.method()
                 // O2 optimization: Skip nil check for guaranteed non-nil expressions
                 if self.optimization_level.effective() >= OptimizationLevel::O2

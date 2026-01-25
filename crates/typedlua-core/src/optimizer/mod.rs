@@ -93,7 +93,9 @@ impl Optimizer {
         self.passes.push(Box::new(InterfaceMethodInliningPass));
         self.passes
             .push(Box::new(DevirtualizationPass::new(interner.clone())));
-        self.passes.push(Box::new(GenericSpecializationPass));
+        let mut generic_spec_pass = GenericSpecializationPass::default();
+        generic_spec_pass.set_interner(interner.clone());
+        self.passes.push(Box::new(generic_spec_pass));
     }
 
     /// Returns the number of registered passes

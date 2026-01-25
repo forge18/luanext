@@ -325,6 +325,561 @@ fn types_equal(t1: &Type, t2: &Type) -> bool {
     }
 }
 
+// =============================================================================
+// Body Instantiation Functions for Generic Specialization
+// =============================================================================
+
+/// Build a substitution map from type parameters and type arguments
+pub fn build_substitutions(
+    type_params: &[TypeParameter],
+    type_args: &[Type],
+) -> Result<FxHashMap<StringId, Type>, String> {
+    if type_params.len() != type_args.len() {
+        return Err(format!(
+            "Expected {} type arguments, but got {}",
+            type_params.len(),
+            type_args.len()
+        ));
+    }
+
+    let mut substitutions: FxHashMap<StringId, Type> = FxHashMap::default();
+    for (param, arg) in type_params.iter().zip(type_args.iter()) {
+        substitutions.insert(param.name.node, arg.clone());
+    }
+    Ok(substitutions)
+}
+
+/// Instantiate a block with type substitutions
+/// Clones the block and substitutes type annotations in all statements
+pub fn instantiate_block(
+    block: &crate::ast::statement::Block,
+    substitutions: &FxHashMap<StringId, Type>,
+) -> crate::ast::statement::Block {
+    use crate::ast::statement::Block;
+
+    Block {
+        statements: block
+            .statements
+            .iter()
+            .map(|stmt| instantiate_statement(stmt, substitutions))
+            .collect(),
+        span: block.span,
+    }
+}
+
+/// Instantiate a statement with type substitutions
+pub fn instantiate_statement(
+    stmt: &crate::ast::statement::Statement,
+    substitutions: &FxHashMap<StringId, Type>,
+) -> crate::ast::statement::Statement {
+    use crate::ast::statement::{
+        ElseIf, ForGeneric, ForNumeric, ForStatement, IfStatement, RepeatStatement,
+        ReturnStatement, Statement, ThrowStatement, VariableDeclaration, WhileStatement,
+    };
+
+    match stmt {
+        Statement::Variable(var_decl) => Statement::Variable(VariableDeclaration {
+            kind: var_decl.kind,
+            pattern: var_decl.pattern.clone(),
+            type_annotation: var_decl
+                .type_annotation
+                .as_ref()
+                .map(|t| substitute_type(t, substitutions).unwrap_or_else(|_| t.clone())),
+            initializer: instantiate_expression(&var_decl.initializer, substitutions),
+            span: var_decl.span,
+        }),
+
+        Statement::Function(func_decl) => {
+            Statement::Function(instantiate_function_declaration(func_decl, substitutions))
+        }
+
+        Statement::Expression(expr) => {
+            Statement::Expression(instantiate_expression(expr, substitutions))
+        }
+
+        Statement::Return(ret) => Statement::Return(ReturnStatement {
+            values: ret
+                .values
+                .iter()
+                .map(|e| instantiate_expression(e, substitutions))
+                .collect(),
+            span: ret.span,
+        }),
+
+        Statement::If(if_stmt) => Statement::If(IfStatement {
+            condition: instantiate_expression(&if_stmt.condition, substitutions),
+            then_block: instantiate_block(&if_stmt.then_block, substitutions),
+            else_ifs: if_stmt
+                .else_ifs
+                .iter()
+                .map(|elif| ElseIf {
+                    condition: instantiate_expression(&elif.condition, substitutions),
+                    block: instantiate_block(&elif.block, substitutions),
+                    span: elif.span,
+                })
+                .collect(),
+            else_block: if_stmt
+                .else_block
+                .as_ref()
+                .map(|b| instantiate_block(b, substitutions)),
+            span: if_stmt.span,
+        }),
+
+        Statement::While(while_stmt) => Statement::While(WhileStatement {
+            condition: instantiate_expression(&while_stmt.condition, substitutions),
+            body: instantiate_block(&while_stmt.body, substitutions),
+            span: while_stmt.span,
+        }),
+
+        Statement::For(for_stmt) => Statement::For(Box::new(match for_stmt.as_ref() {
+            ForStatement::Numeric(num) => ForStatement::Numeric(Box::new(ForNumeric {
+                variable: num.variable.clone(),
+                start: instantiate_expression(&num.start, substitutions),
+                end: instantiate_expression(&num.end, substitutions),
+                step: num
+                    .step
+                    .as_ref()
+                    .map(|e| instantiate_expression(e, substitutions)),
+                body: instantiate_block(&num.body, substitutions),
+                span: num.span,
+            })),
+            ForStatement::Generic(gen) => ForStatement::Generic(ForGeneric {
+                variables: gen.variables.clone(),
+                iterators: gen
+                    .iterators
+                    .iter()
+                    .map(|e| instantiate_expression(e, substitutions))
+                    .collect(),
+                body: instantiate_block(&gen.body, substitutions),
+                span: gen.span,
+            }),
+        })),
+
+        Statement::Repeat(repeat) => Statement::Repeat(RepeatStatement {
+            body: instantiate_block(&repeat.body, substitutions),
+            until: instantiate_expression(&repeat.until, substitutions),
+            span: repeat.span,
+        }),
+
+        Statement::Block(block) => Statement::Block(instantiate_block(block, substitutions)),
+
+        Statement::Throw(throw) => Statement::Throw(ThrowStatement {
+            expression: instantiate_expression(&throw.expression, substitutions),
+            span: throw.span,
+        }),
+
+        // Statements that don't contain type parameters or are complex - clone as-is
+        Statement::Break(span) => Statement::Break(*span),
+        Statement::Continue(span) => Statement::Continue(*span),
+        Statement::Rethrow(span) => Statement::Rethrow(*span),
+        Statement::Class(class_decl) => Statement::Class(class_decl.clone()),
+        Statement::Interface(iface) => Statement::Interface(iface.clone()),
+        Statement::TypeAlias(alias) => Statement::TypeAlias(alias.clone()),
+        Statement::Enum(enum_decl) => Statement::Enum(enum_decl.clone()),
+        Statement::Import(import) => Statement::Import(import.clone()),
+        Statement::Export(export) => Statement::Export(export.clone()),
+        Statement::Try(try_stmt) => Statement::Try(try_stmt.clone()),
+        Statement::Namespace(ns) => Statement::Namespace(ns.clone()),
+        Statement::DeclareFunction(df) => Statement::DeclareFunction(df.clone()),
+        Statement::DeclareNamespace(dn) => Statement::DeclareNamespace(dn.clone()),
+        Statement::DeclareType(dt) => Statement::DeclareType(dt.clone()),
+        Statement::DeclareInterface(di) => Statement::DeclareInterface(di.clone()),
+        Statement::DeclareConst(dc) => Statement::DeclareConst(dc.clone()),
+    }
+}
+
+/// Instantiate a function declaration with type substitutions
+pub fn instantiate_function_declaration(
+    func: &crate::ast::statement::FunctionDeclaration,
+    substitutions: &FxHashMap<StringId, Type>,
+) -> crate::ast::statement::FunctionDeclaration {
+    crate::ast::statement::FunctionDeclaration {
+        name: func.name.clone(),
+        type_parameters: None, // Remove type parameters after specialization
+        parameters: func
+            .parameters
+            .iter()
+            .map(|p| instantiate_parameter(p, substitutions))
+            .collect(),
+        return_type: func
+            .return_type
+            .as_ref()
+            .map(|t| substitute_type(t, substitutions).unwrap_or_else(|_| t.clone())),
+        body: instantiate_block(&func.body, substitutions),
+        throws: func.throws.clone(),
+        span: func.span,
+    }
+}
+
+/// Instantiate a parameter with type substitutions
+pub fn instantiate_parameter(
+    param: &crate::ast::statement::Parameter,
+    substitutions: &FxHashMap<StringId, Type>,
+) -> crate::ast::statement::Parameter {
+    crate::ast::statement::Parameter {
+        pattern: param.pattern.clone(),
+        type_annotation: param
+            .type_annotation
+            .as_ref()
+            .map(|t| substitute_type(t, substitutions).unwrap_or_else(|_| t.clone())),
+        default: param
+            .default
+            .as_ref()
+            .map(|e| instantiate_expression(e, substitutions)),
+        is_rest: param.is_rest,
+        is_optional: param.is_optional,
+        span: param.span,
+    }
+}
+
+/// Instantiate an expression with type substitutions
+pub fn instantiate_expression(
+    expr: &crate::ast::expression::Expression,
+    substitutions: &FxHashMap<StringId, Type>,
+) -> crate::ast::expression::Expression {
+    use crate::ast::expression::{Expression, ExpressionKind};
+
+    let new_kind = match &expr.kind {
+        ExpressionKind::Literal(lit) => ExpressionKind::Literal(lit.clone()),
+        ExpressionKind::Identifier(id) => ExpressionKind::Identifier(*id),
+
+        ExpressionKind::Binary(op, left, right) => ExpressionKind::Binary(
+            *op,
+            Box::new(instantiate_expression(left, substitutions)),
+            Box::new(instantiate_expression(right, substitutions)),
+        ),
+
+        ExpressionKind::Unary(op, operand) => ExpressionKind::Unary(
+            *op,
+            Box::new(instantiate_expression(operand, substitutions)),
+        ),
+
+        ExpressionKind::Assignment(target, op, value) => ExpressionKind::Assignment(
+            Box::new(instantiate_expression(target, substitutions)),
+            *op,
+            Box::new(instantiate_expression(value, substitutions)),
+        ),
+
+        ExpressionKind::Call(callee, args, type_args) => ExpressionKind::Call(
+            Box::new(instantiate_expression(callee, substitutions)),
+            args.iter()
+                .map(|a| instantiate_argument(a, substitutions))
+                .collect(),
+            type_args.as_ref().map(|tas| {
+                tas.iter()
+                    .map(|t| substitute_type(t, substitutions).unwrap_or_else(|_| t.clone()))
+                    .collect()
+            }),
+        ),
+
+        ExpressionKind::MethodCall(obj, method, args, type_args) => ExpressionKind::MethodCall(
+            Box::new(instantiate_expression(obj, substitutions)),
+            method.clone(),
+            args.iter()
+                .map(|a| instantiate_argument(a, substitutions))
+                .collect(),
+            type_args.as_ref().map(|tas| {
+                tas.iter()
+                    .map(|t| substitute_type(t, substitutions).unwrap_or_else(|_| t.clone()))
+                    .collect()
+            }),
+        ),
+
+        ExpressionKind::Member(obj, member) => ExpressionKind::Member(
+            Box::new(instantiate_expression(obj, substitutions)),
+            member.clone(),
+        ),
+
+        ExpressionKind::Index(obj, index) => ExpressionKind::Index(
+            Box::new(instantiate_expression(obj, substitutions)),
+            Box::new(instantiate_expression(index, substitutions)),
+        ),
+
+        ExpressionKind::Array(elements) => ExpressionKind::Array(
+            elements
+                .iter()
+                .map(|elem| instantiate_array_element(elem, substitutions))
+                .collect(),
+        ),
+
+        ExpressionKind::Object(props) => ExpressionKind::Object(
+            props
+                .iter()
+                .map(|prop| instantiate_object_property(prop, substitutions))
+                .collect(),
+        ),
+
+        ExpressionKind::Function(func) => {
+            ExpressionKind::Function(instantiate_function_expression(func, substitutions))
+        }
+
+        ExpressionKind::Arrow(arrow) => {
+            ExpressionKind::Arrow(instantiate_arrow_function(arrow, substitutions))
+        }
+
+        ExpressionKind::Conditional(cond, then_expr, else_expr) => ExpressionKind::Conditional(
+            Box::new(instantiate_expression(cond, substitutions)),
+            Box::new(instantiate_expression(then_expr, substitutions)),
+            Box::new(instantiate_expression(else_expr, substitutions)),
+        ),
+
+        ExpressionKind::Pipe(left, right) => ExpressionKind::Pipe(
+            Box::new(instantiate_expression(left, substitutions)),
+            Box::new(instantiate_expression(right, substitutions)),
+        ),
+
+        ExpressionKind::Match(match_expr) => {
+            ExpressionKind::Match(instantiate_match_expression(match_expr, substitutions))
+        }
+
+        ExpressionKind::Parenthesized(inner) => {
+            ExpressionKind::Parenthesized(Box::new(instantiate_expression(inner, substitutions)))
+        }
+
+        ExpressionKind::TypeAssertion(expr_inner, typ) => ExpressionKind::TypeAssertion(
+            Box::new(instantiate_expression(expr_inner, substitutions)),
+            substitute_type(typ, substitutions).unwrap_or_else(|_| typ.clone()),
+        ),
+
+        ExpressionKind::OptionalMember(obj, member) => ExpressionKind::OptionalMember(
+            Box::new(instantiate_expression(obj, substitutions)),
+            member.clone(),
+        ),
+
+        ExpressionKind::OptionalIndex(obj, index) => ExpressionKind::OptionalIndex(
+            Box::new(instantiate_expression(obj, substitutions)),
+            Box::new(instantiate_expression(index, substitutions)),
+        ),
+
+        ExpressionKind::OptionalCall(callee, args, type_args) => ExpressionKind::OptionalCall(
+            Box::new(instantiate_expression(callee, substitutions)),
+            args.iter()
+                .map(|a| instantiate_argument(a, substitutions))
+                .collect(),
+            type_args.as_ref().map(|tas| {
+                tas.iter()
+                    .map(|t| substitute_type(t, substitutions).unwrap_or_else(|_| t.clone()))
+                    .collect()
+            }),
+        ),
+
+        ExpressionKind::OptionalMethodCall(obj, method, args, type_args) => {
+            ExpressionKind::OptionalMethodCall(
+                Box::new(instantiate_expression(obj, substitutions)),
+                method.clone(),
+                args.iter()
+                    .map(|a| instantiate_argument(a, substitutions))
+                    .collect(),
+                type_args.as_ref().map(|tas| {
+                    tas.iter()
+                        .map(|t| substitute_type(t, substitutions).unwrap_or_else(|_| t.clone()))
+                        .collect()
+                }),
+            )
+        }
+
+        ExpressionKind::Template(template) => {
+            ExpressionKind::Template(instantiate_template_literal(template, substitutions))
+        }
+
+        ExpressionKind::New(callee, args) => ExpressionKind::New(
+            Box::new(instantiate_expression(callee, substitutions)),
+            args.iter()
+                .map(|a| instantiate_argument(a, substitutions))
+                .collect(),
+        ),
+
+        ExpressionKind::Try(try_expr) => {
+            ExpressionKind::Try(instantiate_try_expression(try_expr, substitutions))
+        }
+
+        ExpressionKind::ErrorChain(left, right) => ExpressionKind::ErrorChain(
+            Box::new(instantiate_expression(left, substitutions)),
+            Box::new(instantiate_expression(right, substitutions)),
+        ),
+
+        // Simple expression kinds - clone as-is
+        ExpressionKind::SelfKeyword => ExpressionKind::SelfKeyword,
+        ExpressionKind::SuperKeyword => ExpressionKind::SuperKeyword,
+    };
+
+    Expression {
+        kind: new_kind,
+        span: expr.span,
+        annotated_type: expr
+            .annotated_type
+            .as_ref()
+            .map(|t| substitute_type(t, substitutions).unwrap_or_else(|_| t.clone())),
+        receiver_class: expr.receiver_class.clone(),
+    }
+}
+
+/// Helper to instantiate an argument
+fn instantiate_argument(
+    arg: &crate::ast::expression::Argument,
+    substitutions: &FxHashMap<StringId, Type>,
+) -> crate::ast::expression::Argument {
+    crate::ast::expression::Argument {
+        value: instantiate_expression(&arg.value, substitutions),
+        is_spread: arg.is_spread,
+        span: arg.span,
+    }
+}
+
+/// Helper to instantiate an array element
+fn instantiate_array_element(
+    elem: &crate::ast::expression::ArrayElement,
+    substitutions: &FxHashMap<StringId, Type>,
+) -> crate::ast::expression::ArrayElement {
+    use crate::ast::expression::ArrayElement;
+    match elem {
+        ArrayElement::Expression(e) => {
+            ArrayElement::Expression(instantiate_expression(e, substitutions))
+        }
+        ArrayElement::Spread(e) => ArrayElement::Spread(instantiate_expression(e, substitutions)),
+    }
+}
+
+/// Helper to instantiate an object property
+fn instantiate_object_property(
+    prop: &crate::ast::expression::ObjectProperty,
+    substitutions: &FxHashMap<StringId, Type>,
+) -> crate::ast::expression::ObjectProperty {
+    use crate::ast::expression::ObjectProperty;
+    match prop {
+        ObjectProperty::Property { key, value, span } => ObjectProperty::Property {
+            key: key.clone(),
+            value: Box::new(instantiate_expression(value, substitutions)),
+            span: *span,
+        },
+        ObjectProperty::Computed { key, value, span } => ObjectProperty::Computed {
+            key: Box::new(instantiate_expression(key, substitutions)),
+            value: Box::new(instantiate_expression(value, substitutions)),
+            span: *span,
+        },
+        ObjectProperty::Spread { value, span } => ObjectProperty::Spread {
+            value: Box::new(instantiate_expression(value, substitutions)),
+            span: *span,
+        },
+    }
+}
+
+/// Helper to instantiate a function expression
+fn instantiate_function_expression(
+    func: &crate::ast::expression::FunctionExpression,
+    substitutions: &FxHashMap<StringId, Type>,
+) -> crate::ast::expression::FunctionExpression {
+    crate::ast::expression::FunctionExpression {
+        type_parameters: None, // Remove type parameters after specialization
+        parameters: func
+            .parameters
+            .iter()
+            .map(|p| instantiate_parameter(p, substitutions))
+            .collect(),
+        return_type: func
+            .return_type
+            .as_ref()
+            .map(|t| substitute_type(t, substitutions).unwrap_or_else(|_| t.clone())),
+        body: instantiate_block(&func.body, substitutions),
+        span: func.span,
+    }
+}
+
+/// Helper to instantiate an arrow function
+fn instantiate_arrow_function(
+    arrow: &crate::ast::expression::ArrowFunction,
+    substitutions: &FxHashMap<StringId, Type>,
+) -> crate::ast::expression::ArrowFunction {
+    use crate::ast::expression::{ArrowBody, ArrowFunction};
+    ArrowFunction {
+        parameters: arrow
+            .parameters
+            .iter()
+            .map(|p| instantiate_parameter(p, substitutions))
+            .collect(),
+        return_type: arrow
+            .return_type
+            .as_ref()
+            .map(|t| substitute_type(t, substitutions).unwrap_or_else(|_| t.clone())),
+        body: match &arrow.body {
+            ArrowBody::Expression(e) => {
+                ArrowBody::Expression(Box::new(instantiate_expression(e, substitutions)))
+            }
+            ArrowBody::Block(b) => ArrowBody::Block(instantiate_block(b, substitutions)),
+        },
+        span: arrow.span,
+    }
+}
+
+/// Helper to instantiate a template literal
+fn instantiate_template_literal(
+    template: &crate::ast::expression::TemplateLiteral,
+    substitutions: &FxHashMap<StringId, Type>,
+) -> crate::ast::expression::TemplateLiteral {
+    use crate::ast::expression::{TemplateLiteral, TemplatePart};
+    TemplateLiteral {
+        parts: template
+            .parts
+            .iter()
+            .map(|part| match part {
+                TemplatePart::String(s) => TemplatePart::String(s.clone()),
+                TemplatePart::Expression(e) => {
+                    TemplatePart::Expression(Box::new(instantiate_expression(e, substitutions)))
+                }
+            })
+            .collect(),
+        span: template.span,
+    }
+}
+
+/// Helper to instantiate a match expression
+fn instantiate_match_expression(
+    match_expr: &crate::ast::expression::MatchExpression,
+    substitutions: &FxHashMap<StringId, Type>,
+) -> crate::ast::expression::MatchExpression {
+    use crate::ast::expression::{MatchArm, MatchArmBody, MatchExpression};
+    MatchExpression {
+        value: Box::new(instantiate_expression(&match_expr.value, substitutions)),
+        arms: match_expr
+            .arms
+            .iter()
+            .map(|arm| MatchArm {
+                pattern: arm.pattern.clone(),
+                guard: arm
+                    .guard
+                    .as_ref()
+                    .map(|e| instantiate_expression(e, substitutions)),
+                body: match &arm.body {
+                    MatchArmBody::Expression(e) => {
+                        MatchArmBody::Expression(Box::new(instantiate_expression(e, substitutions)))
+                    }
+                    MatchArmBody::Block(b) => {
+                        MatchArmBody::Block(instantiate_block(b, substitutions))
+                    }
+                },
+                span: arm.span,
+            })
+            .collect(),
+        span: match_expr.span,
+    }
+}
+
+/// Helper to instantiate a try expression
+fn instantiate_try_expression(
+    try_expr: &crate::ast::expression::TryExpression,
+    substitutions: &FxHashMap<StringId, Type>,
+) -> crate::ast::expression::TryExpression {
+    crate::ast::expression::TryExpression {
+        expression: Box::new(instantiate_expression(&try_expr.expression, substitutions)),
+        catch_variable: try_expr.catch_variable.clone(),
+        catch_expression: Box::new(instantiate_expression(
+            &try_expr.catch_expression,
+            substitutions,
+        )),
+        span: try_expr.span,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

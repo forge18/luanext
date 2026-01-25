@@ -170,6 +170,7 @@ fn test_global_localization_creates_local_references() {
                 span,
             )),
             vec![],
+            None,
         ),
         span,
     );
@@ -190,6 +191,7 @@ fn test_global_localization_creates_local_references() {
                 span,
             )),
             vec![],
+            None,
         ),
         span,
     );

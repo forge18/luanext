@@ -149,7 +149,7 @@ impl ConstantFoldingPass {
 
                 changed
             }
-            ExpressionKind::Call(func, args) => {
+            ExpressionKind::Call(func, args, _) => {
                 let mut changed = self.fold_expression(func);
                 for arg in args {
                     changed |= self.fold_expression(&mut arg.value);
@@ -488,7 +488,7 @@ impl AlgebraicSimplificationPass {
 
                 changed
             }
-            ExpressionKind::Call(func, args) => {
+            ExpressionKind::Call(func, args, _) => {
                 let mut changed = self.simplify_expression(func);
                 for arg in args {
                     changed |= self.simplify_expression(&mut arg.value);
@@ -619,7 +619,7 @@ impl TablePreallocationPass {
                 self.count_tables_in_expression(left) + self.count_tables_in_expression(right)
             }
             ExpressionKind::Unary(_, operand) => self.count_tables_in_expression(operand),
-            ExpressionKind::Call(func, args) => {
+            ExpressionKind::Call(func, args, _) => {
                 let mut count = self.count_tables_in_expression(func);
                 for arg in args {
                     count += self.count_tables_in_expression(&arg.value);
@@ -909,7 +909,7 @@ impl GlobalLocalizationPass {
             ExpressionKind::Unary(_, operand) => {
                 self.collect_from_expression_optimized(operand, usage, declared_locals);
             }
-            ExpressionKind::Call(func, args) => {
+            ExpressionKind::Call(func, args, _) => {
                 self.collect_from_expression_optimized(func, usage, declared_locals);
                 for arg in args {
                     self.collect_from_expression_optimized(&arg.value, usage, declared_locals);
@@ -918,7 +918,7 @@ impl GlobalLocalizationPass {
             ExpressionKind::Member(obj, _) => {
                 self.collect_from_expression_optimized(obj, usage, declared_locals);
             }
-            ExpressionKind::MethodCall(obj, _, args) => {
+            ExpressionKind::MethodCall(obj, _, args, _) => {
                 self.collect_from_expression_optimized(obj, usage, declared_locals);
                 for arg in args {
                     self.collect_from_expression_optimized(&arg.value, usage, declared_locals);
@@ -979,13 +979,13 @@ impl GlobalLocalizationPass {
                 self.collect_from_expression_optimized(obj, usage, declared_locals);
                 self.collect_from_expression_optimized(index, usage, declared_locals);
             }
-            ExpressionKind::OptionalCall(obj, args) => {
+            ExpressionKind::OptionalCall(obj, args, _) => {
                 self.collect_from_expression_optimized(obj, usage, declared_locals);
                 for arg in args {
                     self.collect_from_expression_optimized(&arg.value, usage, declared_locals);
                 }
             }
-            ExpressionKind::OptionalMethodCall(obj, _, args) => {
+            ExpressionKind::OptionalMethodCall(obj, _, args, _) => {
                 self.collect_from_expression_optimized(obj, usage, declared_locals);
                 for arg in args {
                     self.collect_from_expression_optimized(&arg.value, usage, declared_locals);
@@ -1147,7 +1147,7 @@ impl GlobalLocalizationPass {
             ExpressionKind::Unary(_op, operand) => {
                 self.replace_in_expression(operand, frequently_used, declared_locals);
             }
-            ExpressionKind::Call(func, args) => {
+            ExpressionKind::Call(func, args, _) => {
                 self.replace_in_expression(func, frequently_used, declared_locals);
                 for arg in args {
                     self.replace_in_expression(&mut arg.value, frequently_used, declared_locals);
@@ -1156,7 +1156,7 @@ impl GlobalLocalizationPass {
             ExpressionKind::Member(obj, _) => {
                 self.replace_in_expression(obj, frequently_used, declared_locals);
             }
-            ExpressionKind::MethodCall(obj, _, args) => {
+            ExpressionKind::MethodCall(obj, _, args, _) => {
                 self.replace_in_expression(obj, frequently_used, declared_locals);
                 for arg in args {
                     self.replace_in_expression(&mut arg.value, frequently_used, declared_locals);
@@ -1217,13 +1217,13 @@ impl GlobalLocalizationPass {
                 self.replace_in_expression(obj, frequently_used, declared_locals);
                 self.replace_in_expression(index, frequently_used, declared_locals);
             }
-            ExpressionKind::OptionalCall(obj, args) => {
+            ExpressionKind::OptionalCall(obj, args, _) => {
                 self.replace_in_expression(obj, frequently_used, declared_locals);
                 for arg in args {
                     self.replace_in_expression(&mut arg.value, frequently_used, declared_locals);
                 }
             }
-            ExpressionKind::OptionalMethodCall(obj, _, args) => {
+            ExpressionKind::OptionalMethodCall(obj, _, args, _) => {
                 self.replace_in_expression(obj, frequently_used, declared_locals);
                 for arg in args {
                     self.replace_in_expression(&mut arg.value, frequently_used, declared_locals);
@@ -1533,7 +1533,7 @@ impl FunctionInliningPass {
 
     fn inline_in_expression(&mut self, expr: &mut Expression) -> bool {
         match &mut expr.kind {
-            ExpressionKind::Call(func, args) => {
+            ExpressionKind::Call(func, args, _) => {
                 let mut changed = self.inline_in_expression(func);
                 for arg in args {
                     changed |= self.inline_in_expression(&mut arg.value);
@@ -1546,7 +1546,7 @@ impl FunctionInliningPass {
                 }
                 changed
             }
-            ExpressionKind::MethodCall(obj, _, args) => {
+            ExpressionKind::MethodCall(obj, _, args, _) => {
                 let mut changed = self.inline_in_expression(obj);
                 for arg in args {
                     changed |= self.inline_in_expression(&mut arg.value);
@@ -1624,14 +1624,14 @@ impl FunctionInliningPass {
                 changed |= self.inline_in_expression(index);
                 changed
             }
-            ExpressionKind::OptionalCall(obj, args) => {
+            ExpressionKind::OptionalCall(obj, args, _) => {
                 let mut changed = self.inline_in_expression(obj);
                 for arg in args {
                     changed |= self.inline_in_expression(&mut arg.value);
                 }
                 changed
             }
-            ExpressionKind::OptionalMethodCall(obj, _, args) => {
+            ExpressionKind::OptionalMethodCall(obj, _, args, _) => {
                 let mut changed = self.inline_in_expression(obj);
                 for arg in args {
                     changed |= self.inline_in_expression(&mut arg.value);
@@ -1650,7 +1650,7 @@ impl FunctionInliningPass {
     }
 
     fn try_inline_call(&mut self, expr: &mut Expression) -> Option<InlineResult> {
-        if let ExpressionKind::Call(func, args) = &expr.kind.clone() {
+        if let ExpressionKind::Call(func, args, _) = &expr.kind.clone() {
             if let ExpressionKind::Identifier(func_name) = &func.kind {
                 if let Some(func_decl) = self.find_function_definition(expr, *func_name) {
                     if self.is_inlinable(func_decl) {
@@ -1683,6 +1683,10 @@ impl FunctionInliningPass {
     }
 
     fn is_inlinable(&self, func: &FunctionDeclaration) -> bool {
+        // Skip generic functions - let GenericSpecializationPass handle them first
+        if func.type_parameters.is_some() {
+            return false;
+        }
         if func.body.statements.len() > self.threshold {
             return false;
         }
@@ -1756,7 +1760,7 @@ impl FunctionInliningPass {
 
     fn expr_contains_call_to(&self, expr: &Expression, name: StringId) -> bool {
         match &expr.kind {
-            ExpressionKind::Call(func, args) => {
+            ExpressionKind::Call(func, args, _) => {
                 if let ExpressionKind::Identifier(id) = &func.kind {
                     if *id == name {
                         return true;
@@ -1767,7 +1771,7 @@ impl FunctionInliningPass {
                         .iter()
                         .any(|a| self.expr_contains_call_to(&a.value, name))
             }
-            ExpressionKind::MethodCall(obj, method_name, args) => {
+            ExpressionKind::MethodCall(obj, method_name, args, _) => {
                 if method_name.node == name {
                     return true;
                 }
@@ -1828,13 +1832,13 @@ impl FunctionInliningPass {
             ExpressionKind::OptionalIndex(obj, index) => {
                 self.expr_contains_call_to(obj, name) || self.expr_contains_call_to(index, name)
             }
-            ExpressionKind::OptionalCall(obj, args) => {
+            ExpressionKind::OptionalCall(obj, args, _) => {
                 self.expr_contains_call_to(obj, name)
                     || args
                         .iter()
                         .any(|a| self.expr_contains_call_to(&a.value, name))
             }
-            ExpressionKind::OptionalMethodCall(obj, _, args) => {
+            ExpressionKind::OptionalMethodCall(obj, _, args, _) => {
                 self.expr_contains_call_to(obj, name)
                     || args
                         .iter()
@@ -1946,11 +1950,11 @@ impl FunctionInliningPass {
                 ArrowBody::Expression(expr) => self.expr_has_closures(expr),
                 ArrowBody::Block(block) => self.block_has_closures(block),
             },
-            ExpressionKind::Call(func, args) => {
+            ExpressionKind::Call(func, args, _) => {
                 self.expr_has_closures(func)
                     || args.iter().any(|a| self.expr_has_closures(&a.value))
             }
-            ExpressionKind::MethodCall(obj, _, args) => {
+            ExpressionKind::MethodCall(obj, _, args, _) => {
                 self.expr_has_closures(obj) || args.iter().any(|a| self.expr_has_closures(&a.value))
             }
             ExpressionKind::Binary(_, left, right) => {
@@ -1987,10 +1991,10 @@ impl FunctionInliningPass {
             ExpressionKind::OptionalIndex(obj, index) => {
                 self.expr_has_closures(obj) || self.expr_has_closures(index)
             }
-            ExpressionKind::OptionalCall(obj, args) => {
+            ExpressionKind::OptionalCall(obj, args, _) => {
                 self.expr_has_closures(obj) || args.iter().any(|a| self.expr_has_closures(&a.value))
             }
-            ExpressionKind::OptionalMethodCall(obj, _, args) => {
+            ExpressionKind::OptionalMethodCall(obj, _, args, _) => {
                 self.expr_has_closures(obj) || args.iter().any(|a| self.expr_has_closures(&a.value))
             }
             ExpressionKind::TypeAssertion(expr, _) => self.expr_has_closures(expr),
@@ -2142,13 +2146,13 @@ impl FunctionInliningPass {
                     expr.kind = substituted.kind.clone();
                 }
             }
-            ExpressionKind::Call(func, args) => {
+            ExpressionKind::Call(func, args, _) => {
                 self.inline_expression(func, param_subst);
                 for arg in args {
                     self.inline_expression(&mut arg.value, param_subst);
                 }
             }
-            ExpressionKind::MethodCall(obj, _, args) => {
+            ExpressionKind::MethodCall(obj, _, args, _) => {
                 self.inline_expression(obj, param_subst);
                 for arg in args {
                     self.inline_expression(&mut arg.value, param_subst);
@@ -2205,13 +2209,13 @@ impl FunctionInliningPass {
                 self.inline_expression(obj, param_subst);
                 self.inline_expression(index, param_subst);
             }
-            ExpressionKind::OptionalCall(obj, args) => {
+            ExpressionKind::OptionalCall(obj, args, _) => {
                 self.inline_expression(obj, param_subst);
                 for arg in args {
                     self.inline_expression(&mut arg.value, param_subst);
                 }
             }
-            ExpressionKind::OptionalMethodCall(obj, _, args) => {
+            ExpressionKind::OptionalMethodCall(obj, _, args, _) => {
                 self.inline_expression(obj, param_subst);
                 for arg in args {
                     self.inline_expression(&mut arg.value, param_subst);
@@ -2514,13 +2518,13 @@ impl LoopOptimizationPass {
             ExpressionKind::Unary(_, operand) => {
                 self.collect_modified_in_expression(operand, modified);
             }
-            ExpressionKind::Call(func, args) => {
+            ExpressionKind::Call(func, args, _) => {
                 self.collect_modified_in_expression(func, modified);
                 for arg in args {
                     self.collect_modified_in_expression(&arg.value, modified);
                 }
             }
-            ExpressionKind::MethodCall(obj, _, args) => {
+            ExpressionKind::MethodCall(obj, _, args, _) => {
                 self.collect_modified_in_expression(obj, modified);
                 for arg in args {
                     self.collect_modified_in_expression(&arg.value, modified);
@@ -2644,13 +2648,13 @@ impl LoopOptimizationPass {
                 self.collect_modified_in_expression(obj, modified);
                 self.collect_modified_in_expression(index, modified);
             }
-            ExpressionKind::OptionalCall(obj, args) => {
+            ExpressionKind::OptionalCall(obj, args, _) => {
                 self.collect_modified_in_expression(obj, modified);
                 for arg in args {
                     self.collect_modified_in_expression(&arg.value, modified);
                 }
             }
-            ExpressionKind::OptionalMethodCall(obj, _, args) => {
+            ExpressionKind::OptionalMethodCall(obj, _, args, _) => {
                 self.collect_modified_in_expression(obj, modified);
                 for arg in args {
                     self.collect_modified_in_expression(&arg.value, modified);
@@ -2700,7 +2704,7 @@ impl LoopOptimizationPass {
                     && self.is_invariant_expression(right, loop_vars)
             }
             ExpressionKind::Unary(_, operand) => self.is_invariant_expression(operand, loop_vars),
-            ExpressionKind::Call(func, args) => {
+            ExpressionKind::Call(func, args, _) => {
                 let func_invariant = match &func.kind {
                     ExpressionKind::Identifier(id) => !loop_vars.contains(id),
                     _ => false,
@@ -2710,7 +2714,7 @@ impl LoopOptimizationPass {
                         .iter()
                         .all(|arg| self.is_invariant_expression(&arg.value, loop_vars))
             }
-            ExpressionKind::MethodCall(obj, _, args) => {
+            ExpressionKind::MethodCall(obj, _, args, _) => {
                 self.is_invariant_expression(obj, loop_vars)
                     && args
                         .iter()
@@ -2807,13 +2811,13 @@ impl LoopOptimizationPass {
                 self.is_invariant_expression(obj, loop_vars)
                     && self.is_invariant_expression(index, loop_vars)
             }
-            ExpressionKind::OptionalCall(obj, args) => {
+            ExpressionKind::OptionalCall(obj, args, _) => {
                 self.is_invariant_expression(obj, loop_vars)
                     && args
                         .iter()
                         .all(|arg| self.is_invariant_expression(&arg.value, loop_vars))
             }
-            ExpressionKind::OptionalMethodCall(obj, _, args) => {
+            ExpressionKind::OptionalMethodCall(obj, _, args, _) => {
                 self.is_invariant_expression(obj, loop_vars)
                     && args
                         .iter()
@@ -3087,6 +3091,7 @@ impl StringConcatOptimizationPass {
                     is_spread: false,
                     span: Span::dummy(),
                 }],
+                None,
             ),
             Span::dummy(),
         );
@@ -3192,14 +3197,14 @@ impl DeadStoreEliminationPass {
                     self.eliminate_dead_stores_in_expression(inner)
                 }
             },
-            ExpressionKind::Call(func, args) => {
+            ExpressionKind::Call(func, args, _) => {
                 let mut changed = self.eliminate_dead_stores_in_expression(func);
                 for arg in args {
                     changed |= self.eliminate_dead_stores_in_expression(&mut arg.value);
                 }
                 changed
             }
-            ExpressionKind::MethodCall(obj, _, args) => {
+            ExpressionKind::MethodCall(obj, _, args, _) => {
                 let mut changed = self.eliminate_dead_stores_in_expression(obj);
                 for arg in args {
                     changed |= self.eliminate_dead_stores_in_expression(&mut arg.value);
@@ -3489,8 +3494,8 @@ impl DeadStoreEliminationPass {
 
     fn expression_has_side_effects(&self, expr: &Expression) -> bool {
         match &expr.kind {
-            ExpressionKind::Call(_, _) => true,
-            ExpressionKind::MethodCall(_, _, _) => true,
+            ExpressionKind::Call(_, _, _) => true,
+            ExpressionKind::MethodCall(_, _, _, _) => true,
             ExpressionKind::Assignment(_, _, _) => true,
             ExpressionKind::Binary(BinaryOp::And, left, right) => {
                 self.expression_has_side_effects(left) || self.expression_has_side_effects(right)
@@ -3525,13 +3530,13 @@ impl DeadStoreEliminationPass {
             ExpressionKind::Unary(_, operand) => {
                 self.collect_expression_reads_into(operand, reads);
             }
-            ExpressionKind::Call(func, args) => {
+            ExpressionKind::Call(func, args, _) => {
                 self.collect_expression_reads_into(func, reads);
                 for arg in args {
                     self.collect_expression_reads_into(&arg.value, reads);
                 }
             }
-            ExpressionKind::MethodCall(obj, _, args) => {
+            ExpressionKind::MethodCall(obj, _, args, _) => {
                 self.collect_expression_reads_into(obj, reads);
                 for arg in args {
                     self.collect_expression_reads_into(&arg.value, reads);
@@ -3635,13 +3640,13 @@ impl DeadStoreEliminationPass {
                 self.collect_expression_reads_into(obj, reads);
                 self.collect_expression_reads_into(index, reads);
             }
-            ExpressionKind::OptionalCall(obj, args) => {
+            ExpressionKind::OptionalCall(obj, args, _) => {
                 self.collect_expression_reads_into(obj, reads);
                 for arg in args {
                     self.collect_expression_reads_into(&arg.value, reads);
                 }
             }
-            ExpressionKind::OptionalMethodCall(obj, _, args) => {
+            ExpressionKind::OptionalMethodCall(obj, _, args, _) => {
                 self.collect_expression_reads_into(obj, reads);
                 for arg in args {
                     self.collect_expression_reads_into(&arg.value, reads);
@@ -3804,13 +3809,13 @@ impl DeadStoreEliminationPass {
         match &expr.kind {
             ExpressionKind::Function(_) => true,
             ExpressionKind::Arrow(_) => true,
-            ExpressionKind::Call(func, args) => {
+            ExpressionKind::Call(func, args, _) => {
                 self.expression_captures_variables(func)
                     || args
                         .iter()
                         .any(|arg| self.expression_captures_variables(&arg.value))
             }
-            ExpressionKind::MethodCall(obj, _, args) => {
+            ExpressionKind::MethodCall(obj, _, args, _) => {
                 self.expression_captures_variables(obj)
                     || args
                         .iter()
@@ -3859,13 +3864,13 @@ impl DeadStoreEliminationPass {
             ExpressionKind::OptionalIndex(obj, index) => {
                 self.expression_captures_variables(obj) || self.expression_captures_variables(index)
             }
-            ExpressionKind::OptionalCall(obj, args) => {
+            ExpressionKind::OptionalCall(obj, args, _) => {
                 self.expression_captures_variables(obj)
                     || args
                         .iter()
                         .any(|arg| self.expression_captures_variables(&arg.value))
             }
-            ExpressionKind::OptionalMethodCall(obj, _, args) => {
+            ExpressionKind::OptionalMethodCall(obj, _, args, _) => {
                 self.expression_captures_variables(obj)
                     || args
                         .iter()
@@ -4009,7 +4014,7 @@ impl TailCallOptimizationPass {
         }
         matches!(
             values[0].kind,
-            ExpressionKind::Call(_, _) | ExpressionKind::MethodCall(_, _, _)
+            ExpressionKind::Call(_, _, _) | ExpressionKind::MethodCall(_, _, _, _)
         )
     }
 }
@@ -4137,9 +4142,427 @@ impl OptimizationPass for InterfaceMethodInliningPass {
 // O3: Generic Specialization Pass
 // =============================================================================
 
+use crate::ast::expression::ObjectProperty;
+use crate::ast::types::Type;
+use crate::typechecker::{build_substitutions, instantiate_function_declaration};
+use rustc_hash::FxHashMap;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+
+/// Computes a hash of type arguments for caching specialized functions
+fn hash_type_args(type_args: &[Type]) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    for t in type_args {
+        // Hash the debug representation - simple but effective
+        format!("{:?}", t.kind).hash(&mut hasher);
+    }
+    hasher.finish()
+}
+
 /// Generic specialization pass
 /// Creates specialized versions of generic functions for known types
-pub struct GenericSpecializationPass;
+#[derive(Default)]
+pub struct GenericSpecializationPass {
+    interner: Option<Arc<StringInterner>>,
+    /// Maps (function_name, type_args_hash) -> specialized_function_name
+    specializations: FxHashMap<(StringId, u64), StringId>,
+    /// Counter for generating unique specialization IDs
+    next_spec_id: usize,
+    /// Collected generic function declarations
+    generic_functions: FxHashMap<StringId, FunctionDeclaration>,
+    /// New specialized function declarations to add to program
+    new_functions: Vec<Statement>,
+}
+
+impl GenericSpecializationPass {
+    pub fn set_interner(&mut self, interner: Arc<StringInterner>) {
+        self.interner = Some(interner);
+    }
+
+    /// Collects all generic function declarations from the program
+    fn collect_generic_functions(&mut self, program: &Program) {
+        for stmt in &program.statements {
+            if let Statement::Function(func) = stmt {
+                if func.type_parameters.is_some() {
+                    self.generic_functions.insert(func.name.node, func.clone());
+                }
+            }
+        }
+    }
+
+    /// Creates a specialized version of a generic function with concrete type arguments
+    fn specialize_function(
+        &mut self,
+        func: &FunctionDeclaration,
+        type_args: &[Type],
+    ) -> Option<StringId> {
+        let interner = self.interner.as_ref()?;
+        let type_params = func.type_parameters.as_ref()?;
+
+        // Build type substitution map
+        let substitutions = match build_substitutions(type_params, type_args) {
+            Ok(s) => s,
+            Err(_) => return None,
+        };
+
+        // Check cache first
+        let type_args_hash = hash_type_args(type_args);
+        let cache_key = (func.name.node, type_args_hash);
+        if let Some(&specialized_name) = self.specializations.get(&cache_key) {
+            return Some(specialized_name);
+        }
+
+        // Generate specialized function name: funcName__spec{id}
+        let orig_name = interner.resolve(func.name.node);
+        let specialized_name_str = format!("{}__spec{}", orig_name, self.next_spec_id);
+        self.next_spec_id += 1;
+
+        // Intern the new name
+        let specialized_name = interner.get_or_intern(&specialized_name_str);
+
+        // Create specialized function by instantiating with type substitutions
+        let mut specialized_func = instantiate_function_declaration(func, &substitutions);
+        specialized_func.name = crate::ast::Spanned::new(specialized_name, func.name.span);
+
+        // Add to cache and to list of new functions
+        self.specializations.insert(cache_key, specialized_name);
+        self.new_functions
+            .push(Statement::Function(specialized_func));
+
+        Some(specialized_name)
+    }
+
+    /// Processes a statement looking for call sites to specialize
+    fn specialize_calls_in_statement(&mut self, stmt: &mut Statement) -> bool {
+        let mut changed = false;
+
+        match stmt {
+            Statement::Variable(var_decl) => {
+                if self.specialize_calls_in_expression(&mut var_decl.initializer) {
+                    changed = true;
+                }
+            }
+            Statement::Expression(expr) => {
+                if self.specialize_calls_in_expression(expr) {
+                    changed = true;
+                }
+            }
+            Statement::Return(ret) => {
+                for value in &mut ret.values {
+                    if self.specialize_calls_in_expression(value) {
+                        changed = true;
+                    }
+                }
+            }
+            Statement::If(if_stmt) => {
+                if self.specialize_calls_in_expression(&mut if_stmt.condition) {
+                    changed = true;
+                }
+                for stmt in &mut if_stmt.then_block.statements {
+                    if self.specialize_calls_in_statement(stmt) {
+                        changed = true;
+                    }
+                }
+                for else_if in &mut if_stmt.else_ifs {
+                    if self.specialize_calls_in_expression(&mut else_if.condition) {
+                        changed = true;
+                    }
+                    for stmt in &mut else_if.block.statements {
+                        if self.specialize_calls_in_statement(stmt) {
+                            changed = true;
+                        }
+                    }
+                }
+                if let Some(else_block) = &mut if_stmt.else_block {
+                    for stmt in &mut else_block.statements {
+                        if self.specialize_calls_in_statement(stmt) {
+                            changed = true;
+                        }
+                    }
+                }
+            }
+            Statement::While(while_stmt) => {
+                if self.specialize_calls_in_expression(&mut while_stmt.condition) {
+                    changed = true;
+                }
+                for stmt in &mut while_stmt.body.statements {
+                    if self.specialize_calls_in_statement(stmt) {
+                        changed = true;
+                    }
+                }
+            }
+            Statement::For(for_stmt) => match for_stmt.as_mut() {
+                ForStatement::Numeric(num) => {
+                    if self.specialize_calls_in_expression(&mut num.start) {
+                        changed = true;
+                    }
+                    if self.specialize_calls_in_expression(&mut num.end) {
+                        changed = true;
+                    }
+                    if let Some(step) = &mut num.step {
+                        if self.specialize_calls_in_expression(step) {
+                            changed = true;
+                        }
+                    }
+                    for stmt in &mut num.body.statements {
+                        if self.specialize_calls_in_statement(stmt) {
+                            changed = true;
+                        }
+                    }
+                }
+                ForStatement::Generic(gen) => {
+                    for iter in &mut gen.iterators {
+                        if self.specialize_calls_in_expression(iter) {
+                            changed = true;
+                        }
+                    }
+                    for stmt in &mut gen.body.statements {
+                        if self.specialize_calls_in_statement(stmt) {
+                            changed = true;
+                        }
+                    }
+                }
+            },
+            Statement::Function(func) => {
+                for stmt in &mut func.body.statements {
+                    if self.specialize_calls_in_statement(stmt) {
+                        changed = true;
+                    }
+                }
+            }
+            Statement::Block(block) => {
+                for stmt in &mut block.statements {
+                    if self.specialize_calls_in_statement(stmt) {
+                        changed = true;
+                    }
+                }
+            }
+            Statement::Repeat(repeat) => {
+                for stmt in &mut repeat.body.statements {
+                    if self.specialize_calls_in_statement(stmt) {
+                        changed = true;
+                    }
+                }
+                if self.specialize_calls_in_expression(&mut repeat.until) {
+                    changed = true;
+                }
+            }
+            Statement::Throw(throw) => {
+                if self.specialize_calls_in_expression(&mut throw.expression) {
+                    changed = true;
+                }
+            }
+            // Other statements don't contain call expressions we care about
+            _ => {}
+        }
+
+        changed
+    }
+
+    /// Processes an expression looking for call sites to specialize
+    fn specialize_calls_in_expression(&mut self, expr: &mut Expression) -> bool {
+        let mut changed = false;
+
+        match &mut expr.kind {
+            ExpressionKind::Call(callee, args, type_args) => {
+                // First process nested expressions
+                if self.specialize_calls_in_expression(callee) {
+                    changed = true;
+                }
+                for arg in args.iter_mut() {
+                    if self.specialize_calls_in_expression(&mut arg.value) {
+                        changed = true;
+                    }
+                }
+
+                // Check if this is a call to a generic function with concrete type args
+                if let Some(type_args) = type_args {
+                    if !type_args.is_empty() {
+                        // Check if callee is a direct identifier reference to a generic function
+                        if let ExpressionKind::Identifier(func_name) = &callee.kind {
+                            if let Some(func) = self.generic_functions.get(func_name).cloned() {
+                                // Specialize this call
+                                if let Some(specialized_name) =
+                                    self.specialize_function(&func, type_args)
+                                {
+                                    // Replace callee with specialized function name
+                                    callee.kind = ExpressionKind::Identifier(specialized_name);
+                                    // Clear type arguments since the function is now monomorphic
+                                    *type_args = Vec::new();
+                                    changed = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            ExpressionKind::Binary(_, left, right) => {
+                if self.specialize_calls_in_expression(left) {
+                    changed = true;
+                }
+                if self.specialize_calls_in_expression(right) {
+                    changed = true;
+                }
+            }
+
+            ExpressionKind::Unary(_, operand) => {
+                if self.specialize_calls_in_expression(operand) {
+                    changed = true;
+                }
+            }
+
+            ExpressionKind::Assignment(target, _, value) => {
+                if self.specialize_calls_in_expression(target) {
+                    changed = true;
+                }
+                if self.specialize_calls_in_expression(value) {
+                    changed = true;
+                }
+            }
+
+            ExpressionKind::MethodCall(obj, _, args, _) => {
+                if self.specialize_calls_in_expression(obj) {
+                    changed = true;
+                }
+                for arg in args.iter_mut() {
+                    if self.specialize_calls_in_expression(&mut arg.value) {
+                        changed = true;
+                    }
+                }
+                // Method specialization is more complex - skip for now
+            }
+
+            ExpressionKind::Member(obj, _) => {
+                if self.specialize_calls_in_expression(obj) {
+                    changed = true;
+                }
+            }
+
+            ExpressionKind::Index(obj, index) => {
+                if self.specialize_calls_in_expression(obj) {
+                    changed = true;
+                }
+                if self.specialize_calls_in_expression(index) {
+                    changed = true;
+                }
+            }
+
+            ExpressionKind::Array(elements) => {
+                for elem in elements.iter_mut() {
+                    match elem {
+                        ArrayElement::Expression(e) | ArrayElement::Spread(e) => {
+                            if self.specialize_calls_in_expression(e) {
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            ExpressionKind::Object(props) => {
+                for prop in props.iter_mut() {
+                    match prop {
+                        ObjectProperty::Property { value, .. } => {
+                            if self.specialize_calls_in_expression(value) {
+                                changed = true;
+                            }
+                        }
+                        ObjectProperty::Computed { key, value, .. } => {
+                            if self.specialize_calls_in_expression(key) {
+                                changed = true;
+                            }
+                            if self.specialize_calls_in_expression(value) {
+                                changed = true;
+                            }
+                        }
+                        ObjectProperty::Spread { value, .. } => {
+                            if self.specialize_calls_in_expression(value) {
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            ExpressionKind::Conditional(cond, then_expr, else_expr) => {
+                if self.specialize_calls_in_expression(cond) {
+                    changed = true;
+                }
+                if self.specialize_calls_in_expression(then_expr) {
+                    changed = true;
+                }
+                if self.specialize_calls_in_expression(else_expr) {
+                    changed = true;
+                }
+            }
+
+            ExpressionKind::Pipe(left, right) => {
+                if self.specialize_calls_in_expression(left) {
+                    changed = true;
+                }
+                if self.specialize_calls_in_expression(right) {
+                    changed = true;
+                }
+            }
+
+            ExpressionKind::Parenthesized(inner) => {
+                if self.specialize_calls_in_expression(inner) {
+                    changed = true;
+                }
+            }
+
+            ExpressionKind::TypeAssertion(inner, _) => {
+                if self.specialize_calls_in_expression(inner) {
+                    changed = true;
+                }
+            }
+
+            ExpressionKind::OptionalCall(callee, args, _)
+            | ExpressionKind::OptionalMethodCall(callee, _, args, _) => {
+                if self.specialize_calls_in_expression(callee) {
+                    changed = true;
+                }
+                for arg in args.iter_mut() {
+                    if self.specialize_calls_in_expression(&mut arg.value) {
+                        changed = true;
+                    }
+                }
+            }
+
+            ExpressionKind::OptionalMember(obj, _) | ExpressionKind::OptionalIndex(obj, _) => {
+                if self.specialize_calls_in_expression(obj) {
+                    changed = true;
+                }
+            }
+
+            ExpressionKind::New(callee, args) => {
+                if self.specialize_calls_in_expression(callee) {
+                    changed = true;
+                }
+                for arg in args.iter_mut() {
+                    if self.specialize_calls_in_expression(&mut arg.value) {
+                        changed = true;
+                    }
+                }
+            }
+
+            ExpressionKind::ErrorChain(left, right) => {
+                if self.specialize_calls_in_expression(left) {
+                    changed = true;
+                }
+                if self.specialize_calls_in_expression(right) {
+                    changed = true;
+                }
+            }
+
+            // Literals, identifiers, self, super - no calls to specialize
+            _ => {}
+        }
+
+        changed
+    }
+}
 
 impl OptimizationPass for GenericSpecializationPass {
     fn name(&self) -> &'static str {
@@ -4151,18 +4574,45 @@ impl OptimizationPass for GenericSpecializationPass {
     }
 
     fn run(&mut self, program: &mut Program) -> Result<bool, CompilationError> {
-        // Collect generic functions and their instantiation sites
-        let mut _generic_functions: Vec<crate::string_interner::StringId> = Vec::new();
+        // Reset state for fresh run
+        self.specializations.clear();
+        self.generic_functions.clear();
+        self.new_functions.clear();
+        self.next_spec_id = 0;
 
-        for stmt in &program.statements {
-            if let Statement::Function(func) = stmt {
-                if func.type_parameters.is_some() {
-                    _generic_functions.push(func.name.node);
-                }
+        // Phase 1: Collect all generic function declarations
+        self.collect_generic_functions(program);
+
+        if self.generic_functions.is_empty() {
+            return Ok(false);
+        }
+
+        // Phase 2: Find and specialize call sites
+        let mut changed = false;
+        for stmt in &mut program.statements {
+            if self.specialize_calls_in_statement(stmt) {
+                changed = true;
             }
         }
 
-        // Analysis only - actual specialization is complex
-        Ok(false)
+        // Phase 3: Add specialized functions to the program
+        // Insert them after the original function declarations, not at the end
+        // (to avoid being removed by dead code elimination after return statements)
+        if !self.new_functions.is_empty() {
+            // Find the last function statement index
+            let mut insert_idx = 0;
+            for (i, stmt) in program.statements.iter().enumerate() {
+                if matches!(stmt, Statement::Function(_)) {
+                    insert_idx = i + 1;
+                }
+            }
+            // Insert new functions at that position
+            for (i, func) in self.new_functions.drain(..).enumerate() {
+                program.statements.insert(insert_idx + i, func);
+            }
+            changed = true;
+        }
+
+        Ok(changed)
     }
 }

@@ -239,7 +239,7 @@ fn test_parse_function_call() {
 
     match &program.statements[0] {
         crate::ast::statement::Statement::Expression(expr) => match &expr.kind {
-            crate::ast::expression::ExpressionKind::Call(_, args) => {
+            crate::ast::expression::ExpressionKind::Call(_, args, _) => {
                 assert_eq!(args.len(), 3);
             }
             _ => panic!("Expected function call"),

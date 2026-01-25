@@ -150,6 +150,7 @@ mod tests {
                             is_spread: false,
                             span: make_span(),
                         }],
+                        None,
                     ),
                     make_span(),
                 )),
@@ -218,6 +219,7 @@ mod tests {
                     is_spread: false,
                     span: make_span(),
                 }],
+                None,
             ),
             make_span(),
         );

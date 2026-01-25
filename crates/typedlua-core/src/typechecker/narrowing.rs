@@ -177,7 +177,7 @@ pub fn narrow_type_from_condition(
         }
 
         // Type guard function call: isString(x)
-        ExpressionKind::Call(function, arguments) => {
+        ExpressionKind::Call(function, arguments, _) => {
             if let Some((var_name, narrowed_type)) =
                 extract_type_guard_call(function, arguments, original_types, interner)
             {
@@ -249,7 +249,7 @@ fn extract_typeof_check(
     right: &Expression,
 ) -> Option<(StringId, String)> {
     // Check: typeof x == "string"
-    if let ExpressionKind::Call(function, arguments) = &left.kind {
+    if let ExpressionKind::Call(function, arguments, _) = &left.kind {
         if let ExpressionKind::Identifier(func_name) = &function.kind {
             if interner.resolve(*func_name) == "typeof" && arguments.len() == 1 {
                 if let ExpressionKind::Identifier(var_name) = &arguments[0].value.kind {
@@ -263,7 +263,7 @@ fn extract_typeof_check(
 
     // Check: "string" == typeof x (reversed)
     if let ExpressionKind::Literal(Literal::String(type_name)) = &left.kind {
-        if let ExpressionKind::Call(function, arguments) = &right.kind {
+        if let ExpressionKind::Call(function, arguments, _) = &right.kind {
             if let ExpressionKind::Identifier(func_name) = &function.kind {
                 if interner.resolve(*func_name) == "typeof" && arguments.len() == 1 {
                     if let ExpressionKind::Identifier(var_name) = &arguments[0].value.kind {

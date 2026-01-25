@@ -1,3 +1,4 @@
+use super::generics::infer_type_arguments;
 use super::symbol_table::{Symbol, SymbolKind, SymbolTable};
 use super::type_compat::TypeCompatibility;
 use super::type_environment::TypeEnvironment;
@@ -2236,12 +2237,39 @@ impl<'a> TypeChecker<'a> {
                 self.infer_unary_op_type(*op, &operand_type, span)
             }
 
-            ExpressionKind::Call(callee, args) => {
+            ExpressionKind::Call(callee, args, ref mut stored_type_args) => {
                 let callee_type = self.infer_expression_type(callee)?;
+
+                // If callee is a generic function, infer and store type arguments
+                if let TypeKind::Function(func_type) = &callee_type.kind {
+                    if let Some(type_params) = &func_type.type_parameters {
+                        // Infer argument types
+                        let mut arg_types = Vec::with_capacity(args.len());
+                        for arg in args.iter_mut() {
+                            let arg_type = self
+                                .infer_expression_type(&mut arg.value)
+                                .unwrap_or_else(|_| {
+                                    Type::new(
+                                        TypeKind::Primitive(PrimitiveType::Unknown),
+                                        arg.value.span,
+                                    )
+                                });
+                            arg_types.push(arg_type);
+                        }
+
+                        // Infer type arguments from function signature and argument types
+                        if let Ok(inferred_types) =
+                            infer_type_arguments(type_params, &func_type.parameters, &arg_types)
+                        {
+                            *stored_type_args = Some(inferred_types);
+                        }
+                    }
+                }
+
                 self.infer_call_type(&callee_type, args, span)
             }
 
-            ExpressionKind::MethodCall(object, method, args) => {
+            ExpressionKind::MethodCall(object, method, args, _) => {
                 let obj_type = self.infer_expression_type(object)?;
                 let method_name = self.interner.resolve(method.node);
                 let method_type = self.infer_method_type(&obj_type, &method_name, args, span)?;
@@ -2289,13 +2317,38 @@ impl<'a> TypeChecker<'a> {
                 self.make_optional_type(indexed_type, span)
             }
 
-            ExpressionKind::OptionalCall(callee, args) => {
+            ExpressionKind::OptionalCall(callee, args, ref mut stored_type_args) => {
                 let callee_type = self.infer_expression_type(callee)?;
+
+                // If callee is a generic function, infer and store type arguments
+                if let TypeKind::Function(func_type) = &callee_type.kind {
+                    if let Some(type_params) = &func_type.type_parameters {
+                        let mut arg_types = Vec::with_capacity(args.len());
+                        for arg in args.iter_mut() {
+                            let arg_type = self
+                                .infer_expression_type(&mut arg.value)
+                                .unwrap_or_else(|_| {
+                                    Type::new(
+                                        TypeKind::Primitive(PrimitiveType::Unknown),
+                                        arg.value.span,
+                                    )
+                                });
+                            arg_types.push(arg_type);
+                        }
+
+                        if let Ok(inferred_types) =
+                            infer_type_arguments(type_params, &func_type.parameters, &arg_types)
+                        {
+                            *stored_type_args = Some(inferred_types);
+                        }
+                    }
+                }
+
                 let return_type = self.infer_call_type(&callee_type, args, span)?;
                 self.make_optional_type(return_type, span)
             }
 
-            ExpressionKind::OptionalMethodCall(object, method, args) => {
+            ExpressionKind::OptionalMethodCall(object, method, args, _) => {
                 let obj_type = self.infer_expression_type(object)?;
                 let method_name = self.interner.resolve(method.node);
                 let method_type = self.infer_method_type(&obj_type, &method_name, args, span)?;

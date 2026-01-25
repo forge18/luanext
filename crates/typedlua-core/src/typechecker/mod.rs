@@ -10,7 +10,10 @@ mod utility_types;
 #[cfg(test)]
 mod tests;
 
-pub use generics::{check_type_constraints, infer_type_arguments, instantiate_type};
+pub use generics::{
+    build_substitutions, check_type_constraints, infer_type_arguments,
+    instantiate_function_declaration, instantiate_type,
+};
 pub use narrowing::{narrow_type_from_condition, NarrowingContext};
 pub use symbol_table::{
     Scope, SerializableSymbol, SerializableSymbolTable, Symbol, SymbolKind, SymbolTable,

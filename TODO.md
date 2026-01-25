@@ -1,6 +1,6 @@
 # TypedLua TODO
 
-**Last Updated:** 2026-01-24 (Devirtualization - detailed breakdown added)
+**Last Updated:** 2026-01-24 (Devirtualization COMPLETE, 17 passes registered)
 
 ---
 
@@ -401,9 +401,9 @@ Pure Lua reflection via compile-time metadata generation. No native code or FFI 
 
 ### 3.1-3.4 Compiler Optimizations
 
-**Status:** O1 passes complete, O2 passes complete (9/9), O3 passes IN PROGRESS | **Model:** Opus
+**Status:** O1 COMPLETE (5 passes), O2 COMPLETE (7 passes), O3 IN PROGRESS (5 passes) | **Total: 17 passes** | **Model:** Opus
 
-All optimization passes are registered. O1 passes (constant folding, dead code elimination, algebraic simplification) are fully functional. O2 passes: function inlining, loop optimization, null coalescing, safe navigation, exception handling, string concatenation, dead store elimination, tail call optimization, rich enum optimization, and method-to-function conversion are complete. O3 passes are analysis-only placeholders.
+All optimization passes are registered. O1 passes (constant folding, dead code elimination, algebraic simplification, table preallocation, global localization) are fully functional. O2 passes (function inlining, loop optimization, string concatenation, dead store elimination, tail call optimization, rich enum optimization, method-to-function conversion) are complete. O3 passes: devirtualization is implemented, others are analysis-only placeholders.
 
 **3.1 Optimization Infrastructure:**
 
@@ -426,9 +426,7 @@ All optimization passes are registered. O1 passes (constant folding, dead code e
 - [x] Table pre-allocation (adds table.create() hints for Lua 5.2+)
 - [x] Global localization - caches frequently-used globals in local variables
 
-**3.3 O2 Optimizations - Standard (COMPLETE - 7/7 passes):**
-
-### 3.3 O2 Optimizations - Standard (COMPLETE - 7/7 passes)
+### 3.3 O2 Optimizations - Standard (COMPLETE - 7 passes)
 
 - [x] Function inlining
   - [x] Define inlining policy (size thresholds: 5, 10 statements; recursion safety rules)
@@ -582,374 +580,223 @@ All optimization passes are registered. O1 passes (constant folding, dead code e
 
 **Note:** Inline hints (`-- @inline` comments) are deferred as Lua interpreters don't standardly support them. The O2 optimization focuses on precomputing instances as literal tables.
 
-### 3.4 O3 Optimizations - Aggressive (IN PROGRESS: Devirtualization detailed breakdown)
+### 3.4 O3 Optimizations - Aggressive
 
-#### Devirtualization (O3) - DETAILED BREAKDOWN
+**Status:** IN PROGRESS | **Model:** Opus | **Prerequisites:** O2 optimizations complete
 
-**Status:** IN PROGRESS | **Model:** Sonnet | **Prerequisites:** MethodToFunctionConversionPass (O2)
-
-**Overview:** Converts indirect method calls through method tables into direct function calls when the concrete type is statically known. Builds on existing `receiver_class` infrastructure.
+Aggressive optimizations that require deeper static analysis. These passes may increase compile time but significantly improve runtime performance.
 
 ---
 
-##### Phase 1: AST & Type System Extensions
+#### 3.4.1 Devirtualization
 
-**Goal:** Track concrete type information for devirtualization decisions
+**Status:** COMPLETE | **Model:** Sonnet | **Prerequisites:** MethodToFunctionConversionPass (O2)
 
-**Files:** `ast/expression.rs`, `typechecker/type_checker.rs`
+Converts indirect method calls through method tables into direct function calls when the concrete type is statically known.
 
-- [ ] Add `ConcreteType` enum to `ast/expression.rs`
-  ```rust
-  pub enum ConcreteType {
-      Class(StringId),
-      Interface(StringId, Vec<StringId>),
-      Unknown,
-  }
-  ```
+**Devirtualization Safety Criteria:**
 
-- [ ] Add `concrete_type: Option<ConcreteType>` field to `Expression` struct
-
-- [ ] Extend `ReceiverClassInfo` struct with `method_name: Option<StringId>` field
-
-- [ ] Populate `concrete_type` in type checker during method call type inference
-
-- [ ] Track full type chain for inheritance analysis in `Expression.concrete_type`
-
----
-
-##### Phase 2: Devirtualization Analysis Pass
-
-**Goal:** Analyze method call sites to determine if devirtualization is safe
-
-**Files:** `optimizer/devirtualization.rs` (NEW)
-
-- [ ] Create `crates/typedlua-core/src/optimizer/devirtualization.rs`
-
-- [ ] Define `DevirtualizationPass` struct implementing `OptimizationPass` trait
-
-- [ ] Implement call site classifier:
-  - Scan all `ExpressionKind::MethodCall` in AST
-  - Check `receiver_class` and `concrete_type` fields
-  - Categorize calls as:
-    - **Directly devirtualizable**: Single known class, no inheritance overrides
-    - **Conditional**: Known class with potential overrides
-    - **Unknown**: Cannot determine concrete type
-
-- [ ] Build class hierarchy map from AST declarations
-  - Traverse all class declarations
-  - Build parent-child relationships
-  - Track method overrides per class
-
-- [ ] Implement override analysis
-  - Check if method is overridden in subclasses
-  - Verify class is `final` for safe devirtualization
-  - Check if all subtypes are known and final
-
----
-
-##### Phase 3: Transformation Pass
-
-**Goal:** Convert virtual calls to direct calls where safe
-
-**Files:** `optimizer/devirtualization.rs`
-
-- [ ] Implement method call transformer
-  - When safe, transform `obj:method(args)` → `Class.method(obj, args)`
-  - Use `receiver_class.class_name` to find the class
-  - Use `method_name` to find the specific method
-
-- [ ] Handle inheritance chains
-  - For non-final classes, check if all subclasses are known
-  - If only one implementation exists, devirtualize to that
-
-- [ ] Handle interface types
-  - When receiver implements single-interface with one impl, devirtualize
-  - Otherwise, preserve virtual dispatch
-
----
-
-##### Phase 4: Integration & Testing
-
-**Goal:** Register pass and verify correctness
-
-**Files:** `optimizer/mod.rs`, `tests/devirtualization_tests.rs` (NEW)
-
-- [ ] Register `DevirtualizationPass` in `Optimizer::register_passes()` at O3 level
-  - Ensure it runs after `MethodToFunctionConversionPass`
-
-- [ ] Create `tests/devirtualization_tests.rs`
-  - [ ] Test basic devirtualization of final class methods
-  - [ ] Test devirtualization with inheritance (single subclass)
-  - [ ] Test preservation of virtual dispatch for overridden methods
-  - [ ] Test interface devirtualization when single impl exists
-  - [ ] Test that O2 level does NOT devirtualize (regression check)
-
-- [ ] Create integration tests for:
-  - Class hierarchies (3+ levels)
-  - Diamond inheritance patterns
-  - Multiple interfaces
-
----
-
-##### Devirtualization Safety Criteria
-
-A method call can be devirtualized when ALL of:
 1. Receiver type is known concretely (not `any`, not union)
-2. The class is marked `final` OR all subclasses are known and don't override the method
+2. Class is `final` OR all subclasses are known and don't override the method
 3. Method is not accessible via interface (to preserve polymorphism)
+
+**Files:** `optimizer/devirtualization.rs`, `ast/expression.rs` (ReceiverClassInfo)
+
+**Implementation:**
+
+- [x] `ClassHierarchy` struct with `parent_of`, `children_of`, `is_final`, `final_methods`, `declares_method` maps
+- [x] `ClassHierarchy::build()` scans program for class declarations
+- [x] `can_devirtualize(class, method)` checks safety criteria
+- [x] `any_descendant_overrides()` recursively checks subclass hierarchy
+- [x] O3 pass sets `receiver_class` on safe MethodCall expressions
+- [x] O2's `MethodToFunctionConversionPass` performs actual transformation
+- [x] Register pass in optimizer/mod.rs at O3 level
+
+**Test file:** `tests/devirtualization_tests.rs` (10 tests pass)
+
+- [x] Final class method devirtualization
+- [x] Final method in non-final class
+- [x] Non-final class, no subclasses
+- [x] Non-final class, subclass overrides (should NOT devirtualize)
+- [x] Non-final class, subclass doesn't override (should devirtualize)
+- [x] Interface receiver (should NOT devirtualize)
+- [x] Deep hierarchy (3+ levels)
+- [x] Method in parent, not overridden in child
+
+---
+
+#### 3.4.2 Generic Specialization
+
+**Status:** NOT STARTED | **Model:** Sonnet | **Prerequisites:** Type instantiation in generics.rs
+
+Converts polymorphic generic functions into specialized monomorphic versions when called with concrete type arguments.
+
+**Overview:** Currently generics generate identical Lua code regardless of type parameters. This optimization eliminates type dispatch overhead by creating specialized versions.
+
+**Current gaps:**
+
+- Call expressions (`Call`, `MethodCall`) don't track type arguments
+- Type instantiation only handles types, not function bodies
+- Placeholder `GenericSpecializationPass` exists but is empty
+
+| Phase | Goal                  | Tasks                                                                      |
+|-------|-----------------------|----------------------------------------------------------------------------|
+| 1     | AST Extensions        | Add `type_arguments: Option<Vec<Type>>` to `Call` and `MethodCall`         |
+| 2     | Body Substitution     | Create `instantiate_statement/expression/block()` functions in generics.rs |
+| 3     | Specialization Pass   | Replace placeholder, create `SpecializationCache`, implement body cloning  |
+| 4     | Optimizer Integration | Ensure inlining passes handle specialized functions                        |
+| 5     | Testing               | Create `tests/generic_specialization_tests.rs` with 15+ tests              |
+
+**Naming convention:** `originalName__specializationId` (e.g., `map__0`, `identity__2`)
+
+**Test cases:** simple/multi/inferred type args, caching, nested generics, class methods, performance benchmarks
+
+**Files:** `ast/expression.rs`, `typechecker/type_checker.rs`, `typechecker/generics.rs`, `optimizer/passes.rs`
+
+---
+
+#### 3.4.3 Operator Inlining
+
+**Status:** NOT STARTED | **Model:** Haiku | **Prerequisites:** Operator Overloading (1.6), FunctionInliningPass (O2)
+
+Inlines frequently used operator overloads at call sites when the body is small. Eliminates the overhead of method table lookup + function call for common operators.
+
+**Inlining Criteria:**
+
+1. Operator body contains 5 or fewer statements
+2. Operator has no side effects (no external state mutation)
+3. Operator does not throw exceptions
+4. Operator is called frequently (heuristic: 3+ call sites)
+
+**Files:** `optimizer/operator_inlining.rs` (NEW), `ast/expression.rs`, `codegen/mod.rs`
+
+| Phase | Goal                       | Tasks                                                                                     |
+|-------|----------------------------|-------------------------------------------------------------------------------------------|
+| 1     | Operator Overload Catalog  | Scan class declarations for `operator` declarations, build catalog with body and metadata |
+| 2     | Call Site Analysis         | Identify all operator calls in AST, determine if receiver type is statically known        |
+| 3     | Inline Candidate Selection | Filter operators meeting inlining criteria (size, side effects, frequency)                |
+| 4     | Transformation             | Replace `obj1 + obj2` with inline body, binding operands to temp variables                |
+| 5     | Metamethod Preservation    | For non-inlined cases, preserve `__metatable` lookup semantics                            |
+
+**Test cases:**
+
+- [ ] Inlining simple arithmetic operators (add, sub, mul, div)
+- [ ] Preserving virtual dispatch for complex operators
+- [ ] Nested operator expressions (a + b + c)
+- [ ] Operator chaining with literals
+- [ ] No regression on non-inlined operators
+- [ ] Operator with multiple statements (should not inline)
 
 **Files Modified/Created:**
 
 ```
 Modified:
-- ast/expression.rs          # ConcreteType enum, Expression fields
-- typechecker/type_checker.rs # Populate concrete_type
-- optimizer/mod.rs            # Register pass
+- codegen/mod.rs              # May need metamethod access helpers
 
 Created:
-- optimizer/devirtualization.rs  # Main pass implementation
-- tests/devirtualization_tests.rs # Test suite
+- optimizer/operator_inlining.rs # Main pass implementation
+- tests/operator_inlining_tests.rs # Test suite
 ```
 
 ---
 
-#### Generic Specialization (O3) - DETAILED BREAKDOWN
+#### 3.4.4 Interface Method Inlining
 
-**Status:** NOT STARTED | **Model:** Sonnet | **Prerequisites:** Type instantiation in generics.rs
+**Status:** NOT STARTED | **Model:** Haiku | **Prerequisites:** Interfaces with Default Implementations (2.3), MethodToFunctionConversionPass (O2)
 
-**Overview:** Converts polymorphic generic functions into specialized monomorphic versions when called with concrete type arguments. Currently generics generate identical Lua code regardless of type parameters. This optimization eliminates type dispatch overhead.
+Inlines interface method calls when the implementing class is statically known. Builds on O2's method-to-function conversion.
 
----
+**Inlining Criteria:**
 
-##### Current State
+1. Interface method has exactly one implementing class in the program
+2. Implementing class is `final` or all subclasses are known
+3. Method body contains 10 or fewer statements
+4. Method has no `self` mutation (read-only `self`)
 
-- Generic type parameters exist in AST (`FunctionDeclaration.type_parameters`)
-- Type instantiation logic exists in `typechecker/generics.rs` but only handles **types**, not function bodies
-- Placeholder `GenericSpecializationPass` exists at `passes.rs:4195` but is empty
-- **Gap**: Call expressions (`Call`, `MethodCall`) don't track type arguments
+**Files:** `optimizer/interface_inlining.rs` (NEW), `ast/expression.rs`, `typechecker/type_checker.rs`
 
-**Key Files to Modify:**
+| Phase | Goal                         | Tasks                                                                            |
+|-------|------------------------------|----------------------------------------------------------------------------------|
+| 1     | Interface Implementation Map | Build map: `Interface → ImplementingClass[]` from AST declarations               |
+| 2     | Single-Impl Detection        | Identify interfaces with exactly one concrete implementation                     |
+| 3     | Call Site Analysis           | Find `MethodCall` expressions where receiver type is the sole implementing class |
+| 4     | Transformation               | Inline method body, binding `self` to receiver expression                        |
+| 5     | Fallback Preservation        | If multiple implementations exist, preserve original virtual dispatch            |
 
-| File | Purpose |
-|------|---------|
-| `ast/expression.rs` | Add `type_arguments` to `Call` and `MethodCall` |
-| `typechecker/type_checker.rs` | Track type args at call sites, export generic function info |
-| `typechecker/generics.rs` | Extend to substitute in statements/expressions |
-| `optimizer/passes.rs` | Replace placeholder with full implementation |
+**Test cases:**
 
----
+- [ ] Single implementing class (should inline)
+- [ ] Multiple implementing classes (should not inline)
+- [ ] Final implementing class (should inline)
+- [ ] Interface with default method implementation
+- [ ] Generic interface methods
+- [ ] Chained interface method calls
 
-##### Phase 1: AST & Type System Extensions
-
-**Goal:** Track type arguments at call sites and store generic function definitions
-
-**Files:** `ast/expression.rs`, `typechecker/type_checker.rs`
-
-- [ ] Add `type_arguments: Option<Vec<Type>>` to `ExpressionKind::Call`
-  ```rust
-  Call(Box<Expression>, Vec<Argument>, Option<Vec<Type>>),
-  ```
-
-- [ ] Add `type_arguments: Option<Vec<Type>>` to `ExpressionKind::MethodCall`
-  ```rust
-  MethodCall(Box<Expression>, Ident, Vec<Argument>, Option<Vec<Type>>),
-  ```
-
-- [ ] Create `GenericFunctionInfo` struct for type checker tracking:
-  ```rust
-  pub struct GenericFunctionInfo {
-      pub name: StringId,
-      pub type_parameters: Vec<TypeParameter>,
-      pub signature: FunctionType,
-  }
-  ```
-
-- [ ] Add `generic_functions: HashMap<StringId, GenericFunctionInfo>` to type checker context
-
-- [ ] Populate `generic_functions` map when type-checking generic function declarations
-
-- [ ] In `infer_call_type()`, detect if callee is a generic function
-
-- [ ] If explicit type args provided, record in call expression's new `type_arguments` field
-
-- [ ] If implicit, infer type arguments using `infer_type_arguments()` and record them
-
----
-
-##### Phase 2: Body Substitution Infrastructure
-
-**Goal:** Extend generic instantiation to handle AST nodes (statements, expressions)
-
-**Files:** `typechecker/generics.rs`
-
-- [ ] Create `SubstitutionMap` type alias:
-  ```rust
-  type SubstitutionMap = FxHashMap<StringId, Type>;
-  ```
-
-- [ ] Create `instantiate_statement(&Statement, &SubstitutionMap) -> Statement`
-
-- [ ] Create `instantiate_expression(&Expression, &SubstitutionMap) -> Expression`
-
-- [ ] Create `instantiate_block(&Block, &SubstitutionMap) -> Block`
-
-- [ ] Implement recursive substitution for statements:
-  - [ ] `Statement::Variable` - substitute type annotations in declarations
-  - [ ] `Statement::Return` - substitute return expression types
-  - [ ] `Statement::If/While/For` - substitute in body blocks
-  - [ ] `Statement::Function` - substitute parameter types, body
-  - [ ] `Statement::Expression` - handle calls with type args
-
-- [ ] Implement recursive substitution for expressions:
-  - [ ] `ExpressionKind::Call` - substitute in function type args if present
-  - [ ] `ExpressionKind::Identifier` - no-op
-  - [ ] `ExpressionKind::Member/Index` - substitute object/index types
-  - [ ] `ExpressionKind::Literal` - no-op
-  - [ ] Handle all expression variants recursively
-
----
-
-##### Phase 3: Specialization Pass Implementation
-
-**Goal:** Create the full optimization pass that specializes generic functions
-
-**Files:** `optimizer/passes.rs` (replace existing placeholder)
-
-- [ ] Replace empty `GenericSpecializationPass::run()` implementation
-
-- [ ] Create `SpecializationCache`:
-  ```rust
-  struct SpecializationCache {
-      next_id: usize,
-      cache: FxHashMap<(StringId, Vec<Type>), StringId>, // (func_name, type_args) -> specialized_name
-  }
-  ```
-
-- [ ] Implement call site collector:
-  - [ ] Scan all `Call`/`MethodCall` expressions in AST
-  - [ ] Filter for calls with concrete type arguments:
-    - Concrete: numbers, strings, booleans, classes, arrays, interfaces
-    - Not concrete: `any`, unions, type parameters
-  - [ ] Deduplicate by type argument signature
-
-- [ ] Implement function body specialization:
-  - [ ] Clone original `FunctionDeclaration` body
-  - [ ] Create substitution map from type params to concrete args
-  - [ ] Apply body substitution to clone
-  - [ ] Generate unique name: `originalName__specializationId`
-    - Example: `map__0`, `map__1`, `identity__2`
-
-- [ ] Implement specialized function injection:
-  - [ ] Add specialized function declarations to program statements
-  - [ ] Replace call expression with direct call to specialized version
-
-- [ ] Handle nested generic calls (generic calling generic):
-  - [ ] Process inner calls first (bottom-up) or track dependencies
-
----
-
-##### Phase 4: Integration with Existing Optimizer
-
-**Goal:** Ensure specialized functions work well with other O2/O3 passes
-
-**Files:** `optimizer/mod.rs`, `optimizer/passes.rs`
-
-- [ ] Ensure `FunctionInliningPass` can inline the specialized functions
-  - [ ] Set appropriate size thresholds (specialized functions may be larger)
-  - [ ] After specialization, inlining becomes more effective
-
-- [ ] Ensure `AggressiveInliningPass` (O3) handles specialized functions
-
-- [ ] Consider pass ordering:
-  - [ ] GenericSpecializationPass should run before inlining passes
-  - [ ] This allows inlining to see concrete types
-
----
-
-##### Phase 5: Testing & Validation
-
-**Goal:** Comprehensive tests for correctness and performance
-
-**Files:** `tests/generic_specialization_tests.rs` (NEW)
-
-- [ ] Unit tests for body substitution:
-  - [ ] `test_substitute_variable_type`
-  - [ ] `test_substitute_return_type`
-  - [ ] `test_substitute_nested_generic`
-
-- [ ] Integration tests:
-  - [ ] `test_generic_specialization_basic` - simple function with one type arg
-    ```lua
-    function id<T>(x: T): T return x end
-    local n = id<number>(5)  -- specialized to id__0(x: number): number
-    local s = id<string>("hi") -- specialized to id__1(x: string): string
-    ```
-  - [ ] `test_generic_specialization_multiple` - multiple type parameters
-    ```lua
-    function pair<A, B>(a: A, b: B): {a: A, b: B}
-    end
-    local p = pair<number, string>(1, "x")
-    ```
-  - [ ] `test_generic_specialization_inferred` - implicit type arguments
-  - [ ] `test_generic_specialization_caching` - same args reused (only one specialization)
-  - [ ] `test_generic_specialization_nested` - generic calling generic
-    ```lua
-    function apply<T, U>(f: (T) -> U, x: T): U
-    end
-    function double(x: number): number return x * 2 end
-    local r = apply<number, number>(double, 5)
-    ```
-  - [ ] `test_generic_specialization_method` - class methods with type params
-  - [ ] `test_generic_specialization_no_regression` - calls without type args still work
-
-- [ ] Performance tests:
-  - [ ] Benchmark specialized vs non-specialized code generation
-  - [ ] Verify reduced runtime overhead for hot paths
-
----
-
-##### Key Design Decisions
-
-1. **Where to specialize**: In the optimizer (O3), not type checker - separation of concerns
-2. **When to specialize**: Only with **concrete** type arguments (numbers, strings, classes, arrays) - not with other type parameters
-3. **Naming convention**: `originalName__specializationId` for specialized versions (e.g., `map__0`, `map__1`)
-4. **Cache key**: `(function_name, type_args_signature)` tuple using structural type comparison
-5. **Bottom-up processing**: Inner generic calls must be specialized before outer calls
-
----
-
-##### Files Modified/Created
+**Files Modified/Created:**
 
 ```
 Modified:
-- ast/expression.rs              # Add type_arguments to Call/MethodCall
-- typechecker/type_checker.rs    # Track generic functions, populate type_args
-- typechecker/generics.rs        # Add body substitution functions
-- optimizer/passes.rs            # Replace placeholder with full implementation
+- typechecker/type_checker.rs    # May need to expose implementing class info
 
 Created:
-- tests/generic_specialization_tests.rs # Test suite (15+ tests)
+- optimizer/interface_inlining.rs # Main pass implementation
+- tests/interface_inlining_tests.rs # Test suite
 ```
 
-- [ ] Operator inlining
-  - [ ] Identify frequently used operator overloads
-  - [ ] Inline operator body at call sites when small
-  - [ ] Ensure correct handling of metamethod lookups
-  - [ ] Add tests for operator inlining correctness
+---
 
-- [ ] Interface method inlining
-  - [ ] Analyze interface method calls with known implementing class
-  - [ ] Inline method body when implementation is known and small
-  - [ ] Preserve semantics for dynamic dispatch fallback
-  - [ ] Add tests for interface method inlining scenarios
-  
-- [ ] Aggressive inlining (threshold: 15 statements)
-  - [ ] Extend inlining criteria to larger functions up to 15 statements
-  - [ ] Implement heuristics to avoid code bloat
-  - [ ] Add benchmarks to evaluate impact
-  - [ ] Write tests for large function inlining and recursion safety
+#### 3.4.5 Aggressive Inlining
 
-**Test files:** optimizer_integration_tests.rs, o1_combined_tests.rs, o3_combined_tests.rs, dead_store_elimination_tests.rs (19 tests)
+**Status:** NOT STARTED | **Model:** Haiku | **Prerequisites:** FunctionInliningPass (O2)
+
+Extends inlining thresholds for maximum performance at O3. Increases inline threshold from 10 to 15 statements with smarter heuristics to balance compile time vs code size.
+
+**Aggressive Inlining Policy:**
+
+- Functions up to 15 statements (vs 10 at O2)
+- Recursive functions: inline only first call in chain
+- Functions with closures: inline only if closures are small (3 statements each)
+- Hot path detection: prioritize inlining functions called in loops
+
+**Files:** `optimizer/aggressive_inlining.rs` (NEW), `optimizer/mod.rs`
+
+| Phase | Goal                 | Tasks                                                              |
+|-------|----------------------|--------------------------------------------------------------------|
+| 1     | Threshold Adjustment | Extend `FunctionInliningPass` size limits from 10 to 15 statements |
+| 2     | Closure Handling     | Add size limits for closure captures, inline if total size < 20    |
+| 3     | Recursion Detection  | Implement recursion cycle detection, inline only first call        |
+| 4     | Hot Path Priority    | Detect calls within loops, prioritize these for inlining           |
+| 5     | Code Size Guard      | Abort inlining if total inlined code would exceed 3x original      |
+
+**Trade-offs:**
+
+- Pros: 10-20% performance improvement on compute-heavy code
+- Cons: Increased compile time, potential code bloat (mitigated by guard)
+
+**Test cases:**
+
+- [ ] Function with 12 statements (inlines at O3, not O2)
+- [ ] Recursive function (first call inlines, rest preserve)
+- [ ] Function with closures (small closures inline, large don't)
+- [ ] Hot path in loop (inlined, cold paths not)
+- [ ] Code size guard triggering
+- [ ] No regression for functions that don't meet aggressive criteria
+
+**Files Modified/Created:**
+
+```
+Modified:
+- optimizer/mod.rs               # Register aggressive pass variant
+- optimizer/function_inlining.rs # Extend thresholds, add heuristics
+
+Created:
+- optimizer/aggressive_inlining.rs # Separate pass or configuration variant
+- tests/aggressive_inlining_tests.rs # Test suite
+```
+
+---
+
+**O3 Test files:** `optimizer_integration_tests.rs`, `o3_combined_tests.rs`
 
 ---
 

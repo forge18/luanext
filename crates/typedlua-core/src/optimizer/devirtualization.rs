@@ -80,9 +80,7 @@ impl ClassHierarchy {
 
                         // Record method finality
                         if method.is_final {
-                            hierarchy
-                                .final_methods
-                                .insert((class_id, method_id), true);
+                            hierarchy.final_methods.insert((class_id, method_id), true);
                         }
                     }
                 }
@@ -211,9 +209,7 @@ impl DevirtualizationPass {
                 }
                 changed
             }
-            Statement::Variable(decl) => {
-                self.process_expression(&mut decl.initializer, hierarchy)
-            }
+            Statement::Variable(decl) => self.process_expression(&mut decl.initializer, hierarchy),
             Statement::Class(class) => {
                 let mut changed = false;
                 for member in &mut class.members {
@@ -258,7 +254,7 @@ impl DevirtualizationPass {
 
     fn process_expression(&self, expr: &mut Expression, hierarchy: &ClassHierarchy) -> bool {
         match &mut expr.kind {
-            ExpressionKind::MethodCall(obj, method_name, args) => {
+            ExpressionKind::MethodCall(obj, method_name, args, _) => {
                 let mut changed = self.process_expression(obj, hierarchy);
                 for arg in args.iter_mut() {
                     changed |= self.process_expression(&mut arg.value, hierarchy);
@@ -290,7 +286,7 @@ impl DevirtualizationPass {
 
                 changed
             }
-            ExpressionKind::Call(func, args) => {
+            ExpressionKind::Call(func, args, _) => {
                 let mut changed = self.process_expression(func, hierarchy);
                 for arg in args.iter_mut() {
                     changed |= self.process_expression(&mut arg.value, hierarchy);
@@ -373,14 +369,14 @@ impl DevirtualizationPass {
                 changed |= self.process_expression(index, hierarchy);
                 changed
             }
-            ExpressionKind::OptionalCall(obj, args) => {
+            ExpressionKind::OptionalCall(obj, args, _) => {
                 let mut changed = self.process_expression(obj, hierarchy);
                 for arg in args {
                     changed |= self.process_expression(&mut arg.value, hierarchy);
                 }
                 changed
             }
-            ExpressionKind::OptionalMethodCall(obj, _method_name, args) => {
+            ExpressionKind::OptionalMethodCall(obj, _method_name, args, _) => {
                 let mut changed = self.process_expression(obj, hierarchy);
                 for arg in args {
                     changed |= self.process_expression(&mut arg.value, hierarchy);
@@ -513,7 +509,9 @@ mod tests {
         hierarchy.parent_of.insert(child_id, Some(parent_id));
         hierarchy.children_of.insert(parent_id, vec![child_id]);
         // Child overrides the method
-        hierarchy.declares_method.insert((child_id, method_id), true);
+        hierarchy
+            .declares_method
+            .insert((child_id, method_id), true);
 
         // Should NOT be able to devirtualize parent's method call
         assert!(!hierarchy.can_devirtualize(parent_id, method_id));

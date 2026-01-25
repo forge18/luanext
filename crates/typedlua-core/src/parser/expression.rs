@@ -398,7 +398,7 @@ impl Parser<'_> {
 
             // new expressions must be followed by a call
             // e.g., new Config() or new Point(x, y)
-            if let ExpressionKind::Call(callee, args) = constructor.kind {
+            if let ExpressionKind::Call(callee, args, _) = constructor.kind {
                 let span = start_span.combine(&constructor.span);
                 return Ok(Expression {
                     kind: ExpressionKind::New(callee, args),
@@ -460,7 +460,7 @@ impl Parser<'_> {
                     self.consume(TokenKind::RightParen, "Expected ')' after arguments")?;
                     let span = expr.span.combine(&end_span);
                     expr = Expression {
-                        kind: ExpressionKind::Call(Box::new(expr), arguments),
+                        kind: ExpressionKind::Call(Box::new(expr), arguments, None),
                         span,
                         ..Default::default()
                     };
@@ -474,7 +474,7 @@ impl Parser<'_> {
                     self.consume(TokenKind::RightParen, "Expected ')' after arguments")?;
                     let span = expr.span.combine(&end_span);
                     expr = Expression {
-                        kind: ExpressionKind::MethodCall(Box::new(expr), method, arguments),
+                        kind: ExpressionKind::MethodCall(Box::new(expr), method, arguments, None),
                         span,
                         ..Default::default()
                     };
@@ -513,7 +513,7 @@ impl Parser<'_> {
                             self.consume(TokenKind::RightParen, "Expected ')' after arguments")?;
                             let span = expr.span.combine(&end_span);
                             expr = Expression {
-                                kind: ExpressionKind::OptionalCall(Box::new(expr), arguments),
+                                kind: ExpressionKind::OptionalCall(Box::new(expr), arguments, None),
                                 span,
                                 ..Default::default()
                             };
@@ -531,6 +531,7 @@ impl Parser<'_> {
                                     Box::new(expr),
                                     method,
                                     arguments,
+                                    None,
                                 ),
                                 span,
                                 ..Default::default()
@@ -681,7 +682,10 @@ impl Parser<'_> {
                 // Spread operator
                 let value = self.parse_expression()?;
                 let span = start_span.combine(&value.span);
-                properties.push(ObjectProperty::Spread { value: Box::new(value), span });
+                properties.push(ObjectProperty::Spread {
+                    value: Box::new(value),
+                    span,
+                });
             } else if self.check(&TokenKind::LeftBracket) {
                 // Computed property: [expr] = value
                 self.advance();
@@ -690,7 +694,11 @@ impl Parser<'_> {
                 self.consume(TokenKind::Equal, "Expected '=' after property key")?;
                 let value = self.parse_expression()?;
                 let span = start_span.combine(&value.span);
-                properties.push(ObjectProperty::Computed { key: Box::new(key), value: Box::new(value), span });
+                properties.push(ObjectProperty::Computed {
+                    key: Box::new(key),
+                    value: Box::new(value),
+                    span,
+                });
             } else {
                 // Regular property: key = value or key: value
                 let key = self.parse_identifier()?;
@@ -703,7 +711,11 @@ impl Parser<'_> {
                 }
                 let value = self.parse_expression()?;
                 let span = key.span.combine(&value.span);
-                properties.push(ObjectProperty::Property { key, value: Box::new(value), span });
+                properties.push(ObjectProperty::Property {
+                    key,
+                    value: Box::new(value),
+                    span,
+                });
             }
 
             if !self.check(&TokenKind::RightBrace) {
@@ -870,7 +882,9 @@ impl Parser<'_> {
                     let handler = self.diagnostic_handler.clone();
                     let mut temp_parser = Parser::new(tokens, handler, self.interner, self.common);
                     let expr = temp_parser.parse_expression()?;
-                    ast_parts.push(crate::ast::expression::TemplatePart::Expression(Box::new(expr)));
+                    ast_parts.push(crate::ast::expression::TemplatePart::Expression(Box::new(
+                        expr,
+                    )));
                 }
             }
         }

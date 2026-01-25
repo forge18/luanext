@@ -93,14 +93,14 @@ impl MethodToFunctionConversionPass {
 
     fn convert_in_expression(&mut self, expr: &mut Expression) -> bool {
         match &mut expr.kind {
-            ExpressionKind::Call(func, args) => {
+            ExpressionKind::Call(func, args, _) => {
                 let mut changed = self.convert_in_expression(func);
                 for arg in args.iter_mut() {
                     changed |= self.convert_in_expression(&mut arg.value);
                 }
                 changed
             }
-            ExpressionKind::MethodCall(obj, method_name, args) => {
+            ExpressionKind::MethodCall(obj, method_name, args, _) => {
                 let mut changed = self.convert_in_expression(obj);
                 for arg in args.iter_mut() {
                     changed |= self.convert_in_expression(&mut arg.value);
@@ -198,14 +198,14 @@ impl MethodToFunctionConversionPass {
                 changed |= self.convert_in_expression(index);
                 changed
             }
-            ExpressionKind::OptionalCall(obj, args) => {
+            ExpressionKind::OptionalCall(obj, args, _) => {
                 let mut changed = self.convert_in_expression(obj);
                 for arg in args {
                     changed |= self.convert_in_expression(&mut arg.value);
                 }
                 changed
             }
-            ExpressionKind::OptionalMethodCall(obj, _method_name, args) => {
+            ExpressionKind::OptionalMethodCall(obj, _method_name, args, _) => {
                 let mut changed = self.convert_in_expression(obj);
                 for arg in args {
                     changed |= self.convert_in_expression(&mut arg.value);
@@ -263,7 +263,7 @@ impl MethodToFunctionConversionPass {
             new_args.push(arg.clone());
         }
 
-        Some(ExpressionKind::Call(Box::new(class_expr), new_args))
+        Some(ExpressionKind::Call(Box::new(class_expr), new_args, None))
     }
 }
 
@@ -342,6 +342,7 @@ mod tests {
                 Box::new(obj_expr),
                 Spanned::new(method_id, Span::dummy()),
                 arguments,
+                None,
             ),
             span: Span::dummy(),
             annotated_type: Some(Type::new(
@@ -360,7 +361,7 @@ mod tests {
         assert!(result, "Should have made changes");
 
         if let Statement::Expression(converted_expr) = &block.statements[0] {
-            if let ExpressionKind::Call(callee, args) = &converted_expr.kind {
+            if let ExpressionKind::Call(callee, args, _) = &converted_expr.kind {
                 if let ExpressionKind::Member(class_expr, method) = &callee.kind {
                     let class_str = interner.resolve(match &class_expr.kind {
                         ExpressionKind::Identifier(id) => *id,
@@ -411,6 +412,7 @@ mod tests {
                 Box::new(obj_expr),
                 Spanned::new(method_id, Span::dummy()),
                 vec![],
+                None,
             ),
             span: Span::dummy(),
             annotated_type: Some(Type::new(
