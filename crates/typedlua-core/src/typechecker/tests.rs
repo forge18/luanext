@@ -7,7 +7,7 @@ use std::sync::Arc;
 fn parse_and_check(source: &str) -> Result<(), TypeCheckError> {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (mut interner, common) =
-        crate::string_interner::StringInterner::new_with_common_identifiers();
+        typedlua_parser::string_interner::StringInterner::new_with_common_identifiers();
     let mut lexer = Lexer::new(source, handler.clone(), &mut interner);
     let tokens = lexer.tokenize().expect("Lexing failed");
     let mut parser = Parser::new(tokens, handler.clone(), &mut interner, &common);

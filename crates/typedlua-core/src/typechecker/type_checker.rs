@@ -77,14 +77,14 @@ pub struct TypeChecker<'a> {
     /// Current namespace path for this module
     current_namespace: Option<Vec<String>>,
     diagnostic_handler: Arc<dyn DiagnosticHandler>,
-    interner: &'a crate::string_interner::StringInterner,
+    interner: &'a typedlua_parser::string_interner::StringInterner,
     common: &'a crate::string_interner::CommonIdentifiers,
 }
 
 impl<'a> TypeChecker<'a> {
     pub fn new(
         diagnostic_handler: Arc<dyn DiagnosticHandler>,
-        interner: &'a crate::string_interner::StringInterner,
+        interner: &'a typedlua_parser::string_interner::StringInterner,
         common: &'a crate::string_interner::CommonIdentifiers,
     ) -> Self {
         let mut checker = Self {
@@ -142,7 +142,7 @@ impl<'a> TypeChecker<'a> {
     /// Create a TypeChecker with module support for multi-module compilation
     pub fn new_with_module_support(
         diagnostic_handler: Arc<dyn DiagnosticHandler>,
-        interner: &'a crate::string_interner::StringInterner,
+        interner: &'a typedlua_parser::string_interner::StringInterner,
         common: &'a crate::string_interner::CommonIdentifiers,
         registry: Arc<crate::module_resolver::ModuleRegistry>,
         module_id: crate::module_resolver::ModuleId,
@@ -1611,7 +1611,7 @@ impl<'a> TypeChecker<'a> {
         if let Some(class_ctx) = &self.current_class {
             let self_type = Type::new(
                 TypeKind::Reference(crate::ast::types::TypeReference {
-                    name: crate::ast::Spanned::new(
+                    name: typedlua_parser::ast::Spanned::new(
                         self.interner.intern(&class_ctx.name),
                         ctor.span,
                     ),
@@ -1711,7 +1711,7 @@ impl<'a> TypeChecker<'a> {
             if let Some(class_ctx) = &self.current_class {
                 let self_type = Type::new(
                     TypeKind::Reference(crate::ast::types::TypeReference {
-                        name: crate::ast::Spanned::new(
+                        name: typedlua_parser::ast::Spanned::new(
                             self.interner.intern(&class_ctx.name),
                             method.span,
                         ),
@@ -1798,7 +1798,7 @@ impl<'a> TypeChecker<'a> {
             if let Some(class_ctx) = &self.current_class {
                 let self_type = Type::new(
                     TypeKind::Reference(crate::ast::types::TypeReference {
-                        name: crate::ast::Spanned::new(
+                        name: typedlua_parser::ast::Spanned::new(
                             self.interner.intern(&class_ctx.name),
                             getter.span,
                         ),
@@ -1848,7 +1848,7 @@ impl<'a> TypeChecker<'a> {
             if let Some(class_ctx) = &self.current_class {
                 let self_type = Type::new(
                     TypeKind::Reference(crate::ast::types::TypeReference {
-                        name: crate::ast::Spanned::new(
+                        name: typedlua_parser::ast::Spanned::new(
                             self.interner.intern(&class_ctx.name),
                             setter.span,
                         ),
@@ -1964,7 +1964,7 @@ impl<'a> TypeChecker<'a> {
         if let Some(class_ctx) = &self.current_class {
             let self_type = Type::new(
                 TypeKind::Reference(crate::ast::types::TypeReference {
-                    name: crate::ast::Spanned::new(self.interner.intern(&class_ctx.name), op.span),
+                    name: typedlua_parser::ast::Spanned::new(self.interner.intern(&class_ctx.name), op.span),
                     type_arguments: None,
                     span: op.span,
                 }),
@@ -3926,7 +3926,7 @@ mod tests {
     fn type_check_source(source: &str) -> Result<(), TypeCheckError> {
         let handler = Arc::new(CollectingDiagnosticHandler::new());
         let (interner, common) =
-            crate::string_interner::StringInterner::new_with_common_identifiers();
+            typedlua_parser::string_interner::StringInterner::new_with_common_identifiers();
         let mut lexer = Lexer::new(source, handler.clone(), &interner);
         let tokens = lexer.tokenize().expect("Lexing failed");
         let mut parser = Parser::new(tokens, handler.clone(), &interner, &common);

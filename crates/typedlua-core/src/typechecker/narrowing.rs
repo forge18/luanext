@@ -244,7 +244,7 @@ pub fn narrow_type_from_condition(
 
 /// Extract typeof check: typeof x == "string" -> Some((x, "string"))
 fn extract_typeof_check(
-    interner: &crate::string_interner::typedlua_parser::typedlua_parser::string_interner::string_interner::StringInterner,
+    interner: &typedlua_parser::string_interner::StringInterner,
     left: &Expression,
     right: &Expression,
 ) -> Option<(StringId, String)> {
@@ -281,9 +281,9 @@ fn extract_typeof_check(
 /// Type guards are functions with return type `param is Type`
 fn extract_type_guard_call(
     function: &Expression,
-    arguments: &[crate::ast::expression::Argument],
+    arguments: &[typedlua_parser::ast::expression::Argument],
     original_types: &FxHashMap<StringId, Type>,
-    interner: &crate::string_interner::typedlua_parser::typedlua_parser::string_interner::string_interner::StringInterner,
+    interner: &typedlua_parser::string_interner::StringInterner,
 ) -> Option<(StringId, Type)> {
     // Check if this is a function call with one argument
     if arguments.len() != 1 {
@@ -292,7 +292,7 @@ fn extract_type_guard_call(
 
     // Get the variable being checked
     let var_name = match &arguments[0].value.kind {
-        ExpressionKind::Identifier(name) => name,
+        ExpressionKind::Identifier(name) => *name,
         _ => return None,
     };
 
@@ -309,17 +309,6 @@ fn extract_type_guard_call(
                         return Some((var_name, (*predicate.type_annotation).clone()));
                     }
                 }
-            }
-        }
-
-        // Fallback to heuristic for backwards compatibility:
-        // Functions named "is*" are assumed to be type guards
-        let func_name_str = interner.resolve(*func_name).to_string();
-        if let Some(stripped) = func_name_str.strip_prefix("is") {
-            // Extract the type name from the function name (e.g., "isString" -> "string")
-            let lower: String = stripped.to_lowercase();
-            if let Some(narrowed_type) = typeof_string_to_type(&lower) {
-                return Some((var_name, narrowed_type));
             }
         }
     }
@@ -509,7 +498,7 @@ mod tests {
 
     #[test]
     fn test_narrowing_context_basic() {
-        let interner = crate::string_interner::StringInterner::new();
+        let interner = typedlua_parser::string_interner::StringInterner::new();
         let mut ctx = NarrowingContext::new();
 
         let string_type = Type::new(TypeKind::Primitive(PrimitiveType::String), make_span());
@@ -526,7 +515,7 @@ mod tests {
 
     #[test]
     fn test_narrowing_context_merge() {
-        let interner = crate::string_interner::StringInterner::new();
+        let interner = typedlua_parser::string_interner::StringInterner::new();
         let mut then_ctx = NarrowingContext::new();
         let mut else_ctx = NarrowingContext::new();
 

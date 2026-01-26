@@ -593,7 +593,7 @@ impl InterfaceMethodInliningPass {
         receiver: &Expression,
         _class_id: StringId,
         method_body: &Block,
-        _args: &[crate::ast::expression::Argument],
+        _args: &[typedlua_parser::ast::expression::Argument],
         span: Span,
     ) -> Option<ExpressionKind> {
         if method_body.statements.is_empty() {
@@ -694,7 +694,7 @@ impl InterfaceMethodInliningPass {
                 ExpressionKind::Call(
                     Box::new(self.transform_expression(func, receiver, span)),
                     args.iter()
-                        .map(|arg| crate::ast::expression::Argument {
+                        .map(|arg| typedlua_parser::ast::expression::Argument {
                             value: self.transform_expression(&arg.value, receiver, span),
                             is_spread: arg.is_spread,
                             span: arg.span,

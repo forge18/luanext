@@ -716,10 +716,10 @@ pub fn instantiate_expression(
 
 /// Helper to instantiate an argument
 fn instantiate_argument(
-    arg: &crate::ast::expression::Argument,
+    arg: &typedlua_parser::ast::expression::Argument,
     substitutions: &FxHashMap<StringId, Type>,
-) -> crate::ast::expression::Argument {
-    crate::ast::expression::Argument {
+) -> typedlua_parser::ast::expression::Argument {
+    typedlua_parser::ast::expression::Argument {
         value: instantiate_expression(&arg.value, substitutions),
         is_spread: arg.is_spread,
         span: arg.span,
@@ -803,7 +803,7 @@ fn instantiate_arrow_function(
             .map(|t| substitute_type(t, substitutions).unwrap_or_else(|_| t.clone())),
         body: match &arrow.body {
             ArrowBody::Expression(e) => {
-                ArrowBody::Expression(Box::new(instantiate_expression(e, substitutions)))
+                ArrowBody::Expression(Box::new(instantiate_expression(e.as_ref(), substitutions)))
             }
             ArrowBody::Block(b) => ArrowBody::Block(instantiate_block(b, substitutions)),
         },
@@ -889,7 +889,7 @@ mod tests {
     #[test]
     fn test_instantiate_simple_type() {
         let span = Span::new(0, 0, 0, 0);
-        let interner = crate::string_interner::StringInterner::new();
+        let interner = typedlua_parser::string_interner::StringInterner::new();
         let t_id = interner.intern("T");
 
         // Type parameter T
@@ -926,7 +926,7 @@ mod tests {
     #[test]
     fn test_instantiate_array_type() {
         let span = Span::new(0, 0, 0, 0);
-        let interner = crate::string_interner::StringInterner::new();
+        let interner = typedlua_parser::string_interner::StringInterner::new();
         let t_id = interner.intern("T");
 
         // Type parameter T
@@ -971,7 +971,7 @@ mod tests {
     #[test]
     fn test_wrong_number_of_type_args() {
         let span = Span::new(0, 0, 0, 0);
-        let interner = crate::string_interner::StringInterner::new();
+        let interner = typedlua_parser::string_interner::StringInterner::new();
         let t_id = interner.intern("T");
 
         // Type parameter T
@@ -1007,7 +1007,7 @@ mod tests {
         use typedlua_parser::ast::statement::Parameter;
 
         let span = Span::new(0, 0, 0, 0);
-        let interner = crate::string_interner::StringInterner::new();
+        let interner = typedlua_parser::string_interner::StringInterner::new();
         let t_id = interner.intern("T");
         let _x_id = interner.intern("x");
 
@@ -1058,7 +1058,7 @@ mod tests {
         use typedlua_parser::ast::statement::Parameter;
 
         let span = Span::new(0, 0, 0, 0);
-        let interner = crate::string_interner::StringInterner::new();
+        let interner = typedlua_parser::string_interner::StringInterner::new();
         let t_id = interner.intern("T");
         let values_id = interner.intern("values");
 
@@ -1114,7 +1114,7 @@ mod tests {
     #[test]
     fn test_check_constraints_pass() {
         let span = Span::new(0, 0, 0, 0);
-        let interner = crate::string_interner::StringInterner::new();
+        let interner = typedlua_parser::string_interner::StringInterner::new();
         let t_id = interner.intern("T");
 
         // Type parameter T extends number
@@ -1138,7 +1138,7 @@ mod tests {
     #[test]
     fn test_check_constraints_fail() {
         let span = Span::new(0, 0, 0, 0);
-        let interner = crate::string_interner::StringInterner::new();
+        let interner = typedlua_parser::string_interner::StringInterner::new();
         let t_id = interner.intern("T");
 
         // Type parameter T extends number
