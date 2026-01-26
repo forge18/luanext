@@ -1,6 +1,6 @@
-use crate::config::OptimizationLevel;
-use crate::diagnostics::DiagnosticHandler;
-use crate::errors::CompilationError;
+ use super::config::OptimizationLevel;
+ use super::diagnostics::DiagnosticHandler;
+ use super::errors::CompilationError;
 use std::sync::Arc;
 use typedlua_parser::ast::Program;
 use typedlua_parser::string_interner::StringInterner;

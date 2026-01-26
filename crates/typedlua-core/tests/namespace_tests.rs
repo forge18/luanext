@@ -1,16 +1,16 @@
 use std::sync::Arc;
-use typedlua_core::ast::statement::Statement;
+use typedlua_parser::ast::statement::Statement;
 use typedlua_core::codegen::CodeGenerator;
 use typedlua_core::config::CompilerOptions;
 use typedlua_core::diagnostics::{CollectingDiagnosticHandler, DiagnosticHandler};
-use typedlua_core::lexer::Lexer;
-use typedlua_core::parser::Parser;
-use typedlua_core::string_interner::StringInterner;
+use typedlua_parser::lexer::Lexer;
+use typedlua_parser::parser::Parser;
+use typedlua_parser::string_interner::StringInterner;
 use typedlua_core::typechecker::TypeChecker;
 
 fn parse_source(
     source: &str,
-) -> Result<(typedlua_core::ast::Program, Arc<StringInterner>), String> {
+) -> Result<(typedlua_parser::ast::Program, Arc<StringInterner>), String> {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
     let interner = Arc::new(interner);

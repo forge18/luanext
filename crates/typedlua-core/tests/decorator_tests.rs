@@ -2,9 +2,9 @@ use std::sync::Arc;
 use typedlua_core::codegen::CodeGenerator;
 use typedlua_core::config::CompilerOptions;
 use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_core::lexer::Lexer;
-use typedlua_core::parser::Parser;
-use typedlua_core::string_interner::StringInterner;
+use typedlua_parser::lexer::Lexer;
+use typedlua_parser::parser::Parser;
+use typedlua_parser::string_interner::StringInterner;
 use typedlua_core::typechecker::TypeChecker;
 
 fn compile_and_check(source: &str) -> Result<String, String> {

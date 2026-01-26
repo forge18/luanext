@@ -1,7 +1,7 @@
 pub mod sourcemap;
 
-use crate::config::OptimizationLevel;
-use crate::optimizer::Optimizer;
+use super::config::OptimizationLevel;
+use super::optimizer::Optimizer;
 pub use sourcemap::{SourceMap, SourceMapBuilder};
 use std::sync::Arc;
 use typedlua_parser::ast::expression::*;

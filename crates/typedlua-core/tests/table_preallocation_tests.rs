@@ -1,14 +1,14 @@
 use std::sync::Arc;
-use typedlua_core::ast::expression::{ArrayElement, BinaryOp, Expression, ExpressionKind, Literal};
-use typedlua_core::ast::pattern::Pattern;
-use typedlua_core::ast::statement::{Statement, VariableDeclaration, VariableKind};
-use typedlua_core::ast::Program;
-use typedlua_core::ast::Spanned;
+use typedlua_parser::ast::expression::{ArrayElement, BinaryOp, Expression, ExpressionKind, Literal};
+use typedlua_parser::ast::pattern::Pattern;
+use typedlua_parser::ast::statement::{Statement, VariableDeclaration, VariableKind};
+use typedlua_parser::ast::Program;
+use typedlua_parser::ast::Spanned;
 use typedlua_core::config::OptimizationLevel;
 use typedlua_core::diagnostics::CollectingDiagnosticHandler;
 use typedlua_core::optimizer::Optimizer;
-use typedlua_core::span::Span;
-use typedlua_core::string_interner::StringInterner;
+use typedlua_parser::span::Span;
+use typedlua_parser::string_interner::StringInterner;
 
 fn create_optimizer(level: OptimizationLevel) -> Optimizer {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
@@ -184,7 +184,7 @@ fn test_optimization_level_comparison() {
 
 #[test]
 fn test_global_localization_creates_local_references() {
-    use typedlua_core::ast::{Program, Spanned};
+    use typedlua_parser::ast::{Program, Spanned};
 
     let interner = Arc::new(StringInterner::new());
     let handler = Arc::new(CollectingDiagnosticHandler::new());

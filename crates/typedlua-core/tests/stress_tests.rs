@@ -1,4 +1,4 @@
-use typedlua_core::string_interner::StringInterner;
+use typedlua_parser::string_interner::StringInterner;
 // Simplified stress tests - tests parser/lexer don't panic on large inputs
 use std::sync::Arc;
 use typedlua_core::{diagnostics::CollectingDiagnosticHandler, lexer::Lexer, parser::Parser};

@@ -8,9 +8,9 @@
 //! 2. Operator has no side effects (no external state mutation)
 //! 3. Operator is called frequently (heuristic: 3+ call sites)
 
-use crate::config::OptimizationLevel;
-use crate::errors::CompilationError;
-use crate::optimizer::OptimizationPass;
+ use super::config::OptimizationLevel;
+ use super::errors::CompilationError;
+ use super::optimizer::OptimizationPass;
 use rustc_hash::FxHashMap;
 use std::sync::Arc;
 use typedlua_parser::ast::expression::{BinaryOp, Expression, ExpressionKind, UnaryOp};
@@ -36,7 +36,8 @@ struct OperatorInfo {
 }
 
 pub struct OperatorInliningPass {
-    operator_catalog: FxHashMap<(StringId, typedlua_parser::ast::statement::OperatorKind), OperatorInfo>,
+    operator_catalog:
+        FxHashMap<(StringId, typedlua_parser::ast::statement::OperatorKind), OperatorInfo>,
     interner: Arc<StringInterner>,
 }
 
@@ -275,14 +276,23 @@ impl OperatorInliningPass {
             ExpressionKind::Object(props) => {
                 for prop in props {
                     match prop {
-                        typedlua_parser::ast::expression::ObjectProperty::Property { value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Property {
+                            value,
+                            ..
+                        } => {
                             self.catalog_expression(value);
                         }
-                        typedlua_parser::ast::expression::ObjectProperty::Computed { key, value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Computed {
+                            key,
+                            value,
+                            ..
+                        } => {
                             self.catalog_expression(key);
                             self.catalog_expression(value);
                         }
-                        typedlua_parser::ast::expression::ObjectProperty::Spread { value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Spread {
+                            value, ..
+                        } => {
                             self.catalog_expression(value);
                         }
                     }
@@ -394,7 +404,9 @@ impl OperatorInliningPass {
     }
 }
 
-fn binary_op_to_operator_kind(op: &BinaryOp) -> Option<typedlua_parser::ast::statement::OperatorKind> {
+fn binary_op_to_operator_kind(
+    op: &BinaryOp,
+) -> Option<typedlua_parser::ast::statement::OperatorKind> {
     match op {
         BinaryOp::Add => Some(typedlua_parser::ast::statement::OperatorKind::Add),
         BinaryOp::Subtract => Some(typedlua_parser::ast::statement::OperatorKind::Subtract),
@@ -406,7 +418,9 @@ fn binary_op_to_operator_kind(op: &BinaryOp) -> Option<typedlua_parser::ast::sta
         BinaryOp::Equal => Some(typedlua_parser::ast::statement::OperatorKind::Equal),
         BinaryOp::NotEqual => Some(typedlua_parser::ast::statement::OperatorKind::NotEqual),
         BinaryOp::LessThan => Some(typedlua_parser::ast::statement::OperatorKind::LessThan),
-        BinaryOp::LessThanOrEqual => Some(typedlua_parser::ast::statement::OperatorKind::LessThanOrEqual),
+        BinaryOp::LessThanOrEqual => {
+            Some(typedlua_parser::ast::statement::OperatorKind::LessThanOrEqual)
+        }
         BinaryOp::GreaterThan => Some(typedlua_parser::ast::statement::OperatorKind::GreaterThan),
         BinaryOp::GreaterThanOrEqual => {
             Some(typedlua_parser::ast::statement::OperatorKind::GreaterThanOrEqual)
@@ -421,7 +435,9 @@ fn binary_op_to_operator_kind(op: &BinaryOp) -> Option<typedlua_parser::ast::sta
     }
 }
 
-fn unary_op_to_operator_kind(op: &UnaryOp) -> Option<typedlua_parser::ast::statement::OperatorKind> {
+fn unary_op_to_operator_kind(
+    op: &UnaryOp,
+) -> Option<typedlua_parser::ast::statement::OperatorKind> {
     match op {
         UnaryOp::Negate => Some(typedlua_parser::ast::statement::OperatorKind::UnaryMinus),
         UnaryOp::Length => Some(typedlua_parser::ast::statement::OperatorKind::Length),
@@ -539,7 +555,9 @@ fn expression_has_side_effects(expr: &Expression) -> bool {
                     typedlua_parser::ast::expression::MatchArmBody::Expression(e) => {
                         expression_has_side_effects(e)
                     }
-                    typedlua_parser::ast::expression::MatchArmBody::Block(b) => block_has_side_effects(b),
+                    typedlua_parser::ast::expression::MatchArmBody::Block(b) => {
+                        block_has_side_effects(b)
+                    }
                 })
         }
         ExpressionKind::Arrow(arrow) => {
@@ -549,7 +567,9 @@ fn expression_has_side_effects(expr: &Expression) -> bool {
                     .map(|d| expression_has_side_effects(d))
                     .unwrap_or(false)
             }) || match &arrow.body {
-                typedlua_parser::ast::expression::ArrowBody::Expression(e) => expression_has_side_effects(e),
+                typedlua_parser::ast::expression::ArrowBody::Expression(e) => {
+                    expression_has_side_effects(e)
+                }
                 typedlua_parser::ast::expression::ArrowBody::Block(b) => block_has_side_effects(b),
             }
         }
@@ -814,14 +834,23 @@ impl OperatorInliningPass {
                 let mut changed = false;
                 for prop in props {
                     match prop {
-                        typedlua_parser::ast::expression::ObjectProperty::Property { value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Property {
+                            value,
+                            ..
+                        } => {
                             changed |= self.process_expression(value);
                         }
-                        typedlua_parser::ast::expression::ObjectProperty::Computed { key, value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Computed {
+                            key,
+                            value,
+                            ..
+                        } => {
                             changed |= self.process_expression(key);
                             changed |= self.process_expression(value);
                         }
-                        typedlua_parser::ast::expression::ObjectProperty::Spread { value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Spread {
+                            value, ..
+                        } => {
                             changed |= self.process_expression(value);
                         }
                     }
@@ -887,7 +916,9 @@ mod tests {
             "__add"
         );
         assert_eq!(
-            operator_kind_to_metamethod_name(typedlua_parser::ast::statement::OperatorKind::Multiply),
+            operator_kind_to_metamethod_name(
+                typedlua_parser::ast::statement::OperatorKind::Multiply
+            ),
             "__mul"
         );
     }

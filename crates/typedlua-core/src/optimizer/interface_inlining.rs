@@ -17,9 +17,9 @@
 //! 4. Inlining the method body, binding `self` to the receiver expression
 //! 5. Preserving original dispatch if multiple implementations exist
 
-use crate::config::OptimizationLevel;
-use crate::errors::CompilationError;
-use crate::optimizer::OptimizationPass;
+ use super::config::OptimizationLevel;
+ use super::errors::CompilationError;
+ use super::optimizer::OptimizationPass;
 use rustc_hash::FxHashMap;
 use std::sync::Arc;
 use typedlua_parser::ast::expression::{AssignmentOp, Expression, ExpressionKind};
@@ -576,7 +576,11 @@ impl InterfaceMethodInliningPass {
             ExpressionKind::Object(props) => {
                 let mut changed = false;
                 for prop in props {
-                    if let typedlua_parser::ast::expression::ObjectProperty::Property { value, .. } = prop {
+                    if let typedlua_parser::ast::expression::ObjectProperty::Property {
+                        value,
+                        ..
+                    } = prop
+                    {
                         changed |= self.process_expression(value, impl_map);
                     }
                 }
@@ -776,9 +780,11 @@ impl Default for InterfaceMethodInliningPass {
 mod tests {
     use super::*;
     use crate::ast::expression::{AssignmentOp, ExpressionKind, Literal};
-    use typedlua_parser::ast::pattern::Pattern;
-    use typedlua_parser::ast::statement::{Block, ReturnStatement, VariableDeclaration, VariableKind};
     use crate::span::Span;
+    use typedlua_parser::ast::pattern::Pattern;
+    use typedlua_parser::ast::statement::{
+        Block, ReturnStatement, VariableDeclaration, VariableKind,
+    };
 
     #[test]
     fn test_interface_implementation_map_build_empty() {

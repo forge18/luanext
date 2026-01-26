@@ -7,9 +7,9 @@
 //! calls that can be safely devirtualized. The actual transformation is handled
 //! by the O2 `MethodToFunctionConversionPass`.
 
-use crate::config::OptimizationLevel;
-use crate::errors::CompilationError;
-use crate::optimizer::OptimizationPass;
+ use super::config::OptimizationLevel;
+ use super::errors::CompilationError;
+ use super::optimizer::OptimizationPass;
 use rustc_hash::FxHashMap;
 use std::sync::Arc;
 use typedlua_parser::ast::expression::{Expression, ExpressionKind, ReceiverClassInfo};
@@ -407,7 +407,11 @@ impl DevirtualizationPass {
             ExpressionKind::Object(props) => {
                 let mut changed = false;
                 for prop in props {
-                    if let typedlua_parser::ast::expression::ObjectProperty::Property { value, .. } = prop {
+                    if let typedlua_parser::ast::expression::ObjectProperty::Property {
+                        value,
+                        ..
+                    } = prop
+                    {
                         changed |= self.process_expression(value, hierarchy);
                     }
                 }

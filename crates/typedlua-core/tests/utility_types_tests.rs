@@ -1,4 +1,4 @@
-use typedlua_core::string_interner::StringInterner;
+use typedlua_parser::string_interner::StringInterner;
 // Integration tests for utility types
 // These test that utility types work end-to-end through the compiler
 

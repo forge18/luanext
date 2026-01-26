@@ -1,5 +1,5 @@
 use super::*;
-use crate::diagnostics::CollectingDiagnosticHandler;
+ use super::diagnostics::CollectingDiagnosticHandler;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 use std::sync::Arc;

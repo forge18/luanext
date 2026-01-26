@@ -2,15 +2,15 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use typedlua_core::ast::Program;
+use typedlua_parser::ast::Program;
 use typedlua_core::diagnostics::{CollectingDiagnosticHandler, DiagnosticHandler};
 use typedlua_core::fs::{FileSystem, MockFileSystem};
-use typedlua_core::lexer::Lexer;
+use typedlua_parser::lexer::Lexer;
 use typedlua_core::module_resolver::{
     DependencyGraph, ModuleConfig, ModuleId, ModuleRegistry, ModuleResolver,
 };
-use typedlua_core::parser::Parser;
-use typedlua_core::string_interner::StringInterner;
+use typedlua_parser::parser::Parser;
+use typedlua_parser::string_interner::StringInterner;
 use typedlua_core::typechecker::{SymbolTable, TypeChecker};
 
 /// Helper to create a test file system with module files
@@ -35,8 +35,8 @@ fn parse_file(source: &str, handler: Arc<CollectingDiagnosticHandler>) -> Result
 fn parse_file_with_interner(
     source: &str,
     handler: Arc<CollectingDiagnosticHandler>,
-    interner: &typedlua_core::string_interner::StringInterner,
-    common_ids: &typedlua_core::string_interner::CommonIdentifiers,
+    interner: &typedlua_parser::string_interner::StringInterner,
+    common_ids: &typedlua_parser::string_interner::CommonIdentifiers,
 ) -> Result<Program, String> {
     let mut lexer = Lexer::new(source, handler.clone(), interner);
     let tokens = lexer.tokenize().map_err(|_| "Lexing failed".to_string())?;

@@ -1,4 +1,4 @@
-use crate::config::CompilerOptions;
+ use super::config::CompilerOptions;
 use std::path::Path;
 
 /// Compute Blake3 hash of file content

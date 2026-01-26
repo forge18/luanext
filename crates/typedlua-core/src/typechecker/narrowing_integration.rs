@@ -60,7 +60,8 @@ mod tests {
 
     #[test]
     fn test_if_statement_narrowing_example() {
-        let (interner, _) = typedlua_parser::string_interner::StringInterner::new_with_common_identifiers();
+        let (interner, _) =
+            typedlua_parser::string_interner::StringInterner::new_with_common_identifiers();
 
         // Setup: x: string | nil
         let mut variable_types = FxHashMap::default();
@@ -119,7 +120,8 @@ mod tests {
 
     #[test]
     fn test_typeof_narrowing_example() {
-        let (interner, _) = typedlua_parser::string_interner::StringInterner::new_with_common_identifiers();
+        let (interner, _) =
+            typedlua_parser::string_interner::StringInterner::new_with_common_identifiers();
 
         let mut variable_types = FxHashMap::default();
         let x_id = get_string_id("x", &interner);
@@ -189,7 +191,8 @@ mod tests {
 
     #[test]
     fn test_type_guard_narrowing() {
-        let (interner, _) = typedlua_parser::string_interner::StringInterner::new_with_common_identifiers();
+        let (interner, _) =
+            typedlua_parser::string_interner::StringInterner::new_with_common_identifiers();
 
         // Setup: x: string | number | nil
         let mut variable_types = FxHashMap::default();
@@ -258,10 +261,11 @@ mod tests {
 
     #[test]
     fn test_instanceof_narrowing() {
-        use crate::ast::types::TypeReference;
         use crate::ast::Ident;
+        use typedlua_parser::ast::types::TypeReference;
 
-        let (interner, _) = typedlua_parser::string_interner::StringInterner::new_with_common_identifiers();
+        let (interner, _) =
+            typedlua_parser::string_interner::StringInterner::new_with_common_identifiers();
 
         let mut variable_types = FxHashMap::default();
         let pet_id = get_string_id("pet", &interner);

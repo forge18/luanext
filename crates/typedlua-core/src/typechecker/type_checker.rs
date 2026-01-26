@@ -3,8 +3,8 @@ use super::symbol_table::{Symbol, SymbolKind, SymbolTable};
 use super::type_compat::TypeCompatibility;
 use super::type_environment::TypeEnvironment;
 use super::TypeCheckError;
-use crate::config::CompilerOptions;
-use crate::diagnostics::DiagnosticHandler;
+ use super::config::CompilerOptions;
+ use super::diagnostics::DiagnosticHandler;
 use rustc_hash::FxHashMap;
 use std::sync::Arc;
 use typedlua_parser::ast::expression::*;
@@ -78,14 +78,14 @@ pub struct TypeChecker<'a> {
     current_namespace: Option<Vec<String>>,
     diagnostic_handler: Arc<dyn DiagnosticHandler>,
     interner: &'a typedlua_parser::string_interner::StringInterner,
-    common: &'a crate::string_interner::CommonIdentifiers,
+    common: &'a typedlua_parser::string_interner::CommonIdentifiers,
 }
 
 impl<'a> TypeChecker<'a> {
     pub fn new(
         diagnostic_handler: Arc<dyn DiagnosticHandler>,
         interner: &'a typedlua_parser::string_interner::StringInterner,
-        common: &'a crate::string_interner::CommonIdentifiers,
+        common: &'a typedlua_parser::string_interner::CommonIdentifiers,
     ) -> Self {
         let mut checker = Self {
             symbol_table: SymbolTable::new(),
@@ -143,7 +143,7 @@ impl<'a> TypeChecker<'a> {
     pub fn new_with_module_support(
         diagnostic_handler: Arc<dyn DiagnosticHandler>,
         interner: &'a typedlua_parser::string_interner::StringInterner,
-        common: &'a crate::string_interner::CommonIdentifiers,
+        common: &'a typedlua_parser::string_interner::CommonIdentifiers,
         registry: Arc<crate::module_resolver::ModuleRegistry>,
         module_id: crate::module_resolver::ModuleId,
         resolver: Arc<crate::module_resolver::ModuleResolver>,
@@ -455,7 +455,7 @@ impl<'a> TypeChecker<'a> {
                 // Register each type parameter as a type in the current scope
                 // This allows the function body to reference T, U, etc.
                 let param_type = Type::new(
-                    TypeKind::Reference(crate::ast::types::TypeReference {
+                    TypeKind::Reference(typedlua_parser::ast::types::TypeReference {
                         name: type_param.name.clone(),
                         type_arguments: None,
                         span: type_param.span,
@@ -1104,7 +1104,7 @@ impl<'a> TypeChecker<'a> {
         if let Some(type_params) = &class_decl.type_parameters {
             for type_param in type_params {
                 let param_type = Type::new(
-                    TypeKind::Reference(crate::ast::types::TypeReference {
+                    TypeKind::Reference(typedlua_parser::ast::types::TypeReference {
                         name: type_param.name.clone(),
                         type_arguments: None,
                         span: type_param.span,
@@ -1610,7 +1610,7 @@ impl<'a> TypeChecker<'a> {
         // Declare 'self' parameter (implicit in constructors)
         if let Some(class_ctx) = &self.current_class {
             let self_type = Type::new(
-                TypeKind::Reference(crate::ast::types::TypeReference {
+                TypeKind::Reference(typedlua_parser::ast::types::TypeReference {
                     name: typedlua_parser::ast::Spanned::new(
                         self.interner.intern(&class_ctx.name),
                         ctor.span,
@@ -1710,7 +1710,7 @@ impl<'a> TypeChecker<'a> {
         if !method.is_static {
             if let Some(class_ctx) = &self.current_class {
                 let self_type = Type::new(
-                    TypeKind::Reference(crate::ast::types::TypeReference {
+                    TypeKind::Reference(typedlua_parser::ast::types::TypeReference {
                         name: typedlua_parser::ast::Spanned::new(
                             self.interner.intern(&class_ctx.name),
                             method.span,
@@ -1736,7 +1736,7 @@ impl<'a> TypeChecker<'a> {
         if let Some(type_params) = &method.type_parameters {
             for type_param in type_params {
                 let param_type = Type::new(
-                    TypeKind::Reference(crate::ast::types::TypeReference {
+                    TypeKind::Reference(typedlua_parser::ast::types::TypeReference {
                         name: type_param.name.clone(),
                         type_arguments: None,
                         span: type_param.span,
@@ -1797,7 +1797,7 @@ impl<'a> TypeChecker<'a> {
         if !getter.is_static {
             if let Some(class_ctx) = &self.current_class {
                 let self_type = Type::new(
-                    TypeKind::Reference(crate::ast::types::TypeReference {
+                    TypeKind::Reference(typedlua_parser::ast::types::TypeReference {
                         name: typedlua_parser::ast::Spanned::new(
                             self.interner.intern(&class_ctx.name),
                             getter.span,
@@ -1847,7 +1847,7 @@ impl<'a> TypeChecker<'a> {
         if !setter.is_static {
             if let Some(class_ctx) = &self.current_class {
                 let self_type = Type::new(
-                    TypeKind::Reference(crate::ast::types::TypeReference {
+                    TypeKind::Reference(typedlua_parser::ast::types::TypeReference {
                         name: typedlua_parser::ast::Spanned::new(
                             self.interner.intern(&class_ctx.name),
                             setter.span,
@@ -1963,8 +1963,11 @@ impl<'a> TypeChecker<'a> {
 
         if let Some(class_ctx) = &self.current_class {
             let self_type = Type::new(
-                TypeKind::Reference(crate::ast::types::TypeReference {
-                    name: typedlua_parser::ast::Spanned::new(self.interner.intern(&class_ctx.name), op.span),
+                TypeKind::Reference(typedlua_parser::ast::types::TypeReference {
+                    name: typedlua_parser::ast::Spanned::new(
+                        self.interner.intern(&class_ctx.name),
+                        op.span,
+                    ),
                     type_arguments: None,
                     span: op.span,
                 }),
@@ -3919,7 +3922,7 @@ impl<'a> TypeChecker<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::diagnostics::CollectingDiagnosticHandler;
+     use super::diagnostics::CollectingDiagnosticHandler;
     use crate::lexer::Lexer;
     use crate::parser::Parser;
 

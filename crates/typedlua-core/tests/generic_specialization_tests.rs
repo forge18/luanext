@@ -1,17 +1,17 @@
 use std::sync::Arc;
-use typedlua_core::ast::expression::{Argument, Expression, ExpressionKind, Literal};
-use typedlua_core::ast::pattern::Pattern;
-use typedlua_core::ast::statement::{
+use typedlua_parser::ast::expression::{Argument, Expression, ExpressionKind, Literal};
+use typedlua_parser::ast::pattern::Pattern;
+use typedlua_parser::ast::statement::{
     Block, FunctionDeclaration, Parameter, ReturnStatement, Statement, TypeParameter,
     VariableDeclaration, VariableKind,
 };
-use typedlua_core::ast::types::{PrimitiveType, Type, TypeKind, TypeReference};
-use typedlua_core::ast::{Program, Spanned};
+use typedlua_parser::ast::types::{PrimitiveType, Type, TypeKind, TypeReference};
+use typedlua_parser::ast::{Program, Spanned};
 use typedlua_core::config::OptimizationLevel;
 use typedlua_core::diagnostics::CollectingDiagnosticHandler;
 use typedlua_core::optimizer::Optimizer;
-use typedlua_core::span::Span;
-use typedlua_core::string_interner::StringInterner;
+use typedlua_parser::span::Span;
+use typedlua_parser::string_interner::StringInterner;
 
 fn create_test_interner() -> Arc<StringInterner> {
     Arc::new(StringInterner::new())
@@ -30,7 +30,7 @@ fn create_test_optimizer(
 }
 
 /// Helper to create a type reference to T (type parameter)
-fn type_param_ref(name_id: typedlua_core::string_interner::StringId, span: Span) -> Type {
+fn type_param_ref(name_id: typedlua_parser::string_interner::StringId, span: Span) -> Type {
     Type::new(
         TypeKind::Reference(TypeReference {
             name: Spanned::new(name_id, span),

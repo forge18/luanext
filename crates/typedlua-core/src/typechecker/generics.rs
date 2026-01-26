@@ -141,7 +141,7 @@ fn substitute_type(typ: &Type, substitutions: &FxHashMap<StringId, Type>) -> Res
             let substituted_return = substitute_type(&func_type.return_type, substitutions)?;
 
             Ok(Type::new(
-                TypeKind::Function(crate::ast::types::FunctionType {
+                TypeKind::Function(typedlua_parser::ast::types::FunctionType {
                     type_parameters: None, // Type parameters are gone after substitution
                     parameters: substituted_params?,
                     return_type: Box::new(substituted_return),
@@ -766,10 +766,10 @@ fn instantiate_object_property(
 
 /// Helper to instantiate a function expression
 fn instantiate_function_expression(
-    func: &crate::ast::expression::FunctionExpression,
+    func: &typedlua_parser::ast::expression::FunctionExpression,
     substitutions: &FxHashMap<StringId, Type>,
-) -> crate::ast::expression::FunctionExpression {
-    crate::ast::expression::FunctionExpression {
+) -> typedlua_parser::ast::expression::FunctionExpression {
+    typedlua_parser::ast::expression::FunctionExpression {
         type_parameters: None, // Remove type parameters after specialization
         parameters: func
             .parameters
@@ -787,7 +787,7 @@ fn instantiate_function_expression(
 
 /// Helper to instantiate an arrow function
 fn instantiate_arrow_function(
-    arrow: &crate::ast::expression::ArrowFunction,
+    arrow: &typedlua_parser::ast::expression::ArrowFunction,
     substitutions: &FxHashMap<StringId, Type>,
 ) -> typedlua_parser::ast::expression::ArrowFunction {
     use typedlua_parser::ast::expression::{ArrowBody, ArrowFunction};
@@ -866,10 +866,10 @@ fn instantiate_match_expression(
 
 /// Helper to instantiate a try expression
 fn instantiate_try_expression(
-    try_expr: &crate::ast::expression::TryExpression,
+    try_expr: &typedlua_parser::ast::expression::TryExpression,
     substitutions: &FxHashMap<StringId, Type>,
-) -> crate::ast::expression::TryExpression {
-    crate::ast::expression::TryExpression {
+) -> typedlua_parser::ast::expression::TryExpression {
+    typedlua_parser::ast::expression::TryExpression {
         expression: Box::new(instantiate_expression(&try_expr.expression, substitutions)),
         catch_variable: try_expr.catch_variable.clone(),
         catch_expression: Box::new(instantiate_expression(

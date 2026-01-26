@@ -1,6 +1,6 @@
-use crate::config::CompilerConfig;
-use crate::diagnostics::{ConsoleDiagnosticHandler, DiagnosticHandler};
-use crate::fs::{FileSystem, RealFileSystem};
+ use super::config::CompilerConfig;
+ use super::diagnostics::{ConsoleDiagnosticHandler, DiagnosticHandler};
+ use super::fs::{FileSystem, RealFileSystem};
 use std::sync::Arc;
 
 /// Dependency injection container
@@ -78,8 +78,8 @@ impl Container {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::diagnostics::CollectingDiagnosticHandler;
-    use crate::fs::MockFileSystem;
+     use super::diagnostics::CollectingDiagnosticHandler;
+     use super::fs::MockFileSystem;
     use crate::span::Span;
 
     #[test]

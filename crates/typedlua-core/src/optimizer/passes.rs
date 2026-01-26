@@ -1,6 +1,6 @@
-use crate::config::OptimizationLevel;
-use crate::errors::CompilationError;
-use crate::optimizer::OptimizationPass;
+ use super::config::OptimizationLevel;
+ use super::errors::CompilationError;
+ use super::optimizer::OptimizationPass;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use typedlua_parser::ast::expression::{BinaryOp, Expression, ExpressionKind, Literal, UnaryOp};
@@ -764,7 +764,8 @@ impl GlobalLocalizationPass {
         // First, collect all locally declared names (variables and functions)
         self.collect_declared_locals(block, &mut declared_locals);
 
-        let mut global_usage: HashMap<typedlua_parser::string_interner::StringId, usize> = HashMap::new();
+        let mut global_usage: HashMap<typedlua_parser::string_interner::StringId, usize> =
+            HashMap::new();
 
         for stmt in &block.statements {
             self.collect_global_usage_optimized(stmt, &mut global_usage, &declared_locals);
@@ -2469,13 +2470,20 @@ impl LoopOptimizationPass {
                 self.collect_modified_in_block(&try_stmt.try_block, modified);
                 for catch in &try_stmt.catch_clauses {
                     match &catch.pattern {
-                        typedlua_parser::ast::statement::CatchPattern::Typed { variable, .. } => {
+                        typedlua_parser::ast::statement::CatchPattern::Typed {
+                            variable, ..
+                        } => {
                             modified.insert(variable.node);
                         }
-                        typedlua_parser::ast::statement::CatchPattern::MultiTyped { variable, .. } => {
+                        typedlua_parser::ast::statement::CatchPattern::MultiTyped {
+                            variable,
+                            ..
+                        } => {
                             modified.insert(variable.node);
                         }
-                        typedlua_parser::ast::statement::CatchPattern::Untyped { variable, .. } => {
+                        typedlua_parser::ast::statement::CatchPattern::Untyped {
+                            variable, ..
+                        } => {
                             modified.insert(variable.node);
                         }
                     }
@@ -2588,7 +2596,10 @@ impl LoopOptimizationPass {
                             self.collect_modified_in_expression(key, modified);
                             self.collect_modified_in_expression(value, modified);
                         }
-                        typedlua_parser::ast::expression::ObjectProperty::Spread { value, span: _ } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Spread {
+                            value,
+                            span: _,
+                        } => {
                             self.collect_modified_in_expression(value, modified);
                         }
                     }
@@ -3258,14 +3269,23 @@ impl DeadStoreEliminationPass {
                 let mut changed = false;
                 for prop in properties {
                     match prop {
-                        typedlua_parser::ast::expression::ObjectProperty::Property { value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Property {
+                            value,
+                            ..
+                        } => {
                             changed |= self.eliminate_dead_stores_in_expression(value);
                         }
-                        typedlua_parser::ast::expression::ObjectProperty::Computed { key, value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Computed {
+                            key,
+                            value,
+                            ..
+                        } => {
                             changed |= self.eliminate_dead_stores_in_expression(key);
                             changed |= self.eliminate_dead_stores_in_expression(value);
                         }
-                        typedlua_parser::ast::expression::ObjectProperty::Spread { value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Spread {
+                            value, ..
+                        } => {
                             changed |= self.eliminate_dead_stores_in_expression(value);
                         }
                     }
@@ -3430,13 +3450,20 @@ impl DeadStoreEliminationPass {
                 self.collect_block_reads(&try_stmt.try_block, &mut live);
                 for catch in &try_stmt.catch_clauses {
                     match &catch.pattern {
-                        typedlua_parser::ast::statement::CatchPattern::Typed { variable, .. } => {
+                        typedlua_parser::ast::statement::CatchPattern::Typed {
+                            variable, ..
+                        } => {
                             live.insert(variable.node);
                         }
-                        typedlua_parser::ast::statement::CatchPattern::MultiTyped { variable, .. } => {
+                        typedlua_parser::ast::statement::CatchPattern::MultiTyped {
+                            variable,
+                            ..
+                        } => {
                             live.insert(variable.node);
                         }
-                        typedlua_parser::ast::statement::CatchPattern::Untyped { variable, .. } => {
+                        typedlua_parser::ast::statement::CatchPattern::Untyped {
+                            variable, ..
+                        } => {
                             live.insert(variable.node);
                         }
                     }
@@ -3585,14 +3612,23 @@ impl DeadStoreEliminationPass {
             ExpressionKind::Object(properties) => {
                 for prop in properties {
                     match prop {
-                        typedlua_parser::ast::expression::ObjectProperty::Property { value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Property {
+                            value,
+                            ..
+                        } => {
                             self.collect_expression_reads_into(value, reads);
                         }
-                        typedlua_parser::ast::expression::ObjectProperty::Computed { key, value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Computed {
+                            key,
+                            value,
+                            ..
+                        } => {
                             self.collect_expression_reads_into(key, reads);
                             self.collect_expression_reads_into(value, reads);
                         }
-                        typedlua_parser::ast::expression::ObjectProperty::Spread { value, .. } => {
+                        typedlua_parser::ast::expression::ObjectProperty::Spread {
+                            value, ..
+                        } => {
                             self.collect_expression_reads_into(value, reads);
                         }
                     }
@@ -4066,7 +4102,9 @@ impl OptimizationPass for OperatorInliningPass {
                 let _method_count = class
                     .members
                     .iter()
-                    .filter(|m| matches!(m, typedlua_parser::ast::statement::ClassMember::Method(_)))
+                    .filter(|m| {
+                        matches!(m, typedlua_parser::ast::statement::ClassMember::Method(_))
+                    })
                     .count();
             }
         }
@@ -4103,7 +4141,12 @@ impl OptimizationPass for InterfaceMethodInliningPass {
                 _interface_method_count += iface
                     .members
                     .iter()
-                    .filter(|m| matches!(m, typedlua_parser::ast::statement::InterfaceMember::Method(_)))
+                    .filter(|m| {
+                        matches!(
+                            m,
+                            typedlua_parser::ast::statement::InterfaceMember::Method(_)
+                        )
+                    })
                     .count();
             }
         }
@@ -4197,7 +4240,8 @@ impl GenericSpecializationPass {
 
         // Create specialized function by instantiating with type substitutions
         let mut specialized_func = instantiate_function_declaration(func, &substitutions);
-        specialized_func.name = typedlua_parser::ast::Spanned::new(specialized_name, func.name.span);
+        specialized_func.name =
+            typedlua_parser::ast::Spanned::new(specialized_name, func.name.span);
 
         // Add to cache and to list of new functions
         self.specializations.insert(cache_key, specialized_name);

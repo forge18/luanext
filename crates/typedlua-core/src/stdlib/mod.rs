@@ -1,6 +1,6 @@
 // Standard library type definitions embedded at compile time
 
-use crate::config::LuaVersion;
+ use super::config::LuaVersion;
 
 /// Builtin global functions (available in all Lua versions)
 pub const BUILTINS: &str = include_str!("builtins.d.tl");

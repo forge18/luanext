@@ -67,7 +67,7 @@ pub fn narrow_type_from_condition(
     condition: &Expression,
     base_ctx: &NarrowingContext,
     original_types: &FxHashMap<StringId, Type>,
-    interner: &crate::string_interner::typedlua_parser::typedlua_parser::string_interner::string_interner::StringInterner,
+    interner: &typedlua_parser::string_interner::StringInterner,
 ) -> (NarrowingContext, NarrowingContext) {
     let mut then_ctx = base_ctx.clone_for_branch();
     let mut else_ctx = base_ctx.clone_for_branch();
@@ -179,7 +179,7 @@ pub fn narrow_type_from_condition(
         // Type guard function call: isString(x)
         ExpressionKind::Call(function, arguments, _) => {
             if let Some((var_name, narrowed_type)) =
-                extract_type_guard_call(function, arguments, original_types, interner)
+                extract_type_guard_call(function, arguments, original_types)
             {
                 // In then branch: narrow to the guarded type
                 then_ctx.set_narrowed_type(var_name, narrowed_type.clone());
@@ -200,8 +200,8 @@ pub fn narrow_type_from_condition(
                     // In then branch: narrow to the class type
                     // For now, create a reference to the class type
                     let class_type = Type::new(
-                        TypeKind::Reference(crate::ast::types::TypeReference {
-                            name: crate::ast::Ident::new(*class_name, condition.span),
+                        TypeKind::Reference(typedlua_parser::ast::types::TypeReference {
+                            name: typedlua_parser::ast::Ident::new(*class_name, condition.span),
                             type_arguments: None,
                             span: condition.span,
                         }),
@@ -283,7 +283,6 @@ fn extract_type_guard_call(
     function: &Expression,
     arguments: &[typedlua_parser::ast::expression::Argument],
     original_types: &FxHashMap<StringId, Type>,
-    interner: &typedlua_parser::string_interner::StringInterner,
 ) -> Option<(StringId, Type)> {
     // Check if this is a function call with one argument
     if arguments.len() != 1 {
