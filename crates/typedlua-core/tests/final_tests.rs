@@ -1,9 +1,9 @@
 use std::sync::Arc;
 use typedlua_core::diagnostics::CollectingDiagnosticHandler;
+use typedlua_core::typechecker::TypeChecker;
 use typedlua_parser::lexer::Lexer;
 use typedlua_parser::parser::Parser;
 use typedlua_parser::string_interner::StringInterner;
-use typedlua_core::typechecker::TypeChecker;
 
 fn type_check(source: &str) -> Result<(), String> {
     let handler = Arc::new(CollectingDiagnosticHandler::new());

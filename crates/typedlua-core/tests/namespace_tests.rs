@@ -1,12 +1,12 @@
 use std::sync::Arc;
-use typedlua_parser::ast::statement::Statement;
 use typedlua_core::codegen::CodeGenerator;
 use typedlua_core::config::CompilerOptions;
 use typedlua_core::diagnostics::{CollectingDiagnosticHandler, DiagnosticHandler};
+use typedlua_core::typechecker::TypeChecker;
+use typedlua_parser::ast::statement::Statement;
 use typedlua_parser::lexer::Lexer;
 use typedlua_parser::parser::Parser;
 use typedlua_parser::string_interner::StringInterner;
-use typedlua_core::typechecker::TypeChecker;
 
 fn parse_source(
     source: &str,

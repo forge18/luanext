@@ -11,10 +11,6 @@ pub mod optimizer;
 pub mod stdlib;
 pub mod typechecker;
 
-pub use lua_sourcemap as sourcemap;
-pub use typedlua_parser::span::Span;
-pub use typedlua_parser::string_interner::{CommonIdentifiers, StringId, StringInterner};
-
 pub use arena::Arena;
 pub use codegen::{CodeGenerator, LuaTarget};
 pub use config::{CliOverrides, CompilerConfig};

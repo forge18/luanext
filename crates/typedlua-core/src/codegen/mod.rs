@@ -3526,6 +3526,9 @@ impl CodeGenerator {
 
 #[cfg(test)]
 mod tests {
+    use crate::diagnostics::CollectingDiagnosticHandler;
+    use crate::CodeGenerator;
+    use crate::LuaTarget;
     use std::sync::Arc;
     use typedlua_parser::lexer::Lexer;
     use typedlua_parser::parser::Parser;

@@ -1,12 +1,12 @@
 use std::sync::Arc;
-use typedlua_parser::string_interner::StringInterner;
 use typedlua_core::{
     codegen::CodeGenerator,
     diagnostics::{CollectingDiagnosticHandler, DiagnosticHandler, DiagnosticLevel},
-    lexer::Lexer,
-    parser::Parser,
     typechecker::TypeChecker,
 };
+use typedlua_parser::lexer::Lexer;
+use typedlua_parser::parser::Parser;
+use typedlua_parser::string_interner::StringInterner;
 
 #[test]
 fn test_parser_missing_paren() {

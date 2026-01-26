@@ -2,7 +2,7 @@ use rustc_hash::FxHashSet;
 use std::path::{Path, PathBuf};
 use tracing::{info, warn};
 
- use super::config::CompilerOptions;
+use crate::config::CompilerOptions;
 
 use super::{
     hash_config, hash_file, CacheEntry, CacheError, CacheManifest, CachedModule,

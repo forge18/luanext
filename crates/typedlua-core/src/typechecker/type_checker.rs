@@ -3,8 +3,8 @@ use super::symbol_table::{Symbol, SymbolKind, SymbolTable};
 use super::type_compat::TypeCompatibility;
 use super::type_environment::TypeEnvironment;
 use super::TypeCheckError;
- use super::config::CompilerOptions;
- use super::diagnostics::DiagnosticHandler;
+use crate::config::CompilerOptions;
+use crate::diagnostics::DiagnosticHandler;
 use rustc_hash::FxHashMap;
 use std::sync::Arc;
 use typedlua_parser::ast::expression::*;
@@ -3922,9 +3922,9 @@ impl<'a> TypeChecker<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-     use super::diagnostics::CollectingDiagnosticHandler;
-    use crate::lexer::Lexer;
-    use crate::parser::Parser;
+    use crate::diagnostics::CollectingDiagnosticHandler;
+    use typedlua_parser::lexer::Lexer;
+    use typedlua_parser::parser::Parser;
 
     fn type_check_source(source: &str) -> Result<(), TypeCheckError> {
         let handler = Arc::new(CollectingDiagnosticHandler::new());

@@ -1,4 +1,7 @@
 use std::sync::Arc;
+use typedlua_core::config::OptimizationLevel;
+use typedlua_core::diagnostics::CollectingDiagnosticHandler;
+use typedlua_core::optimizer::Optimizer;
 use typedlua_parser::ast::expression::{Argument, Expression, ExpressionKind, Literal};
 use typedlua_parser::ast::pattern::Pattern;
 use typedlua_parser::ast::statement::{
@@ -7,9 +10,6 @@ use typedlua_parser::ast::statement::{
 };
 use typedlua_parser::ast::types::{PrimitiveType, Type, TypeKind, TypeReference};
 use typedlua_parser::ast::{Program, Spanned};
-use typedlua_core::config::OptimizationLevel;
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_core::optimizer::Optimizer;
 use typedlua_parser::span::Span;
 use typedlua_parser::string_interner::StringInterner;
 

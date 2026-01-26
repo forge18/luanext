@@ -1,6 +1,6 @@
- use super::config::CompilerConfig;
- use super::diagnostics::{ConsoleDiagnosticHandler, DiagnosticHandler};
- use super::fs::{FileSystem, RealFileSystem};
+use super::config::CompilerConfig;
+use super::diagnostics::{ConsoleDiagnosticHandler, DiagnosticHandler};
+use super::fs::{FileSystem, RealFileSystem};
 use std::sync::Arc;
 
 /// Dependency injection container
@@ -78,9 +78,9 @@ impl Container {
 #[cfg(test)]
 mod tests {
     use super::*;
-     use super::diagnostics::CollectingDiagnosticHandler;
-     use super::fs::MockFileSystem;
-    use crate::span::Span;
+    use crate::diagnostics::CollectingDiagnosticHandler;
+    use crate::fs::MockFileSystem;
+    use typedlua_parser::span::Span;
 
     #[test]
     fn test_container_creation() {

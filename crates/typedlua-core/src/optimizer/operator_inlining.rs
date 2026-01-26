@@ -8,9 +8,9 @@
 //! 2. Operator has no side effects (no external state mutation)
 //! 3. Operator is called frequently (heuristic: 3+ call sites)
 
- use super::config::OptimizationLevel;
- use super::errors::CompilationError;
- use super::optimizer::OptimizationPass;
+use crate::config::OptimizationLevel;
+use crate::errors::CompilationError;
+use crate::optimizer::OptimizationPass;
 use rustc_hash::FxHashMap;
 use std::sync::Arc;
 use typedlua_parser::ast::expression::{BinaryOp, Expression, ExpressionKind, UnaryOp};

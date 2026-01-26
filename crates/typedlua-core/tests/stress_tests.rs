@@ -1,7 +1,9 @@
 use typedlua_parser::string_interner::StringInterner;
 // Simplified stress tests - tests parser/lexer don't panic on large inputs
 use std::sync::Arc;
-use typedlua_core::{diagnostics::CollectingDiagnosticHandler, lexer::Lexer, parser::Parser};
+use typedlua_core::diagnostics::CollectingDiagnosticHandler;
+use typedlua_parser::lexer::Lexer;
+use typedlua_parser::parser::Parser;
 
 fn lex_and_parse(input: &str) -> bool {
     let handler = Arc::new(CollectingDiagnosticHandler::new());

@@ -1,6 +1,6 @@
 # TypedLua TODO
 
-**Last Updated:** 2026-01-25 (Ecosystem Crate Extraction COMPLETE - all 4 phases, 1178 tests pass)
+**Last Updated:** 2026-01-25 (Section 4.1.2 COMPLETE - no re-exports, fully decoupled)
 
 ---
 
@@ -910,32 +910,33 @@ Extract parser, sourcemap, and LSP into shared ecosystem crates.
 
 ### 4.1.2 Remove Re-exports from typedlua-core
 
-**Status:** Not Started | **Expected:** Cleaner architecture, typedlua-core focuses on type checking/codegen | **Model:** Sonnet
+**Status:** COMPLETE | **Expected:** Cleaner architecture, typedlua-core focuses on type checking/codegen | **Model:** Sonnet
 
 The current re-exports in `lib.rs` (`pub use typedlua_parser::ast`, etc.) create an unnecessary indirection layer. Consumers should depend directly on the crates they need.
 
 #### Update Consumer Dependencies
 
-- [ ] Add `typedlua-parser` dependency to `crates/typedlua-cli/Cargo.toml`
-- [ ] Add `typedlua-parser` dependency to `crates/typedlua-lsp/Cargo.toml`
-- [ ] Update CLI imports: `use typedlua_parser::{ast, lexer, parser, span, string_interner}`
-- [ ] Update LSP imports: `use typedlua_parser::{ast, lexer, parser, span, string_interner}`
+- [x] Add `typedlua-parser` dependency to `crates/typedlua-cli/Cargo.toml`
+- [x] Add `typedlua-parser` dependency to `crates/typedlua-lsp/Cargo.toml`
+- [x] Update CLI imports: `use typedlua_parser::{ast, lexer, parser, span, string_interner}`
+- [x] Update LSP imports: `use typedlua_parser::{ast, lexer, parser, span, string_interner}`
 
 #### Clean Up typedlua-core
 
-- [ ] Remove re-exports from `crates/typedlua-core/src/lib.rs`:
-  - `pub use typedlua_parser as parser_crate`
-  - `pub use typedlua_parser::ast`
-  - `pub use typedlua_parser::lexer`
-  - `pub use typedlua_parser::parser`
-  - `pub use typedlua_parser::span`
-  - `pub use typedlua_parser::string_interner`
-- [ ] Keep only core-specific exports (typechecker, codegen, optimizer, diagnostics)
+- [x] Remove re-exports from `crates/typedlua-core/src/lib.rs`:
+  - ~~`pub use typedlua_parser as parser_crate`~~
+  - ~~`pub use typedlua_parser::ast`~~
+  - ~~`pub use typedlua_parser::lexer`~~
+  - ~~`pub use typedlua_parser::parser`~~
+  - ~~`pub use typedlua_parser::span`~~
+  - ~~`pub use typedlua_parser::string_interner`~~
+  - ~~`pub use lua_sourcemap as sourcemap`~~
+- [x] Keep only core-specific exports (typechecker, codegen, optimizer, diagnostics)
 
 #### Verification
 
-- [ ] All tests pass
-- [ ] `cargo clippy --all` passes
+- [x] All tests pass
+- [x] `cargo clippy --all` passes
 
 ---
 

@@ -7,9 +7,9 @@
 //! calls that can be safely devirtualized. The actual transformation is handled
 //! by the O2 `MethodToFunctionConversionPass`.
 
- use super::config::OptimizationLevel;
- use super::errors::CompilationError;
- use super::optimizer::OptimizationPass;
+use crate::config::OptimizationLevel;
+use crate::errors::CompilationError;
+use crate::optimizer::OptimizationPass;
 use rustc_hash::FxHashMap;
 use std::sync::Arc;
 use typedlua_parser::ast::expression::{Expression, ExpressionKind, ReceiverClassInfo};

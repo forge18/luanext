@@ -1,6 +1,6 @@
- use super::config::OptimizationLevel;
- use super::errors::CompilationError;
- use super::optimizer::OptimizationPass;
+use crate::config::OptimizationLevel;
+use crate::errors::CompilationError;
+use crate::optimizer::OptimizationPass;
 use typedlua_parser::ast::statement::{EnumDeclaration, Statement};
 use typedlua_parser::ast::Program;
 

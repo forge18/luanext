@@ -1,6 +1,8 @@
 use std::sync::Arc;
+use typedlua_core::diagnostics::CollectingDiagnosticHandler;
+use typedlua_parser::lexer::Lexer;
+use typedlua_parser::parser::Parser;
 use typedlua_parser::string_interner::StringInterner;
-use typedlua_core::{diagnostics::CollectingDiagnosticHandler, lexer::Lexer, parser::Parser};
 
 fn lex_only(input: &str) -> bool {
     let handler = Arc::new(CollectingDiagnosticHandler::new());

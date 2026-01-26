@@ -194,9 +194,9 @@ impl Default for ModuleRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::types::{PrimitiveType, Type, TypeKind};
-    use crate::span::Span;
     use std::path::PathBuf;
+    use typedlua_parser::ast::types::{PrimitiveType, Type, TypeKind};
+    use typedlua_parser::span::Span;
 
     fn make_test_type() -> Type {
         Type::new(

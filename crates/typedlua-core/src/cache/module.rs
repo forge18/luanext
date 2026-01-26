@@ -59,8 +59,8 @@ impl CachedModule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::span::Span;
     use crate::typechecker::SerializableSymbolTable;
+    use typedlua_parser::span::Span;
 
     fn make_test_program() -> Program {
         Program::new(vec![], Span::new(0, 0, 0, 0))

@@ -238,7 +238,7 @@ impl TypeCompatibility {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::span::Span;
+    use typedlua_parser::span::Span;
 
     fn make_type(kind: TypeKind) -> Type {
         Type::new(kind, Span::new(0, 0, 0, 0))

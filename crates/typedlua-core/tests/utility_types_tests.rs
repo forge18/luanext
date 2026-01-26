@@ -4,7 +4,8 @@ use typedlua_parser::string_interner::StringInterner;
 
 use std::sync::Arc;
 use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_core::{Lexer, Parser};
+use typedlua_parser::lexer::Lexer;
+use typedlua_parser::parser::Parser;
 
 /// Helper to parse and type-check source code
 fn compile_and_check(source: &str) -> Result<(), String> {

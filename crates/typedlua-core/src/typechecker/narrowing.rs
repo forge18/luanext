@@ -489,7 +489,7 @@ fn types_equal(t1: &Type, t2: &Type) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::span::Span;
+    use typedlua_parser::span::Span;
 
     fn make_span() -> Span {
         Span::new(0, 0, 0, 0)

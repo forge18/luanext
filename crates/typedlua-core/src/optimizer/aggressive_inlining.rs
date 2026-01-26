@@ -1,6 +1,6 @@
- use super::config::OptimizationLevel;
- use super::errors::CompilationError;
- use super::optimizer::OptimizationPass;
+use crate::config::OptimizationLevel;
+use crate::errors::CompilationError;
+use crate::optimizer::OptimizationPass;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use typedlua_parser::ast::expression::{

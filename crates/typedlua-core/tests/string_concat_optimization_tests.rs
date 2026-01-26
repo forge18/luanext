@@ -2,10 +2,10 @@ use std::sync::Arc;
 use typedlua_core::codegen::CodeGenerator;
 use typedlua_core::config::{CompilerOptions, OptimizationLevel};
 use typedlua_core::diagnostics::CollectingDiagnosticHandler;
+use typedlua_core::typechecker::TypeChecker;
 use typedlua_parser::lexer::Lexer;
 use typedlua_parser::parser::Parser;
 use typedlua_parser::string_interner::StringInterner;
-use typedlua_core::typechecker::TypeChecker;
 
 fn compile_with_optimization_level(
     source: &str,

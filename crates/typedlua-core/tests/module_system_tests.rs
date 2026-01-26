@@ -2,16 +2,16 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use typedlua_parser::ast::Program;
 use typedlua_core::diagnostics::{CollectingDiagnosticHandler, DiagnosticHandler};
 use typedlua_core::fs::{FileSystem, MockFileSystem};
-use typedlua_parser::lexer::Lexer;
 use typedlua_core::module_resolver::{
     DependencyGraph, ModuleConfig, ModuleId, ModuleRegistry, ModuleResolver,
 };
+use typedlua_core::typechecker::{SymbolTable, TypeChecker};
+use typedlua_parser::ast::Program;
+use typedlua_parser::lexer::Lexer;
 use typedlua_parser::parser::Parser;
 use typedlua_parser::string_interner::StringInterner;
-use typedlua_core::typechecker::{SymbolTable, TypeChecker};
 
 /// Helper to create a test file system with module files
 #[allow(dead_code)]

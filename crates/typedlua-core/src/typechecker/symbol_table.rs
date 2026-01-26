@@ -325,7 +325,7 @@ impl SymbolTable {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::types::{PrimitiveType, TypeKind};
+    use typedlua_parser::ast::types::{PrimitiveType, TypeKind};
 
     fn make_test_type() -> Type {
         Type::new(

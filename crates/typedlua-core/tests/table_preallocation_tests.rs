@@ -1,12 +1,14 @@
 use std::sync::Arc;
-use typedlua_parser::ast::expression::{ArrayElement, BinaryOp, Expression, ExpressionKind, Literal};
+use typedlua_core::config::OptimizationLevel;
+use typedlua_core::diagnostics::CollectingDiagnosticHandler;
+use typedlua_core::optimizer::Optimizer;
+use typedlua_parser::ast::expression::{
+    ArrayElement, BinaryOp, Expression, ExpressionKind, Literal,
+};
 use typedlua_parser::ast::pattern::Pattern;
 use typedlua_parser::ast::statement::{Statement, VariableDeclaration, VariableKind};
 use typedlua_parser::ast::Program;
 use typedlua_parser::ast::Spanned;
-use typedlua_core::config::OptimizationLevel;
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_core::optimizer::Optimizer;
 use typedlua_parser::span::Span;
 use typedlua_parser::string_interner::StringInterner;
 
