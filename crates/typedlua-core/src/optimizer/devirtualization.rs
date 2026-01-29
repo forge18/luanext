@@ -11,7 +11,7 @@ use crate::config::OptimizationLevel;
 use crate::errors::CompilationError;
 use crate::optimizer::OptimizationPass;
 use rustc_hash::FxHashMap;
-use std::sync::Arc;
+use std::rc::Rc;
 use typedlua_parser::ast::expression::{Expression, ExpressionKind, ReceiverClassInfo};
 use typedlua_parser::ast::statement::{ClassMember, Statement};
 use typedlua_parser::ast::types::TypeKind;
@@ -142,11 +142,11 @@ impl ClassHierarchy {
 pub struct DevirtualizationPass {
     /// Interner for debugging/diagnostics (currently unused but kept for future use)
     #[allow(dead_code)]
-    interner: Arc<StringInterner>,
+    interner: Rc<StringInterner>,
 }
 
 impl DevirtualizationPass {
-    pub fn new(interner: Arc<StringInterner>) -> Self {
+    pub fn new(interner: Rc<StringInterner>) -> Self {
         Self { interner }
     }
 
@@ -457,7 +457,7 @@ impl Default for DevirtualizationPass {
     #[allow(clippy::arc_with_non_send_sync)]
     fn default() -> Self {
         Self {
-            interner: Arc::new(StringInterner::new()),
+            interner: Rc::new(StringInterner::new()),
         }
     }
 }

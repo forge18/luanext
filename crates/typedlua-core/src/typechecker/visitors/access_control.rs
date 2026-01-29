@@ -229,3 +229,6 @@ impl AccessControlVisitor for AccessControl {
         &self.current_class
     }
 }
+
+#[cfg(test)]
+mod access_control_tests;

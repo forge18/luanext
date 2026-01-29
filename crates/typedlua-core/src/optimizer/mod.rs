@@ -1,6 +1,7 @@
 use crate::config::OptimizationLevel;
 use crate::diagnostics::DiagnosticHandler;
 use crate::errors::CompilationError;
+use std::rc::Rc;
 use std::sync::Arc;
 use typedlua_parser::ast::Program;
 use typedlua_parser::string_interner::StringInterner;
@@ -44,7 +45,7 @@ pub struct Optimizer {
     level: OptimizationLevel,
     #[allow(dead_code)]
     handler: Arc<dyn DiagnosticHandler>,
-    interner: Arc<StringInterner>,
+    interner: Rc<StringInterner>,
     passes: Vec<Box<dyn OptimizationPass>>,
 }
 
@@ -53,7 +54,7 @@ impl Optimizer {
     pub fn new(
         level: OptimizationLevel,
         handler: Arc<dyn DiagnosticHandler>,
-        interner: Arc<StringInterner>,
+        interner: Rc<StringInterner>,
     ) -> Self {
         let mut optimizer = Self {
             level,

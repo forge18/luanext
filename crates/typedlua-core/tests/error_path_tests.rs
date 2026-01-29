@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::rc::Rc;
 use typedlua_core::{
     codegen::CodeGenerator,
     diagnostics::{CollectingDiagnosticHandler, DiagnosticHandler, DiagnosticLevel},
@@ -8,12 +9,11 @@ use typedlua_parser::lexer::Lexer;
 use typedlua_parser::parser::Parser;
 use typedlua_parser::string_interner::StringInterner;
 
-#[allow(clippy::arc_with_non_send_sync)]
 #[test]
 fn test_parser_missing_paren() {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Arc::new(interner);
+    let interner = Rc::new(interner);
     let mut lexer = Lexer::new("const x = (1 + 2", handler.clone(), &interner);
     let tokens = lexer.tokenize().unwrap();
     let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
@@ -21,12 +21,11 @@ fn test_parser_missing_paren() {
     assert!(handler.has_errors());
 }
 
-#[allow(clippy::arc_with_non_send_sync)]
 #[test]
 fn test_parser_unexpected_token() {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Arc::new(interner);
+    let interner = Rc::new(interner);
     let mut lexer = Lexer::new("const x = + 5", handler.clone(), &interner);
     let tokens = lexer.tokenize().unwrap();
     let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
@@ -34,12 +33,11 @@ fn test_parser_unexpected_token() {
     assert!(handler.has_errors());
 }
 
-#[allow(clippy::arc_with_non_send_sync)]
 #[test]
 fn test_parser_incomplete_expression() {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Arc::new(interner);
+    let interner = Rc::new(interner);
     let mut lexer = Lexer::new("const x = 1 +", handler.clone(), &interner);
     let tokens = lexer.tokenize().unwrap();
     let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
@@ -48,12 +46,11 @@ fn test_parser_incomplete_expression() {
 }
 
 // Type checker error tests
-#[allow(clippy::arc_with_non_send_sync)]
 #[test]
 fn test_type_mismatch() {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Arc::new(interner);
+    let interner = Rc::new(interner);
     let mut lexer = Lexer::new(r#"const x: number = "hello""#, handler.clone(), &interner);
     let tokens = lexer.tokenize().unwrap();
     let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
@@ -63,12 +60,11 @@ fn test_type_mismatch() {
     let _ = tc.check_program(&mut program);
 }
 
-#[allow(clippy::arc_with_non_send_sync)]
 #[test]
 fn test_undefined_variable() {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Arc::new(interner);
+    let interner = Rc::new(interner);
     let mut lexer = Lexer::new("const x = undefined", handler.clone(), &interner);
     let tokens = lexer.tokenize().unwrap();
     let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
@@ -78,12 +74,11 @@ fn test_undefined_variable() {
     let _ = tc.check_program(&mut program);
 }
 
-#[allow(clippy::arc_with_non_send_sync)]
 #[test]
 fn test_return_type_mismatch() {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Arc::new(interner);
+    let interner = Rc::new(interner);
     let input = "function test(): string\n    return 42\nend";
     let mut lexer = Lexer::new(input, handler.clone(), &interner);
     let tokens = lexer.tokenize().unwrap();
@@ -95,7 +90,6 @@ fn test_return_type_mismatch() {
 }
 
 // Diagnostic handler tests
-#[allow(clippy::arc_with_non_send_sync)]
 #[test]
 fn test_diagnostic_handler_counts() {
     let handler = CollectingDiagnosticHandler::new();
@@ -108,7 +102,6 @@ fn test_diagnostic_handler_counts() {
     assert!(handler.has_errors());
 }
 
-#[allow(clippy::arc_with_non_send_sync)]
 #[test]
 fn test_diagnostic_levels() {
     let handler = CollectingDiagnosticHandler::new();
@@ -123,12 +116,11 @@ fn test_diagnostic_levels() {
 }
 
 // Code generator tests
-#[allow(clippy::arc_with_non_send_sync)]
 #[test]
 fn test_codegen_doesnt_panic() {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Arc::new(interner);
+    let interner = Rc::new(interner);
     let mut lexer = Lexer::new("const x: number = 42", handler.clone(), &interner);
     let tokens = lexer.tokenize().unwrap();
     let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
@@ -140,12 +132,11 @@ fn test_codegen_doesnt_panic() {
 }
 
 // Integration tests
-#[allow(clippy::arc_with_non_send_sync)]
 #[test]
 fn test_full_pipeline_with_errors() {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Arc::new(interner);
+    let interner = Rc::new(interner);
     let input = "const x: number = \"wrong\"\nconst y = undefined";
 
     let mut lexer = Lexer::new(input, handler.clone(), &interner);

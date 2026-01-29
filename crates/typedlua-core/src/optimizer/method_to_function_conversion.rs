@@ -1,7 +1,7 @@
 use crate::config::OptimizationLevel;
 use crate::errors::CompilationError;
 use crate::optimizer::OptimizationPass;
-use std::sync::Arc;
+use std::rc::Rc;
 use typedlua_parser::ast::expression::{Expression, ExpressionKind, ReceiverClassInfo};
 use typedlua_parser::ast::statement::Statement;
 use typedlua_parser::ast::Program;
@@ -9,11 +9,11 @@ use typedlua_parser::span::Span;
 use typedlua_parser::string_interner::StringInterner;
 
 pub struct MethodToFunctionConversionPass {
-    interner: Arc<StringInterner>,
+    interner: Rc<StringInterner>,
 }
 
 impl MethodToFunctionConversionPass {
-    pub fn new(interner: Arc<StringInterner>) -> Self {
+    pub fn new(interner: Rc<StringInterner>) -> Self {
         Self { interner }
     }
 
@@ -289,7 +289,7 @@ impl Default for MethodToFunctionConversionPass {
     #[allow(clippy::arc_with_non_send_sync)]
     fn default() -> Self {
         Self {
-            interner: Arc::new(StringInterner::new()),
+            interner: Rc::new(StringInterner::new()),
         }
     }
 }
@@ -306,7 +306,7 @@ mod tests {
     #[test]
     #[allow(clippy::arc_with_non_send_sync)]
     fn test_method_call_to_function_call_conversion() {
-        let interner = Arc::new(StringInterner::new());
+        let interner = Rc::new(StringInterner::new());
         let mut pass = MethodToFunctionConversionPass::new(interner.clone());
 
         let obj_id = interner.get_or_intern("myObj");
@@ -390,7 +390,7 @@ mod tests {
     #[test]
     #[allow(clippy::arc_with_non_send_sync)]
     fn test_preserves_receiver_class_info() {
-        let interner = Arc::new(StringInterner::new());
+        let interner = Rc::new(StringInterner::new());
         let mut pass = MethodToFunctionConversionPass::new(interner.clone());
 
         let obj_id = interner.get_or_intern("myObj");

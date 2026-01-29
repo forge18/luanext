@@ -2,7 +2,7 @@ use crate::config::OptimizationLevel;
 use crate::errors::CompilationError;
 use crate::optimizer::OptimizationPass;
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
+use std::rc::Rc;
 use typedlua_parser::ast::expression::{BinaryOp, Expression, ExpressionKind, Literal, UnaryOp};
 use typedlua_parser::ast::pattern::Pattern;
 use typedlua_parser::ast::statement::{
@@ -656,12 +656,12 @@ impl TablePreallocationPass {
 /// Identifies frequently used globals and creates local references to reduce
 /// repeated table lookups in Lua (e.g., `local _math = math` then use `_math.sin`)
 pub struct GlobalLocalizationPass {
-    interner: Arc<StringInterner>,
+    interner: Rc<StringInterner>,
 }
 
 impl GlobalLocalizationPass {
     /// Create a new pass with the given string interner
-    pub fn new(interner: Arc<StringInterner>) -> Self {
+    pub fn new(interner: Rc<StringInterner>) -> Self {
         GlobalLocalizationPass { interner }
     }
 }
@@ -1316,7 +1316,7 @@ pub struct FunctionInliningPass {
     threshold: usize,
     next_temp_id: usize,
     functions: HashMap<StringId, FunctionDeclaration>,
-    interner: Option<Arc<StringInterner>>,
+    interner: Option<Rc<StringInterner>>,
 }
 
 impl Default for FunctionInliningPass {
@@ -1331,7 +1331,7 @@ impl Default for FunctionInliningPass {
 }
 
 impl FunctionInliningPass {
-    pub fn set_interner(&mut self, interner: Arc<StringInterner>) {
+    pub fn set_interner(&mut self, interner: Rc<StringInterner>) {
         self.interner = Some(interner);
     }
 }
@@ -2932,7 +2932,7 @@ const MIN_CONCAT_PARTS_FOR_OPTIMIZATION: usize = 3;
 #[derive(Default)]
 pub struct StringConcatOptimizationPass {
     next_temp_id: usize,
-    interner: Option<Arc<StringInterner>>,
+    interner: Option<Rc<StringInterner>>,
 }
 
 impl OptimizationPass for StringConcatOptimizationPass {
@@ -2961,7 +2961,7 @@ impl OptimizationPass for StringConcatOptimizationPass {
 }
 
 impl StringConcatOptimizationPass {
-    pub fn set_interner(&mut self, interner: Arc<StringInterner>) {
+    pub fn set_interner(&mut self, interner: Rc<StringInterner>) {
         self.interner = Some(interner);
     }
 
@@ -3135,7 +3135,7 @@ impl StringConcatOptimizationPass {
         }
     }
 
-    fn get_interner(&self) -> Option<&Arc<StringInterner>> {
+    fn get_interner(&self) -> Option<&Rc<StringInterner>> {
         self.interner.as_ref()
     }
 }
@@ -4183,7 +4183,7 @@ fn hash_type_args(type_args: &[Type]) -> u64 {
 /// Creates specialized versions of generic functions for known types
 #[derive(Default)]
 pub struct GenericSpecializationPass {
-    interner: Option<Arc<StringInterner>>,
+    interner: Option<Rc<StringInterner>>,
     /// Maps (function_name, type_args_hash) -> specialized_function_name
     specializations: FxHashMap<(StringId, u64), StringId>,
     /// Counter for generating unique specialization IDs
@@ -4195,7 +4195,7 @@ pub struct GenericSpecializationPass {
 }
 
 impl GenericSpecializationPass {
-    pub fn set_interner(&mut self, interner: Arc<StringInterner>) {
+    pub fn set_interner(&mut self, interner: Rc<StringInterner>) {
         self.interner = Some(interner);
     }
 

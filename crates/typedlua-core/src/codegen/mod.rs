@@ -11,6 +11,7 @@ pub mod statements;
 
 use super::optimizer::Optimizer;
 pub use sourcemap::{SourceMap, SourceMapBuilder};
+use std::rc::Rc;
 use std::sync::Arc;
 use typedlua_parser::ast::pattern::Pattern;
 use typedlua_parser::ast::statement::*;
@@ -112,7 +113,7 @@ pub struct CodeGenerator {
     /// Current source index for multi-source source maps (bundle mode)
     current_source_index: usize,
     /// String interner for resolving identifiers (shared with optimizer)
-    interner: Arc<StringInterner>,
+    interner: Rc<StringInterner>,
     /// Optimization level for code generation
     optimization_level: crate::config::OptimizationLevel,
     /// Track interface default methods: (interface_name, method_name) -> default_function_name
@@ -130,7 +131,7 @@ pub struct CodeGenerator {
 }
 
 impl CodeGenerator {
-    pub fn new(interner: Arc<StringInterner>) -> Self {
+    pub fn new(interner: Rc<StringInterner>) -> Self {
         let target = LuaTarget::default();
         Self {
             output: String::new(),
@@ -272,7 +273,7 @@ impl CodeGenerator {
         target: LuaTarget,
         with_source_map: bool,
         output_file: Option<String>,
-        interner: Option<Arc<StringInterner>>,
+        interner: Option<Rc<StringInterner>>,
     ) -> (String, Option<SourceMap>) {
         let mut output = String::new();
 
@@ -333,10 +334,10 @@ impl CodeGenerator {
 
             // Generate module code with source map support
             // Use the provided interner or create a new one if not provided
-            // Note: Arc used for shared ownership with CodeGenerator; threading not used here
+            // Note: Rc used for shared ownership with CodeGenerator; threading not used here
             let interner = interner
                 .clone()
-                .unwrap_or_else(|| Arc::new(StringInterner::new()));
+                .unwrap_or_else(|| Rc::new(StringInterner::new()));
             let mut generator =
                 CodeGenerator::new(interner)
                     .with_target(target)
@@ -512,17 +513,17 @@ mod tests {
     use crate::diagnostics::CollectingDiagnosticHandler;
     use crate::CodeGenerator;
     use crate::LuaTarget;
+    use std::rc::Rc;
     use std::sync::Arc;
     use typedlua_parser::ast::expression::BinaryOp;
     use typedlua_parser::lexer::Lexer;
     use typedlua_parser::parser::Parser;
     use typedlua_parser::string_interner::StringInterner;
 
-    #[allow(clippy::arc_with_non_send_sync)]
     fn generate_code(source: &str) -> String {
         let handler = Arc::new(CollectingDiagnosticHandler::new());
         let (interner, common) = StringInterner::new_with_common_identifiers();
-        let interner = Arc::new(interner);
+        let interner = Rc::new(interner);
         let mut lexer = Lexer::new(source, handler.clone(), &interner);
         let tokens = lexer.tokenize().expect("Lexing failed");
         let mut parser = Parser::new(tokens, handler, &interner, &common);
@@ -574,11 +575,10 @@ mod tests {
         assert!(output.contains("print(i)"));
     }
 
-    #[allow(clippy::arc_with_non_send_sync)]
     fn generate_code_with_target(source: &str, target: LuaTarget) -> String {
         let handler = Arc::new(CollectingDiagnosticHandler::new());
         let (interner, common) = StringInterner::new_with_common_identifiers();
-        let interner = Arc::new(interner);
+        let interner = Rc::new(interner);
         let mut lexer = Lexer::new(source, handler.clone(), &interner);
         let tokens = lexer.tokenize().expect("Lexing failed");
         let mut parser = Parser::new(tokens, handler, &interner, &common);

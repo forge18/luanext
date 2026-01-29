@@ -12,7 +12,7 @@ use crate::config::OptimizationLevel;
 use crate::errors::CompilationError;
 use crate::optimizer::OptimizationPass;
 use rustc_hash::FxHashMap;
-use std::sync::Arc;
+use std::rc::Rc;
 use typedlua_parser::ast::expression::{BinaryOp, Expression, ExpressionKind, UnaryOp};
 use typedlua_parser::ast::pattern::Pattern;
 use typedlua_parser::ast::statement::{Block, ClassMember, Statement};
@@ -39,11 +39,11 @@ struct OperatorInfo {
 pub struct OperatorInliningPass {
     operator_catalog:
         FxHashMap<(StringId, typedlua_parser::ast::statement::OperatorKind), OperatorInfo>,
-    interner: Arc<StringInterner>,
+    interner: Rc<StringInterner>,
 }
 
 impl OperatorInliningPass {
-    pub fn new(interner: Arc<StringInterner>) -> Self {
+    pub fn new(interner: Rc<StringInterner>) -> Self {
         Self {
             operator_catalog: FxHashMap::default(),
             interner,
@@ -874,7 +874,7 @@ impl OperatorInliningPass {
 impl Default for OperatorInliningPass {
     #[allow(clippy::arc_with_non_send_sync)]
     fn default() -> Self {
-        Self::new(Arc::new(StringInterner::new()))
+        Self::new(Rc::new(StringInterner::new()))
     }
 }
 
@@ -886,7 +886,7 @@ mod tests {
     #[test]
     #[allow(clippy::arc_with_non_send_sync)]
     fn test_operator_catalog_build() {
-        let interner = Arc::new(StringInterner::new());
+        let interner = Rc::new(StringInterner::new());
         let mut pass = OperatorInliningPass::new(interner);
 
         let program = Program::new(vec![], Span::dummy());

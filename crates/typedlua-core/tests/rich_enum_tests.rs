@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::rc::Rc;
 use typedlua_core::codegen::CodeGenerator;
 use typedlua_core::config::{CompilerOptions, OptimizationLevel};
 use typedlua_core::diagnostics::CollectingDiagnosticHandler;
@@ -7,11 +8,10 @@ use typedlua_parser::lexer::Lexer;
 use typedlua_parser::parser::Parser;
 use typedlua_parser::string_interner::StringInterner;
 
-#[allow(clippy::arc_with_non_send_sync)]
 fn compile_and_check(source: &str) -> Result<String, String> {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Arc::new(interner);
+    let interner = Rc::new(interner);
 
     // Lex
     let mut lexer = Lexer::new(source, handler.clone(), &interner);
@@ -266,7 +266,6 @@ fn test_simple_enum_still_works() {
 // ============================================================================
 
 #[test]
-#[allow(clippy::arc_with_non_send_sync)]
 fn test_o2_optimization_precomputes_instances() {
     let source = r#"
         enum Planet {
@@ -283,7 +282,7 @@ fn test_o2_optimization_precomputes_instances() {
 
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Arc::new(interner);
+    let interner = Rc::new(interner);
 
     // Lex
     let mut lexer = Lexer::new(source, handler.clone(), &interner);
@@ -327,7 +326,6 @@ fn test_o2_optimization_precomputes_instances() {
 }
 
 #[test]
-#[allow(clippy::arc_with_non_send_sync)]
 fn test_o3_optimization_adds_inline_hints() {
     let source = r#"
         enum Planet {
@@ -343,7 +341,7 @@ fn test_o3_optimization_adds_inline_hints() {
 
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Arc::new(interner);
+    let interner = Rc::new(interner);
 
     // Lex
     let mut lexer = Lexer::new(source, handler.clone(), &interner);
@@ -375,7 +373,6 @@ fn test_o3_optimization_adds_inline_hints() {
 }
 
 #[test]
-#[allow(clippy::arc_with_non_send_sync)]
 fn test_o1_uses_constructor_calls() {
     let source = r#"
         enum Planet {
@@ -391,7 +388,7 @@ fn test_o1_uses_constructor_calls() {
 
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Arc::new(interner);
+    let interner = Rc::new(interner);
 
     // Lex
     let mut lexer = Lexer::new(source, handler.clone(), &interner);

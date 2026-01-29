@@ -10,6 +10,7 @@
 ///
 /// Output: dhat-heap.json (open with https://nnethercote.github.io/dh_view/dh_view.html)
 use std::sync::Arc;
+use std::rc::Rc;
 use typedlua_core::codegen::CodeGenerator;
 use typedlua_core::diagnostics::CollectingDiagnosticHandler;
 use typedlua_core::typechecker::TypeChecker;
@@ -20,11 +21,10 @@ use typedlua_parser::string_interner::StringInterner;
 #[global_allocator]
 static ALLOC: dhat::Alloc = dhat::Alloc;
 
-#[allow(clippy::arc_with_non_send_sync)]
 fn compile_source(source: &str) -> Result<String, String> {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Arc::new(interner);
+    let interner = Rc::new(interner);
 
     // Lex
     let mut lexer = Lexer::new(source, handler.clone(), &interner);

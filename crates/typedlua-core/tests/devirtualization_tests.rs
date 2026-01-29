@@ -4,6 +4,7 @@
 //! when the receiver's concrete type is known and it's safe to do so.
 
 use std::sync::Arc;
+use std::rc::Rc;
 use typedlua_core::codegen::CodeGenerator;
 use typedlua_core::config::OptimizationLevel;
 use typedlua_core::diagnostics::CollectingDiagnosticHandler;
@@ -12,14 +13,13 @@ use typedlua_parser::lexer::Lexer;
 use typedlua_parser::parser::Parser;
 use typedlua_parser::string_interner::StringInterner;
 
-#[allow(clippy::arc_with_non_send_sync)]
 fn compile_with_optimization_level(
     source: &str,
     level: OptimizationLevel,
 ) -> Result<String, String> {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Arc::new(interner);
+    let interner = Rc::new(interner);
 
     let mut lexer = Lexer::new(source, handler.clone(), &interner);
     let tokens = lexer
@@ -45,12 +45,10 @@ fn compile_with_optimization_level(
     Ok(output)
 }
 
-#[allow(clippy::arc_with_non_send_sync)]
 fn compile_with_o3(source: &str) -> Result<String, String> {
     compile_with_optimization_level(source, OptimizationLevel::O3)
 }
 
-#[allow(clippy::arc_with_non_send_sync)]
 fn compile_with_o2(source: &str) -> Result<String, String> {
     compile_with_optimization_level(source, OptimizationLevel::O2)
 }

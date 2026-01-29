@@ -21,7 +21,7 @@ use crate::config::OptimizationLevel;
 use crate::errors::CompilationError;
 use crate::optimizer::OptimizationPass;
 use rustc_hash::FxHashMap;
-use std::sync::Arc;
+use std::rc::Rc;
 use typedlua_parser::ast::expression::{AssignmentOp, Expression, ExpressionKind};
 use typedlua_parser::ast::pattern::Pattern;
 use typedlua_parser::ast::statement::{Block, ClassMember, InterfaceMember, Statement};
@@ -300,11 +300,11 @@ impl InterfaceImplementationMap {
 
 #[allow(dead_code)]
 pub struct InterfaceMethodInliningPass {
-    interner: Arc<StringInterner>,
+    interner: Rc<StringInterner>,
 }
 
 impl InterfaceMethodInliningPass {
-    pub fn new(interner: Arc<StringInterner>) -> Self {
+    pub fn new(interner: Rc<StringInterner>) -> Self {
         Self { interner }
     }
 
@@ -772,7 +772,7 @@ impl Default for InterfaceMethodInliningPass {
     #[allow(clippy::arc_with_non_send_sync)]
     fn default() -> Self {
         Self {
-            interner: Arc::new(StringInterner::new()),
+            interner: Rc::new(StringInterner::new()),
         }
     }
 }

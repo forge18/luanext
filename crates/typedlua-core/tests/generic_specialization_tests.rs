@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use std::sync::Arc;
 use typedlua_core::config::OptimizationLevel;
 use typedlua_core::diagnostics::CollectingDiagnosticHandler;
@@ -13,9 +14,8 @@ use typedlua_parser::ast::{Program, Spanned};
 use typedlua_parser::span::Span;
 use typedlua_parser::string_interner::StringInterner;
 
-#[allow(clippy::arc_with_non_send_sync)]
-fn create_test_interner() -> Arc<StringInterner> {
-    Arc::new(StringInterner::new())
+fn create_test_interner() -> Rc<StringInterner> {
+    Rc::new(StringInterner::new())
 }
 
 fn create_test_handler() -> Arc<CollectingDiagnosticHandler> {
@@ -24,7 +24,7 @@ fn create_test_handler() -> Arc<CollectingDiagnosticHandler> {
 
 fn create_test_optimizer(
     level: OptimizationLevel,
-    interner: Arc<StringInterner>,
+    interner: Rc<StringInterner>,
     handler: Arc<CollectingDiagnosticHandler>,
 ) -> Optimizer {
     Optimizer::new(level, handler, interner)

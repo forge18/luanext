@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::sync::Arc;
 use typedlua_core::diagnostics::{CollectingDiagnosticHandler, DiagnosticHandler};
 use typedlua_core::fs::{FileSystem, MockFileSystem};
@@ -520,7 +521,7 @@ print(result)
         LuaTarget::Lua54,
         false,
         None,
-        Some(Arc::new(interner)),
+        Some(Rc::new(interner)),
     );
 
     // Verify bundle structure
@@ -614,7 +615,7 @@ print(result)
         LuaTarget::Lua54,
         false,
         None,
-        Some(Arc::new(interner)),
+        Some(Rc::new(interner)),
     );
 
     // Verify all modules are present
@@ -700,7 +701,7 @@ print(result)
         LuaTarget::Lua54,
         false,
         None,
-        Some(Arc::new(interner)),
+        Some(Rc::new(interner)),
     );
 
     // Verify re-export uses __require
@@ -763,7 +764,7 @@ print(result)
         LuaTarget::Lua54,
         true,
         Some("bundle.lua".to_string()),
-        Some(Arc::new(interner)),
+        Some(Rc::new(interner)),
     );
 
     // Verify bundle was generated

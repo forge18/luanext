@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::rc::Rc;
 use typedlua_core::codegen::CodeGenerator;
 use typedlua_core::config::{CompilerOptions, OptimizationLevel};
 use typedlua_core::diagnostics::CollectingDiagnosticHandler;
@@ -7,11 +8,10 @@ use typedlua_parser::lexer::Lexer;
 use typedlua_parser::parser::Parser;
 use typedlua_parser::string_interner::StringInterner;
 
-#[allow(clippy::arc_with_non_send_sync)]
 fn compile_with_optimization(source: &str, level: OptimizationLevel) -> Result<String, String> {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Arc::new(interner);
+    let interner = Rc::new(interner);
 
     let mut lexer = Lexer::new(source, handler.clone(), &interner);
     let tokens = lexer
