@@ -7,6 +7,7 @@ use typedlua_parser::lexer::Lexer;
 use typedlua_parser::parser::Parser;
 use typedlua_parser::string_interner::StringInterner;
 
+#[allow(clippy::arc_with_non_send_sync)]
 fn compile_and_check(source: &str) -> Result<String, String> {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
@@ -265,6 +266,7 @@ fn test_simple_enum_still_works() {
 // ============================================================================
 
 #[test]
+#[allow(clippy::arc_with_non_send_sync)]
 fn test_o2_optimization_precomputes_instances() {
     let source = r#"
         enum Planet {
@@ -325,6 +327,7 @@ fn test_o2_optimization_precomputes_instances() {
 }
 
 #[test]
+#[allow(clippy::arc_with_non_send_sync)]
 fn test_o3_optimization_adds_inline_hints() {
     let source = r#"
         enum Planet {
@@ -372,6 +375,7 @@ fn test_o3_optimization_adds_inline_hints() {
 }
 
 #[test]
+#[allow(clippy::arc_with_non_send_sync)]
 fn test_o1_uses_constructor_calls() {
     let source = r#"
         enum Planet {

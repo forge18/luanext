@@ -2,6 +2,9 @@ use super::generics::infer_type_arguments;
 use super::symbol_table::{Symbol, SymbolKind, SymbolTable};
 use super::type_compat::TypeCompatibility;
 use super::type_environment::TypeEnvironment;
+use super::visitors::{
+    AccessControl, AccessControlVisitor, ClassContext, ClassMemberInfo, ClassMemberKind,
+};
 use super::TypeCheckError;
 use crate::config::CompilerOptions;
 use crate::diagnostics::DiagnosticHandler;
@@ -14,46 +17,6 @@ use typedlua_parser::ast::types::*;
 use typedlua_parser::ast::Program;
 use typedlua_parser::span::Span;
 
-/// Information about a class member for access checking
-#[derive(Clone)]
-struct ClassMemberInfo {
-    name: String,
-    access: AccessModifier,
-    _is_static: bool,
-    kind: ClassMemberKind,
-    is_final: bool,
-}
-
-#[derive(Clone)]
-#[allow(dead_code)] // Fields are used in check_method_override for signature validation
-enum ClassMemberKind {
-    Property {
-        type_annotation: Type,
-    },
-    Method {
-        parameters: Vec<Parameter>,
-        return_type: Option<Type>,
-    },
-    Getter {
-        return_type: Type,
-    },
-    Setter {
-        parameter_type: Type,
-    },
-    Operator {
-        operator: OperatorKind,
-        parameters: Vec<Parameter>,
-        return_type: Option<Type>,
-    },
-}
-
-/// Context for tracking the current class during type checking
-#[derive(Clone)]
-struct ClassContext {
-    name: String,
-    parent: Option<String>,
-}
-
 /// Type checker for TypedLua programs
 pub struct TypeChecker<'a> {
     symbol_table: SymbolTable,
@@ -61,11 +24,7 @@ pub struct TypeChecker<'a> {
     current_function_return_type: Option<Type>,
     narrowing_context: super::narrowing::NarrowingContext,
     options: CompilerOptions,
-    current_class: Option<ClassContext>,
-    /// Map from class name to its members with access modifiers
-    class_members: FxHashMap<String, Vec<ClassMemberInfo>>,
-    /// Map from class name to whether it is final
-    final_classes: FxHashMap<String, bool>,
+    access_control: AccessControl,
     /// Module registry for multi-module compilation
     module_registry: Option<Arc<crate::module_resolver::ModuleRegistry>>,
     /// Current module ID
@@ -93,9 +52,7 @@ impl<'a> TypeChecker<'a> {
             current_function_return_type: None,
             narrowing_context: super::narrowing::NarrowingContext::new(),
             options: CompilerOptions::default(),
-            current_class: None,
-            class_members: FxHashMap::default(),
-            final_classes: FxHashMap::default(),
+            access_control: AccessControl::new(),
             module_registry: None,
             current_module_id: None,
             module_resolver: None,
@@ -127,8 +84,7 @@ impl<'a> TypeChecker<'a> {
             // Reset symbol table and type environment
             self.symbol_table = SymbolTable::new();
             self.type_env = TypeEnvironment::new();
-            self.class_members.clear();
-            self.final_classes.clear();
+            self.access_control = AccessControl::new();
 
             // Reload stdlib with the new target version
             if let Err(e) = self.load_stdlib() {
@@ -1126,13 +1082,11 @@ impl<'a> TypeChecker<'a> {
             if let TypeKind::Reference(_type_ref) = &extends_type.kind {
                 // Check if parent class is final
                 let parent_name = self.interner.resolve(_type_ref.name.node);
-                if let Some(&is_final) = self.final_classes.get(&parent_name) {
-                    if is_final {
-                        return Err(TypeCheckError::new(
-                            format!("Cannot extend final class {}", parent_name),
-                            class_decl.span,
-                        ));
-                    }
+                if self.access_control.is_class_final(&parent_name) {
+                    return Err(TypeCheckError::new(
+                        format!("Cannot extend final class {}", parent_name),
+                        class_decl.span,
+                    ));
                 }
                 // Verify the base class exists
                 // For now, we'll just ensure it's a valid type reference
@@ -1294,19 +1248,7 @@ impl<'a> TypeChecker<'a> {
             }
         }
 
-        // Store class members for access checking
-        self.class_members.insert(
-            self.interner.resolve(class_decl.name.node).to_string(),
-            member_infos,
-        );
-
-        // Store whether the class is final
-        self.final_classes.insert(
-            self.interner.resolve(class_decl.name.node).to_string(),
-            class_decl.is_final,
-        );
-
-        // Set current class context
+        // Extract parent class name first
         let parent = class_decl.extends.as_ref().and_then(|ext| {
             if let TypeKind::Reference(type_ref) = &ext.kind {
                 Some(self.interner.resolve(type_ref.name.node).to_string())
@@ -1315,11 +1257,25 @@ impl<'a> TypeChecker<'a> {
             }
         });
 
-        let old_class = self.current_class.clone();
-        self.current_class = Some(ClassContext {
+        // Register class and all its members with access control visitor
+        let class_name = self.interner.resolve(class_decl.name.node).to_string();
+        self.access_control
+            .register_class(&class_name, parent.clone());
+        for member_info in member_infos {
+            self.access_control
+                .register_member(&class_name, member_info);
+        }
+
+        // Mark class as final if needed
+        self.access_control
+            .mark_class_final(&class_name, class_decl.is_final);
+
+        // Set current class context
+        let old_class = self.access_control.get_current_class().clone();
+        self.access_control.set_current_class(Some(ClassContext {
             name: self.interner.resolve(class_decl.name.node).to_string(),
             parent,
-        });
+        }));
 
         // Check all class members
         let mut has_constructor = false;
@@ -1368,7 +1324,7 @@ impl<'a> TypeChecker<'a> {
         }
 
         // Restore previous class context
-        self.current_class = old_class;
+        self.access_control.set_current_class(old_class);
 
         // Exit class scope
         self.symbol_table.exit_scope();
@@ -1608,7 +1564,7 @@ impl<'a> TypeChecker<'a> {
         self.symbol_table.enter_scope();
 
         // Declare 'self' parameter (implicit in constructors)
-        if let Some(class_ctx) = &self.current_class {
+        if let Some(class_ctx) = self.access_control.get_current_class() {
             let self_type = Type::new(
                 TypeKind::Reference(typedlua_parser::ast::types::TypeReference {
                     name: typedlua_parser::ast::Spanned::new(
@@ -1662,10 +1618,10 @@ impl<'a> TypeChecker<'a> {
         // Check override keyword if present
         if method.is_override {
             self.check_method_override(method)?;
-        } else if let Some(class_context) = &self.current_class {
+        } else if let Some(class_context) = self.access_control.get_current_class() {
             // Check if method shadows a parent method without override keyword
             if let Some(parent_name) = &class_context.parent {
-                if let Some(parent_members) = self.class_members.get(parent_name) {
+                if let Some(parent_members) = self.access_control.get_class_members(parent_name) {
                     let method_name = self.interner.resolve(method.name.node);
                     if parent_members.iter().any(|m| m.name == method_name) {
                         self.diagnostic_handler.warning(
@@ -1708,7 +1664,7 @@ impl<'a> TypeChecker<'a> {
 
         // Declare 'self' parameter for non-static methods
         if !method.is_static {
-            if let Some(class_ctx) = &self.current_class {
+            if let Some(class_ctx) = self.access_control.get_current_class() {
                 let self_type = Type::new(
                     TypeKind::Reference(typedlua_parser::ast::types::TypeReference {
                         name: typedlua_parser::ast::Spanned::new(
@@ -1795,7 +1751,7 @@ impl<'a> TypeChecker<'a> {
 
         // Declare 'self' parameter for non-static getters
         if !getter.is_static {
-            if let Some(class_ctx) = &self.current_class {
+            if let Some(class_ctx) = self.access_control.get_current_class() {
                 let self_type = Type::new(
                     TypeKind::Reference(typedlua_parser::ast::types::TypeReference {
                         name: typedlua_parser::ast::Spanned::new(
@@ -1845,7 +1801,7 @@ impl<'a> TypeChecker<'a> {
 
         // Declare 'self' parameter for non-static setters
         if !setter.is_static {
-            if let Some(class_ctx) = &self.current_class {
+            if let Some(class_ctx) = self.access_control.get_current_class() {
                 let self_type = Type::new(
                     TypeKind::Reference(typedlua_parser::ast::types::TypeReference {
                         name: typedlua_parser::ast::Spanned::new(
@@ -1961,7 +1917,7 @@ impl<'a> TypeChecker<'a> {
 
         self.symbol_table.enter_scope();
 
-        if let Some(class_ctx) = &self.current_class {
+        if let Some(class_ctx) = self.access_control.get_current_class() {
             let self_type = Type::new(
                 TypeKind::Reference(typedlua_parser::ast::types::TypeReference {
                     name: typedlua_parser::ast::Spanned::new(
@@ -2045,12 +2001,16 @@ impl<'a> TypeChecker<'a> {
     /// Check that an override method properly overrides a parent method
     fn check_method_override(&self, method: &MethodDeclaration) -> Result<(), TypeCheckError> {
         // Get current class context
-        let class_ctx = self.current_class.as_ref().ok_or_else(|| {
-            TypeCheckError::new(
-                "Override keyword used outside of class context",
-                method.span,
-            )
-        })?;
+        let class_ctx = self
+            .access_control
+            .get_current_class()
+            .as_ref()
+            .ok_or_else(|| {
+                TypeCheckError::new(
+                    "Override keyword used outside of class context",
+                    method.span,
+                )
+            })?;
 
         // Check if class has a parent
         let parent_name = class_ctx.parent.as_ref().ok_or_else(|| {
@@ -2064,15 +2024,18 @@ impl<'a> TypeChecker<'a> {
         })?;
 
         // Get parent class members
-        let parent_members = self.class_members.get(parent_name).ok_or_else(|| {
-            TypeCheckError::new(
-                format!(
-                    "Parent class '{}' not found or not yet type-checked",
-                    parent_name
-                ),
-                method.span,
-            )
-        })?;
+        let parent_members = self
+            .access_control
+            .get_class_members(parent_name)
+            .ok_or_else(|| {
+                TypeCheckError::new(
+                    format!(
+                        "Parent class '{}' not found or not yet type-checked",
+                        parent_name
+                    ),
+                    method.span,
+                )
+            })?;
 
         // Find the method in parent class
         let method_name = self.interner.resolve(method.name.node);
@@ -2282,7 +2245,7 @@ impl<'a> TypeChecker<'a> {
                 if let TypeKind::Reference(type_ref) = &obj_type.kind {
                     let type_name = self.interner.resolve(type_ref.name.node);
                     // Only set for classes (not interfaces) - check class_members
-                    if self.class_members.contains_key(&type_name) {
+                    if self.access_control.get_class_members(&type_name).is_some() {
                         expr.receiver_class = Some(ReceiverClassInfo {
                             class_name: type_ref.name.node,
                             is_static: false,
@@ -2710,7 +2673,7 @@ impl<'a> TypeChecker<'a> {
             }
             TypeKind::Reference(type_ref) => {
                 let type_name = self.interner.resolve(type_ref.name.node);
-                if let Some(class_members) = self.class_members.get(&type_name) {
+                if let Some(class_members) = self.access_control.get_class_members(&type_name) {
                     for member in class_members {
                         if member.name == method_name {
                             if let ClassMemberKind::Method { return_type, .. } = &member.kind {
@@ -2765,93 +2728,12 @@ impl<'a> TypeChecker<'a> {
         member_name: &str,
         span: Span,
     ) -> Result<(), TypeCheckError> {
-        // Get the member info
-        let member_info = self
-            .class_members
-            .get(class_name)
-            .and_then(|members| members.iter().find(|m| m.name == member_name));
-
-        if let Some(info) = member_info {
-            match info.access {
-                AccessModifier::Public => {
-                    // Public members are accessible from anywhere
-                    Ok(())
-                }
-                AccessModifier::Private => {
-                    // Private members are only accessible from within the same class
-                    if let Some(ref current) = self.current_class {
-                        if current.name == class_name {
-                            Ok(())
-                        } else {
-                            Err(TypeCheckError::new(
-                                format!(
-                                    "Property '{}' is private and only accessible within class '{}'",
-                                    member_name, class_name
-                                ),
-                                span,
-                            ))
-                        }
-                    } else {
-                        Err(TypeCheckError::new(
-                            format!(
-                                "Property '{}' is private and only accessible within class '{}'",
-                                member_name, class_name
-                            ),
-                            span,
-                        ))
-                    }
-                }
-                AccessModifier::Protected => {
-                    // Protected members are accessible from within the class and subclasses
-                    if let Some(ref current) = self.current_class {
-                        if current.name == class_name {
-                            // Same class - allowed
-                            Ok(())
-                        } else if self.is_subclass(&current.name, class_name) {
-                            // Subclass - allowed
-                            Ok(())
-                        } else {
-                            Err(TypeCheckError::new(
-                                format!(
-                                    "Property '{}' is protected and only accessible within class '{}' and its subclasses",
-                                    member_name, class_name
-                                ),
-                                span,
-                            ))
-                        }
-                    } else {
-                        Err(TypeCheckError::new(
-                            format!(
-                                "Property '{}' is protected and only accessible within class '{}' and its subclasses",
-                                member_name, class_name
-                            ),
-                            span,
-                        ))
-                    }
-                }
-            }
-        } else {
-            // Member not found in our tracking - might be from interface or unknown class
-            // Allow it for now
-            Ok(())
-        }
-    }
-
-    /// Check if a class is a subclass of another
-    fn is_subclass(&self, child: &str, ancestor: &str) -> bool {
-        // Check the current class context for parent information
-        if let Some(ref ctx) = self.current_class {
-            if ctx.name == child {
-                if let Some(ref parent) = ctx.parent {
-                    if parent == ancestor {
-                        return true;
-                    }
-                    // Could recursively check parent's parent, but keeping it simple for now
-                }
-            }
-        }
-
-        false
+        self.access_control.check_member_access(
+            self.access_control.get_current_class(),
+            class_name,
+            member_name,
+            span,
+        )
     }
 
     /// Infer type of member access

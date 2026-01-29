@@ -26,7 +26,7 @@ fn compile_and_check(source: &str) -> Result<(), String> {
     // Check for errors
     use typedlua_core::DiagnosticHandler;
     if handler.has_errors() {
-        return Err(format!("Type checking had errors"));
+        return Err("Type checking had errors".to_string());
     }
 
     Ok(())

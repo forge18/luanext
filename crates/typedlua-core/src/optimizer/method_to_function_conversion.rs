@@ -304,6 +304,7 @@ mod tests {
     use typedlua_parser::span::Span;
 
     #[test]
+    #[allow(clippy::arc_with_non_send_sync)]
     fn test_method_call_to_function_call_conversion() {
         let interner = Arc::new(StringInterner::new());
         let mut pass = MethodToFunctionConversionPass::new(interner.clone());
@@ -387,6 +388,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::arc_with_non_send_sync)]
     fn test_preserves_receiver_class_info() {
         let interner = Arc::new(StringInterner::new());
         let mut pass = MethodToFunctionConversionPass::new(interner.clone());

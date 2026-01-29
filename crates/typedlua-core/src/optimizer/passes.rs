@@ -4078,6 +4078,7 @@ impl TailCallOptimizationPass {
 
 /// Operator inlining pass
 /// Inlines operator overload implementations when types are known
+#[allow(dead_code)]
 pub struct OperatorInliningPass;
 
 impl OptimizationPass for OperatorInliningPass {
@@ -4120,6 +4121,7 @@ impl OptimizationPass for OperatorInliningPass {
 
 /// Interface method inlining pass
 /// Inlines interface method implementations when type is known
+#[allow(dead_code)]
 pub struct InterfaceMethodInliningPass;
 
 impl OptimizationPass for InterfaceMethodInliningPass {

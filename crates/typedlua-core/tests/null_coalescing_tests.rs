@@ -7,6 +7,7 @@ use typedlua_parser::lexer::Lexer;
 use typedlua_parser::parser::Parser;
 use typedlua_parser::string_interner::StringInterner;
 
+#[allow(clippy::arc_with_non_send_sync)]
 fn compile_and_check(source: &str) -> Result<String, String> {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
@@ -294,8 +295,8 @@ fn test_null_coalesce_with_optional_property() {
 
     let result = compile_and_check(source);
     // May fail due to optional property type checking - that's OK
-    if result.is_err() {
-        println!("Optional property test: {}", result.unwrap_err());
+    if let Err(e) = result {
+        println!("Optional property test: {}", e);
     }
 }
 
@@ -312,8 +313,8 @@ fn test_null_coalesce_type_inference() {
 
     let result = compile_and_check(source);
     // Type inference may not be fully implemented yet
-    if result.is_err() {
-        println!("Type inference test: {}", result.unwrap_err());
+    if let Err(e) = result {
+        println!("Type inference test: {}", e);
     }
 }
 
@@ -327,8 +328,8 @@ fn test_null_coalesce_with_different_types() {
 
     let result = compile_and_check(source);
     // Union type inference may not be fully implemented
-    if result.is_err() {
-        println!("Different types test: {}", result.unwrap_err());
+    if let Err(e) = result {
+        println!("Different types test: {}", e);
     }
 }
 
@@ -363,8 +364,8 @@ fn test_null_coalesce_in_return() {
 
     let result = compile_and_check(source);
     // May have type checking issues with optional properties
-    if result.is_err() {
-        println!("Return statement test: {}", result.unwrap_err());
+    if let Err(e) = result {
+        println!("Return statement test: {}", e);
     }
 }
 

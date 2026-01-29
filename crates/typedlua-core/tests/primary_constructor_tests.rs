@@ -6,6 +6,7 @@ use typedlua_parser::lexer::Lexer;
 use typedlua_parser::parser::Parser;
 use typedlua_parser::string_interner::StringInterner;
 
+#[allow(clippy::arc_with_non_send_sync)]
 fn parse(source: &str) -> Result<(), String> {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
@@ -31,6 +32,7 @@ fn parse(source: &str) -> Result<(), String> {
     Ok(())
 }
 
+#[allow(clippy::arc_with_non_send_sync)]
 fn type_check(source: &str) -> Result<(), String> {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
@@ -59,6 +61,7 @@ fn type_check(source: &str) -> Result<(), String> {
     Ok(())
 }
 
+#[allow(clippy::arc_with_non_send_sync)]
 fn compile_to_lua(source: &str) -> Result<String, String> {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();

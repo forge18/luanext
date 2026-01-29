@@ -7,6 +7,7 @@ use typedlua_parser::lexer::Lexer;
 use typedlua_parser::parser::Parser;
 use typedlua_parser::string_interner::StringInterner;
 
+#[allow(clippy::arc_with_non_send_sync)]
 fn compile_and_check(source: &str) -> Result<String, String> {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
@@ -123,8 +124,8 @@ fn test_array_destructuring_type_check() {
 
     let result = compile_and_check(source);
     // Type checking should pass
-    if result.is_err() {
-        println!("Error: {}", result.unwrap_err());
+    if let Err(e) = result {
+        println!("Error: {}", e);
     }
 }
 

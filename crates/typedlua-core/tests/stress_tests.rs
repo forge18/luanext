@@ -22,11 +22,11 @@ fn test_deeply_nested_expressions() {
     // Test with 100 levels - should work now with iterative parsing
     let mut input = String::from("const x: number = ");
     for _ in 0..100 {
-        input.push_str("(");
+        input.push('(');
     }
     input.push_str("42");
     for _ in 0..100 {
-        input.push_str(")");
+        input.push(')');
     }
     assert!(
         lex_and_parse(&input),
@@ -39,11 +39,11 @@ fn test_extremely_deep_nesting() {
     // Test with 500 levels to ensure no stack overflow
     let mut input = String::from("const x: number = ");
     for _ in 0..500 {
-        input.push_str("(");
+        input.push('(');
     }
     input.push_str("42");
     for _ in 0..500 {
-        input.push_str(")");
+        input.push(')');
     }
     assert!(
         lex_and_parse(&input),
@@ -85,7 +85,7 @@ fn test_large_array_literal() {
         }
         input.push_str(&i.to_string());
     }
-    input.push_str("}");
+    input.push('}');
     assert!(lex_and_parse(&input), "Should parse large array literal");
 }
 
@@ -98,7 +98,7 @@ fn test_large_object_literal() {
         }
         input.push_str(&format!("prop{} = {}", i, i));
     }
-    input.push_str("}");
+    input.push('}');
     assert!(lex_and_parse(&input), "Should parse large object literal");
 }
 
@@ -160,7 +160,7 @@ fn test_large_class_with_many_members() {
     for i in 0..100 {
         input.push_str(&format!("    method{}(): void {{}}\n", i));
     }
-    input.push_str("}");
+    input.push('}');
     assert!(lex_and_parse(&input), "Should parse large class");
 }
 

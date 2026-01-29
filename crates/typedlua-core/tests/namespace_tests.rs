@@ -8,6 +8,7 @@ use typedlua_parser::lexer::Lexer;
 use typedlua_parser::parser::Parser;
 use typedlua_parser::string_interner::StringInterner;
 
+#[allow(clippy::arc_with_non_send_sync)]
 fn parse_source(
     source: &str,
 ) -> Result<(typedlua_parser::ast::Program, Arc<StringInterner>), String> {
@@ -34,6 +35,7 @@ fn parse_source(
     result.map(|p| (p, interner)).map_err(|e| e.message)
 }
 
+#[allow(clippy::arc_with_non_send_sync)]
 fn compile_and_check(source: &str, options: CompilerOptions) -> Result<String, String> {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();

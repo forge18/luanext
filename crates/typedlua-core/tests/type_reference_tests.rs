@@ -125,13 +125,8 @@ fn test_type_reference_vs_primitive() {
     let result = type_check(source);
     // We accept either outcome for now, as this tests the documented limitation
     // In the future when we implement type resolution, this should pass
-    if result.is_err() {
-        // Expected with current implementation
-        assert!(true, "Type alias resolution not yet implemented");
-    } else {
-        // If type resolution is implemented, this should pass
-        assert!(true, "Type alias resolution works!");
-    }
+    // Test passes if we reach here (either success or known limitation)
+    let _ = result;
 }
 
 #[test]
@@ -167,15 +162,9 @@ fn test_type_reference_compatibility_same_name() {
     // This currently fails because we don't resolve Point -> {x: number, y: number}
     // It's a known limitation that requires passing TypeEnvironment to is_assignable
     let result = type_check(source);
-    if result.is_err() {
-        // Expected with current implementation
-        assert!(
-            true,
-            "Type alias to concrete type assignment not yet fully supported"
-        );
-    } else {
-        assert!(true, "Type alias assignment works!");
-    }
+    // Test passes whether type checking succeeds or fails - both are valid outcomes
+    // with the current implementation
+    let _ = result;
 }
 
 #[test]

@@ -20,6 +20,7 @@ use typedlua_parser::string_interner::StringInterner;
 #[global_allocator]
 static ALLOC: dhat::Alloc = dhat::Alloc;
 
+#[allow(clippy::arc_with_non_send_sync)]
 fn compile_source(source: &str) -> Result<String, String> {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();

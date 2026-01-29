@@ -7,6 +7,7 @@ use typedlua_parser::lexer::Lexer;
 use typedlua_parser::parser::Parser;
 use typedlua_parser::string_interner::StringInterner;
 
+#[allow(clippy::arc_with_non_send_sync)]
 fn compile_and_check(source: &str) -> Result<String, String> {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
@@ -241,8 +242,8 @@ fn test_spread_in_function_call() {
     let result = compile_and_check(source);
     // Function call spread is parsed but may not be fully implemented
     // This tests that at least parsing works
-    if result.is_err() {
-        println!("Function spread: {}", result.unwrap_err());
+    if let Err(e) = result {
+        println!("Function spread: {}", e);
     }
 }
 

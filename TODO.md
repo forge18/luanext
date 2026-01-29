@@ -1,6 +1,6 @@
 # TypedLua TODO
 
-**Last Updated:** 2026-01-25 (Section 4.1.2 COMPLETE - no re-exports, fully decoupled)
+**Last Updated:** 2026-01-29 (Section 4.4: Phase 2 complete - AccessControlVisitor integrated into TypeChecker)
 
 ---
 
@@ -757,13 +757,13 @@ Extends inlining thresholds for maximum performance at O3. Increases inline thre
 
 **Files:** `optimizer/aggressive_inlining.rs` (NEW), `optimizer/mod.rs`
 
-| Phase | Goal | Tasks |
-|-------|----------------------|--------------------------------------------------------------------|
-| 1     | Threshold Adjustment | [x] Extend size limits from 5 to 15 statements |
-| 2     | Closure Handling     | [x] Add size limits for closure captures, inline if total size < 20 |
+| Phase | Goal                 | Tasks                                                                       |
+|-------|----------------------|-----------------------------------------------------------------------------|
+| 1     | Threshold Adjustment | [x] Extend size limits from 5 to 15 statements                              |
+| 2     | Closure Handling     | [x] Add size limits for closure captures, inline if total size < 20         |
 | 3     | Recursion Detection  | [x] Implement recursion cycle detection, inline only first call (hot paths) |
-| 4     | Hot Path Priority    | [x] Detect calls within loops, prioritize these for inlining |
-| 5     | Code Size Guard      | [x] Skip inlining if total inlined code would exceed 3x original |
+| 4     | Hot Path Priority    | [x] Detect calls within loops, prioritize these for inlining                |
+| 5     | Code Size Guard      | [x] Skip inlining if total inlined code would exceed 3x original            |
 
 **Trade-offs:**
 
@@ -1022,63 +1022,556 @@ Refactored scattered capability checks in codegen into a clean strategy pattern 
 ---
 
 ### 4.3 Code Generator Modularization
-  
-**Status:** Not Started | **Expected:** 50%+ maintainability improvement | **Model:** Sonnet
 
-CodeGenerator is 3,120 lines - too large. Break into focused modules.
+**Status:** Phase 7 Complete - 2,872 lines extracted in total, mod.rs reduced 59%, classes.rs = 716 lines, decorators.rs = 160 lines | **Expected:** 50%+ maintainability improvement | **Model:** Sonnet
 
-#### Codegen Directory Structure
+CodeGenerator was 4,211 lines - too large. Breaking into focused modules.
 
-- [ ] Create `crates/typedlua-core/src/codegen/strategies/` (Lua version strategies)
-- [ ] Create `crates/typedlua-core/src/codegen/emitters/` (AST → Lua emitters)
-- [ ] Create `crates/typedlua-core/src/codegen/transforms/` (pluggable transforms)
+#### Phase 1: Module Structure (COMPLETE)
 
-#### Codegen Emitters
+- [x] Create module file structure in `crates/typedlua-core/src/codegen/`:
+  - [x] `expressions.rs` - Expression generation utilities (~50 lines)
+  - [x] `patterns.rs` - Pattern generation methods (~70 lines)
+  - [x] `classes.rs` - Class/interface generation (placeholder)
+  - [x] `decorators.rs` - Decorator handling (placeholder)
+  - [x] `enums.rs` - Enum generation (placeholder)
+  - [x] `modules.rs` - Import/export/namespace (placeholder)
+  - [x] `statements.rs` - Statement generation (placeholder)
+- [x] Register modules in mod.rs
 
-- [ ] Extract expression generation to `emitters/expressions.rs`
-- [ ] Extract statement generation to `emitters/statements.rs`
-- [ ] Extract type erasure to `emitters/types.rs`
-- [ ] Main codegen becomes orchestrator (~300 lines)
+#### Phase 2: Expression Utility Functions (COMPLETE)
 
-#### Codegen Transforms
+- [x] Extract `is_guaranteed_non_nil()` to expressions.rs
+- [x] Extract `is_simple_expression()` to expressions.rs
+- [x] Extract `simple_binary_op_to_string()` to expressions.rs
+- [x] Extract `unary_op_to_string()` to expressions.rs
+- [x] Update mod.rs to use expressions:: functions
 
-- [ ] Define `CodeGenTransform` trait (like `OptimizationPass`)
-- [ ] Create `transforms/classes.rs` for class → table transformation
-- [ ] Create `transforms/decorators.rs` for decorator emission
-- [ ] Create `transforms/modules.rs` for import/export handling
-- [ ] Move sourcemap logic to `transforms/sourcemaps.rs`
+#### Phase 3: Pattern Generation (COMPLETE)
 
-#### Codegen Integration
+- [x] Extract `generate_pattern()` to patterns.rs
+- [x] Extract `generate_array_pattern()` to patterns.rs
+- [x] Extract `generate_object_pattern()` to patterns.rs
+- [x] Remove duplicate pattern methods from mod.rs
 
-- [ ] Register transforms in CodeGenerator::new()
-- [ ] Run transforms in pipeline during generation
-- [ ] Each transform testable in isolation
+#### Phase 4: Expression Generation (COMPLETE)
+
+**Methods Extracted:**
+
+- `generate_expression(&mut self, expr: &Expression)` - Main dispatcher (~800 lines)
+- `generate_literal(&mut self, lit: &Literal)` (~15 lines)
+- `generate_argument(&mut self, arg: &Argument)` (~5 lines)
+- `generate_object_property(&mut self, prop: &ObjectProperty)` (~20 lines)
+- `generate_binary_expression(&mut self, op, left, right)` (~70 lines)
+- `expression_to_string(&mut self, expr) -> String` (~5 lines)
+- `generate_null_coalesce(&mut self, left, right)` (~30 lines)
+- `generate_match_expression(&mut self, match_expr)` (~100 lines)
+- `generate_pattern_match(&mut self, pattern, value_var)` (~50 lines)
+- `generate_pattern_bindings(&mut self, pattern, value_var)` (~90 lines)
+
+**Integration:**
+
+- [x] Helper methods (`is_guaranteed_non_nil`, `is_simple_expression`, etc.) moved to expressions.rs
+- [x] Helper methods exposed as `CodeGenerator` methods for use in other modules
+- [x] Updated imports: `use crate::config::OptimizationLevel`
+- [x] Fixed import errors for `MatchExpression`, `MatchArmBody` (use `typedlua_parser::prelude`)
+- [x] Removed orphaned code from mod.rs (lines 1783-2758)
+
+#### Phase 5: Statement Generation (COMPLETE)
+
+**Methods Extracted:**
+
+- `generate_statement(&mut self, stmt: &Statement)` - Main dispatcher
+- `generate_variable_declaration(&mut self, decl: &VariableDeclaration)`
+- `generate_array_destructuring(&mut self, pattern, source)`
+- `generate_object_destructuring(&mut self, pattern, source)`
+- `generate_function_declaration(&mut self, decl: &FunctionDeclaration)`
+- `generate_if_statement(&mut self, if_stmt)`
+- `generate_while_statement(&mut self, while_stmt)`
+- `generate_for_statement(&mut self, for_stmt)`
+- `generate_repeat_statement(&mut self, repeat_stmt)`
+- `generate_return_statement(&mut self, return_stmt)`
+- `generate_block(&mut self, block)`
+
+**Integration:**
+
+- [x] All 11 statement generation methods extracted to statements.rs
+- [x] Methods implemented as extension methods via `impl CodeGenerator`
+- [x] Circular dependency handled via `use super::CodeGenerator;`
+- [x] Removed unused imports from statements.rs and mod.rs
+- [x] All 283 tests passing in typedlua-core
+
+**Results (Phase 7):**
+
+- mod.rs: 1,906 lines → 1,736 lines (reduced by 170 lines)
+- statements.rs: 382 lines → 570 lines (expanded by 187 lines)
+- Total extracted: 2,872 lines (979 expressions + 569 statements + 714 classes + 158 decorators + 187 exception)
+- Total mod.rs reduction: 2,475 lines (59% reduction from original 4,211 lines)
+- expressions.rs: 966 lines
+- statements.rs: 570 lines
+- All 283 tests passing
+
+#### Phase 7: Exception Handling (~200 lines) - COMPLETE
+
+**Decision:** Add to `codegen/statements.rs` (they are statement types)
+
+**Methods Extracted:**
+
+- [x] `generate_throw_statement(&mut self, stmt)`
+- [x] `generate_rethrow_statement(&mut self, span)`
+- [x] `generate_try_statement(&mut self, stmt)`
+- [x] `generate_try_pcall(&mut self, stmt)`
+- [x] `generate_try_xpcall(&mut self, stmt)`
+- [x] `generate_catch_clause_pcall(&mut self, clause, is_last)`
+- [x] `generate_catch_clause_xpcall(&mut self, clause)`
+- [x] `generate_finally_block(&mut self, block)`
+
+**Dependencies:**
+
+- Calls `generate_statement()`, `generate_expression()`
+- Calls `self.write()`, `self.writeln()`, `self.resolve()`, `self.indent()`, `self.dedent()`
+
+**Integration:**
+
+- Natural fit in statements.rs as exception statements are a statement type
+- Group with other statement generation methods
+- Added `OptimizationLevel` import for O2/O3 optimization checks
+- All 283 tests passing
+
+#### Phase 8: Decorator & Module/Enum Handling (~500 lines)
+
+**Target:** `codegen/classes.rs` (expanded from 2 to 716 lines)
+
+**Methods Extracted:**
+
+- [x] `generate_class_declaration(&mut self, class_decl)` (lines ~835-1179)
+- [x] `generate_interface_declaration(&mut self, iface_decl)` (lines ~1179-1214)
+- [x] `generate_class_constructor(&mut self, class_name, ctor)` (lines ~1214-1321)
+- [x] `generate_primary_constructor(&mut self, class_decl)` (lines ~1321-1431)
+- [x] `generate_class_method(&mut self, class_name, method)` (lines ~1431-1488)
+- [x] `generate_class_getter(&mut self, class_name, getter)` (lines ~1488-1513)
+- [x] `generate_class_setter(&mut self, class_name, setter)` (lines ~1513-1540)
+- [x] `generate_operator_declaration(&mut self, class_name, op)` (lines ~1540-1611)
+- [x] `operator_kind_name(&self, op) -> String` (helper function)
+
+**Dependencies:**
+
+- Calls `generate_expression()`, `generate_statement()`, `generate_block()`
+- Uses `typedlua_runtime::class` module for reflection methods
+- Calls `self.write()`, `self.writeln()`, `self.resolve()`
+
+**Integration:**
+
+- [x] Complex module with many interdependencies with statements/expressions
+- [x] Implemented as extension methods via `impl CodeGenerator`
+- [x] Added imports: `typedlua_parser::ast::Program`, `typedlua_runtime::class`
+- [x] `generate_decorator_call(&mut self, decorator, target)` (lines ~1611-1659)
+- [x] `generate_decorator_expression(&mut self, expr)` (lines ~1659-1783)
+- [x] `is_built_in_decorator(&self, name: &str) -> bool` (helper)
+- [x] `detect_decorators(&mut self, program)` (helper)
+- [x] `statement_uses_built_in_decorators(&self, stmt)` (helper)
+- [x] `is_decorator_built_in(&self, expr)` (helper)
+- [x] `embed_runtime_library(&mut self)` (helper)
+
+**Dependencies:**
+
+- Calls `generate_expression()`
+- Uses `typedlua_runtime::decorator` module
+
+**Integration:**
+
+- [x] All decorator-related methods extracted to decorators.rs
+- [x] Methods implemented as extension methods via `impl CodeGenerator`
+- [x] All 283 tests passing
+
+---
+
+**Modules (Target: `codegen/modules.rs` - expand from 2 to ~150 lines):**
+
+- `generate_import(&mut self, import)` (lines ~2762-2842)
+- `generate_export(&mut self, export)` (lines ~2842-2878)
+- `generate_re_export(&mut self, specifiers, source)` (lines ~2878-2980)
+- `generate_namespace_declaration(&mut self, ns)` (lines ~3231-3258)
+
+**Dependencies:**
+
+- Calls `resolve()`, `write()`, `writeln()`
+- Manages module state
+
+---
+
+**Enums (Target: `codegen/enums.rs` - expand from 2 to ~150 lines):**
+
+- `generate_enum_declaration(&mut self, enum_decl)` (lines ~2980-3023)
+- `generate_rich_enum_declaration(&mut self, enum_decl, enum_name)` (lines ~3023-3219)
+
+**Dependencies:**
+
+- Calls `generate_expression()`, `generate_statement()`
+- Uses `typedlua_runtime::enum_rt` module for runtime support
+
+---
+
+### Implementation Strategy
+
+For each phase:
+
+1. **Analyze Dependencies**: Identify all methods called by extracted methods
+2. **Extract Methods**: Move methods to target file with `impl CodeGenerator` blocks
+3. **Handle Imports**: Add necessary `use` statements for inter-module calls
+4. **Update mod.rs**: Remove extracted methods, add module imports if needed
+5. **Run Tests**: Execute full test suite after each phase to verify correctness
+6. **Documentation**: Update comments if needed
+
+**Extraction Order:**
+
+1. Phase 4 (expressions) - Foundation, no circular dependencies
+2. Phase 5 (statements) - Depends on expressions via `use super::*;`
+3. Phase 6 (classes) - Depends on statements and expressions
+4. Phase 7 (exceptions) - Add to statements.rs as part of Phase 5
+5. Phase 8 (decorators/modules/enums) - Independent modules, can be done in parallel
+
+**Testing Strategy:**
+
+- After each phase, run: `cargo test --all --all-features`
+- Specific test files to watch: `codegen_tests.rs`, `integration_tests.rs`
+- Expected: All 1,188 tests continue to pass
+- Run `cargo clippy --all` to ensure no warnings
+
+**Success Criteria:**
+
+- mod.rs reduced from 4,211 to ~1,000 lines (remaining: core CodeGenerator struct, initialization, main entry points)
+- Each specialized module ~150-700 lines
+- No circular dependencies between modules
+- All tests pass
+- No clippy warnings
 
 ---
 
 ### 4.4 Type Checker Visitor Pattern
 
-**Status:** Not Started | **Expected:** Better separation of concerns | **Model:** Sonnet
+**Status:** Not Started | **Expected:** ~25% reduction (4,382 → ~3,300 lines), better separation | **Model:** Sonnet
 
-Type checker is 3,544 lines. Extract specialized visitors for different concerns.
+Type checker is 4,382 lines scattered with multiple concerns. Extract specialized visitor patterns for better separation and testability.
 
-#### Visitor Trait Definition
+**Current State:**
 
-- [ ] Create `crates/typedlua-core/src/typechecker/visitors/mod.rs`
-- [ ] Define `TypeCheckVisitor` trait with visit methods
+- `generics.rs` (instantiate_type, infer_type_arguments, check_type_constraints) - ~1,000 lines
+- `narrowing.rs` (NarrowingContext, narrow_type_from_condition) - ~500 lines  
+- `narrowing_integration.rs` - ~150 lines
+- `type_checker.rs` (main checker + access control + inference) - ~4,382 lines
 
-#### Specialized Visitors
+**Goal:**
 
-- [ ] Create `visitors/narrowing.rs` - Type narrowing logic
-- [ ] Create `visitors/generics.rs` - Generic instantiation and constraints
-- [ ] Create `visitors/access_control.rs` - public/private/protected checks
-- [ ] Create `visitors/inference.rs` - Type inference rules
+- Extract access control logic to `visitors/access_control.rs` with `AccessControlVisitor` trait
+- Extract type inference logic to `visitors/inference.rs` with `TypeInferenceVisitor` trait
+- Keep narrowing/generics as is (already well-separated)
+- Main `TypeChecker` orchestrates visitors
+- Target: Reduce type_checker.rs by ~800-1,000 lines
 
-#### Visitor Integration
+---
 
-- [ ] Main TypeChecker orchestrates visitors
-- [ ] Each visitor testable independently
-- [ ] Clear separation of type system concerns
+#### Phase 1: Visitor Registry Infrastructure
+
+**1.1 Create visitors module**
+
+- [x] Create `typechecker/visitors/mod.rs`
+- [x] Define visitor trait registry pattern
+- [x] Export traits for use in type_checker.rs
+
+**1.2 Define base trait pattern**
+
+```rust
+// visitors/mod.rs
+pub trait TypeCheckVisitor {
+    fn name(&self) -> &'static str;
+}
+```
+
+**Status:** COMPLETE (2026-01-29) | **Test Results:** 283 tests pass
+
+**Created files:**
+- `crates/typedlua-core/src/typechecker/visitors/mod.rs` - Base trait and module exports
+- `crates/typedlua-core/src/typechecker/visitors/access_control.rs` - AccessControlVisitor trait and implementation
+
+**Implementation details:**
+- Defined `TypeCheckVisitor` base trait with `name()` method
+- Created `AccessControlVisitor` trait with methods:
+  - `check_member_access()` - Checks public/private/protected access
+  - `is_subclass()` - Checks inheritance relationships
+  - `register_class()` - Tracks class hierarchy
+  - `register_member()` - Registers class members with access modifiers
+  - `mark_class_final()` / `is_class_final()` - Final class tracking
+  - `get_class_members()` - Access member info
+  - `set_current_class()` / `get_current_class()` - Context management
+- Implemented `AccessControl` struct with `FxHashMap` for class storage
+- Exported types: `AccessControl`, `AccessControlVisitor`, `ClassContext`, `ClassMemberInfo`, `ClassMemberKind`
+
+---
+
+#### Phase 2: AccessControlVisitor (Access Modifier Checks)
+
+**Current location:** `type_checker.rs` lines 2761-2855
+
+**Methods to extract:**
+
+- `check_member_access(class_name, member_name, span)` - Checks public/private/protected
+- `is_subclass(child, ancestor)` - Checks inheritance relationship
+- `class_info` struct tracking (could be shared)
+
+**2.1 Create `visitors/access_control.rs`**
+
+- [ ] Define `AccessControlVisitor` trait:
+  - [ ] `check_member_access(class_name, member_name, span) -> Result<(), TypeCheckError>`
+  - [ ] `is_subclass(child, ancestor) -> bool`
+  - [ ] `register_class(name, parent, members)`
+
+**2.2 Create `AccessControl` implementation**
+
+- [ ] Extract access modifier checking logic
+- [ ] Track class hierarchy separately from TypeChecker
+- [ ] Maintain `class_members` and `final_classes` maps
+
+**2.3 Integrate into TypeChecker**
+
+- [ ] Add `self.access_control: AccessControl` field
+- [ ] Replace `check_member_access` calls with `self.access_control.check_member_access`
+- [ ] Pass `current_class` context when needed
+
+**Estimated lines extracted:** ~150 lines
+
+---
+
+#### Phase 3: TypeInferenceVisitor (Expression Type Inference)
+
+**Current location:** `type_checker.rs` lines 2208-2970
+
+**Methods to extract:**
+
+- `infer_expression_type(expr)` - Main dispatcher (~700 lines)
+- All inference helpers from expressions:
+  - `infer_binary_op_type`, `infer_unary_op_type`
+  - `infer_call_type`, `infer_method_type`
+  - `infer_member_type`, `infer_index_type`
+  - `infer_arrow_function_type`, `infer_table_type`, etc.
+
+**3.1 Create `visitors/inference.rs`**
+
+- [ ] Define `TypeInferenceVisitor` trait:
+  - [ ] `infer_expression(expr) -> Result<Type, TypeCheckError>`
+  - [ ] `infer_statement(stmt) -> Result<(), TypeCheckError>` (for side-effecting inferences)
+- [ ] All helper inference methods
+
+**3.2 Create `TypeInferrer` implementation**
+
+- [ ] Extract all `infer_*` methods
+- [ ] Store dependencies: `symbol_table`, `type_env`, `narrowing_context`, `interner`, `common`
+- [ ] Handle annotated_type and receiver_class setting on Expressions
+
+**3.3 Complexity considerations:**
+
+- [ ] Some inference methods call other type checker methods (e.g., class checking)
+- [ ] Create callback trait for inter-visitor communication:
+
+  ```rust
+  pub trait InferrerDeps {
+      fn check_method_override(&mut self, ...) -> Result<()>;
+      fn register_class_member(&mut self, ...) -> Result<()>;
+  }
+  ```
+
+**Estimated lines extracted:** ~600-700 lines
+
+---
+
+#### Phase 4: NarrowingVisitor Enhancement
+
+**Current location:** `narrowing.rs` (~500 lines), `narrowing_integration.rs` (~150 lines)
+
+**Already well-separated.** Enhancements:
+
+- [ ] Add `NarrowingVisitor` trait to `narrowing.rs`
+- [ ] Unify narrowed_context management (currently split between files)
+- [ ] Move pattern-narrowing logic from `type_checker.rs` line 3285+
+
+**4.1 Add trait to `narrowing.rs`:**
+
+```rust
+pub trait NarrowingVisitor {
+    fn narrow_from_condition(condition, ...) -> (NarrowingContext, NarrowingContext);
+    fn narrow_by_pattern(pattern, value_type) -> Result<Type>;
+}
+```
+
+**Estimated lines extracted:** ~150 lines from type_checker.rs
+
+---
+
+#### Phase 5: GenericVisitor Enhancement
+
+**Current location:** `generics.rs` (~1,000 lines)
+
+**Already well-separated.** Just ensure:
+
+- [ ] Generic visitor trait exists (if not, create minimal one)
+- [ ] Clear interface for type argument inference and instantiation
+
+**5.1 Add trait to `generics.rs` (if missing):**
+
+```rust
+pub trait GenericVisitor {
+    fn instantiate_type(type, params, args) -> Result<Type>;
+    fn infer_type_arguments(params, func_params, arg_types) -> Result<Vec<Type>>;
+}
+```
+
+---
+
+#### Phase 6: Integration & Refactoring
+
+**6.1 Update TypeChecker struct**
+
+```rust
+pub struct TypeChecker<'a> {
+    symbol_table: SymbolTable,
+    type_env: TypeEnvironment,
+    current_function_return_type: Option<Type>,
+
+    // Visitors
+    narrowing: NarrowingContext,  // or get from other visitor
+    access_control: AccessControl,
+    inference: TypeInferrer,
+
+    // Remaining fields
+    options: CompilerOptions,
+    current_class: Option<ClassContext>,
+    module_registry: ...,
+    diagnostic_handler: ...,
+    interner: &'a StringInterner,
+    common: &'a CommonIdentifiers,
+}
+```
+
+**6.2 Cross-visitor dependencies:**
+
+- [ ] `AccessControl` needs `class_members` tracking
+- [ ] `TypeInferrer` needs `NarrowingContext` for identifier lookups
+- [ ] Both need `symbol_table` and `type_env`
+
+**Design approach:**
+
+- [ ] Inject dependencies in visitor constructors
+- [ ] Use `Rc<RefCell<>>` for shared mutable state OR pass as `&mut` params
+- [ ] Prefer `&mut` params for performance (no Rc overhead)
+
+**6.3 Update method calls in TypeChecker**
+
+- [ ] Replace `self.check_member_access()` with `self.access_control.check_member_access()`
+- [ ] Replace `self.infer_expression_type()` with `self.inference.infer_expression()`
+- [ ] Replace `self.narrowing_context` usage with `self.narrowing` methods
+
+**6.4 Update statement checking logic**
+
+- [ ] Keep `check_statement` dispatcher in TypeChecker
+- [ ] Delegate complex expression type inference to visitor
+- [ ] Keep class declaration checking in TypeChecker (orchestrates multiple visitors)
+
+---
+
+#### Phase 7: Testing Strategy
+
+**7.1 Unit tests for each visitor**
+
+- [ ] `visitors/access_control_tests.rs`: Test public/private/protected rules
+- [ ] `visitors/inference_tests.rs`: Test expression type inference
+- [ ] `visitors/narrowing_tests.rs`: Already exists, enhance if needed
+- [ ] `visitors/generics_tests.rs`: Already exists, ensure coverage
+
+**7.2 Integration tests**
+
+- [ ] Verify all existing type checker tests still pass (1,188 tests)
+- [ ] Test cross-visitor interactions (e.g., narrowing + inference)
+
+**7.3 Performance verification**
+
+- [ ] Ensure no performance regression from trait dispatch
+- [ ] Static dispatch via concrete types (`Box<dyn Trait>` for storage only)
+- [ ] Inline hints on hot path functions
+
+---
+
+### Implementation Order
+
+| Phase | Priority | Dependencies | Estimated Reduction      |
+|-------|----------|--------------|--------------------------|
+| 1     | P0       | None         | 0 lines (infrastructure) |
+| 2     | P1       | 1            | ~150 lines               |
+| 3     | P1       | 1, 2         | ~600-700 lines           |
+| 4     | P2       | 1            | ~150 lines               |
+| 5     | P2       | 1            | 0 lines (already done)   |
+| 6     | P0       | 2, 3, 4, 5   | N/A (integration)        |
+| 7     | P0       | 6            | N/A (verification)       |
+
+---
+
+### Key Design Decisions
+
+**1. Trait vs Direct Structs:**
+
+- **Decision**: Use traits with concrete implementations
+- **Why**: Enables mocking in tests, clear interface contracts
+
+**2. Shared State Management:**
+
+- **Decision**: Pass dependencies as `&mut` parameters, not `Rc<RefCell<>>`
+- **Why**: Zero overhead, static dispatch when possible
+
+**3. Visitor Injection:**
+
+- **Decision**: Constructor injection in TypeChecker
+- **Why**: Clear dependency graph, easier testing
+
+**4. Backward Compatibility:**
+
+- **Decision**: Keep public methods in TypeChecker unchanged
+- **Why**: No API breakage consumers
+
+---
+
+### Success Criteria
+
+- [ ] `type_checker.rs` reduced from 4,382 → ~3,300 lines (~25% reduction)
+- [ ] All 1,188 tests pass
+- [ ] No clippy warnings
+- [ ] Each visitor module < 300 lines (single responsibility)
+- [ ] Clear dependency graph between visitors
+- [ ] Performance regression < 5% (measure with `cargo flamegraph`)
+
+---
+
+### Files to Modify/Create
+
+**New Files:**
+
+```
+typechecker/
+  ├── visitors/
+  │   ├── mod.rs                    # Visitor registry, traits
+  │   ├── access_control.rs        # ~200 lines
+  │   ├── inference.rs              # ~600 lines
+  │   ├── access_control_tests.rs  # ~100 lines
+  │   └── inference_tests.rs       # ~200 lines
+```
+
+**Modified Files:**
+
+```
+typechecker/
+  ├── type_checker.rs              # Remove ~1,000 lines
+  ├── narrowing.rs                 # Add `NarrowingVisitor` trait
+  ├── generics.rs                  # Add `GenericVisitor` trait (if needed)
+  └── mod.rs                       # Re-exports
+```
 
 ---
 

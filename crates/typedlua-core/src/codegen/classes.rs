@@ -1,0 +1,714 @@
+use super::CodeGenerator;
+use typedlua_parser as parser;
+use typedlua_parser::ast::statement::*;
+
+impl CodeGenerator {
+    pub fn generate_class_declaration(&mut self, class_decl: &ClassDeclaration) {
+        let class_name = self.resolve(class_decl.name.node).to_string();
+
+        let prev_parent = self.current_class_parent.take();
+
+        let base_class_name = if let Some(extends) = &class_decl.extends {
+            if let typedlua_parser::ast::types::TypeKind::Reference(type_ref) = &extends.kind {
+                Some(type_ref.name.node)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        self.current_class_parent = base_class_name;
+
+        self.write_indent();
+        self.write("local ");
+        self.write(&class_name);
+        self.writeln(" = {}");
+
+        self.write_indent();
+        self.write(&class_name);
+        self.write(".__index = ");
+        self.write(&class_name);
+        self.writeln("");
+
+        if let Some(base_name) = &base_class_name {
+            self.writeln("");
+            self.write_indent();
+            self.write("setmetatable(");
+            self.write(&class_name);
+            self.write(", { __index = ");
+            let base_name_str = self.resolve(*base_name);
+            self.write(&base_name_str);
+            self.writeln(" })");
+        }
+
+        let has_constructor = class_decl
+            .members
+            .iter()
+            .any(|m| matches!(m, ClassMember::Constructor(_)));
+
+        let has_primary_constructor = class_decl.primary_constructor.is_some();
+
+        if has_primary_constructor {
+            self.generate_primary_constructor(class_decl, &class_name, base_class_name);
+        } else if has_constructor {
+            for member in &class_decl.members {
+                if let ClassMember::Constructor(ctor) = member {
+                    self.generate_class_constructor(&class_name, ctor);
+                }
+            }
+        } else {
+            self.writeln("");
+            self.write_indent();
+            self.write("function ");
+            self.write(&class_name);
+            self.writeln(".new()");
+            self.indent();
+            self.write_indent();
+            self.write("local self = setmetatable({}, ");
+            self.write(&class_name);
+            self.writeln(")");
+            self.write_indent();
+            self.writeln("return self");
+            self.dedent();
+            self.write_indent();
+            self.writeln("end");
+        }
+
+        for member in &class_decl.members {
+            match member {
+                ClassMember::Method(method) => {
+                    self.generate_class_method(&class_name, method);
+                }
+                ClassMember::Getter(getter) => {
+                    self.generate_class_getter(&class_name, getter);
+                }
+                ClassMember::Setter(setter) => {
+                    self.generate_class_setter(&class_name, setter);
+                }
+                ClassMember::Operator(op) => {
+                    self.generate_operator_declaration(&class_name, op);
+                }
+                ClassMember::Property(_) | ClassMember::Constructor(_) => {}
+            }
+        }
+
+        let mut has_operators = false;
+
+        for member in &class_decl.members {
+            if let ClassMember::Operator(_) = member {
+                has_operators = true;
+                break;
+            }
+        }
+
+        if has_operators {
+            self.writeln("");
+            self.write_indent();
+            self.write(&class_name);
+            self.writeln(".__metatable = {");
+            self.indent();
+
+            let mut first = true;
+            for member in &class_decl.members {
+                if let ClassMember::Operator(op) = member {
+                    let metamethod_name = self.operator_kind_name(&op.operator);
+                    self.write_indent();
+                    if !first {
+                        self.writeln(",");
+                    }
+                    first = false;
+                    self.write(&format!(
+                        "{} = {}.{}",
+                        metamethod_name, class_name, metamethod_name
+                    ));
+                }
+            }
+            self.writeln("");
+            self.dedent();
+            self.write_indent();
+            self.writeln("}");
+        }
+
+        if !class_decl.decorators.is_empty() {
+            self.writeln("");
+            for decorator in &class_decl.decorators {
+                self.write_indent();
+                self.write(&class_name);
+                self.write(" = ");
+                self.generate_decorator_call(decorator, &class_name);
+                self.writeln("");
+            }
+        }
+
+        self.writeln("");
+        for impl_type in &class_decl.implements {
+            if let typedlua_parser::ast::types::TypeKind::Reference(type_ref) = &impl_type.kind {
+                let interface_name = self.resolve(type_ref.name.node).to_string();
+
+                let class_methods: std::collections::HashSet<String> = class_decl
+                    .members
+                    .iter()
+                    .filter_map(|member| {
+                        if let ClassMember::Method(method) = member {
+                            Some(self.resolve(method.name.node).to_string())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                let default_methods: Vec<(String, String)> = self
+                    .interface_default_methods
+                    .iter()
+                    .filter(|((iface_name, _), _)| iface_name == &interface_name)
+                    .filter(|((_, method_name), _)| !class_methods.contains(method_name))
+                    .map(|((_, method_name), default_fn_name)| {
+                        (method_name.clone(), default_fn_name.clone())
+                    })
+                    .collect();
+
+                for (method_name, default_fn_name) in default_methods {
+                    self.write_indent();
+                    self.write(&class_name);
+                    self.write(":");
+                    self.write(&method_name);
+                    self.write(" = ");
+                    self.write(&class_name);
+                    self.write(":");
+                    self.write(&method_name);
+                    self.write(" or ");
+                    self.writeln(&default_fn_name);
+                }
+            }
+        }
+
+        self.writeln("");
+
+        let type_id = self.next_type_id;
+        self.next_type_id += 1;
+
+        self.registered_types.insert(class_name.clone(), type_id);
+
+        self.write_indent();
+        self.write(&class_name);
+        self.write(".__typeName = \"");
+        self.write(&class_name);
+        self.writeln("\"");
+
+        self.write_indent();
+        self.write(&class_name);
+        self.writeln(&format!(".__typeId = {}", type_id));
+
+        self.write_indent();
+        self.write(&class_name);
+        self.writeln(".__ownFields = {");
+
+        self.indent();
+        for member in &class_decl.members {
+            if let ClassMember::Property(prop) = member {
+                let prop_name = self.resolve(prop.name.node).to_string();
+                self.write_indent();
+                self.write(&format!(
+                    "{{ name = \"{}\", type = \"\", modifiers = {{}}",
+                    prop_name
+                ));
+                self.writeln(" },");
+            }
+        }
+        self.dedent();
+        self.write_indent();
+        self.writeln("}");
+
+        self.write_indent();
+        self.write(&class_name);
+        self.writeln(".__ownMethods = {");
+
+        self.indent();
+        for member in &class_decl.members {
+            if let ClassMember::Method(method) = member {
+                let method_name = self.resolve(method.name.node).to_string();
+                self.write_indent();
+                self.write(&format!(
+                    "{{ name = \"{}\", params = {{}}, returnType = \"\" }}",
+                    method_name
+                ));
+                self.writeln(",");
+            }
+        }
+        self.dedent();
+        self.write_indent();
+        self.writeln("}");
+
+        self.write_indent();
+        self.write(&class_name);
+        self.writeln(".__ancestors = {");
+
+        self.indent();
+        self.write_indent();
+        self.write(&format!("[{}] = true", type_id));
+        self.writeln(",");
+
+        self.dedent();
+        self.write_indent();
+        self.writeln("}");
+
+        if let Some(base_name) = &base_class_name {
+            let base_name_str = self.resolve(*base_name);
+            self.write_indent();
+            self.writeln(&format!(
+                "if {} and {}.__ancestors then",
+                base_name_str, base_name_str
+            ));
+            self.indent();
+            self.write_indent();
+            self.writeln(&format!(
+                "for k, v in pairs({}.__ancestors) do",
+                base_name_str
+            ));
+            self.indent();
+            self.write_indent();
+            self.writeln(&format!("{}.__ancestors[k] = v", class_name));
+            self.dedent();
+            self.write_indent();
+            self.writeln("end");
+            self.dedent();
+            self.write_indent();
+            self.writeln("end");
+        }
+
+        if let Some(base_name) = &base_class_name {
+            let base_name_str = self.resolve(*base_name);
+            self.write_indent();
+            self.write(&class_name);
+            self.writeln(&format!(".__parent = {}", base_name_str));
+        }
+
+        self.writeln("");
+        self.writeln(
+            &typedlua_runtime::class::BUILD_ALL_FIELDS
+                .replace("{}", &class_name)
+                .replace("{}", &class_name)
+                .replace("{}", &class_name)
+                .replace("{}", &class_name)
+                .replace("{}", &class_name)
+                .replace("{}", &class_name)
+                .replace("{}", &class_name),
+        );
+        self.writeln("");
+        self.writeln(
+            &typedlua_runtime::class::BUILD_ALL_METHODS
+                .replace("{}", &class_name)
+                .replace("{}", &class_name)
+                .replace("{}", &class_name)
+                .replace("{}", &class_name)
+                .replace("{}", &class_name)
+                .replace("{}", &class_name)
+                .replace("{}", &class_name),
+        );
+        self.writeln("");
+
+        self.current_class_parent = prev_parent;
+    }
+
+    pub fn generate_interface_declaration(&mut self, iface_decl: &InterfaceDeclaration) {
+        let interface_name = self.resolve(iface_decl.name.node).to_string();
+
+        for member in &iface_decl.members {
+            if let InterfaceMember::Method(method) = member {
+                if let Some(body) = &method.body {
+                    let method_name = self.resolve(method.name.node).to_string();
+                    let default_fn_name = format!("{}__{}", interface_name, method_name);
+
+                    self.writeln("");
+                    self.write_indent();
+                    self.write("function ");
+                    self.write(&default_fn_name);
+                    self.write("(self");
+
+                    for param in &method.parameters {
+                        self.write(", ");
+                        self.generate_pattern(&param.pattern);
+                    }
+                    self.writeln(")");
+                    self.indent();
+
+                    self.generate_block(body);
+
+                    self.dedent();
+                    self.write_indent();
+                    self.writeln("end");
+
+                    self.interface_default_methods
+                        .insert((interface_name.clone(), method_name), default_fn_name);
+                }
+            }
+        }
+    }
+
+    pub fn generate_class_constructor(&mut self, class_name: &str, ctor: &ConstructorDeclaration) {
+        let always_use_init = true;
+
+        if always_use_init {
+            self.writeln("");
+            self.write_indent();
+            self.write("function ");
+            self.write(class_name);
+            self.write("._init(self");
+
+            for param in &ctor.parameters {
+                self.write(", ");
+                self.generate_pattern(&param.pattern);
+            }
+            self.writeln(")");
+
+            self.indent();
+
+            self.generate_block(&ctor.body);
+
+            self.dedent();
+            self.write_indent();
+            self.writeln("end");
+
+            self.writeln("");
+            self.write_indent();
+            self.write("function ");
+            self.write(class_name);
+            self.write(".new(");
+
+            for (i, param) in ctor.parameters.iter().enumerate() {
+                if i > 0 {
+                    self.write(", ");
+                }
+                self.generate_pattern(&param.pattern);
+            }
+            self.writeln(")");
+
+            self.indent();
+
+            self.write_indent();
+            self.write("local self = setmetatable({}, ");
+            self.write(class_name);
+            self.writeln(")");
+
+            self.write_indent();
+            self.write(class_name);
+            self.write("._init(self");
+            for param in &ctor.parameters {
+                self.write(", ");
+                self.generate_pattern(&param.pattern);
+            }
+            self.writeln(")");
+
+            self.write_indent();
+            self.writeln("return self");
+
+            self.dedent();
+            self.write_indent();
+            self.writeln("end");
+        } else {
+            self.writeln("");
+            self.write_indent();
+            self.write("function ");
+            self.write(class_name);
+            self.write(".new(");
+
+            for (i, param) in ctor.parameters.iter().enumerate() {
+                if i > 0 {
+                    self.write(", ");
+                }
+                self.generate_pattern(&param.pattern);
+            }
+            self.writeln(")");
+
+            self.indent();
+
+            self.write_indent();
+            self.write("local self = setmetatable({}, ");
+            self.write(class_name);
+            self.writeln(")");
+
+            self.generate_block(&ctor.body);
+
+            self.write_indent();
+            self.writeln("return self");
+
+            self.dedent();
+            self.write_indent();
+            self.writeln("end");
+        }
+    }
+
+    pub fn generate_primary_constructor(
+        &mut self,
+        class_decl: &ClassDeclaration,
+        class_name: &str,
+        base_class_name: Option<parser::string_interner::StringId>,
+    ) {
+        let primary_params = class_decl.primary_constructor.as_ref().unwrap();
+
+        self.writeln("");
+        self.write_indent();
+        self.write("function ");
+        self.write(class_name);
+        self.write("._init(self");
+
+        for param in primary_params {
+            self.write(", ");
+            let param_name = self.resolve(param.name.node);
+            self.write(&param_name);
+        }
+        self.writeln(")");
+
+        self.indent();
+
+        if let Some(parent_args) = &class_decl.parent_constructor_args {
+            if let Some(parent_name) = base_class_name {
+                self.write_indent();
+                let parent_name_str = self.resolve(parent_name);
+                self.write(&parent_name_str);
+                self.write("._init(self");
+                for arg in parent_args {
+                    self.write(", ");
+                    self.generate_expression(arg);
+                }
+                self.writeln(")");
+            }
+        }
+
+        for param in primary_params {
+            self.write_indent();
+
+            if param.access.as_ref()
+                == Some(&typedlua_parser::ast::statement::AccessModifier::Private)
+            {
+                self.write("self._");
+            } else {
+                self.write("self.");
+            }
+            let param_name = self.resolve(param.name.node);
+            self.write(&param_name);
+
+            self.write(" = ");
+            let param_name = self.resolve(param.name.node);
+            self.write(&param_name);
+            self.writeln("");
+        }
+
+        self.dedent();
+        self.write_indent();
+        self.writeln("end");
+
+        self.writeln("");
+        self.write_indent();
+        self.write("function ");
+        self.write(class_name);
+        self.write(".new(");
+
+        for (i, param) in primary_params.iter().enumerate() {
+            if i > 0 {
+                self.write(", ");
+            }
+            let param_name = self.resolve(param.name.node);
+            self.write(&param_name);
+        }
+        self.writeln(")");
+
+        self.indent();
+
+        self.write_indent();
+        self.write("local self = setmetatable({}, ");
+        self.write(class_name);
+        self.writeln(")");
+
+        self.write_indent();
+        self.write(class_name);
+        self.write("._init(self");
+        for param in primary_params {
+            self.write(", ");
+            let param_name = self.resolve(param.name.node);
+            self.write(&param_name);
+        }
+        self.writeln(")");
+
+        self.write_indent();
+        self.writeln("return self");
+
+        self.dedent();
+        self.write_indent();
+        self.writeln("end");
+    }
+
+    pub fn generate_class_method(&mut self, class_name: &str, method: &MethodDeclaration) {
+        if method.is_abstract {
+            return;
+        }
+
+        self.writeln("");
+        self.write_indent();
+        self.write("function ");
+        self.write(class_name);
+
+        if method.is_static {
+            self.write(".");
+        } else {
+            self.write(":");
+        }
+
+        let method_name = self.resolve(method.name.node);
+        self.write(&method_name);
+        self.write("(");
+
+        for (i, param) in method.parameters.iter().enumerate() {
+            if i > 0 {
+                self.write(", ");
+            }
+            self.generate_pattern(&param.pattern);
+        }
+        self.writeln(")");
+
+        if let Some(body) = &method.body {
+            self.indent();
+            self.generate_block(body);
+            self.dedent();
+        }
+
+        self.write_indent();
+        self.writeln("end");
+
+        if !method.decorators.is_empty() {
+            for decorator in &method.decorators {
+                self.write_indent();
+                self.write(class_name);
+                self.write(".");
+                let method_name = self.resolve(method.name.node);
+                self.write(&method_name);
+                self.write(" = ");
+
+                let method_ref = format!("{}.{}", class_name, method_name);
+                self.generate_decorator_call(decorator, &method_ref);
+                self.writeln("");
+            }
+        }
+    }
+
+    pub fn generate_class_getter(&mut self, class_name: &str, getter: &GetterDeclaration) {
+        self.writeln("");
+        self.write_indent();
+        self.write("function ");
+        self.write(class_name);
+
+        if getter.is_static {
+            self.write(".");
+        } else {
+            self.write(":");
+        }
+
+        self.write("get_");
+        let getter_name = self.resolve(getter.name.node);
+        self.write(&getter_name);
+        self.writeln("()");
+
+        self.indent();
+        self.generate_block(&getter.body);
+        self.dedent();
+
+        self.write_indent();
+        self.writeln("end");
+    }
+
+    pub fn generate_class_setter(&mut self, class_name: &str, setter: &SetterDeclaration) {
+        self.writeln("");
+        self.write_indent();
+        self.write("function ");
+        self.write(class_name);
+
+        if setter.is_static {
+            self.write(".");
+        } else {
+            self.write(":");
+        }
+
+        self.write("set_");
+        let setter_name = self.resolve(setter.name.node);
+        self.write(&setter_name);
+        self.write("(");
+        self.generate_pattern(&setter.parameter.pattern);
+        self.writeln(")");
+
+        self.indent();
+        self.generate_block(&setter.body);
+        self.dedent();
+
+        self.write_indent();
+        self.writeln("end");
+    }
+
+    pub fn generate_operator_declaration(&mut self, class_name: &str, op: &OperatorDeclaration) {
+        self.writeln("");
+        self.write_indent();
+        self.write("function ");
+        self.write(class_name);
+        self.write(".");
+        self.write(&self.operator_kind_name(&op.operator));
+        self.write("(self");
+
+        let is_unary = op.parameters.is_empty();
+
+        if !is_unary {
+            for param in op.parameters.iter() {
+                self.write(", ");
+                self.generate_pattern(&param.pattern);
+            }
+        }
+        self.writeln(")");
+
+        self.indent();
+        self.generate_block(&op.body);
+        self.dedent();
+
+        self.write_indent();
+        self.writeln("end");
+
+        for decorator in &op.decorators {
+            self.write_indent();
+            self.write(class_name);
+            self.write(".");
+            self.write(&self.operator_kind_name(&op.operator));
+            self.write(" = ");
+
+            let method_ref = format!("{}.{}", class_name, self.operator_kind_name(&op.operator));
+            self.generate_decorator_call(decorator, &method_ref);
+            self.writeln("");
+        }
+    }
+
+    pub fn operator_kind_name(&self, op: &typedlua_parser::ast::statement::OperatorKind) -> String {
+        match op {
+            typedlua_parser::ast::statement::OperatorKind::Add => "__add".to_string(),
+            typedlua_parser::ast::statement::OperatorKind::Subtract => "__sub".to_string(),
+            typedlua_parser::ast::statement::OperatorKind::Multiply => "__mul".to_string(),
+            typedlua_parser::ast::statement::OperatorKind::Divide => "__div".to_string(),
+            typedlua_parser::ast::statement::OperatorKind::Modulo => "__mod".to_string(),
+            typedlua_parser::ast::statement::OperatorKind::Power => "__pow".to_string(),
+            typedlua_parser::ast::statement::OperatorKind::Concatenate => "__concat".to_string(),
+            typedlua_parser::ast::statement::OperatorKind::FloorDivide => "__idiv".to_string(),
+            typedlua_parser::ast::statement::OperatorKind::Equal => "__eq".to_string(),
+            typedlua_parser::ast::statement::OperatorKind::NotEqual => "__eq".to_string(),
+            typedlua_parser::ast::statement::OperatorKind::LessThan => "__lt".to_string(),
+            typedlua_parser::ast::statement::OperatorKind::LessThanOrEqual => "__le".to_string(),
+            typedlua_parser::ast::statement::OperatorKind::GreaterThan => "__lt".to_string(),
+            typedlua_parser::ast::statement::OperatorKind::GreaterThanOrEqual => "__le".to_string(),
+            typedlua_parser::ast::statement::OperatorKind::BitwiseAnd => "__band".to_string(),
+            typedlua_parser::ast::statement::OperatorKind::BitwiseOr => "__bor".to_string(),
+            typedlua_parser::ast::statement::OperatorKind::BitwiseXor => "__bxor".to_string(),
+            typedlua_parser::ast::statement::OperatorKind::ShiftLeft => "__shl".to_string(),
+            typedlua_parser::ast::statement::OperatorKind::ShiftRight => "__shr".to_string(),
+            typedlua_parser::ast::statement::OperatorKind::Index => "__index".to_string(),
+            typedlua_parser::ast::statement::OperatorKind::NewIndex => "__newindex".to_string(),
+            typedlua_parser::ast::statement::OperatorKind::Call => "__call".to_string(),
+            typedlua_parser::ast::statement::OperatorKind::UnaryMinus => "__unm".to_string(),
+            typedlua_parser::ast::statement::OperatorKind::Length => "__len".to_string(),
+        }
+    }
+}

@@ -224,8 +224,8 @@ fn test_union_exhaustive_with_type_patterns() {
     let result = type_check(source);
     // This may pass or fail depending on how sophisticated the exhaustiveness checker is
     // For now, object patterns with guards might not be fully checked
-    if result.is_err() {
-        println!("Union exhaustiveness with guards: {}", result.unwrap_err());
+    if let Err(e) = result {
+        println!("Union exhaustiveness with guards: {}", e);
     }
 }
 
@@ -262,8 +262,7 @@ fn test_guard_prevents_exhaustiveness() {
     // Guards prevent exhaustiveness because they might not always match
     // The pattern `value` would be exhaustive, but with a guard it's not
     // This test documents current behavior - may need adjustment
-    if result.is_err() {
-        let error = result.unwrap_err();
+    if let Err(error) = result {
         println!("Guard exhaustiveness check: {}", error);
     }
 }
@@ -302,8 +301,7 @@ fn test_number_type_requires_wildcard() {
     let result = type_check(source);
     // For open types like number, we can't verify exhaustiveness without a wildcard
     // Current implementation allows this - may want to add warning in future
-    if result.is_err() {
-        let error = result.unwrap_err();
+    if let Err(error) = result {
         println!("Number type exhaustiveness: {}", error);
     }
 }
@@ -375,7 +373,7 @@ fn test_object_type_with_wildcard() {
 
     let result = type_check(source);
     // For object types, current implementation may or may not require wildcard
-    if result.is_err() {
-        println!("Object exhaustiveness: {}", result.unwrap_err());
+    if let Err(e) = result {
+        println!("Object exhaustiveness: {}", e);
     }
 }

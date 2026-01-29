@@ -183,6 +183,6 @@ mod tests {
         let mut pass = RichEnumOptimizationPass;
         let mut program = create_test_program_with_rich_enum();
         let result = pass.run(&mut program);
-        assert!(result.unwrap() == false);
+        assert!(!result.unwrap());
     }
 }

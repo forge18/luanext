@@ -7,6 +7,7 @@ use typedlua_parser::lexer::Lexer;
 use typedlua_parser::parser::Parser;
 use typedlua_parser::string_interner::StringInterner;
 
+#[allow(clippy::arc_with_non_send_sync)]
 fn compile_and_check(source: &str) -> Result<String, String> {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
@@ -265,6 +266,7 @@ fn test_method_decorator_with_arguments() {
 // ============================================================================
 
 #[test]
+#[allow(clippy::arc_with_non_send_sync)]
 fn test_decorator_disabled() {
     let source = r#"
         @sealed
@@ -280,8 +282,10 @@ fn test_decorator_disabled() {
     let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
     let mut program = parser.parse().unwrap();
 
-    let mut options = CompilerOptions::default();
-    options.enable_decorators = false;
+    let options = CompilerOptions {
+        enable_decorators: false,
+        ..Default::default()
+    };
 
     let mut type_checker =
         TypeChecker::new(handler.clone(), &interner, &common_ids).with_options(options);

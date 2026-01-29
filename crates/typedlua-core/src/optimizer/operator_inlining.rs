@@ -25,6 +25,7 @@ const MAX_INLINE_STATEMENTS: usize = 5;
 const MIN_CALL_FREQUENCY: usize = 3;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct OperatorInfo {
     class_name: StringId,
     operator: typedlua_parser::ast::statement::OperatorKind,
@@ -388,17 +389,18 @@ impl OperatorInliningPass {
             receiver_class: None,
         };
 
-        let mut args = Vec::new();
-        args.push(typedlua_parser::ast::expression::Argument {
-            value: left.clone(),
-            is_spread: false,
-            span,
-        });
-        args.push(typedlua_parser::ast::expression::Argument {
-            value: right.clone(),
-            is_spread: false,
-            span,
-        });
+        let args = vec![
+            typedlua_parser::ast::expression::Argument {
+                value: left.clone(),
+                is_spread: false,
+                span,
+            },
+            typedlua_parser::ast::expression::Argument {
+                value: right.clone(),
+                is_spread: false,
+                span,
+            },
+        ];
 
         Some(ExpressionKind::Call(Box::new(func_expr), args, None))
     }
@@ -511,7 +513,7 @@ fn statement_has_side_effects(stmt: &Statement) -> bool {
                 || if_stmt
                     .else_block
                     .as_ref()
-                    .map(|b| block_has_side_effects(b))
+                    .map(block_has_side_effects)
                     .unwrap_or(false)
         }
         Statement::While(while_stmt) => {
@@ -564,7 +566,7 @@ fn expression_has_side_effects(expr: &Expression) -> bool {
             arrow.parameters.iter().any(|p| {
                 p.default
                     .as_ref()
-                    .map(|d| expression_has_side_effects(d))
+                    .map(expression_has_side_effects)
                     .unwrap_or(false)
             }) || match &arrow.body {
                 typedlua_parser::ast::expression::ArrowBody::Expression(e) => {
@@ -882,6 +884,7 @@ mod tests {
     use typedlua_parser::ast::types::{PrimitiveType, Type, TypeKind};
 
     #[test]
+    #[allow(clippy::arc_with_non_send_sync)]
     fn test_operator_catalog_build() {
         let interner = Arc::new(StringInterner::new());
         let mut pass = OperatorInliningPass::new(interner);

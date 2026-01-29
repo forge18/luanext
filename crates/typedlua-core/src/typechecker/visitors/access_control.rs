@@ -1,0 +1,231 @@
+use super::super::TypeCheckError;
+use super::TypeCheckVisitor;
+use rustc_hash::FxHashMap;
+use typedlua_parser::ast::statement::{AccessModifier, Parameter};
+use typedlua_parser::ast::types::Type;
+use typedlua_parser::prelude::OperatorKind;
+use typedlua_parser::span::Span;
+
+/// Information about a class member for access checking
+#[derive(Clone)]
+pub struct ClassMemberInfo {
+    pub(crate) name: String,
+    pub(crate) access: AccessModifier,
+    pub(crate) _is_static: bool,
+    pub(crate) kind: ClassMemberKind,
+    pub(crate) is_final: bool,
+}
+
+#[derive(Clone)]
+#[allow(dead_code)] // Fields are used in check_method_override for signature validation
+pub enum ClassMemberKind {
+    Property {
+        type_annotation: Type,
+    },
+    Method {
+        parameters: Vec<Parameter>,
+        return_type: Option<Type>,
+    },
+    Getter {
+        return_type: Type,
+    },
+    Setter {
+        parameter_type: Type,
+    },
+    Operator {
+        operator: OperatorKind,
+        parameters: Vec<Parameter>,
+        return_type: Option<Type>,
+    },
+}
+
+/// Context for tracking the current class during type checking
+#[derive(Clone)]
+pub struct ClassContext {
+    pub(crate) name: String,
+    pub(crate) parent: Option<String>,
+}
+
+/// Trait for access control checks on class members
+pub trait AccessControlVisitor: TypeCheckVisitor {
+    /// Check if access to a class member is allowed based on access modifier
+    fn check_member_access(
+        &self,
+        current_class: &Option<ClassContext>,
+        class_name: &str,
+        member_name: &str,
+        span: Span,
+    ) -> Result<(), TypeCheckError>;
+
+    /// Check if a class is a subclass of another
+    fn is_subclass(&self, child: &str, ancestor: &str) -> bool;
+
+    /// Register a class with its members
+    fn register_class(&mut self, name: &str, parent: Option<String>);
+
+    /// Register a class member
+    fn register_member(&mut self, class_name: &str, member: ClassMemberInfo);
+
+    /// Mark a class as final
+    fn mark_class_final(&mut self, name: &str, is_final: bool);
+
+    /// Check if a class is marked as final
+    fn is_class_final(&self, name: &str) -> bool;
+
+    /// Get class members
+    fn get_class_members(&self, class_name: &str) -> Option<&Vec<ClassMemberInfo>>;
+
+    /// Set current class context
+    fn set_current_class(&mut self, class: Option<ClassContext>);
+
+    /// Get current class context
+    fn get_current_class(&self) -> &Option<ClassContext>;
+}
+
+/// Default implementation of access control
+#[derive(Default)]
+pub struct AccessControl {
+    class_members: FxHashMap<String, Vec<ClassMemberInfo>>,
+    final_classes: FxHashMap<String, bool>,
+    current_class: Option<ClassContext>,
+}
+
+impl AccessControl {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl TypeCheckVisitor for AccessControl {
+    fn name(&self) -> &'static str {
+        "AccessControl"
+    }
+}
+
+impl AccessControlVisitor for AccessControl {
+    fn check_member_access(
+        &self,
+        current_class: &Option<ClassContext>,
+        class_name: &str,
+        member_name: &str,
+        span: Span,
+    ) -> Result<(), TypeCheckError> {
+        // Get the member info
+        let member_info = self
+            .class_members
+            .get(class_name)
+            .and_then(|members| members.iter().find(|m| m.name == member_name));
+
+        if let Some(info) = member_info {
+            match &info.access {
+                AccessModifier::Public => {
+                    // Public members are accessible from anywhere
+                    Ok(())
+                }
+                AccessModifier::Private => {
+                    // Private members are only accessible from within the same class
+                    if let Some(ref current) = current_class {
+                        if current.name == class_name {
+                            Ok(())
+                        } else {
+                            Err(TypeCheckError::new(
+                                format!(
+                                    "Property '{}' is private and only accessible within class '{}'",
+                                    member_name, class_name
+                                ),
+                                span,
+                            ))
+                        }
+                    } else {
+                        Err(TypeCheckError::new(
+                            format!(
+                                "Property '{}' is private and only accessible within class '{}'",
+                                member_name, class_name
+                            ),
+                            span,
+                        ))
+                    }
+                }
+                AccessModifier::Protected => {
+                    // Protected members are accessible from within the class and subclasses
+                    if let Some(ref current) = current_class {
+                        if current.name == class_name {
+                            // Same class - allowed
+                            Ok(())
+                        } else if self.is_subclass(&current.name, class_name) {
+                            // Subclass - allowed
+                            Ok(())
+                        } else {
+                            Err(TypeCheckError::new(
+                                format!(
+                                    "Property '{}' is protected and only accessible within class '{}' and its subclasses",
+                                    member_name, class_name
+                                ),
+                                span,
+                            ))
+                        }
+                    } else {
+                        Err(TypeCheckError::new(
+                            format!(
+                                "Property '{}' is protected and only accessible within class '{}' and its subclasses",
+                                member_name, class_name
+                            ),
+                            span,
+                        ))
+                    }
+                }
+            }
+        } else {
+            // Member not found in our tracking - might be from interface or unknown class
+            // Allow it for now
+            Ok(())
+        }
+    }
+
+    fn is_subclass(&self, child: &str, ancestor: &str) -> bool {
+        // Check the current class context for parent information
+        if let Some(ref ctx) = self.current_class {
+            if ctx.name == child {
+                if let Some(ref parent) = ctx.parent {
+                    if parent == ancestor {
+                        return true;
+                    }
+                    // Could recursively check parent's parent, but keeping it simple for now
+                }
+            }
+        }
+
+        false
+    }
+
+    fn register_class(&mut self, name: &str, _parent: Option<String>) {
+        self.class_members.entry(name.to_string()).or_default();
+        self.final_classes.entry(name.to_string()).or_insert(false);
+    }
+
+    fn register_member(&mut self, class_name: &str, member: ClassMemberInfo) {
+        if let Some(members) = self.class_members.get_mut(class_name) {
+            members.push(member);
+        }
+    }
+
+    fn mark_class_final(&mut self, name: &str, is_final: bool) {
+        self.final_classes.insert(name.to_string(), is_final);
+    }
+
+    fn is_class_final(&self, name: &str) -> bool {
+        *self.final_classes.get(name).unwrap_or(&false)
+    }
+
+    fn get_class_members(&self, class_name: &str) -> Option<&Vec<ClassMemberInfo>> {
+        self.class_members.get(class_name)
+    }
+
+    fn set_current_class(&mut self, class: Option<ClassContext>) {
+        self.current_class = class;
+    }
+
+    fn get_current_class(&self) -> &Option<ClassContext> {
+        &self.current_class
+    }
+}

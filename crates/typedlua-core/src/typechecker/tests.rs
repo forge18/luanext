@@ -6,11 +6,11 @@ use typedlua_parser::parser::Parser;
 
 fn parse_and_check(source: &str) -> Result<(), TypeCheckError> {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
-    let (mut interner, common) =
+    let (interner, common) =
         typedlua_parser::string_interner::StringInterner::new_with_common_identifiers();
-    let mut lexer = Lexer::new(source, handler.clone(), &mut interner);
+    let mut lexer = Lexer::new(source, handler.clone(), &interner);
     let tokens = lexer.tokenize().expect("Lexing failed");
-    let mut parser = Parser::new(tokens, handler.clone(), &mut interner, &common);
+    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common);
     let mut program = parser.parse().expect("Parsing failed");
     let mut type_checker = TypeChecker::new(handler, &interner, &common);
     type_checker.check_program(&mut program)

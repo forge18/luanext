@@ -11,6 +11,7 @@
 // these tests can be updated to actually test the limit enforcement.
 
 #[test]
+#[allow(clippy::assertions_on_constants)]
 fn test_limit_constant_is_defined() {
     // This test documents that the limit check exists in the code
     // The actual limit is enforced in utility_types.rs line ~920
@@ -21,13 +22,12 @@ fn test_limit_constant_is_defined() {
     //   }
     //
     // MAX_TEMPLATE_LITERAL_COMBINATIONS = 10000
-    assert!(
-        true,
-        "Template literal expansion limit is defined and implemented"
-    );
+    // Template literal expansion limit is defined and implemented
+    assert!(true);
 }
 
 #[test]
+#[allow(clippy::assertions_on_constants)]
 fn test_limit_prevents_exponential_explosion() {
     // When template literal types ARE supported, this is the expected behavior:
     //
@@ -44,16 +44,16 @@ fn test_limit_prevents_exponential_explosion() {
     //   "Template literal type expansion resulted in X combinations,
     //    which exceeds the limit of 10000"
 
-    assert!(
-        true,
-        "Limit check prevents exponential explosion once parser supports it"
-    );
+    // Limit check prevents exponential explosion once parser supports it
+    assert!(true);
 }
 
 #[test]
+#[allow(clippy::assertions_on_constants)]
 fn test_limit_matches_typescript_behavior() {
     // TypeScript uses a limit of 100,000 combinations
     // We use 10,000 as a more conservative limit
     // This can be adjusted if needed
-    assert!(true, "Limit is conservative at 10,000 combinations");
+    // Limit is conservative at 10,000 combinations
+    assert!(true);
 }

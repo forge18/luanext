@@ -6,6 +6,7 @@ mod type_checker;
 mod type_compat;
 mod type_environment;
 mod utility_types;
+mod visitors;
 
 #[cfg(test)]
 mod tests;

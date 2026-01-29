@@ -8,6 +8,7 @@ use typedlua_parser::lexer::Lexer;
 use typedlua_parser::parser::Parser;
 use typedlua_parser::string_interner::StringInterner;
 
+#[allow(clippy::arc_with_non_send_sync)]
 fn compile_and_generate(source: &str) -> String {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
@@ -22,7 +23,7 @@ fn compile_and_generate(source: &str) -> String {
     let mut type_checker =
         TypeChecker::new(handler, &interner, &common_ids).with_options(CompilerOptions::default());
     type_checker
-        .check_program(&program)
+        .check_program(&mut program)
         .expect("Type checking failed");
 
     let mut codegen = CodeGenerator::new(interner.clone());

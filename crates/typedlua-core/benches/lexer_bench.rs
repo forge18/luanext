@@ -54,13 +54,10 @@ fn bench_lexer_size_scaling(c: &mut Criterion) {
     let mut group = c.benchmark_group("lexer_scaling");
 
     for size in [10, 50, 100, 500].iter() {
-        let source = format!(
-            "{}",
-            (0..*size)
-                .map(|i| format!("const var{}: number = {}", i, i))
-                .collect::<Vec<_>>()
-                .join("\n")
-        );
+        let source = (0..*size)
+            .map(|i| format!("const var{}: number = {}", i, i))
+            .collect::<Vec<_>>()
+            .join("\n");
 
         group.bench_with_input(BenchmarkId::from_parameter(size), &source, |b, s| {
             b.iter(|| {

@@ -7,6 +7,7 @@ use typedlua_parser::lexer::Lexer;
 use typedlua_parser::parser::Parser;
 use typedlua_parser::string_interner::StringInterner;
 
+#[allow(clippy::arc_with_non_send_sync)]
 fn compile_with_level(source: &str, level: OptimizationLevel) -> Result<String, String> {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
@@ -37,11 +38,13 @@ fn compile_with_level(source: &str, level: OptimizationLevel) -> Result<String, 
 }
 
 /// Use O1 for pattern tests (no aggressive DCE)
+#[allow(clippy::arc_with_non_send_sync)]
 fn compile_o1(source: &str) -> Result<String, String> {
     compile_with_level(source, OptimizationLevel::O1)
 }
 
 /// Use O2 for optimization-specific tests
+#[allow(clippy::arc_with_non_send_sync)]
 fn compile_o2(source: &str) -> Result<String, String> {
     compile_with_level(source, OptimizationLevel::O2)
 }

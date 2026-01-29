@@ -45,7 +45,6 @@ impl IfStatementNarrowingExample {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use typedlua_parser::ast::expression::ExpressionKind::Identifier;
     use typedlua_parser::ast::expression::{BinaryOp, ExpressionKind, Literal};
     use typedlua_parser::ast::types::{PrimitiveType, TypeKind};
     use typedlua_parser::ast::Spanned;
@@ -194,8 +193,9 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_type_guard_narrowing() {
+        use typedlua_parser::ast::types::{FunctionType, TypePredicate};
+
         let (interner, _) =
             typedlua_parser::string_interner::StringInterner::new_with_common_identifiers();
 
@@ -203,6 +203,8 @@ mod tests {
         let mut variable_types = FxHashMap::default();
         let x_id = get_string_id("x", &interner);
         let is_string_id = get_string_id("isString", &interner);
+
+        // Register the variable type
         variable_types.insert(
             x_id,
             Type::new(
@@ -213,6 +215,30 @@ mod tests {
                 ]),
                 make_span(),
             ),
+        );
+
+        // Register isString as a type guard function: (x: any) => x is string
+        let type_predicate = TypePredicate {
+            parameter_name: Spanned::new(x_id, make_span()),
+            type_annotation: Box::new(Type::new(
+                TypeKind::Primitive(PrimitiveType::String),
+                make_span(),
+            )),
+            span: make_span(),
+        };
+        let func_type = FunctionType {
+            type_parameters: None,
+            parameters: vec![],
+            return_type: Box::new(Type::new(
+                TypeKind::TypePredicate(type_predicate),
+                make_span(),
+            )),
+            throws: None,
+            span: make_span(),
+        };
+        variable_types.insert(
+            is_string_id,
+            Type::new(TypeKind::Function(func_type), make_span()),
         );
 
         // Condition: isString(x)

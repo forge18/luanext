@@ -131,7 +131,7 @@ mod tests {
     fn test_arena_fill_iter() {
         let arena = Arena::new();
         let vec = vec![1, 2, 3, 4, 5];
-        let slice = arena.alloc_slice_fill_iter(vec.into_iter());
+        let slice = arena.alloc_slice_fill_iter(vec);
         assert_eq!(slice, &[1, 2, 3, 4, 5]);
     }
 }

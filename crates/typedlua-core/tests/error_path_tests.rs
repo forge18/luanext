@@ -8,6 +8,7 @@ use typedlua_parser::lexer::Lexer;
 use typedlua_parser::parser::Parser;
 use typedlua_parser::string_interner::StringInterner;
 
+#[allow(clippy::arc_with_non_send_sync)]
 #[test]
 fn test_parser_missing_paren() {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
@@ -20,6 +21,7 @@ fn test_parser_missing_paren() {
     assert!(handler.has_errors());
 }
 
+#[allow(clippy::arc_with_non_send_sync)]
 #[test]
 fn test_parser_unexpected_token() {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
@@ -32,6 +34,7 @@ fn test_parser_unexpected_token() {
     assert!(handler.has_errors());
 }
 
+#[allow(clippy::arc_with_non_send_sync)]
 #[test]
 fn test_parser_incomplete_expression() {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
@@ -45,6 +48,7 @@ fn test_parser_incomplete_expression() {
 }
 
 // Type checker error tests
+#[allow(clippy::arc_with_non_send_sync)]
 #[test]
 fn test_type_mismatch() {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
@@ -59,6 +63,7 @@ fn test_type_mismatch() {
     let _ = tc.check_program(&mut program);
 }
 
+#[allow(clippy::arc_with_non_send_sync)]
 #[test]
 fn test_undefined_variable() {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
@@ -73,6 +78,7 @@ fn test_undefined_variable() {
     let _ = tc.check_program(&mut program);
 }
 
+#[allow(clippy::arc_with_non_send_sync)]
 #[test]
 fn test_return_type_mismatch() {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
@@ -89,6 +95,7 @@ fn test_return_type_mismatch() {
 }
 
 // Diagnostic handler tests
+#[allow(clippy::arc_with_non_send_sync)]
 #[test]
 fn test_diagnostic_handler_counts() {
     let handler = CollectingDiagnosticHandler::new();
@@ -101,6 +108,7 @@ fn test_diagnostic_handler_counts() {
     assert!(handler.has_errors());
 }
 
+#[allow(clippy::arc_with_non_send_sync)]
 #[test]
 fn test_diagnostic_levels() {
     let handler = CollectingDiagnosticHandler::new();
@@ -115,6 +123,7 @@ fn test_diagnostic_levels() {
 }
 
 // Code generator tests
+#[allow(clippy::arc_with_non_send_sync)]
 #[test]
 fn test_codegen_doesnt_panic() {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
@@ -131,6 +140,7 @@ fn test_codegen_doesnt_panic() {
 }
 
 // Integration tests
+#[allow(clippy::arc_with_non_send_sync)]
 #[test]
 fn test_full_pipeline_with_errors() {
     let handler = Arc::new(CollectingDiagnosticHandler::new());

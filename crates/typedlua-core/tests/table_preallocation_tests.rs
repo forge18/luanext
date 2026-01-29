@@ -12,6 +12,7 @@ use typedlua_parser::ast::Spanned;
 use typedlua_parser::span::Span;
 use typedlua_parser::string_interner::StringInterner;
 
+#[allow(clippy::arc_with_non_send_sync)]
 fn create_optimizer(level: OptimizationLevel) -> Optimizer {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let interner = Arc::new(StringInterner::new());
@@ -185,6 +186,7 @@ fn test_optimization_level_comparison() {
 }
 
 #[test]
+#[allow(clippy::arc_with_non_send_sync)]
 fn test_global_localization_creates_local_references() {
     use typedlua_parser::ast::{Program, Spanned};
 
@@ -254,6 +256,7 @@ fn test_global_localization_creates_local_references() {
 }
 
 #[test]
+#[allow(clippy::arc_with_non_send_sync)]
 fn test_table_preallocation_hint() {
     let interner = Arc::new(StringInterner::new());
     let handler = Arc::new(CollectingDiagnosticHandler::new());
@@ -289,6 +292,7 @@ fn test_table_preallocation_hint() {
 }
 
 #[test]
+#[allow(clippy::arc_with_non_send_sync)]
 fn test_constant_folding() {
     let interner = Arc::new(StringInterner::new());
     let handler = Arc::new(CollectingDiagnosticHandler::new());

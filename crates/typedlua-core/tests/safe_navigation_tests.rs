@@ -7,10 +7,12 @@ use typedlua_parser::lexer::Lexer;
 use typedlua_parser::parser::Parser;
 use typedlua_parser::string_interner::StringInterner;
 
+#[allow(clippy::arc_with_non_send_sync)]
 fn compile_and_check(source: &str) -> Result<String, String> {
     compile_with_optimization(source, OptimizationLevel::O0)
 }
 
+#[allow(clippy::arc_with_non_send_sync)]
 fn compile_with_optimization(source: &str, level: OptimizationLevel) -> Result<String, String> {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
@@ -175,8 +177,8 @@ fn test_optional_method_call() {
 
     let result = compile_and_check(source);
     // May have type checking issues - that's OK for now
-    if result.is_err() {
-        println!("Optional method call test: {}", result.unwrap_err());
+    if let Err(e) = result {
+        println!("Optional method call test: {}", e);
     }
 }
 
@@ -193,8 +195,8 @@ fn test_optional_on_nil() {
 
     let result = compile_and_check(source);
     // May have type checking issues
-    if result.is_err() {
-        println!("Optional on nil test: {}", result.unwrap_err());
+    if let Err(e) = result {
+        println!("Optional on nil test: {}", e);
     }
 }
 
@@ -222,8 +224,8 @@ fn test_optional_in_assignment() {
 
     let result = compile_and_check(source);
     // May have type checking issues with optional properties
-    if result.is_err() {
-        println!("Optional in assignment test: {}", result.unwrap_err());
+    if let Err(e) = result {
+        println!("Optional in assignment test: {}", e);
     }
 }
 
@@ -240,8 +242,8 @@ fn test_optional_with_null_coalesce() {
 
     let result = compile_and_check(source);
     // May have type checking issues
-    if result.is_err() {
-        println!("Optional with null coalesce test: {}", result.unwrap_err());
+    if let Err(e) = result {
+        println!("Optional with null coalesce test: {}", e);
     }
 }
 
@@ -359,8 +361,8 @@ fn test_type_inference_optional_member() {
 
     let result = compile_and_check(source);
     // Type inference may not be fully implemented
-    if result.is_err() {
-        println!("Type inference test: {}", result.unwrap_err());
+    if let Err(e) = result {
+        println!("Type inference test: {}", e);
     }
 }
 
@@ -595,8 +597,7 @@ fn test_o2_vs_regular_optional_chaining() {
 
     let result2 = compile_with_optimization(unoptimized_source, OptimizationLevel::O2);
     // May have type checking issues with explicit nil type
-    if result2.is_ok() {
-        let output2 = result2.unwrap();
+    if let Ok(output2) = result2 {
         // This one should have nil checks since obj could be nil
         assert!(
             output2.contains(" and ") || output2.contains("function()"),

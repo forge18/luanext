@@ -103,16 +103,15 @@ fn bench_parser_size_scaling(c: &mut Criterion) {
     let mut group = c.benchmark_group("parser_scaling");
 
     for size in [10, 50, 100].iter() {
-        let source = format!(
-            "{}",
-            (0..*size)
-                .map(|i| format!(
+        let source = (0..*size)
+            .map(|i| {
+                format!(
                     "function func{}(x: number): number {{ return x + {} }}",
                     i, i
-                ))
-                .collect::<Vec<_>>()
-                .join("\n")
-        );
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
 
         group.bench_with_input(BenchmarkId::from_parameter(size), &source, |b, s| {
             b.iter(|| {

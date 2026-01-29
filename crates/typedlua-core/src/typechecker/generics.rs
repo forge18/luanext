@@ -914,7 +914,12 @@ mod tests {
         let number_type = Type::new(TypeKind::Primitive(PrimitiveType::Number), span);
 
         // Instantiate T with number
-        let result = instantiate_type(&type_ref_t, &[type_param], &[number_type.clone()]).unwrap();
+        let result = instantiate_type(
+            &type_ref_t,
+            &[type_param],
+            std::slice::from_ref(&number_type),
+        )
+        .unwrap();
 
         // Result should be number
         assert!(matches!(

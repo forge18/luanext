@@ -298,6 +298,7 @@ impl InterfaceImplementationMap {
     }
 }
 
+#[allow(dead_code)]
 pub struct InterfaceMethodInliningPass {
     interner: Arc<StringInterner>,
 }

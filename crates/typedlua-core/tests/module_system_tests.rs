@@ -1,5 +1,3 @@
-#![cfg(feature = "unimplemented")]
-
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use typedlua_core::diagnostics::{CollectingDiagnosticHandler, DiagnosticHandler};
@@ -51,7 +49,7 @@ fn read_mock_file(fs: &Arc<MockFileSystem>, path: &str) -> String {
     let fs_trait: &dyn FileSystem = &**fs;
     fs_trait
         .read_file(Path::new(path))
-        .expect(&format!("Failed to read {}", path))
+        .unwrap_or_else(|_| panic!("Failed to read {}", path))
 }
 
 /// Helper to setup module infrastructure
@@ -70,6 +68,7 @@ fn setup_module_system(
 }
 
 #[test]
+#[allow(unused_variables)]
 fn test_simple_named_export_import() {
     let mut fs = MockFileSystem::new();
     fs.add_file(
@@ -271,7 +270,7 @@ class Circle implements Shape {
     let (registry, _resolver) = setup_module_system(fs.clone(), PathBuf::from("/project"));
     // Parse and type check types.tl
     let types_handler = Arc::new(CollectingDiagnosticHandler::new());
-    let types_ast = parse_file(
+    let mut types_ast = parse_file(
         &read_mock_file(&fs, "/project/types.tl"),
         types_handler.clone(),
     )
@@ -285,7 +284,7 @@ class Circle implements Shape {
 
     let mut types_checker = TypeChecker::new(types_handler.clone(), &interner, &common_ids);
     // Type check FIRST to populate symbol table
-    let types_result = types_checker.check_program(&types_ast);
+    let types_result = types_checker.check_program(&mut types_ast);
     if types_result.is_err() || types_handler.has_errors() {
         eprintln!("=== TYPES TYPE CHECK FAILED ===");
         for diag in types_handler.get_diagnostics() {
@@ -304,7 +303,7 @@ class Circle implements Shape {
 
     // Parse and type check circle.tl
     let circle_handler = Arc::new(CollectingDiagnosticHandler::new());
-    let circle_ast = parse_file(
+    let mut circle_ast = parse_file(
         &read_mock_file(&fs, "/project/circle.tl"),
         circle_handler.clone(),
     )
@@ -318,10 +317,10 @@ class Circle implements Shape {
 
     let mut circle_checker = TypeChecker::new(circle_handler.clone(), &interner, &common_ids);
     // Type check FIRST to populate symbol table
-    let circle_result = circle_checker.check_program(&circle_ast);
-    if circle_result.is_err() {
+    let circle_result = circle_checker.check_program(&mut circle_ast);
+    if let Err(ref e) = circle_result {
         eprintln!("=== CIRCLE TYPE CHECK FAILED (Result::Err) ===");
-        eprintln!("Error: {:?}", circle_result.as_ref().unwrap_err());
+        eprintln!("Error: {:?}", e);
     }
     if circle_handler.has_errors() {
         eprintln!("=== CIRCLE TYPE CHECK FAILED (Diagnostics) ===");
@@ -370,7 +369,7 @@ const user: User = { name: "Alice", age: 30 }
 
     // Type check types.tl first
     let types_handler = Arc::new(CollectingDiagnosticHandler::new());
-    let types_ast = parse_file_with_interner(
+    let mut types_ast = parse_file_with_interner(
         &read_mock_file(&fs, "/project/types.tl"),
         types_handler.clone(),
         &interner,
@@ -386,7 +385,7 @@ const user: User = { name: "Alice", age: 30 }
 
     let mut types_checker = TypeChecker::new(types_handler.clone(), &interner, &common_ids);
     types_checker
-        .check_program(&types_ast)
+        .check_program(&mut types_ast)
         .expect("Failed to type check types.tl");
     let types_exports = types_checker.extract_exports(&types_ast);
     registry
@@ -399,7 +398,7 @@ const user: User = { name: "Alice", age: 30 }
 
     // Type check middle.tl (re-export type)
     let middle_handler = Arc::new(CollectingDiagnosticHandler::new());
-    let middle_ast = parse_file_with_interner(
+    let mut middle_ast = parse_file_with_interner(
         &read_mock_file(&fs, "/project/middle.tl"),
         middle_handler.clone(),
         &interner,
@@ -415,7 +414,7 @@ const user: User = { name: "Alice", age: 30 }
 
     let mut middle_checker = TypeChecker::new(middle_handler.clone(), &interner, &common_ids);
     middle_checker
-        .check_program(&middle_ast)
+        .check_program(&mut middle_ast)
         .expect("Failed to type check middle.tl");
     let middle_exports = middle_checker.extract_exports(&middle_ast);
     registry
@@ -441,7 +440,7 @@ const user: User = { name: "Alice", age: 30 }
     }
     // Type check main.tl
     let main_handler = Arc::new(CollectingDiagnosticHandler::new());
-    let main_ast = parse_file_with_interner(
+    let mut main_ast = parse_file_with_interner(
         &read_mock_file(&fs, "/project/main.tl"),
         main_handler.clone(),
         &interner,
@@ -456,29 +455,7 @@ const user: User = { name: "Alice", age: 30 }
     );
 
     let mut main_checker = TypeChecker::new(main_handler.clone(), &interner, &common_ids);
-    let main_result = main_checker.check_program(&main_ast);
-    if main_result.is_err() || main_handler.has_errors() {
-        eprintln!("=== MAIN TYPE CHECK FAILED (test_re_export_type) ===");
-        if let Err(e) = &main_result {
-            eprintln!("Error: {:?}", e);
-        }
-        for diag in main_handler.get_diagnostics() {
-            eprintln!("{:?}", diag);
-        }
-    }
-    assert!(main_result.is_ok(), "main.tl type check should succeed");
-    let main_result = main_checker.check_program(&main_ast);
-    if main_result.is_err() || main_handler.has_errors() {
-        eprintln!("=== MAIN TYPE CHECK FAILED (test_re_export_type) ===");
-        if let Err(e) = &main_result {
-            eprintln!("Error: {:?}", e);
-        }
-        for diag in main_handler.get_diagnostics() {
-            eprintln!("{:?}", diag);
-        }
-    }
-    assert!(main_result.is_ok(), "main.tl type check should succeed");
-    let main_result = main_checker.check_program(&main_ast);
+    let main_result = main_checker.check_program(&mut main_ast);
     if main_result.is_err() || main_handler.has_errors() {
         eprintln!("=== MAIN TYPE CHECK FAILED (test_re_export_type) ===");
         if let Err(e) = &main_result {

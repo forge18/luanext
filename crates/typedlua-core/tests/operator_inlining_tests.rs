@@ -8,6 +8,7 @@ use typedlua_parser::lexer::Lexer;
 use typedlua_parser::parser::Parser;
 use typedlua_parser::string_interner::StringInterner;
 
+#[allow(clippy::arc_with_non_send_sync)]
 fn compile_with_optimization(
     source: &str,
     optimization_level: OptimizationLevel,

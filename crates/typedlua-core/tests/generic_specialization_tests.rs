@@ -13,6 +13,7 @@ use typedlua_parser::ast::{Program, Spanned};
 use typedlua_parser::span::Span;
 use typedlua_parser::string_interner::StringInterner;
 
+#[allow(clippy::arc_with_non_send_sync)]
 fn create_test_interner() -> Arc<StringInterner> {
     Arc::new(StringInterner::new())
 }
