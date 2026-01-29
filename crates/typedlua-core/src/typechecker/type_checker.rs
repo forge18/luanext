@@ -3,7 +3,7 @@ use super::type_compat::TypeCompatibility;
 use super::type_environment::TypeEnvironment;
 use super::visitors::{
     AccessControl, AccessControlVisitor, ClassContext, ClassMemberInfo, ClassMemberKind,
-    TypeInferenceVisitor, TypeInferrer,
+    NarrowingVisitor, TypeInferenceVisitor, TypeInferrer, TypeNarrower,
 };
 use super::TypeCheckError;
 use crate::config::CompilerOptions;
@@ -22,7 +22,7 @@ pub struct TypeChecker<'a> {
     symbol_table: SymbolTable,
     type_env: TypeEnvironment,
     current_function_return_type: Option<Type>,
-    narrowing_context: super::narrowing::NarrowingContext,
+    narrowing_context: TypeNarrower,
     options: CompilerOptions,
     access_control: AccessControl,
     /// Module registry for multi-module compilation
@@ -50,7 +50,7 @@ impl<'a> TypeChecker<'a> {
             symbol_table: SymbolTable::new(),
             type_env: TypeEnvironment::new(),
             current_function_return_type: None,
-            narrowing_context: super::narrowing::NarrowingContext::new(),
+            narrowing_context: TypeNarrower::new(),
             options: CompilerOptions::default(),
             access_control: AccessControl::new(),
             module_registry: None,
@@ -492,36 +492,36 @@ impl<'a> TypeChecker<'a> {
         }
 
         // Apply type narrowing based on the condition
-        let (then_context, else_context) = super::narrowing::narrow_type_from_condition(
+        let (then_context, else_context) = self.narrowing_context.narrow_from_condition(
             &if_stmt.condition,
-            &self.narrowing_context,
+            self.narrowing_context.get_context(),
             &variable_types,
             self.interner,
         );
 
         // Check then block with narrowed context
-        let saved_context = self.narrowing_context.clone();
-        self.narrowing_context = then_context;
+        let saved_context = self.narrowing_context.get_context().clone();
+        *self.narrowing_context.get_context_mut() = then_context;
         self.check_block(&mut if_stmt.then_block)?;
 
         // Restore context for else-if and else
-        self.narrowing_context = else_context.clone();
+        *self.narrowing_context.get_context_mut() = else_context.clone();
 
         // Check else-if clauses
         for else_if in if_stmt.else_ifs.iter_mut() {
             self.infer_expression_type(&mut else_if.condition)?;
 
             // Further narrow based on else-if condition
-            let (elseif_then, elseif_else) = super::narrowing::narrow_type_from_condition(
+            let (elseif_then, elseif_else) = self.narrowing_context.narrow_from_condition(
                 &else_if.condition,
-                &self.narrowing_context,
+                self.narrowing_context.get_context(),
                 &variable_types,
                 self.interner,
             );
 
-            self.narrowing_context = elseif_then;
+            *self.narrowing_context.get_context_mut() = elseif_then;
             self.check_block(&mut else_if.block)?;
-            self.narrowing_context = elseif_else;
+            *self.narrowing_context.get_context_mut() = elseif_else;
         }
 
         // Check else block
@@ -530,7 +530,7 @@ impl<'a> TypeChecker<'a> {
         }
 
         // Restore original context after if statement
-        self.narrowing_context = saved_context;
+        *self.narrowing_context.get_context_mut() = saved_context;
 
         Ok(())
     }
@@ -2173,13 +2173,12 @@ impl<'a> TypeChecker<'a> {
         let mut inferrer = TypeInferrer::new(
             &mut self.symbol_table,
             &mut self.type_env,
-            &mut self.narrowing_context,
+            self.narrowing_context.get_context_mut(),
             &self.access_control,
             self.interner,
         );
         inferrer.infer_expression(expr)
     }
-
 
     /// Evaluate special type constructs (keyof, mapped types, conditional types, etc.)
     fn evaluate_type(&self, typ: &Type) -> Result<Type, String> {

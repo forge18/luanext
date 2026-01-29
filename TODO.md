@@ -1,6 +1,6 @@
 # TypedLua TODO
 
-**Last Updated:** 2026-01-29 (Section 4.4: Phase 2 complete - AccessControlVisitor integrated into TypeChecker)
+**Last Updated:** 2026-01-29 (Section 4.4: Phase 5 complete - GenericVisitor trait added, GenericInstantiator implemented, ~75 lines)
 
 ---
 
@@ -1250,7 +1250,7 @@ For each phase:
 
 ### 4.4 Type Checker Visitor Pattern
 
-**Status:** Not Started | **Expected:** ~25% reduction (4,382 → ~3,300 lines), better separation | **Model:** Sonnet
+**Status:** Phase 3 Complete | **Expected:** ~25% reduction (4,382 → ~3,300 lines), better separation | **Model:** Sonnet
 
 Type checker is 4,382 lines scattered with multiple concerns. Extract specialized visitor patterns for better separation and testability.
 
@@ -1340,88 +1340,103 @@ pub trait TypeCheckVisitor {
 
 ---
 
-#### Phase 3: TypeInferenceVisitor (Expression Type Inference)
+#### Phase 3: TypeInferenceVisitor (Expression Type Inference) ✓ COMPLETE
 
-**Current location:** `type_checker.rs` lines 2208-2970
+**Status:** COMPLETE | **Location:** `typechecker/visitors/inference.rs`
 
-**Methods to extract:**
+**Implementation:**
 
-- `infer_expression_type(expr)` - Main dispatcher (~700 lines)
-- All inference helpers from expressions:
-  - `infer_binary_op_type`, `infer_unary_op_type`
-  - `infer_call_type`, `infer_method_type`
-  - `infer_member_type`, `infer_index_type`
-  - `infer_arrow_function_type`, `infer_table_type`, etc.
+- [x] Created `visitors/inference.rs` with `TypeInferenceVisitor` trait:
+  - [x] `infer_expression(expr) -> Result<Type, TypeCheckError>` - Main dispatcher
+  - [x] `infer_binary_op(op, left, right, span) -> Result<Type, TypeCheckError>`
+  - [x] `infer_unary_op(op, operand, span) -> Result<Type, TypeCheckError>`
+  - [x] `infer_call(callee_type, args, span) -> Result<Type, TypeCheckError>`
+  - [x] `infer_method(obj_type, method_name, args, span) -> Result<Type, TypeCheckError>`
+  - [x] `infer_member(obj_type, member, span) -> Result<Type, TypeCheckError>`
+  - [x] `infer_index(obj_type, span) -> Result<Type, TypeCheckError>`
+  - [x] `make_optional(typ, span) -> Result<Type, TypeCheckError>`
+  - [x] `remove_nil(typ, span) -> Result<Type, TypeCheckError>`
+  - [x] `is_nil(typ) -> bool`
+  - [x] `infer_null_coalesce(left, right, span) -> Result<Type, TypeCheckError>`
+  - [x] `check_match(match_expr) -> Result<Type, TypeCheckError>`
+  - [x] `check_pattern(pattern, expected_type) -> Result<(), TypeCheckError>`
 
-**3.1 Create `visitors/inference.rs`**
+- [x] Created `TypeInferrer` struct with:
+  - [x] Dependencies: `symbol_table`, `type_env`, `narrowing_context`, `access_control`, `interner`
+  - [x] All `infer_*` methods extracted from type_checker.rs
+  - [x] Helper methods: `check_member_access()`, `check_exhaustiveness()`, `pattern_could_match()`, `narrow_type_by_pattern()`
+  - [x] Handles `annotated_type` and `receiver_class` setting on Expressions
 
-- [ ] Define `TypeInferenceVisitor` trait:
-  - [ ] `infer_expression(expr) -> Result<Type, TypeCheckError>`
-  - [ ] `infer_statement(stmt) -> Result<(), TypeCheckError>` (for side-effecting inferences)
-- [ ] All helper inference methods
+- [x] Integrated into TypeChecker:
+  - [x] `infer_expression_type()` delegates to `TypeInferrer::infer_expression()`
+  - [x] Removed ~700 lines of duplicate inference code from type_checker.rs
 
-**3.2 Create `TypeInferrer` implementation**
+**Lines extracted:** ~700 lines (type_checker.rs reduced from 4,264 to 3,213 lines)
 
-- [ ] Extract all `infer_*` methods
-- [ ] Store dependencies: `symbol_table`, `type_env`, `narrowing_context`, `interner`, `common`
-- [ ] Handle annotated_type and receiver_class setting on Expressions
+**Test Results:** All 12 inference unit tests pass (inference_tests.rs)
 
-**3.3 Complexity considerations:**
-
-- [ ] Some inference methods call other type checker methods (e.g., class checking)
-- [ ] Create callback trait for inter-visitor communication:
-
-  ```rust
-  pub trait InferrerDeps {
-      fn check_method_override(&mut self, ...) -> Result<()>;
-      fn register_class_member(&mut self, ...) -> Result<()>;
-  }
-  ```
-
-**Estimated lines extracted:** ~600-700 lines
-
----
-
-#### Phase 4: NarrowingVisitor Enhancement
-
-**Current location:** `narrowing.rs` (~500 lines), `narrowing_integration.rs` (~150 lines)
-
-**Already well-separated.** Enhancements:
-
-- [ ] Add `NarrowingVisitor` trait to `narrowing.rs`
-- [ ] Unify narrowed_context management (currently split between files)
-- [ ] Move pattern-narrowing logic from `type_checker.rs` line 3285+
-
-**4.1 Add trait to `narrowing.rs`:**
-
-```rust
-pub trait NarrowingVisitor {
-    fn narrow_from_condition(condition, ...) -> (NarrowingContext, NarrowingContext);
-    fn narrow_by_pattern(pattern, value_type) -> Result<Type>;
-}
-```
-
-**Estimated lines extracted:** ~150 lines from type_checker.rs
+**Files created:**
+- `crates/typedlua-core/src/typechecker/visitors/inference.rs` (1,177 lines)
+- `crates/typedlua-core/src/typechecker/visitors/inference/inference_tests.rs` (473 lines)
 
 ---
 
-#### Phase 5: GenericVisitor Enhancement
+#### Phase 4: NarrowingVisitor Enhancement ✓ COMPLETE
 
-**Current location:** `generics.rs` (~1,000 lines)
+**Status:** COMPLETE | **Location:** `typechecker/narrowing.rs`, `typechecker/visitors/mod.rs`
 
-**Already well-separated.** Just ensure:
+**Implementation:**
 
-- [ ] Generic visitor trait exists (if not, create minimal one)
-- [ ] Clear interface for type argument inference and instantiation
+- [x] Add `NarrowingVisitor` trait to `narrowing.rs`
+  - [x] `narrow_from_condition()` - Returns (then_context, else_context) with refined types
+  - [x] `narrow_by_pattern()` - Narrows type based on pattern match
+  - [x] `get_context()` / `get_context_mut()` - Context access
+  - [x] `set_narrowed_type()` / `get_narrowed_type()` / `remove_narrowed_type()` - Variable type management
+  - [x] `merge_contexts()` - Merge contexts from branches
 
-**5.1 Add trait to `generics.rs` (if missing):**
+- [x] Create `TypeNarrower` struct implementing `NarrowingVisitor`
+  - [x] Wraps `NarrowingContext` and provides visitor interface
+  - [x] Implements all trait methods
+  - [x] Internal `narrow_type_by_pattern_internal()` for pattern narrowing
 
-```rust
-pub trait GenericVisitor {
-    fn instantiate_type(type, params, args) -> Result<Type>;
-    fn infer_type_arguments(params, func_params, arg_types) -> Result<Vec<Type>>;
-}
-```
+- [x] Unify narrowed_context management
+  - [x] `TypeChecker` now uses `TypeNarrower` instead of raw `NarrowingContext`
+  - [x] Updated all call sites to use visitor methods
+  - [x] Pattern-narrowing logic already in `inference.rs` (no move needed)
+
+- [x] Export from `visitors/mod.rs`
+  - [x] `pub use super::narrowing::{NarrowingContext, NarrowingVisitor, TypeNarrower};`
+
+**Lines extracted:** ~150 lines of trait definition and implementation
+
+**Test Results:** All 19 narrowing tests pass, all 296 library tests pass
+
+---
+
+#### Phase 5: GenericVisitor Enhancement ✓ COMPLETE
+
+**Status:** COMPLETE | **Location:** `typechecker/generics.rs`
+
+**Implementation:**
+
+- [x] Created `GenericVisitor` trait in `generics.rs` with methods:
+  - [x] `instantiate_type(&self, typ, type_params, type_args) -> Result<Type, String>`
+  - [x] `infer_type_arguments(&self, type_params, function_params, arg_types) -> Result<Vec<Type>, String>`
+  - [x] `check_type_constraints(&self, type_params, type_args) -> Result<(), String>`
+
+- [x] Created `GenericInstantiator` struct implementing `GenericVisitor`:
+  - [x] Wraps the existing free functions to provide trait-based interface
+  - [x] Implements `Default` trait for easy construction
+  - [x] Delegates to existing `instantiate_type()`, `infer_type_arguments()`, `check_type_constraints()` functions
+
+- [x] Exported from `visitors/mod.rs`:
+  - [x] `pub use super::generics::{GenericInstantiator, GenericVisitor};`
+
+**Lines added:** ~75 lines (trait definition + struct implementation)
+
+**Test Results:** All 296 library tests pass, all 7 generics unit tests pass
+
+**Note:** The trait provides a clean interface for type parameter operations while maintaining backward compatibility with existing code that uses the free functions directly.
 
 ---
 
@@ -1500,15 +1515,15 @@ pub struct TypeChecker<'a> {
 
 ### Implementation Order
 
-| Phase | Priority | Dependencies | Estimated Reduction      |
-|-------|----------|--------------|--------------------------|
-| 1     | P0       | None         | 0 lines (infrastructure) |
-| 2     | P1       | 1            | ~150 lines               |
-| 3     | P1       | 1, 2         | ~600-700 lines           |
-| 4     | P2       | 1            | ~150 lines               |
-| 5     | P2       | 1            | 0 lines (already done)   |
-| 6     | P0       | 2, 3, 4, 5   | N/A (integration)        |
-| 7     | P0       | 6            | N/A (verification)       |
+| Phase | Priority | Dependencies | Estimated Reduction      | Status |
+|-------|----------|--------------|--------------------------|--------|
+| 1     | P0       | None         | 0 lines (infrastructure) | ✓ Complete |
+| 2     | P1       | 1            | ~150 lines               | ✓ Complete |
+| 3     | P1       | 1, 2         | ~700 lines               | ✓ Complete |
+| 4     | P2       | 1            | ~150 lines               | ✓ Complete |
+| 5     | P2       | 1            | ~75 lines (trait added)  | ✓ Complete |
+| 6     | P0       | 2, 3, 4, 5   | N/A (integration)        | In Progress |
+| 7     | P0       | 6            | N/A (verification)       | Not Started |
 
 ---
 
@@ -1554,21 +1569,21 @@ pub struct TypeChecker<'a> {
 ```
 typechecker/
   ├── visitors/
-  │   ├── mod.rs                    # Visitor registry, traits
-  │   ├── access_control.rs        # ~200 lines
-  │   ├── inference.rs              # ~600 lines
-  │   ├── access_control_tests.rs  # ~100 lines
-  │   └── inference_tests.rs       # ~200 lines
+  │   ├── mod.rs                    # Visitor registry, traits (11 lines)
+  │   ├── access_control.rs         # AccessControlVisitor trait (~200 lines)
+  │   ├── inference.rs              # TypeInferenceVisitor trait (~1,177 lines)
+  │   └── inference/
+  │       └── inference_tests.rs    # Unit tests (473 lines, 12 tests)
 ```
 
 **Modified Files:**
 
 ```
 typechecker/
-  ├── type_checker.rs              # Remove ~1,000 lines
-  ├── narrowing.rs                 # Add `NarrowingVisitor` trait
-  ├── generics.rs                  # Add `GenericVisitor` trait (if needed)
-  └── mod.rs                       # Re-exports
+  ├── type_checker.rs              # Reduced from 4,264 to 3,213 lines (~1,051 lines removed)
+  ├── visitors/mod.rs              # Export TypeInferenceVisitor and TypeInferrer
+  └── narrowing.rs                 # (Future: Add `NarrowingVisitor` trait in Phase 4)
+  └── generics.rs                  # (Future: Add `GenericVisitor` trait in Phase 5)
 ```
 
 ---

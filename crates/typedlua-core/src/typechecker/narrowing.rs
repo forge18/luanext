@@ -1,7 +1,63 @@
 use rustc_hash::FxHashMap;
 use typedlua_parser::ast::expression::{BinaryOp, Expression, ExpressionKind, Literal, UnaryOp};
+use typedlua_parser::ast::pattern::Pattern;
 use typedlua_parser::ast::types::{PrimitiveType, Type, TypeKind};
 use typedlua_parser::string_interner::StringId;
+
+/// Trait for type narrowing operations
+///
+/// This trait defines the interface for narrowing types based on conditions and patterns.
+/// It is used by the type checker to refine variable types in conditional branches.
+pub trait NarrowingVisitor {
+    /// Narrow types based on a condition expression
+    ///
+    /// Returns (then_context, else_context) with refined types for each branch.
+    /// The then_context contains types that apply when the condition is true,
+    /// and the else_context contains types that apply when the condition is false.
+    fn narrow_from_condition(
+        &self,
+        condition: &Expression,
+        base_ctx: &NarrowingContext,
+        original_types: &FxHashMap<StringId, Type>,
+        interner: &typedlua_parser::string_interner::StringInterner,
+    ) -> (NarrowingContext, NarrowingContext);
+
+    /// Narrow a type based on a pattern match
+    ///
+    /// This is used in match expressions and destructuring to refine types
+    /// based on the pattern structure.
+    fn narrow_by_pattern(&self, pattern: &Pattern, value_type: &Type) -> Option<Type>;
+
+    /// Get the current narrowing context
+    fn get_context(&self) -> &NarrowingContext;
+
+    /// Get a mutable reference to the narrowing context
+    fn get_context_mut(&mut self) -> &mut NarrowingContext;
+
+    /// Set a narrowed type for a variable
+    fn set_narrowed_type(&mut self, name: StringId, typ: Type) {
+        self.get_context_mut().set_narrowed_type(name, typ);
+    }
+
+    /// Get the narrowed type for a variable, if any
+    fn get_narrowed_type(&self, name: StringId) -> Option<&Type> {
+        self.get_context().get_narrowed_type(name)
+    }
+
+    /// Remove a narrowed type (when variable is reassigned)
+    fn remove_narrowed_type(&mut self, name: StringId) {
+        self.get_context_mut().remove_narrowed_type(name);
+    }
+
+    /// Merge two narrowing contexts (for branch join points)
+    fn merge_contexts(
+        &self,
+        then_ctx: &NarrowingContext,
+        else_ctx: &NarrowingContext,
+    ) -> NarrowingContext {
+        NarrowingContext::merge(then_ctx, else_ctx)
+    }
+}
 
 /// Type narrowing context - tracks refined types for variables in the current scope
 #[derive(Debug, Clone)]
@@ -58,6 +114,121 @@ impl NarrowingContext {
     /// Clone the context for a new branch
     pub fn clone_for_branch(&self) -> Self {
         self.clone()
+    }
+}
+
+/// Type narrower implementation that tracks narrowed types
+pub struct TypeNarrower {
+    context: NarrowingContext,
+}
+
+impl TypeNarrower {
+    /// Create a new type narrower with an empty context
+    pub fn new() -> Self {
+        Self {
+            context: NarrowingContext::new(),
+        }
+    }
+
+    /// Create a new type narrower with an existing context
+    pub fn with_context(context: NarrowingContext) -> Self {
+        Self { context }
+    }
+
+    /// Narrow a type based on a pattern (implementation)
+    fn narrow_type_by_pattern_internal(&self, pattern: &Pattern, typ: &Type) -> Option<Type> {
+        match pattern {
+            Pattern::Wildcard(_) | Pattern::Identifier(_) => {
+                // No narrowing for wildcard or identifier
+                Some(typ.clone())
+            }
+            Pattern::Literal(lit, span) => {
+                // Narrow to literal type
+                Some(Type::new(TypeKind::Literal(lit.clone()), *span))
+            }
+            Pattern::Array(_) => {
+                // For array patterns, narrow to array type if it's a union
+                match &typ.kind {
+                    TypeKind::Union(types) => {
+                        // Find the array type in the union
+                        for t in types {
+                            if matches!(t.kind, TypeKind::Array(_) | TypeKind::Tuple(_)) {
+                                return Some(t.clone());
+                            }
+                        }
+                        // No array type found, return original
+                        Some(typ.clone())
+                    }
+                    _ => Some(typ.clone()),
+                }
+            }
+            Pattern::Object(obj_pattern) => {
+                // For object patterns, narrow based on properties
+                use typedlua_parser::ast::types::ObjectTypeMember;
+                match &typ.kind {
+                    TypeKind::Union(types) => {
+                        // Find object types in the union that have the required properties
+                        let mut matching_types = Vec::new();
+                        for t in types {
+                            if let TypeKind::Object(obj_type) = &t.kind {
+                                // Check if all pattern properties exist in this object type
+                                let all_match = obj_pattern.properties.iter().all(|prop| {
+                                    obj_type.members.iter().any(|member| {
+                                        if let ObjectTypeMember::Property(prop_sig) = member {
+                                            prop_sig.name.node == prop.key.node
+                                        } else {
+                                            false
+                                        }
+                                    })
+                                });
+                                if all_match {
+                                    matching_types.push(t.clone());
+                                }
+                            }
+                        }
+
+                        if matching_types.is_empty() {
+                            Some(typ.clone())
+                        } else if matching_types.len() == 1 {
+                            Some(matching_types[0].clone())
+                        } else {
+                            Some(Type::new(TypeKind::Union(matching_types), typ.span))
+                        }
+                    }
+                    _ => Some(typ.clone()),
+                }
+            }
+        }
+    }
+}
+
+impl Default for TypeNarrower {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl NarrowingVisitor for TypeNarrower {
+    fn narrow_from_condition(
+        &self,
+        condition: &Expression,
+        base_ctx: &NarrowingContext,
+        original_types: &FxHashMap<StringId, Type>,
+        interner: &typedlua_parser::string_interner::StringInterner,
+    ) -> (NarrowingContext, NarrowingContext) {
+        narrow_type_from_condition(condition, base_ctx, original_types, interner)
+    }
+
+    fn narrow_by_pattern(&self, pattern: &Pattern, value_type: &Type) -> Option<Type> {
+        self.narrow_type_by_pattern_internal(pattern, value_type)
+    }
+
+    fn get_context(&self) -> &NarrowingContext {
+        &self.context
+    }
+
+    fn get_context_mut(&mut self) -> &mut NarrowingContext {
+        &mut self.context
     }
 }
 

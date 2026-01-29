@@ -1,6 +1,8 @@
 mod access_control;
 mod inference;
 
+pub use super::generics::{GenericInstantiator, GenericVisitor};
+pub use super::narrowing::{NarrowingContext, NarrowingVisitor, TypeNarrower};
 pub use access_control::{
     AccessControl, AccessControlVisitor, ClassContext, ClassMemberInfo, ClassMemberKind,
 };

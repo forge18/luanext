@@ -96,7 +96,7 @@ pub trait TypeInferenceVisitor: TypeCheckVisitor {
 pub struct TypeInferrer<'a> {
     symbol_table: &'a mut SymbolTable,
     type_env: &'a mut TypeEnvironment,
-    narrowing_context: &'a mut super::super::narrowing::NarrowingContext,
+    narrowing_context: &'a mut super::NarrowingContext,
     access_control: &'a AccessControl,
     interner: &'a StringInterner,
 }
@@ -105,7 +105,7 @@ impl<'a> TypeInferrer<'a> {
     pub fn new(
         symbol_table: &'a mut SymbolTable,
         type_env: &'a mut TypeEnvironment,
-        narrowing_context: &'a mut super::super::narrowing::NarrowingContext,
+        narrowing_context: &'a mut super::NarrowingContext,
         access_control: &'a AccessControl,
         interner: &'a StringInterner,
     ) -> Self {
