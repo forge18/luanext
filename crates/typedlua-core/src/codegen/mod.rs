@@ -1,4 +1,5 @@
 pub mod sourcemap;
+pub mod strategies;
 
 use super::config::OptimizationLevel;
 use super::optimizer::Optimizer;
@@ -10,7 +11,6 @@ use typedlua_parser::ast::statement::*;
 use typedlua_parser::ast::Program;
 use typedlua_parser::span::Span;
 use typedlua_parser::string_interner::{StringId, StringInterner};
-use typedlua_runtime::bitwise;
 use typedlua_runtime::class;
 use typedlua_runtime::decorator;
 use typedlua_runtime::enum_rt;
@@ -29,38 +29,6 @@ pub enum LuaTarget {
     /// Lua 5.4 (added const, to-be-closed)
     #[default]
     Lua54,
-}
-
-impl LuaTarget {
-    /// Check if this target supports bitwise operators
-    pub fn supports_bitwise_ops(self) -> bool {
-        matches!(self, LuaTarget::Lua53 | LuaTarget::Lua54)
-    }
-
-    /// Check if this target supports integer division (//)
-    pub fn supports_integer_divide(self) -> bool {
-        matches!(self, LuaTarget::Lua53 | LuaTarget::Lua54)
-    }
-
-    /// Check if this target supports goto/labels
-    pub fn supports_goto(self) -> bool {
-        !matches!(self, LuaTarget::Lua51)
-    }
-
-    /// Check if this target supports the continue statement
-    pub fn supports_continue(self) -> bool {
-        // None of the standard Lua versions support continue
-        // Would need to be emulated
-        false
-    }
-
-    /// Get the bitwise operator library name for Lua 5.2
-    pub fn bit_library_name(self) -> Option<&'static str> {
-        match self {
-            LuaTarget::Lua52 => Some("bit32"),
-            _ => None,
-        }
-    }
 }
 
 /// Dedent a multi-line template literal string.
@@ -155,16 +123,19 @@ pub struct CodeGenerator {
     next_type_id: u32,
     /// Reflection: track registered types for __TypeRegistry
     registered_types: std::collections::HashMap<String, u32>,
+    /// Code generation strategy for Lua version-specific logic
+    strategy: Box<dyn strategies::CodeGenStrategy>,
 }
 
 impl CodeGenerator {
     pub fn new(interner: Arc<StringInterner>) -> Self {
+        let target = LuaTarget::default();
         Self {
             output: String::new(),
             indent_level: 0,
             indent_str: "    ".to_string(),
             source_map: None,
-            target: LuaTarget::default(),
+            target,
             current_class_parent: None,
             uses_built_in_decorators: false,
             mode: CodeGenMode::Require,
@@ -179,6 +150,17 @@ impl CodeGenerator {
             namespace_exports: Vec::new(),
             next_type_id: 1,
             registered_types: std::collections::HashMap::new(),
+            strategy: Self::create_strategy(target),
+        }
+    }
+
+    /// Create a strategy for the given Lua target
+    fn create_strategy(target: LuaTarget) -> Box<dyn strategies::CodeGenStrategy> {
+        match target {
+            LuaTarget::Lua51 => Box::new(strategies::lua51::Lua51Strategy),
+            LuaTarget::Lua52 => Box::new(strategies::lua52::Lua52Strategy),
+            LuaTarget::Lua53 => Box::new(strategies::lua53::Lua53Strategy),
+            LuaTarget::Lua54 => Box::new(strategies::lua54::Lua54Strategy),
         }
     }
 
@@ -189,6 +171,7 @@ impl CodeGenerator {
 
     pub fn with_target(mut self, target: LuaTarget) -> Self {
         self.target = target;
+        self.strategy = Self::create_strategy(target);
         self
     }
 
@@ -216,18 +199,18 @@ impl CodeGenerator {
             let _ = optimizer.optimize(program);
         }
 
+        // Emit strategy-specific preamble (e.g., library includes)
+        if let Some(preamble) = self.strategy.emit_preamble() {
+            self.writeln(&preamble);
+            self.writeln("");
+        }
+
         // First pass: check if any decorators are used
         self.detect_decorators(program);
 
         // Embed runtime library if decorators are used (provides built-in decorators)
         if self.uses_built_in_decorators {
             self.embed_runtime_library();
-        }
-
-        // Always embed bitwise helpers for Lua 5.1
-        // (They are small and only defined if used due to local function scope)
-        if self.target == LuaTarget::Lua51 {
-            self.embed_bitwise_helpers();
         }
 
         for statement in &program.statements {
@@ -1805,13 +1788,6 @@ impl CodeGenerator {
         self.writeln("");
     }
 
-    /// Embed bitwise helper functions for Lua 5.1
-    /// These are always included when targeting Lua 5.1 since they are small
-    /// and defined as local functions (no global namespace pollution)
-    fn embed_bitwise_helpers(&mut self) {
-        self.writeln(bitwise::for_lua51());
-    }
-
     fn generate_expression(&mut self, expr: &Expression) {
         match &expr.kind {
             ExpressionKind::Literal(lit) => self.generate_literal(lit),
@@ -1823,8 +1799,15 @@ impl CodeGenerator {
                 self.generate_binary_expression(*op, left, right);
             }
             ExpressionKind::Unary(op, operand) => {
-                self.write(self.unary_op_to_string(*op));
-                self.generate_expression(operand);
+                if *op == UnaryOp::BitwiseNot && !self.strategy.supports_native_bitwise() {
+                    let operand_str = self.expression_to_string(operand);
+                    let result = self.strategy.generate_unary_bitwise_not(&operand_str);
+                    self.write(&result);
+                } else {
+                    let op_str = self.unary_op_to_string(*op).to_string();
+                    self.write(&op_str);
+                    self.generate_expression(operand);
+                }
             }
             ExpressionKind::Assignment(target, op, value) => {
                 // For compound assignments, desugar to: target = target op value
@@ -2505,47 +2488,33 @@ impl CodeGenerator {
                 self.write(")");
             }
 
-            // Bitwise operators - native in Lua 5.3+
+            // Bitwise operators - use strategy based on Lua version
             BinaryOp::BitwiseAnd
             | BinaryOp::BitwiseOr
             | BinaryOp::BitwiseXor
             | BinaryOp::ShiftLeft
-            | BinaryOp::ShiftRight
-                if self.target.supports_bitwise_ops() =>
-            {
-                self.write("(");
-                self.generate_expression(left);
-                self.write(" ");
-                self.write(self.simple_binary_op_to_string(op));
-                self.write(" ");
-                self.generate_expression(right);
-                self.write(")");
+            | BinaryOp::ShiftRight => {
+                let left_str = self.expression_to_string(left);
+                let right_str = self.expression_to_string(right);
+                let result = self.strategy.generate_bitwise_op(op, &left_str, &right_str);
+                self.write(&result);
             }
 
-            // Bitwise via library for Lua 5.2/LuaJIT
-            BinaryOp::BitwiseAnd => self.generate_bitwise_library_call("band", left, right),
-            BinaryOp::BitwiseOr => self.generate_bitwise_library_call("bor", left, right),
-            BinaryOp::BitwiseXor => self.generate_bitwise_library_call("bxor", left, right),
-            BinaryOp::ShiftLeft => self.generate_bitwise_library_call("lshift", left, right),
-            BinaryOp::ShiftRight => self.generate_bitwise_library_call("rshift", left, right),
-
-            // Integer division
-            BinaryOp::IntegerDivide if self.target.supports_integer_divide() => {
-                self.write("(");
-                self.generate_expression(left);
-                self.write(" // ");
-                self.generate_expression(right);
-                self.write(")");
-            }
+            // Integer division - use strategy based on Lua version
             BinaryOp::IntegerDivide => {
-                // Fallback: math.floor(a / b)
-                self.write("math.floor(");
-                self.generate_expression(left);
-                self.write(" / ");
-                self.generate_expression(right);
-                self.write(")");
+                let left_str = self.expression_to_string(left);
+                let right_str = self.expression_to_string(right);
+                let result = self.strategy.generate_integer_divide(&left_str, &right_str);
+                self.write(&result);
             }
         }
+    }
+
+    /// Generate an expression to a string (helper for strategy pattern)
+    fn expression_to_string(&mut self, expr: &Expression) -> String {
+        let original_output = std::mem::take(&mut self.output);
+        self.generate_expression(expr);
+        std::mem::replace(&mut self.output, original_output)
     }
 
     /// Generate null coalescing operator (??)
@@ -2641,30 +2610,7 @@ impl CodeGenerator {
         }
     }
 
-    fn generate_bitwise_library_call(&mut self, func: &str, left: &Expression, right: &Expression) {
-        if let Some(lib) = self.target.bit_library_name() {
-            self.write(lib);
-            self.write(".");
-            self.write(func);
-            self.write("(");
-            self.generate_expression(left);
-            self.write(", ");
-            self.generate_expression(right);
-            self.write(")");
-        } else {
-            // Lua 5.1 without library - would need manual implementation
-            // Use placeholder helper function name
-            self.write("_bit_");
-            self.write(func);
-            self.write("(");
-            self.generate_expression(left);
-            self.write(", ");
-            self.generate_expression(right);
-            self.write(")");
-        }
-    }
-
-    fn unary_op_to_string(&self, op: UnaryOp) -> &'static str {
+    fn unary_op_to_string(&self, op: UnaryOp) -> &str {
         match op {
             UnaryOp::Negate => "-",
             UnaryOp::Not => "not ",
@@ -3526,10 +3472,15 @@ impl CodeGenerator {
 
 #[cfg(test)]
 mod tests {
+    use crate::codegen::strategies::CodeGenStrategy;
+    use crate::codegen::strategies::{
+        lua51::Lua51Strategy, lua52::Lua52Strategy, lua53::Lua53Strategy, lua54::Lua54Strategy,
+    };
     use crate::diagnostics::CollectingDiagnosticHandler;
     use crate::CodeGenerator;
     use crate::LuaTarget;
     use std::sync::Arc;
+    use typedlua_parser::ast::expression::BinaryOp;
     use typedlua_parser::lexer::Lexer;
     use typedlua_parser::parser::Parser;
     use typedlua_parser::string_interner::StringInterner;
@@ -4192,5 +4143,125 @@ end
         assert!(output.contains("Animal._init(self, name)"));
         // Check that Dog.new calls Dog._init
         assert!(output.contains("Dog._init(self, name, breed)"));
+    }
+
+    // Strategy Pattern Tests
+    #[test]
+    fn test_lua51_strategy_name() {
+        let strategy = Lua51Strategy;
+        assert_eq!(strategy.name(), "Lua 5.1");
+    }
+
+    #[test]
+    fn test_lua51_bitwise_operator_generation() {
+        let strategy = Lua51Strategy;
+        let x = "x";
+        let y = "y";
+
+        let result = strategy.generate_bitwise_op(BinaryOp::BitwiseAnd, x, y);
+        assert_eq!(result, "_bit_band(x, y)");
+
+        let result = strategy.generate_bitwise_op(BinaryOp::BitwiseOr, x, y);
+        assert_eq!(result, "_bit_bor(x, y)");
+
+        let result = strategy.generate_bitwise_op(BinaryOp::BitwiseXor, x, y);
+        assert_eq!(result, "_bit_bxor(x, y)");
+
+        let result = strategy.generate_bitwise_op(BinaryOp::ShiftLeft, x, "2");
+        assert_eq!(result, "_bit_lshift(x, 2)");
+
+        let result = strategy.generate_bitwise_op(BinaryOp::ShiftRight, x, "3");
+        assert_eq!(result, "_bit_rshift(x, 3)");
+    }
+
+    #[test]
+    fn test_lua51_integer_division() {
+        let strategy = Lua51Strategy;
+        let result = strategy.generate_integer_divide("x", "y");
+        assert_eq!(result, "math.floor(x / y)");
+    }
+
+    #[test]
+    fn test_lua51_unary_bitwise_not() {
+        let strategy = Lua51Strategy;
+        let result = strategy.generate_unary_bitwise_not("x");
+        assert_eq!(result, "_bit_bnot(x)");
+    }
+
+    #[test]
+    fn test_lua51_supports_native_features() {
+        let strategy = Lua51Strategy;
+        assert!(!strategy.supports_native_bitwise());
+        assert!(!strategy.supports_native_integer_divide());
+    }
+
+    #[test]
+    fn test_lua51_emits_preamble() {
+        let strategy = Lua51Strategy;
+        let preamble = strategy.emit_preamble();
+        assert!(preamble.is_some());
+        let preamble_text = preamble.unwrap();
+        assert!(preamble_text.contains("local function _bit_band"));
+        assert!(preamble_text.contains("local function _bit_bor"));
+        assert!(preamble_text.contains("local function _bit_bnot"));
+    }
+
+    #[test]
+    fn test_lua52_bitwise_operators() {
+        let strategy = Lua52Strategy;
+        let x = "x";
+        let y = "y";
+
+        let result = strategy.generate_bitwise_op(BinaryOp::BitwiseAnd, x, y);
+        assert_eq!(result, "bit32.band(x, y)");
+
+        let result = strategy.generate_bitwise_op(BinaryOp::BitwiseOr, x, y);
+        assert_eq!(result, "bit32.bor(x, y)");
+
+        let result = strategy.generate_bitwise_op(BinaryOp::BitwiseXor, x, y);
+        assert_eq!(result, "bit32.bxor(x, y)");
+    }
+
+    #[test]
+    fn test_lua53_native_bitwise_operators() {
+        let strategy = Lua53Strategy;
+        let x = "x";
+        let y = "y";
+
+        let result = strategy.generate_bitwise_op(BinaryOp::BitwiseAnd, x, y);
+        assert_eq!(result, "(x & y)");
+
+        let result = strategy.generate_bitwise_op(BinaryOp::BitwiseOr, x, y);
+        assert_eq!(result, "(x | y)");
+
+        let result = strategy.generate_bitwise_op(BinaryOp::BitwiseXor, x, y);
+        assert_eq!(result, "(x ~ y)");
+
+        let result = strategy.generate_bitwise_op(BinaryOp::ShiftLeft, x, "2");
+        assert_eq!(result, "(x << 2)");
+
+        let result = strategy.generate_bitwise_op(BinaryOp::ShiftRight, x, "3");
+        assert_eq!(result, "(x >> 3)");
+    }
+
+    #[test]
+    fn test_lua53_native_integer_division() {
+        let strategy = Lua53Strategy;
+        let result = strategy.generate_integer_divide("x", "y");
+        assert_eq!(result, "(x // y)");
+    }
+
+    #[test]
+    fn test_lua53_unary_bitwise_not() {
+        let strategy = Lua53Strategy;
+        let result = strategy.generate_unary_bitwise_not("x");
+        assert_eq!(result, "~x");
+    }
+
+    #[test]
+    fn test_lua53_supports_native_features() {
+        let strategy = Lua53Strategy;
+        assert!(strategy.supports_native_bitwise());
+        assert!(strategy.supports_native_integer_divide());
     }
 }

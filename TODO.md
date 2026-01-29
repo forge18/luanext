@@ -861,6 +861,7 @@ crates/typedlua-runtime/
 Extract parser, sourcemap, and LSP into shared ecosystem crates.
 
 **Created Repositories:**
+
 ```
 /Users/forge18/Repos/lua-sourcemap/     # Source map generation (11 tests, clippy clean)
 /Users/forge18/Repos/typedlua-parser/   # Combined Lua + TypedLua parser (30 tests, clippy clean)
@@ -942,42 +943,86 @@ The current re-exports in `lib.rs` (`pub use typedlua_parser::ast`, etc.) create
 
 ### 4.2 Lua Target Strategy Pattern
 
-**Status:** Not Started | **Expected:** Better maintainability, easier to add versions | **Model:** Sonnet
+**Status:** COMPLETE | **Expected:** Better maintainability, easier to add versions | **Model:** Sonnet
 
-Current approach: capability checks scattered in codegen (`supports_bitwise_ops()`, `supports_goto()`). Doesn't scale well.
+Refactored scattered capability checks in codegen into a clean strategy pattern for Lua version-specific code generation.
 
 #### Strategy Trait Definition
 
-- [ ] Create `crates/typedlua-core/src/codegen/strategies/mod.rs`
-- [ ] Define `CodeGenStrategy` trait with methods:
+- [x] Create `crates/typedlua-core/src/codegen/strategies/mod.rs`
+- [x] Define `CodeGenStrategy` trait with methods:
   - `generate_bitwise_op(&self, op, lhs, rhs) -> String`
   - `generate_integer_divide(&self, lhs, rhs) -> String`
+  - `generate_unary_bitwise_not(&self, operand) -> String`
   - `generate_continue(&self, label) -> String`
   - `emit_preamble(&self) -> Option<String>` (for library includes)
+  - `supports_native_bitwise(&self) -> bool`
+  - `supports_native_integer_divide(&self) -> bool`
 
 #### Strategy Implementations
 
-- [ ] Create `strategies/lua51.rs` implementing `CodeGenStrategy`
-- [ ] Create `strategies/lua52.rs` implementing `CodeGenStrategy`
-- [ ] Create `strategies/lua53.rs` implementing `CodeGenStrategy`
-- [ ] Create `strategies/lua54.rs` implementing `CodeGenStrategy`
+- [x] Create `strategies/lua51.rs` implementing `CodeGenStrategy`
+- [x] Create `strategies/lua52.rs` implementing `CodeGenStrategy`
+- [x] Create `strategies/lua53.rs` implementing `CodeGenStrategy`
+- [x] Create `strategies/lua54.rs` implementing `CodeGenStrategy`
+
+**Key Differences:**
+
+- **Lua 5.1**: Uses `_bit_*` helper functions from `typedlua_runtime`, emits preamble
+- **Lua 5.2**: Uses `bit32.*` library functions, no preamble needed
+- **Lua 5.3**: Native `& | ~ << >> //` operators, no preamble
+- **Lua 5.4**: Same as Lua 5.3, const expressions generated as-is
 
 #### Strategy Integration
 
-- [ ] Add `strategy: Box<dyn CodeGenStrategy>` field to `CodeGenerator`
-- [ ] Select strategy based on `LuaTarget` during initialization
-- [ ] Replace conditional logic in codegen with strategy method calls
-- [ ] Remove `supports_*` methods from `LuaTarget` (logic now in strategies)
+- [x] Add `strategy: Box<dyn CodeGenStrategy>` field to `CodeGenerator`
+- [x] Select strategy based on `LuaTarget` during initialization via `create_strategy()`
+- [x] Replace conditional logic in codegen with strategy method calls:
+  - Bitwise operations now use `strategy.generate_bitwise_op()`
+  - Integer division now uses `strategy.generate_integer_divide()`
+  - Unary bitwise not now uses `strategy.generate_unary_bitwise_not()`
+  - Preamble emission uses `strategy.emit_preamble()`
+- [x] Remove `supports_*` methods from `LuaTarget` (logic now in strategies)
+
+#### Code Changes
+
+**New Files:**
+
+- `codegen/strategies/mod.rs` - Trait definition
+- `codegen/strategies/lua51.rs` - Lua 5.1 strategy (66 lines)
+- `codegen/strategies/lua52.rs` - Lua 5.2 strategy (56 lines)
+- `codegen/strategies/lua53.rs` - Lua 5.3 strategy (62 lines)
+- `codegen/strategies/lua54.rs` - Lua 5.4 strategy (63 lines)
+
+**Modified Files:**
+
+- `codegen/mod.rs` - Integrated strategy pattern, removed `embed_bitwise_helpers()`, removed `LuaTarget` support methods
 
 #### Strategy Testing
 
-- [ ] Unit test each strategy independently
-- [ ] Regression tests for version-specific output
+- [x] Unit test each strategy independently (10 tests)
+  - `test_lua51_strategy_name`
+  - `test_lua51_bitwise_operator_generation`
+  - `test_lua51_integer_division`
+  - `test_lua51_unary_bitwise_not`
+  - `test_lua51_supports_native_features`
+  - `test_lua51_emits_preamble`
+  - `test_lua52_bitwise_operators`
+  - `test_lua53_native_bitwise_operators`
+  - `test_lua53_native_integer_division`
+  - `test_lua53_unary_bitwise_not`
+  - `test_lua53_supports_native_features`
+- [x] Regression tests for version-specific output
+  - `test_snapshot_bitwise_lua51` - Verified helpers emitted via strategy
+  - `test_snapshot_bitwise_lua52` - Uses bit32 library
+  - `test_snapshot_bitwise_lua53` - Uses native operators
+
+**Test Results:** All 1,188 tests pass (10 new strategy-specific tests)
 
 ---
 
 ### 4.3 Code Generator Modularization
-
+  
 **Status:** Not Started | **Expected:** 50%+ maintainability improvement | **Model:** Sonnet
 
 CodeGenerator is 3,120 lines - too large. Break into focused modules.

@@ -66,6 +66,7 @@ local function _bit_rshift(a, b)
     return math.floor(math.floor(a) / (2 ^ b))
 end
 
+
 local a = _bit_band(x, y)
 local b = _bit_bor(x, y)
 local c = _bit_bxor(x, y)
