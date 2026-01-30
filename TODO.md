@@ -1758,8 +1758,11 @@ Audit found 14+ built-but-unwired components. All high and medium priority items
 
 **Files Modified:**
 
-- `crates/typedlua-cli/src/main.rs` — ModuleResolver integration, DI Container usage, new CLI flags, diagnostics flag support
+- `crates/typedlua-cli/src/main.rs` — ModuleResolver integration, DI Container usage, new CLI flags, diagnostics flag support, CodeGeneratorBuilder usage, copy_lua_to_output implementation
 - `crates/typedlua-core/src/typechecker/type_checker.rs` — Added `module_dependencies` tracking, removed debug eprintln statements
+- `crates/typedlua-core/src/lib.rs` — Removed Arena module declaration and re-export
+- `crates/typedlua-core/src/arena.rs` — DELETED (unused)
+- `crates/typedlua-core/src/arena_usage.md` — DELETED (documentation for removed module)
 
 **Test Results:** All 1,188 tests pass, clippy clean.
 
