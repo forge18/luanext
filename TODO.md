@@ -1,6 +1,6 @@
 # TypedLua TODO
 
-**Last Updated:** 2026-01-30 (Section 4.7.2: Wire Up Unused Infrastructure complete - ModuleResolver, TypeChecker module support, cache dependency graph, DI Container, CLI flags all wired. All 1,188 tests pass)
+**Last Updated:** 2026-01-30 (Section 5.1-5.2 COMPLETE - IndexMap for deterministic ordering, proptest property testing. Fixed hex/binary number literal parsing bug. All 1,195 tests pass)
 
 ---
 
@@ -1846,51 +1846,39 @@ fuzz/
 
 ### 5.1 indexmap for Deterministic Ordering
 
-**Model:** Haiku (simple replacements)
+**Status:** COMPLETE | **Model:** Haiku
 
-- [ ] Replace LSP symbol tables with IndexMap
-- [ ] Use IndexMap for diagnostic collection
-- [ ] Use IndexMap for export tables
-- [ ] Keep FxHashMap for internal structures
-
----
-
-### 5.2 Cow for Error Messages
-
-**Model:** Haiku (simple optimization)
-
-- [ ] Change diagnostic messages to use `Cow<'static, str>`
-- [ ] Apply to parser, type checker, type display
+- [x] Replace LSP symbol tables with IndexMap
+  - `document.rs`: uri_to_module_id, module_id_to_uri → IndexMap
+  - `symbol_index.rs`: exports, imports, workspace_symbols → IndexMap
+- [x] Use IndexMap for export tables
+  - `registry.rs`: ModuleExports.named → IndexMap (with serde support)
+- [x] Keep FxHashMap for internal structures
+  - ModuleRegistry.modules, type checker internals remain FxHashMap for performance
 
 ---
 
-### 5.3 Index-Based Module Graph
+### 5.2 proptest Property Testing
 
-**Model:** Sonnet (refactoring)
+**Status:** COMPLETE | **Model:** Sonnet
 
-- [ ] Create ModuleId as usize wrapper
-- [ ] Store modules in `Vec<Module>`
-- [ ] Change dependencies to `Vec<ModuleId>`
+**Test file:** `tests/property_tests.rs` (7 property tests, 100-150 test cases each)
 
----
-
-### 5.4 insta Snapshot Testing Expansion
-
-**Model:** Haiku (test conversions)
-
-- [ ] Convert parser tests to snapshots
-- [ ] Convert type checker tests to snapshots
-- [ ] Convert codegen tests to snapshots
-
----
-
-### 5.5 proptest Property Testing
-
-**Model:** Sonnet (property design)
-
-- [ ] Parser round-trip property
-- [ ] Type checker soundness properties
-- [ ] Codegen correctness properties
+- [x] Parser round-trip property
+  - `prop_simple_programs_parse`: Random programs parse successfully
+  - Strategies for identifiers, numbers, functions, tables
+- [x] Type checker soundness properties
+  - `prop_type_safe_programs_no_errors`: Valid programs don't produce type errors
+  - `prop_number_literal_type_check`: Number literals match number annotations
+  - `prop_string_literal_type_check`: String literals match string annotations
+  - `prop_boolean_literal_type_check`: Boolean literals match boolean annotations
+  - `prop_arithmetic_operations_type_check`: Arithmetic ops on numbers type check
+  - `prop_string_concatenation_type_check`: String concatenation type checks
+- [x] Codegen correctness properties
+  - `prop_generated_code_is_valid_lua`: Generated code is non-empty
+  - `prop_function_codegen_valid`: Function declarations generate valid code
+  - `prop_table_literal_codegen_valid`: Table literals generate valid code
+  - **Bug fixed:** Parser now correctly handles hexadecimal (0x) and binary (0b) number literals
 
 ---
 

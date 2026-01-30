@@ -1,5 +1,6 @@
 use super::error::{ModuleError, ModuleId};
 use crate::typechecker::{Symbol, SymbolKind, SymbolTable};
+use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
@@ -30,7 +31,8 @@ pub struct CompiledModule {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ModuleExports {
     /// Named exports: { foo, bar as baz }
-    pub named: FxHashMap<String, ExportedSymbol>,
+    /// IndexMap for deterministic ordering in serialized output and LSP responses
+    pub named: IndexMap<String, ExportedSymbol>,
     /// Default export: export default expr
     pub default: Option<ExportedSymbol>,
 }
