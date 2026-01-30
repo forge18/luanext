@@ -91,6 +91,10 @@ struct Cli {
     /// Copy plain .lua files to output directory
     #[arg(long)]
     copy_lua_to_output: bool,
+
+    /// Output format (readable, compact, minified)
+    #[arg(long, value_name = "FORMAT", default_value = "readable")]
+    format: String,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -229,6 +233,17 @@ fn parse_lua_target(target: &str) -> anyhow::Result<typedlua_core::codegen::LuaT
     }
 }
 
+/// Parse the output format string
+fn parse_output_format(format: &str) -> typedlua_core::config::OutputFormat {
+    use typedlua_core::config::OutputFormat;
+
+    match format.to_lowercase().as_str() {
+        "compact" => OutputFormat::Compact,
+        "minified" => OutputFormat::Minified,
+        _ => OutputFormat::Readable,
+    }
+}
+
 /// Load configuration from file (if specified) and resolve input files
 fn load_config_and_files(
     cli: &Cli,
@@ -308,6 +323,15 @@ fn load_config_and_files(
     }
     overrides.enforce_namespace_path = Some(cli.enforce_namespace_path);
     overrides.copy_lua_to_output = Some(cli.copy_lua_to_output);
+
+    // Override output format if specified
+    if cli.format != "readable" {
+        overrides.output_format = Some(match cli.format.as_str() {
+            "compact" => typedlua_core::config::OutputFormat::Compact,
+            "minified" => typedlua_core::config::OutputFormat::Minified,
+            _ => typedlua_core::config::OutputFormat::Readable,
+        });
+    }
 
     // Merge CLI overrides into config
     config.merge(&overrides);
@@ -476,7 +500,10 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
                     let mut program = cached.ast.clone();
 
                     // Use CodeGeneratorBuilder for fluent configuration
-                    let mut builder = CodeGeneratorBuilder::new(interner).target(target);
+                    let output_format = parse_output_format(&cli.format);
+                    let mut builder = CodeGeneratorBuilder::new(interner)
+                        .target(target)
+                        .output_format(output_format);
                     if cli.source_map || cli.inline_source_map {
                         builder = builder.source_map(file_path.to_string_lossy().to_string());
                     }
@@ -642,7 +669,10 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
             }
 
             // Use CodeGeneratorBuilder for fluent configuration
-            let mut builder = CodeGeneratorBuilder::new(interner.clone()).target(target);
+            let output_format = parse_output_format(&cli.format);
+            let mut builder = CodeGeneratorBuilder::new(interner.clone())
+                .target(target)
+                .output_format(output_format);
 
             if cli.source_map || cli.inline_source_map {
                 builder = builder.source_map(file_path.to_string_lossy().to_string());

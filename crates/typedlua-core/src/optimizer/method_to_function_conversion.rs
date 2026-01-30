@@ -253,15 +253,13 @@ impl MethodToFunctionConversionPass {
             receiver_class: None,
         };
 
-        let mut new_args = Vec::with_capacity(args.len() + 1);
-        new_args.push(typedlua_parser::ast::expression::Argument {
+        let new_args = std::iter::once(typedlua_parser::ast::expression::Argument {
             value: obj.clone(),
             is_spread: false,
             span,
-        });
-        for arg in args {
-            new_args.push(arg.clone());
-        }
+        })
+        .chain(args.iter().cloned())
+        .collect();
 
         Some(ExpressionKind::Call(Box::new(class_expr), new_args, None))
     }

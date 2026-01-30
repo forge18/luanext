@@ -238,22 +238,21 @@ pub fn infer_type_arguments(
     }
 
     // Build result vector in the same order as type parameters
-    let mut result = Vec::new();
-    for type_param in type_params {
-        if let Some(inferred_type) = inferred.get(&type_param.name.node) {
-            result.push(inferred_type.clone());
-        } else if let Some(default) = &type_param.default {
-            // Use default type if no inference
-            result.push((**default).clone());
-        } else {
-            return Err(format!(
-                "Could not infer type argument for parameter '{:?}'",
-                type_param.name.node
-            ));
-        }
-    }
-
-    Ok(result)
+    type_params
+        .iter()
+        .map(|type_param| {
+            inferred
+                .get(&type_param.name.node)
+                .cloned()
+                .or_else(|| type_param.default.as_ref().map(|d| (**d).clone()))
+                .ok_or_else(|| {
+                    format!(
+                        "Could not infer type argument for parameter '{:?}'",
+                        type_param.name.node
+                    )
+                })
+        })
+        .collect()
 }
 
 /// Helper to infer type arguments by matching param_type pattern against arg_type

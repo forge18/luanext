@@ -277,4 +277,276 @@ mod tests {
             .unwrap();
         assert!(env.register_type_alias("Foo".to_string(), typ).is_err());
     }
+
+    #[test]
+    fn test_all_builtins_registered() {
+        let env = TypeEnvironment::new();
+
+        let builtins = vec![
+            "nil",
+            "boolean",
+            "number",
+            "integer",
+            "string",
+            "unknown",
+            "never",
+            "void",
+            "table",
+            "coroutine",
+        ];
+
+        for builtin in &builtins {
+            assert!(
+                env.lookup_type(builtin).is_some(),
+                "Builtin type '{}' should be registered",
+                builtin
+            );
+        }
+    }
+
+    #[test]
+    fn test_is_type_defined() {
+        let mut env = TypeEnvironment::new();
+
+        // Builtins should be defined
+        assert!(env.is_type_defined("number"));
+        assert!(env.is_type_defined("string"));
+
+        // Custom types should not be defined initially
+        assert!(!env.is_type_defined("MyType"));
+
+        // Register custom type
+        let typ = Type::new(
+            TypeKind::Primitive(PrimitiveType::Number),
+            Span::new(0, 0, 0, 0),
+        );
+        env.register_type_alias("MyType".to_string(), typ).unwrap();
+
+        // Now it should be defined
+        assert!(env.is_type_defined("MyType"));
+    }
+
+    #[test]
+    fn test_lookup_type_alias_priority() {
+        let mut env = TypeEnvironment::new();
+
+        // Register interface with same name as type alias
+        let alias_type = Type::new(
+            TypeKind::Primitive(PrimitiveType::Number),
+            Span::new(0, 0, 0, 0),
+        );
+        env.register_type_alias("Foo".to_string(), alias_type.clone())
+            .unwrap();
+
+        let interface_type = Type::new(
+            TypeKind::Primitive(PrimitiveType::String),
+            Span::new(0, 0, 0, 0),
+        );
+        env.register_interface("Foo".to_string(), interface_type.clone())
+            .unwrap();
+
+        // Type aliases take priority over interfaces in lookup_type
+        let found = env.lookup_type("Foo").unwrap();
+        match &found.kind {
+            TypeKind::Primitive(PrimitiveType::Number) => (), // Type alias
+            TypeKind::Primitive(PrimitiveType::String) => {
+                panic!("Should have found type alias, not interface")
+            }
+            _ => panic!("Unexpected type"),
+        }
+    }
+
+    #[test]
+    fn test_register_generic_type_alias() {
+        let mut env = TypeEnvironment::new();
+
+        // Create a proper TypeParameter with StringId
+        use typedlua_parser::ast::Spanned;
+        use typedlua_parser::string_interner::StringInterner;
+
+        let interner = StringInterner::new();
+        let t_id = interner.get_or_intern("T");
+        let type_param = TypeParameter {
+            name: Spanned::new(t_id, Span::new(0, 1, 1, 0)),
+            constraint: None,
+            default: None,
+            span: Span::new(0, 1, 1, 0),
+        };
+
+        let typ = Type::new(
+            TypeKind::Primitive(PrimitiveType::Number),
+            Span::new(0, 0, 0, 0),
+        );
+
+        env.register_generic_type_alias("Container".to_string(), vec![type_param], typ)
+            .unwrap();
+
+        let generic_alias = env.get_generic_type_alias("Container");
+        assert!(generic_alias.is_some());
+        assert_eq!(generic_alias.unwrap().type_parameters.len(), 1);
+    }
+
+    #[test]
+    fn test_duplicate_generic_type_alias() {
+        let mut env = TypeEnvironment::new();
+
+        let typ = Type::new(
+            TypeKind::Primitive(PrimitiveType::Number),
+            Span::new(0, 0, 0, 0),
+        );
+
+        env.register_generic_type_alias("Box".to_string(), vec![], typ.clone())
+            .unwrap();
+        assert!(env
+            .register_generic_type_alias("Box".to_string(), vec![], typ)
+            .is_err());
+    }
+
+    #[test]
+    fn test_duplicate_interface() {
+        let mut env = TypeEnvironment::new();
+
+        let typ = Type::new(
+            TypeKind::Primitive(PrimitiveType::Table),
+            Span::new(0, 0, 0, 0),
+        );
+
+        env.register_interface("MyInterface".to_string(), typ.clone())
+            .unwrap();
+        assert!(env
+            .register_interface("MyInterface".to_string(), typ)
+            .is_err());
+    }
+
+    #[test]
+    fn test_resolve_type_reference_success() {
+        let mut env = TypeEnvironment::new();
+
+        let typ = Type::new(
+            TypeKind::Primitive(PrimitiveType::Number),
+            Span::new(0, 0, 0, 0),
+        );
+        env.register_type_alias("MyNumber".to_string(), typ)
+            .unwrap();
+
+        let resolved = env.resolve_type_reference("MyNumber");
+        assert!(resolved.is_ok());
+        assert!(resolved.unwrap().is_some());
+    }
+
+    #[test]
+    fn test_resolve_type_reference_not_found() {
+        let env = TypeEnvironment::new();
+
+        let resolved = env.resolve_type_reference("NonExistent");
+        assert!(resolved.is_ok());
+        assert!(resolved.unwrap().is_none());
+    }
+
+    #[test]
+    fn test_resolve_type_reference_cycle() {
+        let mut env = TypeEnvironment::new();
+
+        // Create a self-referencing type alias
+        // Note: This requires the type to reference itself, which is tricky
+        // with the current API. For now, we'll just test that the cycle
+        // detection mechanism works by manually marking a type as resolving.
+        env.resolving.borrow_mut().insert("Cycle".to_string());
+
+        let result = env.resolve_type_reference("Cycle");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Recursive type alias"));
+
+        // Clean up
+        env.resolving.borrow_mut().remove("Cycle");
+    }
+
+    #[test]
+    fn test_is_utility_type() {
+        let utility_types = vec![
+            "Partial",
+            "Required",
+            "Readonly",
+            "Record",
+            "Pick",
+            "Omit",
+            "Exclude",
+            "Extract",
+            "NonNilable",
+            "Nilable",
+            "ReturnType",
+            "Parameters",
+        ];
+
+        for utility in &utility_types {
+            assert!(
+                TypeEnvironment::is_utility_type(utility),
+                "'{}' should be recognized as utility type",
+                utility
+            );
+        }
+
+        let non_utility_types = vec!["number", "string", "Array", "Map", "MyType"];
+
+        for non_utility in &non_utility_types {
+            assert!(
+                !TypeEnvironment::is_utility_type(non_utility),
+                "'{}' should not be recognized as utility type",
+                non_utility
+            );
+        }
+    }
+
+    #[test]
+    fn test_get_interface_alias() {
+        let mut env = TypeEnvironment::new();
+
+        let typ = Type::new(
+            TypeKind::Primitive(PrimitiveType::Table),
+            Span::new(0, 0, 0, 0),
+        );
+        env.register_interface("User".to_string(), typ.clone())
+            .unwrap();
+
+        // get_interface should be an alias for lookup_interface
+        assert!(env.get_interface("User").is_some());
+        assert!(env.get_interface("NonExistent").is_none());
+    }
+
+    #[test]
+    fn test_default_impl() {
+        let env: TypeEnvironment = Default::default();
+        assert!(env.lookup_type("number").is_some());
+    }
+
+    #[test]
+    fn test_multiple_type_aliases() {
+        let mut env = TypeEnvironment::new();
+
+        let types = vec![
+            ("Int", PrimitiveType::Integer),
+            ("Float", PrimitiveType::Number),
+            ("Bool", PrimitiveType::Boolean),
+            ("Str", PrimitiveType::String),
+        ];
+
+        for (name, prim) in &types {
+            let typ = Type::new(TypeKind::Primitive(*prim), Span::new(0, 0, 0, 0));
+            env.register_type_alias(name.to_string(), typ).unwrap();
+        }
+
+        for (name, _) in &types {
+            assert!(env.lookup_type(name).is_some());
+        }
+    }
+
+    #[test]
+    fn test_type_not_found_returns_none() {
+        let env = TypeEnvironment::new();
+
+        assert!(env.lookup_type("UnknownType").is_none());
+        assert!(env.lookup_type_alias("UnknownType").is_none());
+        assert!(env.lookup_interface("UnknownType").is_none());
+        assert!(env.get_generic_type_alias("UnknownType").is_none());
+    }
 }

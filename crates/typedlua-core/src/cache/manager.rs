@@ -116,28 +116,29 @@ impl CacheManager {
     pub fn detect_changes(&self, files: &[PathBuf]) -> Result<Vec<PathBuf>> {
         let manifest = self.manifest.as_ref().ok_or(CacheError::ManifestNotFound)?;
 
-        let mut changed = Vec::new();
+        Ok(files
+            .iter()
+            .filter_map(|file| {
+                let canonical = file.canonicalize().unwrap_or_else(|_| file.clone());
 
-        for file in files {
-            let canonical = file.canonicalize().unwrap_or_else(|_| file.clone());
+                // File is changed if:
+                // 1. Not in cache, or
+                // 2. Hash doesn't match cached hash
+                let is_changed = match manifest.get_entry(&canonical) {
+                    Some(entry) => {
+                        let current_hash = hash_file(&canonical).ok()?;
+                        current_hash != entry.source_hash
+                    }
+                    None => true, // Not in cache = changed
+                };
 
-            // File is changed if:
-            // 1. Not in cache, or
-            // 2. Hash doesn't match cached hash
-            let is_changed = match manifest.get_entry(&canonical) {
-                Some(entry) => {
-                    let current_hash = hash_file(&canonical)?;
-                    current_hash != entry.source_hash
+                if is_changed {
+                    Some(canonical)
+                } else {
+                    None
                 }
-                None => true, // Not in cache = changed
-            };
-
-            if is_changed {
-                changed.push(canonical);
-            }
-        }
-
-        Ok(changed)
+            })
+            .collect())
     }
 
     /// Compute all modules that need recompilation (transitive invalidation)

@@ -1137,24 +1137,26 @@ impl TypeInferrer<'_> {
                 match &typ.kind {
                     TypeKind::Union(types) => {
                         // Find object types in the union that have the required properties
-                        let mut matching_types = Vec::new();
-                        for t in types {
-                            if let TypeKind::Object(obj_type) = &t.kind {
-                                // Check if all pattern properties exist in this object type
-                                let all_match = obj_pattern.properties.iter().all(|prop| {
-                                    obj_type.members.iter().any(|member| {
-                                        if let ObjectTypeMember::Property(prop_sig) = member {
-                                            prop_sig.name.node == prop.key.node
-                                        } else {
-                                            false
-                                        }
+                        let matching_types: Vec<_> = types
+                            .iter()
+                            .filter(|t| {
+                                if let TypeKind::Object(obj_type) = &t.kind {
+                                    // Check if all pattern properties exist in this object type
+                                    obj_pattern.properties.iter().all(|prop| {
+                                        obj_type.members.iter().any(|member| {
+                                            if let ObjectTypeMember::Property(prop_sig) = member {
+                                                prop_sig.name.node == prop.key.node
+                                            } else {
+                                                false
+                                            }
+                                        })
                                     })
-                                });
-                                if all_match {
-                                    matching_types.push(t.clone());
+                                } else {
+                                    false
                                 }
-                            }
-                        }
+                            })
+                            .cloned()
+                            .collect();
 
                         if matching_types.is_empty() {
                             Ok(typ.clone())

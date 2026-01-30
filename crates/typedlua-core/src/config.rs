@@ -55,6 +55,19 @@ pub enum OptimizationLevel {
     Auto,
 }
 
+/// Output format for generated Lua code
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum OutputFormat {
+    /// Human-readable format with proper indentation and newlines (default)
+    #[default]
+    Readable,
+    /// Compact format with minimal whitespace (single space between tokens)
+    Compact,
+    /// Minified format with no unnecessary whitespace
+    Minified,
+}
+
 impl OptimizationLevel {
     /// Resolve Auto to an actual optimization level based on build profile
     #[cfg(debug_assertions)]
@@ -146,6 +159,10 @@ pub struct CompilerOptions {
     /// Enforce that namespace declarations match file paths (default: false)
     #[serde(default)]
     pub enforce_namespace_path: bool,
+
+    /// Output format for generated Lua code (default: readable)
+    #[serde(default)]
+    pub output_format: OutputFormat,
 }
 
 fn default_true() -> bool {
@@ -179,6 +196,7 @@ impl Default for CompilerOptions {
             module_mode: ModuleMode::Require,
             module_paths: default_module_paths(),
             enforce_namespace_path: false,
+            output_format: OutputFormat::Readable,
         }
     }
 }
@@ -284,6 +302,9 @@ impl CompilerConfig {
         if let Some(enforce_namespace_path) = overrides.enforce_namespace_path {
             self.compiler_options.enforce_namespace_path = enforce_namespace_path;
         }
+        if let Some(output_format) = overrides.output_format {
+            self.compiler_options.output_format = output_format;
+        }
     }
 }
 
@@ -307,6 +328,7 @@ pub struct CliOverrides {
     pub module_mode: Option<ModuleMode>,
     pub module_paths: Option<Vec<String>>,
     pub enforce_namespace_path: Option<bool>,
+    pub output_format: Option<OutputFormat>,
 }
 
 #[cfg(test)]

@@ -550,19 +550,19 @@ pub fn evaluate_mapped_type(
     // Extract the keys from the resolved 'in' clause
     let keys = extract_keys_from_type(&in_type_resolved)?;
 
-    let mut members = Vec::new();
-
-    for key in keys {
-        let key_id = interner.intern(key);
-        let prop = PropertySignature {
-            is_readonly: mapped.is_readonly,
-            name: Ident::new(key_id, mapped.span),
-            is_optional: mapped.is_optional,
-            type_annotation: (*mapped.value_type).clone(),
-            span: mapped.span,
-        };
-        members.push(ObjectTypeMember::Property(prop));
-    }
+    let members: Vec<_> = keys
+        .iter()
+        .map(|key| {
+            let key_id = interner.intern(key);
+            ObjectTypeMember::Property(PropertySignature {
+                is_readonly: mapped.is_readonly,
+                name: Ident::new(key_id, mapped.span),
+                is_optional: mapped.is_optional,
+                type_annotation: (*mapped.value_type).clone(),
+                span: mapped.span,
+            })
+        })
+        .collect();
 
     Ok(Type::new(
         TypeKind::Object(ObjectType {
@@ -589,26 +589,22 @@ pub fn evaluate_keyof(typ: &Type, type_env: &super::TypeEnvironment) -> Result<T
 
     match &resolved_type.kind {
         TypeKind::Object(obj) => {
-            let mut keys = Vec::new();
-
-            for member in &obj.members {
-                match member {
-                    ObjectTypeMember::Property(prop) => {
-                        keys.push(Type::new(
-                            TypeKind::Literal(Literal::String(prop.name.node.to_string())),
-                            prop.span,
-                        ));
-                    }
-                    ObjectTypeMember::Method(method) => {
-                        keys.push(Type::new(
-                            TypeKind::Literal(Literal::String(method.name.node.to_string())),
-                            method.span,
-                        ));
-                    }
+            let keys: Vec<_> = obj
+                .members
+                .iter()
+                .filter_map(|member| match member {
+                    ObjectTypeMember::Property(prop) => Some(Type::new(
+                        TypeKind::Literal(Literal::String(prop.name.node.to_string())),
+                        prop.span,
+                    )),
+                    ObjectTypeMember::Method(method) => Some(Type::new(
+                        TypeKind::Literal(Literal::String(method.name.node.to_string())),
+                        method.span,
+                    )),
                     // Index signatures don't contribute to keyof
-                    ObjectTypeMember::Index(_) => {}
-                }
-            }
+                    ObjectTypeMember::Index(_) => None,
+                })
+                .collect();
 
             if keys.is_empty() {
                 Ok(Type::new(
@@ -659,21 +655,21 @@ pub fn evaluate_conditional_type(
     // Handle distributive conditional types
     // If check_type is a union, distribute the conditional over each member
     if let TypeKind::Union(union_types) = &check_type.kind {
-        let mut result_types = Vec::new();
+        let result_types: Vec<_> = union_types
+            .iter()
+            .map(|member_type| {
+                // Create a new conditional for each union member
+                let member_conditional = typedlua_parser::ast::types::ConditionalType {
+                    check_type: Box::new(member_type.clone()),
+                    extends_type: conditional.extends_type.clone(),
+                    true_type: conditional.true_type.clone(),
+                    false_type: conditional.false_type.clone(),
+                    span: conditional.span,
+                };
 
-        for member_type in union_types {
-            // Create a new conditional for each union member
-            let member_conditional = typedlua_parser::ast::types::ConditionalType {
-                check_type: Box::new(member_type.clone()),
-                extends_type: conditional.extends_type.clone(),
-                true_type: conditional.true_type.clone(),
-                false_type: conditional.false_type.clone(),
-                span: conditional.span,
-            };
-
-            let evaluated = evaluate_conditional_type(&member_conditional, type_env)?;
-            result_types.push(evaluated);
-        }
+                evaluate_conditional_type(&member_conditional, type_env)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
 
         // If all results are the same, return just one
         // Otherwise, return a union
@@ -920,20 +916,13 @@ fn substitute_inferred_types(
 fn extract_keys_from_type(typ: &Type) -> Result<Vec<&str>, String> {
     match &typ.kind {
         TypeKind::Literal(Literal::String(s)) => Ok(vec![s.as_str()]),
-        TypeKind::Union(types) => {
-            let mut keys = Vec::new();
-            for t in types {
-                match &t.kind {
-                    TypeKind::Literal(Literal::String(s)) => keys.push(s.as_str()),
-                    _ => {
-                        return Err(
-                            "Mapped type currently only supports string literal unions".to_string()
-                        )
-                    }
-                }
-            }
-            Ok(keys)
-        }
+        TypeKind::Union(types) => types
+            .iter()
+            .map(|t| match &t.kind {
+                TypeKind::Literal(Literal::String(s)) => Ok(s.as_str()),
+                _ => Err("Mapped type currently only supports string literal unions".to_string()),
+            })
+            .collect(),
         // Type reference - for now, we can't resolve it without the type environment
         // This is a limitation - mapped types with type references need special handling
         TypeKind::Reference(_) => {
@@ -950,21 +939,16 @@ fn extract_keys_from_type(typ: &Type) -> Result<Vec<&str>, String> {
 fn extract_string_literal_keys(typ: &Type) -> Result<Vec<String>, String> {
     match &typ.kind {
         TypeKind::Literal(Literal::String(s)) => Ok(vec![s.clone()]),
-        TypeKind::Union(types) => {
-            let mut keys = Vec::new();
-            for t in types {
-                match &t.kind {
-                    TypeKind::Literal(Literal::String(s)) => keys.push(s.clone()),
-                    _ => {
-                        return Err(
-                            "Pick/Omit key type must be string literal or union of string literals"
-                                .to_string(),
-                        )
-                    }
-                }
-            }
-            Ok(keys)
-        }
+        TypeKind::Union(types) => types
+            .iter()
+            .map(|t| match &t.kind {
+                TypeKind::Literal(Literal::String(s)) => Ok(s.clone()),
+                _ => Err(
+                    "Pick/Omit key type must be string literal or union of string literals"
+                        .to_string(),
+                ),
+            })
+            .collect(),
         _ => {
             Err("Pick/Omit key type must be string literal or union of string literals".to_string())
         }
@@ -1077,14 +1061,11 @@ fn expand_type_to_strings(
         TypeKind::Primitive(PrimitiveType::Number) => {
             Err("Cannot interpolate primitive number type in template literal - use number literal union instead".to_string())
         }
-        TypeKind::Union(types) => {
-            let mut all_values = Vec::new();
-            for t in types {
-                let mut values = expand_type_to_strings(t, type_env)?;
-                all_values.append(&mut values);
-            }
-            Ok(all_values)
-        }
+        TypeKind::Union(types) => types
+            .iter()
+            .map(|t| expand_type_to_strings(t, type_env))
+            .collect::<Result<Vec<_>, _>>()
+            .map(|v| v.into_iter().flatten().collect()),
         _ => Err(format!(
             "Cannot interpolate type {:?} in template literal - only string/number/boolean literals and unions are supported",
             resolved.kind
@@ -1103,21 +1084,17 @@ fn cartesian_product(vecs: &[Vec<String>]) -> Vec<String> {
         return vecs[0].clone();
     }
 
-    let mut result = vec![String::new()];
-
-    for vec in vecs {
-        let mut new_result = Vec::new();
-        for existing in &result {
-            for item in vec {
-                let mut new_item = existing.clone();
-                new_item.push_str(item);
-                new_result.push(new_item);
-            }
-        }
-        result = new_result;
-    }
-
-    result
+    vecs.iter().fold(vec![String::new()], |acc, v| {
+        acc.iter()
+            .flat_map(|existing| {
+                v.iter().map(move |item| {
+                    let mut new_item = existing.clone();
+                    new_item.push_str(item);
+                    new_item
+                })
+            })
+            .collect()
+    })
 }
 
 #[cfg(test)]

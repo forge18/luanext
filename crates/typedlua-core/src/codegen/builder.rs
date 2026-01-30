@@ -21,7 +21,7 @@ use std::rc::Rc;
 use typedlua_parser::string_interner::StringInterner;
 
 use super::{CodeGenMode, CodeGenerator, LuaTarget};
-use crate::config::OptimizationLevel;
+use crate::config::{OptimizationLevel, OutputFormat};
 
 /// Builder for configuring and constructing a [`CodeGenerator`] instance.
 ///
@@ -62,6 +62,7 @@ pub struct CodeGeneratorBuilder {
     source_map: Option<String>,
     mode: CodeGenMode,
     optimization_level: OptimizationLevel,
+    output_format: OutputFormat,
 }
 
 impl CodeGeneratorBuilder {
@@ -88,6 +89,7 @@ impl CodeGeneratorBuilder {
             source_map: None,
             mode: CodeGenMode::Require,
             optimization_level: OptimizationLevel::O0,
+            output_format: OutputFormat::Readable,
         }
     }
 
@@ -209,6 +211,30 @@ impl CodeGeneratorBuilder {
         self
     }
 
+    /// Sets the output format for code generation.
+    ///
+    /// # Arguments
+    ///
+    /// * `format` - The [`OutputFormat`] (Readable, Compact, or Minified)
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use std::rc::Rc;
+    /// use typedlua_parser::string_interner::StringInterner;
+    /// use typedlua_core::codegen::CodeGeneratorBuilder;
+    /// use typedlua_core::config::OutputFormat;
+    ///
+    /// let interner = Rc::new(StringInterner::new());
+    /// let generator = CodeGeneratorBuilder::new(interner)
+    ///     .output_format(OutputFormat::Minified)
+    ///     .build();
+    /// ```
+    pub fn output_format(mut self, format: OutputFormat) -> Self {
+        self.output_format = format;
+        self
+    }
+
     /// Builds and returns a configured [`CodeGenerator`] instance.
     ///
     /// This consumes the builder and creates the generator with all
@@ -237,6 +263,7 @@ impl CodeGeneratorBuilder {
         generator = generator.with_target(self.target);
         generator = generator.with_mode(self.mode);
         generator = generator.with_optimization_level(self.optimization_level);
+        generator = generator.with_output_format(self.output_format);
 
         if let Some(source_file) = self.source_map {
             generator = generator.with_source_map(source_file);

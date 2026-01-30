@@ -11,6 +11,9 @@ mod visitors;
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+mod symbol_table_tests;
+
 pub use generics::{
     build_substitutions, check_type_constraints, infer_type_arguments,
     instantiate_function_declaration, instantiate_type,

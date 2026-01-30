@@ -979,20 +979,20 @@ impl<'a> TypeChecker<'a> {
             && enum_decl.constructor.is_none()
             && enum_decl.methods.is_empty()
         {
-            let mut variants = Vec::new();
-            for member in &enum_decl.members {
-                if let Some(value) = &member.value {
-                    let literal_type = match value {
+            let variants: Vec<_> = enum_decl
+                .members
+                .iter()
+                .filter_map(|member| {
+                    member.value.as_ref().map(|value| match value {
                         EnumValue::Number(n) => {
                             Type::new(TypeKind::Literal(Literal::Number(*n)), member.span)
                         }
                         EnumValue::String(s) => {
                             Type::new(TypeKind::Literal(Literal::String(s.clone())), member.span)
                         }
-                    };
-                    variants.push(literal_type);
-                }
-            }
+                    })
+                })
+                .collect();
 
             let enum_type = if variants.is_empty() {
                 Type::new(TypeKind::Primitive(PrimitiveType::Number), enum_decl.span)
@@ -2372,36 +2372,37 @@ impl<'a> TypeChecker<'a> {
         ns: &DeclareNamespaceStatement,
     ) -> Result<(), TypeCheckError> {
         // Create object type from namespace members
-        let mut members = Vec::new();
-
-        for member in &ns.members {
-            match member {
+        let members: Vec<_> = ns
+            .members
+            .iter()
+            .filter_map(|member| match member {
                 Statement::DeclareFunction(func) if func.is_export => {
                     // Add as method to the namespace object
-                    members.push(ObjectTypeMember::Method(MethodSignature {
+                    Some(ObjectTypeMember::Method(MethodSignature {
                         name: func.name.clone(),
                         type_parameters: func.type_parameters.clone(),
                         parameters: func.parameters.clone(),
                         return_type: func.return_type.clone(),
                         body: None,
                         span: func.span,
-                    }));
+                    }))
                 }
                 Statement::DeclareConst(const_decl) if const_decl.is_export => {
                     // Add as property to the namespace object
-                    members.push(ObjectTypeMember::Property(PropertySignature {
+                    Some(ObjectTypeMember::Property(PropertySignature {
                         is_readonly: true, // Constants are readonly
                         name: const_decl.name.clone(),
                         is_optional: false,
                         type_annotation: const_decl.type_annotation.clone(),
                         span: const_decl.span,
-                    }));
+                    }))
                 }
                 _ => {
                     // Other statement types or non-exported members are ignored
+                    None
                 }
-            }
-        }
+            })
+            .collect();
 
         // Create namespace object type
         let namespace_type = Type::new(

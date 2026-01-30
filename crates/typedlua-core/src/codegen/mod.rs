@@ -133,6 +133,8 @@ pub struct CodeGenerator {
     registered_types: std::collections::HashMap<String, u32>,
     /// Code generation strategy for Lua version-specific logic
     strategy: Box<dyn strategies::CodeGenStrategy>,
+    /// Output format for generated code
+    output_format: crate::config::OutputFormat,
 }
 
 impl CodeGenerator {
@@ -159,7 +161,19 @@ impl CodeGenerator {
             next_type_id: 1,
             registered_types: std::collections::HashMap::new(),
             strategy: Self::create_strategy(target),
+            output_format: crate::config::OutputFormat::Readable,
         }
+    }
+
+    pub fn with_output_format(mut self, format: crate::config::OutputFormat) -> Self {
+        self.output_format = format;
+        // Adjust indent string based on format
+        self.indent_str = match format {
+            crate::config::OutputFormat::Minified => "".to_string(),
+            crate::config::OutputFormat::Compact => " ".to_string(),
+            crate::config::OutputFormat::Readable => "    ".to_string(),
+        };
+        self
     }
 
     /// Create a strategy for the given Lua target
@@ -427,16 +441,33 @@ impl CodeGenerator {
     }
 
     fn writeln(&mut self, s: &str) {
-        self.output.push_str(s);
-        self.output.push('\n');
+        match self.output_format {
+            crate::config::OutputFormat::Minified => {
+                // In minified mode, only add newlines for statements that require them
+                // (like end keywords) but strip them from regular lines
+                self.output.push_str(s);
+            }
+            crate::config::OutputFormat::Compact => {
+                self.output.push_str(s);
+                self.output.push('\n');
+            }
+            crate::config::OutputFormat::Readable => {
+                self.output.push_str(s);
+                self.output.push('\n');
+            }
+        }
         if let Some(source_map) = &mut self.source_map {
             source_map.advance(s);
-            source_map.advance("\n");
+            if !matches!(self.output_format, crate::config::OutputFormat::Minified) {
+                source_map.advance("\n");
+            }
         }
     }
 
     fn indent(&mut self) {
-        self.indent_level += 1;
+        if !matches!(self.output_format, crate::config::OutputFormat::Minified) {
+            self.indent_level += 1;
+        }
     }
 
     fn dedent(&mut self) {
@@ -446,6 +477,9 @@ impl CodeGenerator {
     }
 
     fn write_indent(&mut self) {
+        if matches!(self.output_format, crate::config::OutputFormat::Minified) {
+            return;
+        }
         for _ in 0..self.indent_level {
             self.write(&self.indent_str.clone());
         }
