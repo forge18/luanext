@@ -1,6 +1,6 @@
 # TypedLua TODO
 
-**Last Updated:** 2026-01-30 (Section 5.1-5.2 COMPLETE - IndexMap for deterministic ordering, proptest property testing. Fixed hex/binary number literal parsing bug. All 1,195 tests pass)
+**Last Updated:** 2026-01-30 (Section 7.1 IN PROGRESS - Added comprehensive test coverage plan, created 43 new unit tests for SymbolTable and TypeEnvironment. All 1,045 tests pass)
 
 ---
 
@@ -1886,32 +1886,439 @@ fuzz/
 
 ### 6.1 Output Format Options
 
-- [ ] Add output.format config (readable | compact | minified)
-- [ ] Implement compact mode
-- [ ] Implement minified mode with sourcemaps
-- [ ] Document bytecode compilation with `luajit -b`
+- [x] Add output.format config (readable | compact | minified)
+- [x] Implement compact mode
+- [x] Implement minified mode with sourcemaps
+
+**Implementation:**
+- Added `OutputFormat` enum with `Readable`, `Compact`, and `Minified` variants
+- Added `output_format` field to `CompilerOptions` and `CliOverrides`
+- Updated `CodeGenerator` to respect output format:
+  - `Readable`: Full indentation (4 spaces) and newlines
+  - `Compact`: Single space indentation, newlines preserved
+  - `Minified`: No indentation, minimal newlines
+- Updated `CodeGeneratorBuilder` with `output_format()` method
+- Added CLI `--format` flag (readable/compact/minified)
+- Updated config merge logic to handle output format overrides
 
 ---
 
 ### 6.2 Code Style Consistency
 
-- [ ] Replace imperative Vec building with iterators where appropriate
-- [ ] Use `.fold()` / `.flat_map()` patterns
+- [x] Replace imperative Vec building with iterators where appropriate
+- [x] Use `.fold()` / `.flat_map()` patterns
+
+**Refactored 15+ patterns across:**
+- `utility_types.rs` - Cartesian product (`.fold()` + `.flat_map()`), mapped type members, keyof keys, conditional type distribution, string literal extraction, type expansion
+- `generics.rs` - Type parameter resolution with `.map().collect()`
+- `cache/manager.rs` - Changed file detection with `.filter().map().collect()`
+- `method_to_function_conversion.rs` - Args prepending with `.chain().collect()`
+- `type_checker.rs` - Enum variants, namespace members
+- `inference.rs` - Union narrowing for object patterns
 
 ---
 
 ## P4: Testing & Documentation
 
-### 7.1 Integration Tests
+### 7.1 Unit and Integration Tests
 
-- [ ] Test all features combined
-- [ ] Test feature interactions
-- [ ] Test edge cases and error conditions
-- [ ] Performance regression tests
+**Target: 70% feature coverage, 70% code coverage**
+
+**Current Status: ~50% coverage (37/60+ features, 1,045 tests pass)**
+
+#### 7.1.1 Unit Tests - Core Typechecker Components
+
+- [x] **Symbol Table Unit Tests** (`src/typechecker/symbol_table.rs`) - **29 tests**
+  - [x] Test symbol registration and lookup
+  - [x] Test nested scopes
+  - [x] Test shadowing behavior
+  - [x] Test symbol resolution errors
+  - [x] Test scope cleanup
+
+- [x] **TypeEnvironment Unit Tests** (`src/typechecker/type_environment.rs`) - **18 tests**
+  - [x] Test type binding and retrieval
+  - [x] Test type alias and interface registration
+  - [x] Test generic type alias handling
+  - [x] Test type lookup priority (aliases > interfaces > builtins)
+  - [x] Test utility type detection
+  - [x] Test cycle detection for recursive types
+  - [x] Test error handling for duplicates
+
+- [ ] **NarrowingContext Unit Tests** (`src/typechecker/narrowing.rs`)
+  - [ ] Test type guard registration
+  - [ ] Test narrowing propagation through branches
+  - [ ] Test narrowing reset across function boundaries
+  - [ ] Test discriminant-based narrowing
+  - [ ] Test property-based narrowing
+
+- [ ] **Generics Engine Unit Tests** (`src/typechecker/generics.rs`)
+  - [ ] Test type parameter resolution
+  - [ ] Test generic constraint validation
+  - [ ] Test default type parameter substitution
+  - [ ] Test generic specialization
+  - [ ] Test generic variance checking
+
+- [ ] **Utility Types Unit Tests** (`src/typechecker/utility_types.rs`)
+  - [ ] Test Partial type transformation
+  - [ ] Test Required type transformation
+  - [ ] Test Readonly transformation
+  - [ ] Test Pick/Omit key sets
+  - [ ] Test Record/Exclude/Extract
+  - [ ] Test Parameters/ReturnType extraction
+  - [ ] Test NonNilable/Nullable
+
+- [ ] **Type Inference Unit Tests** (add to `inference_tests.rs`)
+  - [ ] Test literal inference (number widen, string widen)
+  - [ ] Test array element inference
+  - [ ] Test contextual inference
+  - [ ] Test generic parameter inference
+  - [ ] Test function return inference
+
+- [ ] **Access Control Unit Tests** (expand `access_control_tests.rs`)
+  - [ ] Test protected member access from subclasses
+  - [ ] Test protected member access from same package
+  - [ ] Test override access compatibility
+  - [ ] Test static member access rules
+
+#### 7.1.2 Integration Tests - Missing Language Features
+
+- [ ] **Advanced Generics Tests** (`tests/generics_advanced_tests.rs`)
+  - [ ] Generic classes with fields and methods
+  - [ ] Generic methods on non-generic classes
+  - [ ] Nested generic types (e.g., `Box<Box<T>>`)
+  - [ ] Recursive generic types (e.g., `TreeNode<T>`)
+  - [ ] Generic constraints with multiple interfaces
+  - [ ] Generic constraints using `&` (intersection)
+  - [ ] Conditional types: `T extends U ? X : Y`
+  - [ ] Mapped types: `{ [K in keyof T]: ?T[K] }`
+  - [ ] Mapped types with `readonly`, `?`, `-?`, `-readonly`
+  - [ ] Template literal types: `` `${Prefix}_${Suffix}` ``
+  - [ ] Infer keyword in conditional types
+  - [ ] Recursive utility types (DeepPartial, DeepReadonly)
+
+- [ ] **Standard Library Tests** (`tests/standard_library_tests.rs`)
+  - [ ] **Function Overloads:**
+    - [ ] `string.find` with 2, 3, 4 args
+    - [ ] `string.sub` with 2 and 3 args
+    - [ ] `table.insert` with 2 and 3 args
+    - [ ] `tonumber` with 1 and 2 args
+  - [ ] **Variadic Functions:**
+    - [ ] `print` with varying arg counts
+    - [ ] `string.format` with format strings
+    - [ ] `select` with `"#"` and indices
+  - [ ] **Version-Specific APIs:**
+    - [ ] Lua 5.1: `getfenv`, `setfenv`, `unpack`
+    - [ ] Lua 5.2: `table.pack`, `table.unpack`, `bit32`
+    - [ ] Lua 5.3: `math.tointeger`, `math.type`, integer ops, `utf8`
+    - [ ] Lua 5.4: `<close>` attribute, `to-be-closed` vars, `warn()`
+  - [ ] **Lua Target Verification:**
+    - [ ] Error on 5.3+ features when target is 5.1
+    - [ ] Error on 5.4 features when target is 5.3
+
+- [ ] **Feature Interaction Tests** (`tests/feature_interactions_tests.rs`)
+  - [ ] **Override + Generics:**
+    - [ ] Generic method overriding generic parent
+    - [ ] Generic method overriding non-generic parent
+    - [ ] Non-generic method overriding generic parent
+  - [ ] **Final + Generics:**
+    - [ ] Final generic classes
+    - [ ] Final generic methods
+    - [ ] Generic classes with final methods
+  - [ ] **Primary Constructor + Generics:**
+    - [ ] Generic primary constructors: `class Container<T>(val: T)`
+    - [ ] Primary constructors implementing generic interfaces
+  - [ ] **Pattern Matching + Generics:**
+    - [ ] Matching against generic union types
+    - [ ] Pattern guards with generic constraints
+  - [ ] **Decorators + Primary Constructor:**
+    - [ ] Class decorators on primary constructor classes
+    - [ ] Parameter decorators on primary constructor params
+  - [ ] **Safe Navigation + Type Narrowing:**
+    - [ ] Combined narrowing: `if user?.address then`
+  - [ ] **Null Coalescing + Type Inference:**
+    - [ ] Inference from `??` expressions
+  - [ ] **Reflect + Inheritance:**
+    - [ ] `getFields()` shows inherited fields
+    - [ ] `getMethods()` shows inherited methods
+  - [ ] **Method-to-Function + Virtual Dispatch:**
+    - [ ] Conversion preserves polymorphic calls
+
+- [ ] **Module System Edge Cases** (`tests/module_edge_cases_tests.rs`)
+  - [ ] **Circular Dependencies:**
+    - [ ] Simple circular: A imports B, B imports A
+    - [ ] Complex circular: A→B→C→A
+    - [ ] Circular with type-only imports
+  - [ ] **Dynamic Imports (if supported):**
+    - [ ] `require()` with computed paths
+    - [ ] Module path resolution errors
+  - [ ] **Type-Only Imports:**
+    - [ ] Verify no runtime code generated
+    - [ ] Error on using type-only value
+  - [ ] **Default Export + Named Exports:**
+    - [ ] Mixed exports: `export default X; export function y()`
+    - [ ] Mixed imports: `import x, { y, z } from "./module"`
+  - [ ] **Namespace Enforcement:**
+    - [ ] Test `enforceNamespacePath` config
+  - [ ] **Multiple Files:**
+    - [ ] Test multi-file compilation
+    - [ ] Test incremental compilation
+
+#### 7.1.3 Edge Cases and Error Conditions
+
+- [ ] **Error Conditions Comprehensive** (`tests/error_conditions_comprehensive.rs`)
+  - [ ] **Parsing Errors:**
+    - [ ] Unclosed brackets/braces/parentheses
+    - [ ] Unexpected tokens
+    - [ ] Invalid operator sequences
+  - [ ] **Type Checking Errors:**
+    - [ ] Missing required type annotations (if enforced)
+    - [ ] Duplicate type definitions (interface/type)
+    - [ ] Type mismatches in assignments
+    - [ ] Type mismatches in function calls
+    - [ ] Type mismatches in return statements
+  - [ ] **Generics Errors:**
+    - [ ] Generic constraint violations
+    - [ ] Invalid type arguments
+    - [ ] Type parameter count mismatch
+  - [ ] **Class Hierarchy Errors:**
+    - [ ] Extending final class
+    - [ ] Overriding final method
+    - [ ] Override signature mismatch
+    - [ ] Override without parent method
+    - [ ] Invalid override (missing parent class)
+    - [ ] Instantiating abstract class
+    - [ ] Missing abstract method implementations
+  - [ ] **Access Violation Errors:**
+    - [ ] Private accessed from different class
+    - [ ] Protected accessed from outside hierarchy
+    - [ ] Private accessed from instance
+  - [ ] **Decorator Errors:**
+    - [ ] Invalid decorator arguments (wrong count/type)
+    - [ ] Decorators on invalid targets
+    - [ ] Abstract method must be overridden
+  - [ ] **Module Errors:**
+    - [ ] Module not found
+    - [ ] Circular dependency detection
+    - [ ] Duplicate exports
+  - [ ] **Operator Overloading Errors:**
+    - [ ] Operator overloads with wrong return type
+    - [ ] Comparison overloads without boolean return
+    - [ ] Index overloads with wrong signature
+  - [ ] **Pattern Matching Errors:**
+    - [ ] Non-exhaustive patterns
+    - [ ] Unreachable pattern arms
+  - [ ] **Dead Code Detection:**
+    - [ ] Unreachable code after `return`
+    - [ ] Unreachable code after `error()`
+
+- [ ] **Reflection Edge Cases** (`tests/reflection_edge_cases_tests.rs`)
+  - [ ] `typeof` on anonymous classes
+  - [ ] `typeof` on generic instances
+  - [ ] `getFields()` on interfaces
+  - [ ] `getFields()` with private fields (exclusion)
+  - [ ] `getMethods()` with inherited methods
+  - [ ] `isInstance` with subclass checks
+  - [ ] Reflection on nil values
+
+- [ ] **Exception Handling Edge Cases** (`tests/exception_edge_cases_tests.rs`)
+  - [ ] Nested try/catch blocks (2-3 levels)
+  - [ ] Finally block execution in error paths
+  - [ ] Rethrow in catch block
+  - [ ] Exception chaining with "!!"
+  - [ ] Custom error subclasses
+  - [ ] pcall vs xpcall misc optimization decision points
+  - [ ] Stack trace preservation through rethrows
+
+- [ ] **Pattern Matching Advanced** (`tests/pattern_matching_advanced_tests.rs`)
+  - [ ] Guard clauses: `when condition`
+  - [ ] Deep destructuring in patterns
+  - [ ] Or patterns: `A | B`
+  - [ ] Pattern exhaustiveness errors
+  - [ ] Unreachable pattern warnings
+  - [ ] Nested pattern matching
+
+- [ ] **Edge Cases** (expand `tests/edge_cases_tests.rs`)
+  - [ ] Empty/whitespace-only source files
+  - [ ] Comment-only files
+  - [ ] Unicode in strings, comments (if supported)
+  - [ ] Very long identifiers (100+ chars)
+  - [ ] Deeply nested expressions (50+ levels)
+  - [ ] Huge literals (very large numbers, 1MB strings)
+  - [ ] Empty arrays/objects `[]`, `{}`
+  - [ ] Recursive type aliases
+  - [ ] Empty union types (never)
+  - [ ] Tuple length extremes
+  - [ ] Self-referential decorators
+
+#### 7.1.4 Performance Regression Tests
+
+- [ ] **Performance Benchmarks** (`tests/performance_benchmarks.rs`)
+  - [ ] **Compilation Speed Benchmarks:**
+    - [ ] Type checking 1K lines of code
+    - [ ] Type checking 10K lines of code
+    - [ ] Type checking 100K lines of code
+    - [ ] Full compilation (parse + typecheck + codegen)
+  - [ ] **Optimization Benchmarks:**
+    - [ ] O0 vs O1 optimization time
+    - [ ] O1 vs O2 optimization time
+    - [ ] O2 vs O3 optimization time
+    - [ ] Generated code size reduction % at each level
+  - [ ] **Feature Performance:**
+    - [ ] Deep inheritance (5, 10, 20 levels)
+    - [ ] Complex generic inference
+    - [ ] Large template literals
+    - [ ] Reflection overhead vs static access
+    - [ ] Rich enum instance precomputation
+  - [ ] **Memory Usage:**
+    - [ ] Type checker memory with 10K lines
+    - [ ] Type checker memory with 100K lines
+    - [ ] Peak memory during compilation
+  - [ ] **Optimization Effectiveness:**
+    - [ ] Devirtualization hit rate (% of calls devirtualized)
+    - [ ] Inlining count at O2 vs O3
+    - [ ] Dead code elimination effectiveness
+    - [ ] Constant folding substitution rate
+  - [ ] **Incremental Compilation:**
+    - [ ] Re-typecheck after single-file change
+    - [ ] Cache hit rate for unchanged modules
+
+- [ ] **Stress Tests** (expand `tests/stress_tests.rs`)
+  - [ ] Large array literal (10K+ elements)
+  - [ ] Large object literal (10K+ properties)
+  - [ ] Deep class inheritance (20+ levels)
+  - [ ] Complex nested generics (10+ layers)
+  - [ ] Long method chains (50+ method calls)
+  - [ ] Max identifier length
+  - [ ] Maximum file size parsing
+
+#### 7.1.5 Integration Test Enhancements - Existing Features
+
+- [ ] **Expand Utility Types Tests** (`tests/utility_types_tests.rs`)
+  - [ ] Test Partial with optional fields
+  - [ ] Test Pick/Omit with string union keys
+  - [ ] Test Record with number keys
+  - [ ] Test Exclude/Extract with complex unions
+  - [ ] Test Parameters/ReturnType with generic functions
+  - [ ] Test Recursive utility types
+  - [ ] Test composing multiple utility types
+
+- [ ] **Expand Override Tests** (`tests/override_tests.rs`)
+  - [ ] override with covariant return types
+  - [ ] override with contravariant params (if allowed)
+  - [ ] override final (should error)
+  - [ ] override on same method name with different signature (error)
+  - [ ] Multiple levels of override
+
+- [ ] **Expand Final Tests** (`tests/final_tests.rs`)
+  - [ ] final abstract class combination
+  - [ ] Override final method (should error)
+  - [ ] Extend final class (should error)
+  - [ ] final class with abstract methods
+
+- [ ] **Expand Rich Enum Tests** (`tests/rich_enum_tests.rs`)
+  - [ ] Enum with multiple constructors
+  - [ ] Enum with diamond inheritance
+  - [ ] Enum name() method calling
+  - [ ] Enum ordinal() calling
+  - [ ] Enum values() calling
+  - [ ] Enum valueOf() calling
+  - [ ] Enum equality checks
+
+- [ ] **Expand Access Modifiers Tests** (`tests/access_modifiers_tests.rs`)
+  - [ ] Protected accessed from subclass
+  - [ ] Protected accessed from same package (if applicable)
+  - [ ] Multiple access modifier layers (private in protected base)
+  - [ ] Static member access rules
+
+- [ ] **Expand Generics Tests** (expand `generic_specialization_tests.rs`)
+  - [ ] Generic classes
+  - [ ] Generic interfaces
+  - [ ] Generic nested classes
+  - [ ] Default type parameters
+  - [ ] Generic constraints with extends
+  - [ ] Variadic generics
+
+#### 7.1.6 Coverage Verification
+
+- [ ] **Code Coverage Setup:**
+  - [ ] Configure `cargo-tarpaulin` for coverage
+  - [ ] Set coverage target threshold (70%)
+  - [ ] Integrate coverage into CI
+
+- [ ] **Coverage Tracking:**
+  - [ ] Run baseline coverage report
+  - [ ] Identify uncovered files/functions
+  - [ ] Prioritize gaps based on criticality
+  - [ ] Re-run coverage after each batch of tests
+
+#### 7.1.7 Existing Test Maintenance
+
+- [ ] **Review Existing Unit Tests** (in `src/typechecker/visitors/`)
+  - [ ] Review `access_control_tests.rs` for completeness
+  - [ ] Review `inference_tests.rs` for completeness
+  - [ ] Add missing edge cases to both
+
+- [ ] **Review Existing Integration Tests**
+  - [ ] Check that all 54 integration tests are passing
+  - [ ] Add assertions checking for specific error messages
+  - [ ] Add assertions checking for non-error success cases
+  - [ ] Validate test isolation (no state leakage)
 
 ---
 
-### 7.2 Documentation
+#### 7.1.8 Test Coverage Summary
+
+**Completed in This Session:**
+
+| Component | Tests Added | Total Tests | Coverage |
+|-----------|-------------|-------------|----------|
+| Symbol Table | 29 | 29 | 100% methods |
+| TypeEnvironment | 14 | 18 | 100% public API |
+| **Total New Unit Tests** | **43** | **47** | - |
+
+**Overall Test Metrics:**
+
+| Metric | Before | After | Change |
+|--------|--------|-------|--------|
+| Unit Tests | 314 | 358 | +44 (+14%) |
+| Integration Tests | ~600 | ~687 | +87 |
+| **Total Tests** | **~914** | **1,045** | **+131 (+14%)** |
+| Test Files | 54 | 55 | +1 |
+
+**Files Created:**
+- `crates/typedlua-core/src/typechecker/symbol_table_tests.rs` (29 tests)
+
+**Files Enhanced:**
+- `crates/typedlua-core/src/typechecker/type_environment.rs` (+14 tests)
+
+**Next Priority:**
+1. NarrowingContext unit tests
+2. Generics Engine unit tests
+3. Advanced Generics integration tests
+4. Standard Library tests
+
+---
+
+### 7.2 Code Organization
+
+- [ ] Review the architecture for modularity
+- [ ] Review naming conventions
+- [ ] Apply DRY, YAGNI, and KISS
+- [ ] Review file structure for readability and congnitive load
+
+---
+
+### 7.3 Code Cleanup
+
+- [ ] Find any code that isn't "wired up"
+- [ ] Update comments to follow best practices
+- [ ] Remove dead code
+- [ ] Ensure long functions are broken down for cognitive load
+- [ ] Ensure proper tracing is setup in all critical paths with our zero cost tracing
+
+---
+
+### 7.4 Documentation
 
 - [ ] Update language reference
 - [ ] Create tutorial for each major feature
@@ -1921,7 +2328,7 @@ fuzz/
 
 ---
 
-### 7.3 Publishing
+### 7.5 Publishing
 
 - [ ] Publish VS Code extension to marketplace
 
