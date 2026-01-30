@@ -237,7 +237,7 @@ fn record(
 }
 
 /// Pick<T, K> - Picks a subset of properties from T
-fn pick(type_args: &[Type], span: Span, _interner: &StringInterner) -> Result<Type, String> {
+fn pick(type_args: &[Type], span: Span, interner: &StringInterner) -> Result<Type, String> {
     if type_args.len() != 2 {
         return Err(format!(
             "Pick<T, K> expects 2 type arguments, got {}",
@@ -259,7 +259,8 @@ fn pick(type_args: &[Type], span: Span, _interner: &StringInterner) -> Result<Ty
                 .filter_map(|member| {
                     match member {
                         ObjectTypeMember::Property(prop) => {
-                            let prop_name = prop.name.node.to_string();
+                            // Use interner to resolve StringId to actual string value
+                            let prop_name = interner.resolve(prop.name.node);
                             if keys_to_pick.contains(&prop_name) {
                                 Some(member.clone())
                             } else {
@@ -285,7 +286,7 @@ fn pick(type_args: &[Type], span: Span, _interner: &StringInterner) -> Result<Ty
 }
 
 /// Omit<T, K> - Omits properties from T
-fn omit(type_args: &[Type], span: Span, _interner: &StringInterner) -> Result<Type, String> {
+fn omit(type_args: &[Type], span: Span, interner: &StringInterner) -> Result<Type, String> {
     if type_args.len() != 2 {
         return Err(format!(
             "Omit<T, K> expects 2 type arguments, got {}",
@@ -307,7 +308,8 @@ fn omit(type_args: &[Type], span: Span, _interner: &StringInterner) -> Result<Ty
                 .filter_map(|member| {
                     match member {
                         ObjectTypeMember::Property(prop) => {
-                            let prop_name = prop.name.node.to_string();
+                            // Use interner to resolve StringId to actual string value
+                            let prop_name = interner.resolve(prop.name.node);
                             if !keys_to_omit.contains(&prop_name) {
                                 Some(member.clone())
                             } else {
@@ -1108,6 +1110,13 @@ mod tests {
 
     fn make_object_type(properties: Vec<(&str, Type, bool, bool)>) -> Type {
         let interner = typedlua_parser::string_interner::StringInterner::new();
+        make_object_type_with_interner(&interner, properties)
+    }
+
+    fn make_object_type_with_interner(
+        interner: &typedlua_parser::string_interner::StringInterner,
+        properties: Vec<(&str, Type, bool, bool)>,
+    ) -> Type {
         let members = properties
             .into_iter()
             .map(|(name, typ, optional, readonly)| {
@@ -1336,5 +1345,656 @@ mod tests {
             result.kind,
             TypeKind::Primitive(PrimitiveType::Number)
         ));
+    }
+
+    #[test]
+    fn test_pick() {
+        let interner = typedlua_parser::string_interner::StringInterner::new();
+        let obj = make_object_type_with_interner(
+            &interner,
+            vec![
+                (
+                    "name",
+                    Type::new(TypeKind::Primitive(PrimitiveType::String), make_span()),
+                    false,
+                    false,
+                ),
+                (
+                    "age",
+                    Type::new(TypeKind::Primitive(PrimitiveType::Number), make_span()),
+                    false,
+                    false,
+                ),
+                (
+                    "email",
+                    Type::new(TypeKind::Primitive(PrimitiveType::String), make_span()),
+                    false,
+                    false,
+                ),
+            ],
+        );
+
+        // Pick<Obj, "name" | "age">
+        let keys = Type::new(
+            TypeKind::Union(vec![
+                Type::new(
+                    TypeKind::Literal(Literal::String("name".to_string())),
+                    make_span(),
+                ),
+                Type::new(
+                    TypeKind::Literal(Literal::String("age".to_string())),
+                    make_span(),
+                ),
+            ]),
+            make_span(),
+        );
+
+        let result = pick(&[obj, keys], make_span(), &interner).unwrap();
+
+        if let TypeKind::Object(obj_type) = &result.kind {
+            assert_eq!(obj_type.members.len(), 2);
+            // Should have name and age, but not email
+        } else {
+            panic!("Expected object type");
+        }
+    }
+
+    #[test]
+    fn test_pick_single_key() {
+        let interner = typedlua_parser::string_interner::StringInterner::new();
+        let obj = make_object_type_with_interner(
+            &interner,
+            vec![
+                (
+                    "name",
+                    Type::new(TypeKind::Primitive(PrimitiveType::String), make_span()),
+                    false,
+                    false,
+                ),
+                (
+                    "age",
+                    Type::new(TypeKind::Primitive(PrimitiveType::Number), make_span()),
+                    false,
+                    false,
+                ),
+            ],
+        );
+
+        // Pick<Obj, "name">
+        let keys = Type::new(
+            TypeKind::Literal(Literal::String("name".to_string())),
+            make_span(),
+        );
+
+        let result = pick(&[obj, keys], make_span(), &interner).unwrap();
+
+        if let TypeKind::Object(obj_type) = &result.kind {
+            assert_eq!(obj_type.members.len(), 1);
+        } else {
+            panic!("Expected object type");
+        }
+    }
+
+    #[test]
+    fn test_omit() {
+        let interner = typedlua_parser::string_interner::StringInterner::new();
+        let obj = make_object_type_with_interner(
+            &interner,
+            vec![
+                (
+                    "name",
+                    Type::new(TypeKind::Primitive(PrimitiveType::String), make_span()),
+                    false,
+                    false,
+                ),
+                (
+                    "age",
+                    Type::new(TypeKind::Primitive(PrimitiveType::Number), make_span()),
+                    false,
+                    false,
+                ),
+                (
+                    "email",
+                    Type::new(TypeKind::Primitive(PrimitiveType::String), make_span()),
+                    false,
+                    false,
+                ),
+            ],
+        );
+
+        // Omit<Obj, "email">
+        let keys = Type::new(
+            TypeKind::Literal(Literal::String("email".to_string())),
+            make_span(),
+        );
+
+        let result = omit(&[obj, keys], make_span(), &interner).unwrap();
+
+        if let TypeKind::Object(obj_type) = &result.kind {
+            assert_eq!(obj_type.members.len(), 2);
+            // Should have name and age, but not email
+        } else {
+            panic!("Expected object type");
+        }
+    }
+
+    #[test]
+    fn test_omit_multiple_keys() {
+        let interner = typedlua_parser::string_interner::StringInterner::new();
+        let obj = make_object_type_with_interner(
+            &interner,
+            vec![
+                (
+                    "name",
+                    Type::new(TypeKind::Primitive(PrimitiveType::String), make_span()),
+                    false,
+                    false,
+                ),
+                (
+                    "age",
+                    Type::new(TypeKind::Primitive(PrimitiveType::Number), make_span()),
+                    false,
+                    false,
+                ),
+                (
+                    "email",
+                    Type::new(TypeKind::Primitive(PrimitiveType::String), make_span()),
+                    false,
+                    false,
+                ),
+            ],
+        );
+
+        // Omit<Obj, "name" | "age">
+        let keys = Type::new(
+            TypeKind::Union(vec![
+                Type::new(
+                    TypeKind::Literal(Literal::String("name".to_string())),
+                    make_span(),
+                ),
+                Type::new(
+                    TypeKind::Literal(Literal::String("age".to_string())),
+                    make_span(),
+                ),
+            ]),
+            make_span(),
+        );
+
+        let result = omit(&[obj, keys], make_span(), &interner).unwrap();
+
+        if let TypeKind::Object(obj_type) = &result.kind {
+            assert_eq!(obj_type.members.len(), 1);
+            // Should only have email
+        } else {
+            panic!("Expected object type");
+        }
+    }
+
+    // ========================================================================
+    // Additional Comprehensive Tests
+    // ========================================================================
+
+    #[test]
+    fn test_extract() {
+        let union = Type::new(
+            TypeKind::Union(vec![
+                Type::new(TypeKind::Primitive(PrimitiveType::String), make_span()),
+                Type::new(TypeKind::Primitive(PrimitiveType::Number), make_span()),
+                Type::new(TypeKind::Primitive(PrimitiveType::Boolean), make_span()),
+            ]),
+            make_span(),
+        );
+        let extract_type = Type::new(TypeKind::Primitive(PrimitiveType::String), make_span());
+
+        let result = extract(&[union, extract_type], make_span()).unwrap();
+
+        // Should extract just string
+        assert!(matches!(
+            result.kind,
+            TypeKind::Primitive(PrimitiveType::String)
+        ));
+    }
+
+    #[test]
+    fn test_extract_multiple() {
+        let union = Type::new(
+            TypeKind::Union(vec![
+                Type::new(TypeKind::Primitive(PrimitiveType::String), make_span()),
+                Type::new(TypeKind::Primitive(PrimitiveType::Number), make_span()),
+                Type::new(TypeKind::Primitive(PrimitiveType::Boolean), make_span()),
+            ]),
+            make_span(),
+        );
+
+        // Extract string | number
+        let extract_type = Type::new(
+            TypeKind::Union(vec![
+                Type::new(TypeKind::Primitive(PrimitiveType::String), make_span()),
+                Type::new(TypeKind::Primitive(PrimitiveType::Number), make_span()),
+            ]),
+            make_span(),
+        );
+
+        let result = extract(&[union, extract_type], make_span()).unwrap();
+
+        if let TypeKind::Union(types) = &result.kind {
+            assert_eq!(types.len(), 2);
+        } else {
+            panic!("Expected union type");
+        }
+    }
+
+    #[test]
+    fn test_parameters() {
+        use typedlua_parser::ast::pattern::Pattern;
+        use typedlua_parser::ast::statement::Parameter;
+        use typedlua_parser::ast::types::FunctionType;
+
+        let interner = typedlua_parser::string_interner::StringInterner::new();
+        let x_id = interner.intern("x");
+        let y_id = interner.intern("y");
+
+        let func = Type::new(
+            TypeKind::Function(FunctionType {
+                type_parameters: None,
+                parameters: vec![
+                    Parameter {
+                        pattern: Pattern::Identifier(Ident::new(x_id, make_span())),
+                        type_annotation: Some(Type::new(
+                            TypeKind::Primitive(PrimitiveType::String),
+                            make_span(),
+                        )),
+                        default: None,
+                        is_rest: false,
+                        is_optional: false,
+                        span: make_span(),
+                    },
+                    Parameter {
+                        pattern: Pattern::Identifier(Ident::new(y_id, make_span())),
+                        type_annotation: Some(Type::new(
+                            TypeKind::Primitive(PrimitiveType::Number),
+                            make_span(),
+                        )),
+                        default: None,
+                        is_rest: false,
+                        is_optional: false,
+                        span: make_span(),
+                    },
+                ],
+                return_type: Box::new(Type::new(
+                    TypeKind::Primitive(PrimitiveType::Void),
+                    make_span(),
+                )),
+                throws: None,
+                span: make_span(),
+            }),
+            make_span(),
+        );
+
+        let result = parameters(&[func], make_span()).unwrap();
+
+        if let TypeKind::Tuple(types) = &result.kind {
+            assert_eq!(types.len(), 2);
+            assert!(matches!(
+                types[0].kind,
+                TypeKind::Primitive(PrimitiveType::String)
+            ));
+            assert!(matches!(
+                types[1].kind,
+                TypeKind::Primitive(PrimitiveType::Number)
+            ));
+        } else {
+            panic!("Expected tuple type");
+        }
+    }
+
+    #[test]
+    fn test_apply_utility_type_partial() {
+        let obj = make_object_type(vec![(
+            "name",
+            Type::new(TypeKind::Primitive(PrimitiveType::String), make_span()),
+            false,
+            false,
+        )]);
+
+        let (interner, common_ids) =
+            typedlua_parser::string_interner::StringInterner::new_with_common_identifiers();
+        let result =
+            apply_utility_type("Partial", &[obj], make_span(), &interner, &common_ids).unwrap();
+
+        if let TypeKind::Object(obj_type) = &result.kind {
+            assert_eq!(obj_type.members.len(), 1);
+            if let ObjectTypeMember::Property(prop) = &obj_type.members[0] {
+                assert!(prop.is_optional);
+            }
+        } else {
+            panic!("Expected object type");
+        }
+    }
+
+    #[test]
+    fn test_apply_utility_type_unknown() {
+        let obj = make_object_type(vec![]);
+        let (interner, common_ids) =
+            typedlua_parser::string_interner::StringInterner::new_with_common_identifiers();
+        let result = apply_utility_type("UnknownType", &[obj], make_span(), &interner, &common_ids);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Unknown utility type"));
+    }
+
+    #[test]
+    fn test_partial_wrong_arg_count() {
+        let obj = make_object_type(vec![]);
+        let result = partial(&[], make_span());
+        assert!(result.is_err());
+
+        let result = partial(&[obj.clone(), obj], make_span());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_partial_non_object() {
+        let string_type = Type::new(TypeKind::Primitive(PrimitiveType::String), make_span());
+        let result = partial(&[string_type], make_span());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_required_wrong_arg_count() {
+        let obj = make_object_type(vec![]);
+        let result = required(&[], make_span());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_readonly_array() {
+        let array_type = Type::new(
+            TypeKind::Array(Box::new(Type::new(
+                TypeKind::Primitive(PrimitiveType::String),
+                make_span(),
+            ))),
+            make_span(),
+        );
+
+        let result = readonly(&[array_type.clone()], make_span()).unwrap();
+        // Arrays are returned as-is for now
+        assert!(matches!(result.kind, TypeKind::Array(_)));
+    }
+
+    #[test]
+    fn test_record_number_keys() {
+        let key_type = Type::new(TypeKind::Primitive(PrimitiveType::Number), make_span());
+        let value_type = Type::new(TypeKind::Primitive(PrimitiveType::String), make_span());
+
+        let (interner, common_ids) =
+            typedlua_parser::string_interner::StringInterner::new_with_common_identifiers();
+        let result = record(&[key_type, value_type], make_span(), &interner, &common_ids).unwrap();
+
+        if let TypeKind::Object(obj_type) = &result.kind {
+            assert_eq!(obj_type.members.len(), 1);
+            if let ObjectTypeMember::Index(idx) = &obj_type.members[0] {
+                assert!(matches!(idx.key_type, IndexKeyType::Number));
+            }
+        } else {
+            panic!("Expected object type");
+        }
+    }
+
+    #[test]
+    fn test_record_union_string_literals() {
+        // Record<"a" | "b", number>
+        let key_type = Type::new(
+            TypeKind::Union(vec![
+                Type::new(
+                    TypeKind::Literal(Literal::String("a".to_string())),
+                    make_span(),
+                ),
+                Type::new(
+                    TypeKind::Literal(Literal::String("b".to_string())),
+                    make_span(),
+                ),
+            ]),
+            make_span(),
+        );
+        let value_type = Type::new(TypeKind::Primitive(PrimitiveType::Number), make_span());
+
+        let (interner, common_ids) =
+            typedlua_parser::string_interner::StringInterner::new_with_common_identifiers();
+        let result = record(&[key_type, value_type], make_span(), &interner, &common_ids).unwrap();
+
+        if let TypeKind::Object(obj_type) = &result.kind {
+            assert_eq!(obj_type.members.len(), 1);
+            assert!(matches!(obj_type.members[0], ObjectTypeMember::Index(_)));
+        } else {
+            panic!("Expected object type");
+        }
+    }
+
+    #[test]
+    fn test_record_invalid_key_type() {
+        let key_type = Type::new(TypeKind::Primitive(PrimitiveType::Boolean), make_span());
+        let value_type = Type::new(TypeKind::Primitive(PrimitiveType::String), make_span());
+
+        let (interner, common_ids) =
+            typedlua_parser::string_interner::StringInterner::new_with_common_identifiers();
+        let result = record(&[key_type, value_type], make_span(), &interner, &common_ids);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_exclude_non_union() {
+        // Exclude<string, number> should return string (since string is not assignable to number)
+        let string_type = Type::new(TypeKind::Primitive(PrimitiveType::String), make_span());
+        let number_type = Type::new(TypeKind::Primitive(PrimitiveType::Number), make_span());
+
+        let result = exclude(&[string_type.clone(), number_type], make_span()).unwrap();
+        assert!(matches!(
+            result.kind,
+            TypeKind::Primitive(PrimitiveType::String)
+        ));
+    }
+
+    #[test]
+    fn test_exclude_all_types() {
+        // Exclude<string, string> should return never
+        let string_type = Type::new(TypeKind::Primitive(PrimitiveType::String), make_span());
+
+        let result = exclude(&[string_type.clone(), string_type], make_span()).unwrap();
+        assert!(matches!(
+            result.kind,
+            TypeKind::Primitive(PrimitiveType::Never)
+        ));
+    }
+
+    #[test]
+    fn test_extract_non_union_match() {
+        // Extract<string, string> should return string
+        let string_type = Type::new(TypeKind::Primitive(PrimitiveType::String), make_span());
+
+        let result = extract(&[string_type.clone(), string_type], make_span()).unwrap();
+        assert!(matches!(
+            result.kind,
+            TypeKind::Primitive(PrimitiveType::String)
+        ));
+    }
+
+    #[test]
+    fn test_extract_non_union_no_match() {
+        // Extract<string, number> should return never
+        let string_type = Type::new(TypeKind::Primitive(PrimitiveType::String), make_span());
+        let number_type = Type::new(TypeKind::Primitive(PrimitiveType::Number), make_span());
+
+        let result = extract(&[string_type, number_type], make_span()).unwrap();
+        assert!(matches!(
+            result.kind,
+            TypeKind::Primitive(PrimitiveType::Never)
+        ));
+    }
+
+    #[test]
+    fn test_non_nilable_nullable_type() {
+        let nullable = Type::new(
+            TypeKind::Nullable(Box::new(Type::new(
+                TypeKind::Primitive(PrimitiveType::String),
+                make_span(),
+            ))),
+            make_span(),
+        );
+
+        let result = non_nilable(&[nullable], make_span()).unwrap();
+        assert!(matches!(
+            result.kind,
+            TypeKind::Primitive(PrimitiveType::String)
+        ));
+    }
+
+    #[test]
+    fn test_non_nilable_non_union() {
+        let string_type = Type::new(TypeKind::Primitive(PrimitiveType::String), make_span());
+
+        let result = non_nilable(&[string_type], make_span()).unwrap();
+        assert!(matches!(
+            result.kind,
+            TypeKind::Primitive(PrimitiveType::String)
+        ));
+    }
+
+    #[test]
+    fn test_non_nilable_only_nil() {
+        let nil_type = Type::new(TypeKind::Primitive(PrimitiveType::Nil), make_span());
+
+        let result = non_nilable(&[nil_type], make_span()).unwrap();
+        assert!(matches!(
+            result.kind,
+            TypeKind::Primitive(PrimitiveType::Never)
+        ));
+    }
+
+    #[test]
+    fn test_nilable_already_nilable() {
+        let union = Type::new(
+            TypeKind::Union(vec![
+                Type::new(TypeKind::Primitive(PrimitiveType::String), make_span()),
+                Type::new(TypeKind::Primitive(PrimitiveType::Nil), make_span()),
+            ]),
+            make_span(),
+        );
+
+        let result = nilable(&[union.clone()], make_span()).unwrap();
+        // Should return the same type since it already has nil
+        if let TypeKind::Union(types) = &result.kind {
+            assert_eq!(types.len(), 2);
+        } else {
+            panic!("Expected union type");
+        }
+    }
+
+    #[test]
+    fn test_nilable_nullable() {
+        let nullable = Type::new(
+            TypeKind::Nullable(Box::new(Type::new(
+                TypeKind::Primitive(PrimitiveType::String),
+                make_span(),
+            ))),
+            make_span(),
+        );
+
+        let result = nilable(&[nullable.clone()], make_span()).unwrap();
+        // Should return the same nullable type
+        assert!(matches!(result.kind, TypeKind::Nullable(_)));
+    }
+
+    #[test]
+    fn test_return_type_non_function() {
+        let string_type = Type::new(TypeKind::Primitive(PrimitiveType::String), make_span());
+
+        let result = return_type(&[string_type], make_span());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parameters_non_function() {
+        let string_type = Type::new(TypeKind::Primitive(PrimitiveType::String), make_span());
+
+        let result = parameters(&[string_type], make_span());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_is_nil_or_void() {
+        let nil_type = Type::new(TypeKind::Primitive(PrimitiveType::Nil), make_span());
+        let void_type = Type::new(TypeKind::Primitive(PrimitiveType::Void), make_span());
+        let string_type = Type::new(TypeKind::Primitive(PrimitiveType::String), make_span());
+
+        assert!(is_nil_or_void(&nil_type));
+        assert!(is_nil_or_void(&void_type));
+        assert!(!is_nil_or_void(&string_type));
+    }
+
+    #[test]
+    fn test_extract_string_literal_keys() {
+        let single_key = Type::new(
+            TypeKind::Literal(Literal::String("name".to_string())),
+            make_span(),
+        );
+        let keys = extract_string_literal_keys(&single_key).unwrap();
+        assert_eq!(keys, vec!["name"]);
+
+        let union_keys = Type::new(
+            TypeKind::Union(vec![
+                Type::new(
+                    TypeKind::Literal(Literal::String("a".to_string())),
+                    make_span(),
+                ),
+                Type::new(
+                    TypeKind::Literal(Literal::String("b".to_string())),
+                    make_span(),
+                ),
+            ]),
+            make_span(),
+        );
+        let keys = extract_string_literal_keys(&union_keys).unwrap();
+        assert_eq!(keys.len(), 2);
+    }
+
+    #[test]
+    fn test_extract_string_literal_keys_invalid() {
+        let number_type = Type::new(TypeKind::Primitive(PrimitiveType::Number), make_span());
+        let result = extract_string_literal_keys(&number_type);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_cartesian_product() {
+        let vecs = vec![
+            vec!["a".to_string(), "b".to_string()],
+            vec!["1".to_string(), "2".to_string()],
+        ];
+
+        let result = cartesian_product(&vecs);
+        assert_eq!(result.len(), 4);
+        assert!(result.contains(&"a1".to_string()));
+        assert!(result.contains(&"a2".to_string()));
+        assert!(result.contains(&"b1".to_string()));
+        assert!(result.contains(&"b2".to_string()));
+    }
+
+    #[test]
+    fn test_cartesian_product_empty() {
+        let vecs: Vec<Vec<String>> = vec![];
+        let result = cartesian_product(&vecs);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], "");
+    }
+
+    #[test]
+    fn test_cartesian_product_single() {
+        let vecs = vec![vec!["a".to_string(), "b".to_string()]];
+        let result = cartesian_product(&vecs);
+        assert_eq!(result.len(), 2);
+        assert!(result.contains(&"a".to_string()));
+        assert!(result.contains(&"b".to_string()));
     }
 }

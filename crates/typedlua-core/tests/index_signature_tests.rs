@@ -40,7 +40,6 @@ fn test_interface_with_string_index_signature_compatible_properties() {
 }
 
 #[test]
-#[ignore] // TODO: Implement index signature validation for class properties
 fn test_interface_with_string_index_signature_incompatible_property() {
     let source = r#"
         interface StringMap {

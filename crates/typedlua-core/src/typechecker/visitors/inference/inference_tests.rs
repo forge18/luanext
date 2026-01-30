@@ -7,6 +7,7 @@ mod tests {
     };
     use typedlua_parser::ast::expression::*;
     use typedlua_parser::ast::types::*;
+    use typedlua_parser::ast::Ident;
     use typedlua_parser::span::Span;
     use typedlua_parser::string_interner::StringInterner;
 
@@ -468,5 +469,693 @@ mod tests {
         );
 
         assert_eq!(inferrer.name(), "TypeInferrer");
+    }
+
+    // ========================================================================
+    // Additional Comprehensive Type Inference Tests
+    // ========================================================================
+
+    #[test]
+    fn test_infer_literal_nil() {
+        let interner = StringInterner::new();
+        let mut symbol_table = SymbolTable::new();
+        let mut type_env = TypeEnvironment::new();
+        let mut narrowing_context = super::super::super::super::narrowing::NarrowingContext::new();
+        let access_control = AccessControl::new();
+
+        let mut inferrer = create_test_inferrer(
+            &mut symbol_table,
+            &mut type_env,
+            &mut narrowing_context,
+            &access_control,
+            &interner,
+        );
+
+        let mut expr = Expression {
+            kind: ExpressionKind::Literal(Literal::Nil),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        };
+
+        let result = inferrer.infer_expression(&mut expr);
+        assert!(result.is_ok());
+        let typ = result.unwrap();
+        assert!(matches!(typ.kind, TypeKind::Literal(Literal::Nil)));
+    }
+
+    #[test]
+    fn test_infer_array_expression() {
+        let interner = StringInterner::new();
+        let mut symbol_table = SymbolTable::new();
+        let mut type_env = TypeEnvironment::new();
+        let mut narrowing_context = super::super::super::super::narrowing::NarrowingContext::new();
+        let access_control = AccessControl::new();
+
+        let mut inferrer = create_test_inferrer(
+            &mut symbol_table,
+            &mut type_env,
+            &mut narrowing_context,
+            &access_control,
+            &interner,
+        );
+
+        // Array of numbers: [1, 2, 3]
+        let mut expr = Expression {
+            kind: ExpressionKind::Array(vec![
+                ArrayElement::Expression(Expression {
+                    kind: ExpressionKind::Literal(Literal::Number(1.0)),
+                    span: Span::default(),
+                    annotated_type: None,
+                    receiver_class: None,
+                }),
+                ArrayElement::Expression(Expression {
+                    kind: ExpressionKind::Literal(Literal::Number(2.0)),
+                    span: Span::default(),
+                    annotated_type: None,
+                    receiver_class: None,
+                }),
+                ArrayElement::Expression(Expression {
+                    kind: ExpressionKind::Literal(Literal::Number(3.0)),
+                    span: Span::default(),
+                    annotated_type: None,
+                    receiver_class: None,
+                }),
+            ]),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        };
+
+        let result = inferrer.infer_expression(&mut expr);
+        assert!(result.is_ok());
+        let typ = result.unwrap();
+        // Should infer as Array<number>
+        assert!(matches!(typ.kind, TypeKind::Array(_)));
+    }
+
+    #[test]
+    fn test_infer_array_empty() {
+        let interner = StringInterner::new();
+        let mut symbol_table = SymbolTable::new();
+        let mut type_env = TypeEnvironment::new();
+        let mut narrowing_context = super::super::super::super::narrowing::NarrowingContext::new();
+        let access_control = AccessControl::new();
+
+        let mut inferrer = create_test_inferrer(
+            &mut symbol_table,
+            &mut type_env,
+            &mut narrowing_context,
+            &access_control,
+            &interner,
+        );
+
+        // Empty array: []
+        let mut expr = Expression {
+            kind: ExpressionKind::Array(vec![]),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        };
+
+        let result = inferrer.infer_expression(&mut expr);
+        assert!(result.is_ok());
+        let typ = result.unwrap();
+        // Should infer as Array<unknown>
+        assert!(matches!(typ.kind, TypeKind::Array(_)));
+    }
+
+    #[test]
+    fn test_infer_binary_op_sub() {
+        let interner = StringInterner::new();
+        let mut symbol_table = SymbolTable::new();
+        let mut type_env = TypeEnvironment::new();
+        let mut narrowing_context = super::super::super::super::narrowing::NarrowingContext::new();
+        let access_control = AccessControl::new();
+
+        let mut inferrer = create_test_inferrer(
+            &mut symbol_table,
+            &mut type_env,
+            &mut narrowing_context,
+            &access_control,
+            &interner,
+        );
+
+        let left = Box::new(Expression {
+            kind: ExpressionKind::Literal(Literal::Number(10.0)),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        });
+        let right = Box::new(Expression {
+            kind: ExpressionKind::Literal(Literal::Number(3.0)),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        });
+
+        let mut expr = Expression {
+            kind: ExpressionKind::Binary(BinaryOp::Subtract, left, right),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        };
+
+        let result = inferrer.infer_expression(&mut expr);
+        assert!(result.is_ok());
+        let typ = result.unwrap();
+        assert!(matches!(
+            typ.kind,
+            TypeKind::Primitive(PrimitiveType::Number)
+        ));
+    }
+
+    #[test]
+    fn test_infer_binary_op_mul() {
+        let interner = StringInterner::new();
+        let mut symbol_table = SymbolTable::new();
+        let mut type_env = TypeEnvironment::new();
+        let mut narrowing_context = super::super::super::super::narrowing::NarrowingContext::new();
+        let access_control = AccessControl::new();
+
+        let mut inferrer = create_test_inferrer(
+            &mut symbol_table,
+            &mut type_env,
+            &mut narrowing_context,
+            &access_control,
+            &interner,
+        );
+
+        let left = Box::new(Expression {
+            kind: ExpressionKind::Literal(Literal::Number(6.0)),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        });
+        let right = Box::new(Expression {
+            kind: ExpressionKind::Literal(Literal::Number(7.0)),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        });
+
+        let mut expr = Expression {
+            kind: ExpressionKind::Binary(BinaryOp::Multiply, left, right),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        };
+
+        let result = inferrer.infer_expression(&mut expr);
+        assert!(result.is_ok());
+        let typ = result.unwrap();
+        assert!(matches!(
+            typ.kind,
+            TypeKind::Primitive(PrimitiveType::Number)
+        ));
+    }
+
+    #[test]
+    fn test_infer_binary_op_div() {
+        let interner = StringInterner::new();
+        let mut symbol_table = SymbolTable::new();
+        let mut type_env = TypeEnvironment::new();
+        let mut narrowing_context = super::super::super::super::narrowing::NarrowingContext::new();
+        let access_control = AccessControl::new();
+
+        let mut inferrer = create_test_inferrer(
+            &mut symbol_table,
+            &mut type_env,
+            &mut narrowing_context,
+            &access_control,
+            &interner,
+        );
+
+        let left = Box::new(Expression {
+            kind: ExpressionKind::Literal(Literal::Number(10.0)),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        });
+        let right = Box::new(Expression {
+            kind: ExpressionKind::Literal(Literal::Number(2.0)),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        });
+
+        let mut expr = Expression {
+            kind: ExpressionKind::Binary(BinaryOp::Divide, left, right),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        };
+
+        let result = inferrer.infer_expression(&mut expr);
+        assert!(result.is_ok());
+        let typ = result.unwrap();
+        assert!(matches!(
+            typ.kind,
+            TypeKind::Primitive(PrimitiveType::Number)
+        ));
+    }
+
+    #[test]
+    fn test_infer_binary_op_mod() {
+        let interner = StringInterner::new();
+        let mut symbol_table = SymbolTable::new();
+        let mut type_env = TypeEnvironment::new();
+        let mut narrowing_context = super::super::super::super::narrowing::NarrowingContext::new();
+        let access_control = AccessControl::new();
+
+        let mut inferrer = create_test_inferrer(
+            &mut symbol_table,
+            &mut type_env,
+            &mut narrowing_context,
+            &access_control,
+            &interner,
+        );
+
+        let left = Box::new(Expression {
+            kind: ExpressionKind::Literal(Literal::Number(10.0)),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        });
+        let right = Box::new(Expression {
+            kind: ExpressionKind::Literal(Literal::Number(3.0)),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        });
+
+        let mut expr = Expression {
+            kind: ExpressionKind::Binary(BinaryOp::Modulo, left, right),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        };
+
+        let result = inferrer.infer_expression(&mut expr);
+        assert!(result.is_ok());
+        let typ = result.unwrap();
+        assert!(matches!(
+            typ.kind,
+            TypeKind::Primitive(PrimitiveType::Number)
+        ));
+    }
+
+    #[test]
+    fn test_infer_binary_op_eq() {
+        let interner = StringInterner::new();
+        let mut symbol_table = SymbolTable::new();
+        let mut type_env = TypeEnvironment::new();
+        let mut narrowing_context = super::super::super::super::narrowing::NarrowingContext::new();
+        let access_control = AccessControl::new();
+
+        let mut inferrer = create_test_inferrer(
+            &mut symbol_table,
+            &mut type_env,
+            &mut narrowing_context,
+            &access_control,
+            &interner,
+        );
+
+        let left = Box::new(Expression {
+            kind: ExpressionKind::Literal(Literal::Number(5.0)),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        });
+        let right = Box::new(Expression {
+            kind: ExpressionKind::Literal(Literal::Number(5.0)),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        });
+
+        let mut expr = Expression {
+            kind: ExpressionKind::Binary(BinaryOp::Equal, left, right),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        };
+
+        let result = inferrer.infer_expression(&mut expr);
+        assert!(result.is_ok());
+        let typ = result.unwrap();
+        assert!(matches!(
+            typ.kind,
+            TypeKind::Primitive(PrimitiveType::Boolean)
+        ));
+    }
+
+    #[test]
+    fn test_infer_binary_op_and() {
+        let interner = StringInterner::new();
+        let mut symbol_table = SymbolTable::new();
+        let mut type_env = TypeEnvironment::new();
+        let mut narrowing_context = super::super::super::super::narrowing::NarrowingContext::new();
+        let access_control = AccessControl::new();
+
+        let mut inferrer = create_test_inferrer(
+            &mut symbol_table,
+            &mut type_env,
+            &mut narrowing_context,
+            &access_control,
+            &interner,
+        );
+
+        let left = Box::new(Expression {
+            kind: ExpressionKind::Literal(Literal::Boolean(true)),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        });
+        let right = Box::new(Expression {
+            kind: ExpressionKind::Literal(Literal::Boolean(false)),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        });
+
+        let mut expr = Expression {
+            kind: ExpressionKind::Binary(BinaryOp::And, left, right),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        };
+
+        let result = inferrer.infer_expression(&mut expr);
+        assert!(result.is_ok());
+        let typ = result.unwrap();
+        // In Lua, 'and' returns one of its operands, so type is Unknown
+        assert!(matches!(
+            typ.kind,
+            TypeKind::Primitive(PrimitiveType::Unknown)
+        ));
+    }
+
+    #[test]
+    fn test_infer_binary_op_or() {
+        let interner = StringInterner::new();
+        let mut symbol_table = SymbolTable::new();
+        let mut type_env = TypeEnvironment::new();
+        let mut narrowing_context = super::super::super::super::narrowing::NarrowingContext::new();
+        let access_control = AccessControl::new();
+
+        let mut inferrer = create_test_inferrer(
+            &mut symbol_table,
+            &mut type_env,
+            &mut narrowing_context,
+            &access_control,
+            &interner,
+        );
+
+        let left = Box::new(Expression {
+            kind: ExpressionKind::Literal(Literal::Boolean(true)),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        });
+        let right = Box::new(Expression {
+            kind: ExpressionKind::Literal(Literal::Boolean(false)),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        });
+
+        let mut expr = Expression {
+            kind: ExpressionKind::Binary(BinaryOp::Or, left, right),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        };
+
+        let result = inferrer.infer_expression(&mut expr);
+        assert!(result.is_ok());
+        let typ = result.unwrap();
+        // In Lua, 'or' returns one of its operands, so type is Unknown
+        assert!(matches!(
+            typ.kind,
+            TypeKind::Primitive(PrimitiveType::Unknown)
+        ));
+    }
+
+    #[test]
+    fn test_infer_unary_op_len() {
+        let interner = StringInterner::new();
+        let mut symbol_table = SymbolTable::new();
+        let mut type_env = TypeEnvironment::new();
+        let mut narrowing_context = super::super::super::super::narrowing::NarrowingContext::new();
+        let access_control = AccessControl::new();
+
+        let mut inferrer = create_test_inferrer(
+            &mut symbol_table,
+            &mut type_env,
+            &mut narrowing_context,
+            &access_control,
+            &interner,
+        );
+
+        let operand = Box::new(Expression {
+            kind: ExpressionKind::Literal(Literal::String("hello".to_string())),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        });
+
+        let mut expr = Expression {
+            kind: ExpressionKind::Unary(UnaryOp::Length, operand),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        };
+
+        let result = inferrer.infer_expression(&mut expr);
+        assert!(result.is_ok());
+        let typ = result.unwrap();
+        // Length operator returns number
+        assert!(matches!(
+            typ.kind,
+            TypeKind::Primitive(PrimitiveType::Number)
+        ));
+    }
+
+    #[test]
+    fn test_infer_parenthesized() {
+        let interner = StringInterner::new();
+        let mut symbol_table = SymbolTable::new();
+        let mut type_env = TypeEnvironment::new();
+        let mut narrowing_context = super::super::super::super::narrowing::NarrowingContext::new();
+        let access_control = AccessControl::new();
+
+        let mut inferrer = create_test_inferrer(
+            &mut symbol_table,
+            &mut type_env,
+            &mut narrowing_context,
+            &access_control,
+            &interner,
+        );
+
+        let inner = Box::new(Expression {
+            kind: ExpressionKind::Literal(Literal::Number(42.0)),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        });
+
+        let mut expr = Expression {
+            kind: ExpressionKind::Parenthesized(inner),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        };
+
+        let result = inferrer.infer_expression(&mut expr);
+        assert!(result.is_ok());
+        let typ = result.unwrap();
+        // Parenthesized expressions currently return Unknown (not yet fully implemented)
+        assert!(matches!(
+            typ.kind,
+            TypeKind::Primitive(PrimitiveType::Unknown)
+        ));
+    }
+
+    #[test]
+    fn test_infer_type_assertion() {
+        let interner = StringInterner::new();
+        let mut symbol_table = SymbolTable::new();
+        let mut type_env = TypeEnvironment::new();
+        let mut narrowing_context = super::super::super::super::narrowing::NarrowingContext::new();
+        let access_control = AccessControl::new();
+
+        let mut inferrer = create_test_inferrer(
+            &mut symbol_table,
+            &mut type_env,
+            &mut narrowing_context,
+            &access_control,
+            &interner,
+        );
+
+        let inner = Box::new(Expression {
+            kind: ExpressionKind::Literal(Literal::Number(42.0)),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        });
+
+        let assert_type = Type {
+            kind: TypeKind::Primitive(PrimitiveType::Number),
+            span: Span::default(),
+        };
+
+        let mut expr = Expression {
+            kind: ExpressionKind::TypeAssertion(inner, assert_type),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        };
+
+        let result = inferrer.infer_expression(&mut expr);
+        assert!(result.is_ok());
+        let typ = result.unwrap();
+        // Type assertions currently return Unknown (not yet fully implemented)
+        assert!(matches!(
+            typ.kind,
+            TypeKind::Primitive(PrimitiveType::Unknown)
+        ));
+    }
+
+    #[test]
+    fn test_infer_object_expression() {
+        let interner = StringInterner::new();
+        let mut symbol_table = SymbolTable::new();
+        let mut type_env = TypeEnvironment::new();
+        let mut narrowing_context = super::super::super::super::narrowing::NarrowingContext::new();
+        let access_control = AccessControl::new();
+
+        let mut inferrer = create_test_inferrer(
+            &mut symbol_table,
+            &mut type_env,
+            &mut narrowing_context,
+            &access_control,
+            &interner,
+        );
+
+        // Object literal: { x: 1, y: 2 }
+        let name_id = interner.intern("x");
+        let y_id = interner.intern("y");
+
+        let mut expr = Expression {
+            kind: ExpressionKind::Object(vec![
+                ObjectProperty::Property {
+                    key: Ident::new(name_id, Span::default()),
+                    value: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal::Number(1.0)),
+                        span: Span::default(),
+                        annotated_type: None,
+                        receiver_class: None,
+                    }),
+                    span: Span::default(),
+                },
+                ObjectProperty::Property {
+                    key: Ident::new(y_id, Span::default()),
+                    value: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal::Number(2.0)),
+                        span: Span::default(),
+                        annotated_type: None,
+                        receiver_class: None,
+                    }),
+                    span: Span::default(),
+                },
+            ]),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        };
+
+        let result = inferrer.infer_expression(&mut expr);
+        assert!(result.is_ok());
+        let typ = result.unwrap();
+        // Should infer as object type
+        assert!(matches!(typ.kind, TypeKind::Object(_)));
+    }
+
+    #[test]
+    fn test_infer_identifier_not_found() {
+        let interner = StringInterner::new();
+        let mut symbol_table = SymbolTable::new();
+        let mut type_env = TypeEnvironment::new();
+        let mut narrowing_context = super::super::super::super::narrowing::NarrowingContext::new();
+        let access_control = AccessControl::new();
+
+        let mut inferrer = create_test_inferrer(
+            &mut symbol_table,
+            &mut type_env,
+            &mut narrowing_context,
+            &access_control,
+            &interner,
+        );
+
+        let x_id = interner.intern("x");
+        let mut expr = Expression {
+            kind: ExpressionKind::Identifier(x_id),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        };
+
+        let result = inferrer.infer_expression(&mut expr);
+        // Should fail because x is not defined
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_infer_identifier_with_type() {
+        let interner = StringInterner::new();
+        let mut symbol_table = SymbolTable::new();
+        let mut type_env = TypeEnvironment::new();
+        let mut narrowing_context = super::super::super::super::narrowing::NarrowingContext::new();
+        let access_control = AccessControl::new();
+
+        // Register a variable with a type
+        let x_id = interner.intern("x");
+        let x_type = Type {
+            kind: TypeKind::Primitive(PrimitiveType::Number),
+            span: Span::default(),
+        };
+
+        symbol_table
+            .declare(super::super::super::super::symbol_table::Symbol::new(
+                "x".to_string(),
+                super::super::super::super::symbol_table::SymbolKind::Variable,
+                x_type.clone(),
+                Span::default(),
+            ))
+            .unwrap();
+
+        let mut inferrer = create_test_inferrer(
+            &mut symbol_table,
+            &mut type_env,
+            &mut narrowing_context,
+            &access_control,
+            &interner,
+        );
+
+        let mut expr = Expression {
+            kind: ExpressionKind::Identifier(x_id),
+            span: Span::default(),
+            annotated_type: None,
+            receiver_class: None,
+        };
+
+        let result = inferrer.infer_expression(&mut expr);
+        assert!(result.is_ok());
+        let typ = result.unwrap();
+        assert!(matches!(
+            typ.kind,
+            TypeKind::Primitive(PrimitiveType::Number)
+        ));
     }
 }

@@ -87,6 +87,7 @@ pub trait AccessControlVisitor: TypeCheckVisitor {
 pub struct AccessControl {
     class_members: FxHashMap<String, Vec<ClassMemberInfo>>,
     final_classes: FxHashMap<String, bool>,
+    class_parents: FxHashMap<String, Option<String>>, // Store class hierarchy
     current_class: Option<ClassContext>,
 }
 
@@ -176,31 +177,47 @@ impl AccessControlVisitor for AccessControl {
                 }
             }
         } else {
-            // Member not found in our tracking - might be from interface or unknown class
-            // Allow it for now
-            Ok(())
+            // Check if class exists
+            if !self.class_members.contains_key(class_name) {
+                return Err(TypeCheckError::new(
+                    format!("Class '{}' not found", class_name),
+                    span,
+                ));
+            }
+
+            // Class exists but member not found
+            Err(TypeCheckError::new(
+                format!(
+                    "Member '{}' not found in class '{}'",
+                    member_name, class_name
+                ),
+                span,
+            ))
         }
     }
 
     fn is_subclass(&self, child: &str, ancestor: &str) -> bool {
-        // Check the current class context for parent information
-        if let Some(ref ctx) = self.current_class {
-            if ctx.name == child {
-                if let Some(ref parent) = ctx.parent {
-                    if parent == ancestor {
-                        return true;
-                    }
-                    // Could recursively check parent's parent, but keeping it simple for now
+        // Use stored class hierarchy to check subclass relationship
+        let mut current = child;
+
+        while let Some(parent) = self.class_parents.get(current) {
+            if let Some(ref parent_name) = parent {
+                if parent_name == ancestor {
+                    return true;
                 }
+                current = parent_name;
+            } else {
+                break;
             }
         }
 
         false
     }
 
-    fn register_class(&mut self, name: &str, _parent: Option<String>) {
+    fn register_class(&mut self, name: &str, parent: Option<String>) {
         self.class_members.entry(name.to_string()).or_default();
         self.final_classes.entry(name.to_string()).or_insert(false);
+        self.class_parents.insert(name.to_string(), parent);
     }
 
     fn register_member(&mut self, class_name: &str, member: ClassMemberInfo) {

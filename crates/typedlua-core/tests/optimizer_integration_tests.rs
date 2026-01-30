@@ -101,7 +101,6 @@ fn test_optimizer_with_complex_code() {
 // See TODO.md sections 1.4 (Null Coalescing) and 2.1 (Exception Handling).
 
 #[test]
-#[ignore = "Null coalescing operator not yet implemented - see TODO 1.4"]
 fn test_optimizer_with_null_coalescing() {
     let source = r#"
         const value: number | nil = nil

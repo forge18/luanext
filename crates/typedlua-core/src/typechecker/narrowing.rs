@@ -640,4 +640,400 @@ mod tests {
             panic!("Expected union type");
         }
     }
+
+    // ========================================================================
+    // Additional Comprehensive Tests
+    // ========================================================================
+
+    #[test]
+    fn test_narrowing_context_default() {
+        let ctx: NarrowingContext = Default::default();
+        let interner = typedlua_parser::string_interner::StringInterner::new();
+        let x_id = interner.intern("x");
+        assert!(ctx.get_narrowed_type(x_id).is_none());
+    }
+
+    #[test]
+    fn test_narrowing_context_clone_for_branch() {
+        let interner = typedlua_parser::string_interner::StringInterner::new();
+        let mut ctx = NarrowingContext::new();
+
+        let string_type = Type::new(TypeKind::Primitive(PrimitiveType::String), make_span());
+        let x_id = interner.intern("x");
+        ctx.set_narrowed_type(x_id, string_type.clone());
+
+        let cloned = ctx.clone_for_branch();
+        assert!(cloned.get_narrowed_type(x_id).is_some());
+
+        // Modifying cloned should not affect original
+        let y_id = interner.intern("y");
+        let number_type = Type::new(TypeKind::Primitive(PrimitiveType::Number), make_span());
+        let mut cloned_mut = cloned;
+        cloned_mut.set_narrowed_type(y_id, number_type);
+
+        assert!(ctx.get_narrowed_type(y_id).is_none());
+        assert!(cloned_mut.get_narrowed_type(y_id).is_some());
+    }
+
+    #[test]
+    fn test_narrowing_context_merge_different_types() {
+        let interner = typedlua_parser::string_interner::StringInterner::new();
+        let mut then_ctx = NarrowingContext::new();
+        let mut else_ctx = NarrowingContext::new();
+
+        let string_type = Type::new(TypeKind::Primitive(PrimitiveType::String), make_span());
+        let number_type = Type::new(TypeKind::Primitive(PrimitiveType::Number), make_span());
+
+        let x_id = interner.intern("x");
+
+        // Different types for same variable - should not be kept
+        then_ctx.set_narrowed_type(x_id, string_type);
+        else_ctx.set_narrowed_type(x_id, number_type);
+
+        let merged = NarrowingContext::merge(&then_ctx, &else_ctx);
+        assert!(merged.get_narrowed_type(x_id).is_none());
+    }
+
+    #[test]
+    fn test_narrowing_context_merge_empty() {
+        let then_ctx = NarrowingContext::new();
+        let else_ctx = NarrowingContext::new();
+
+        let merged = NarrowingContext::merge(&then_ctx, &else_ctx);
+        // Should be empty
+        assert!(merged
+            .get_narrowed_type(typedlua_parser::string_interner::StringId::from_u32(0))
+            .is_none());
+    }
+
+    #[test]
+    fn test_type_narrower_new() {
+        let narrower = TypeNarrower::new();
+        assert!(narrower
+            .get_context()
+            .get_narrowed_type(typedlua_parser::string_interner::StringId::from_u32(0))
+            .is_none());
+    }
+
+    #[test]
+    fn test_type_narrower_default() {
+        let narrower: TypeNarrower = Default::default();
+        assert!(narrower
+            .get_context()
+            .get_narrowed_type(typedlua_parser::string_interner::StringId::from_u32(0))
+            .is_none());
+    }
+
+    #[test]
+    fn test_type_narrower_get_context_mut() {
+        let mut narrower = TypeNarrower::new();
+        let interner = typedlua_parser::string_interner::StringInterner::new();
+
+        let string_type = Type::new(TypeKind::Primitive(PrimitiveType::String), make_span());
+        let x_id = interner.intern("x");
+
+        {
+            let ctx = narrower.get_context_mut();
+            ctx.set_narrowed_type(x_id, string_type);
+        }
+
+        assert!(narrower.get_context().get_narrowed_type(x_id).is_some());
+    }
+
+    #[test]
+    fn test_is_nil_type() {
+        let nil_prim = Type::new(TypeKind::Primitive(PrimitiveType::Nil), make_span());
+        let nil_lit = Type::new(TypeKind::Literal(Literal::Nil), make_span());
+        let string_type = Type::new(TypeKind::Primitive(PrimitiveType::String), make_span());
+
+        assert!(is_nil_type(&nil_prim));
+        assert!(is_nil_type(&nil_lit));
+        assert!(!is_nil_type(&string_type));
+    }
+
+    #[test]
+    fn test_is_falsy_type() {
+        let nil_prim = Type::new(TypeKind::Primitive(PrimitiveType::Nil), make_span());
+        let nil_lit = Type::new(TypeKind::Literal(Literal::Nil), make_span());
+        let false_lit = Type::new(TypeKind::Literal(Literal::Boolean(false)), make_span());
+        let true_lit = Type::new(TypeKind::Literal(Literal::Boolean(true)), make_span());
+        let string_type = Type::new(TypeKind::Primitive(PrimitiveType::String), make_span());
+
+        assert!(is_falsy_type(&nil_prim));
+        assert!(is_falsy_type(&nil_lit));
+        assert!(is_falsy_type(&false_lit));
+        assert!(!is_falsy_type(&true_lit));
+        assert!(!is_falsy_type(&string_type));
+    }
+
+    #[test]
+    fn test_remove_nil_from_non_union() {
+        let string_type = Type::new(TypeKind::Primitive(PrimitiveType::String), make_span());
+        let nil_type = Type::new(TypeKind::Primitive(PrimitiveType::Nil), make_span());
+
+        // Non-nil type should remain unchanged
+        let result = remove_nil_from_type(&string_type).unwrap();
+        assert!(matches!(
+            result.kind,
+            TypeKind::Primitive(PrimitiveType::String)
+        ));
+
+        // Nil type should become Never
+        let result = remove_nil_from_type(&nil_type).unwrap();
+        assert!(matches!(
+            result.kind,
+            TypeKind::Primitive(PrimitiveType::Never)
+        ));
+    }
+
+    #[test]
+    fn test_remove_nil_results_in_single_type() {
+        let union_type = Type::new(
+            TypeKind::Union(vec![
+                Type::new(TypeKind::Primitive(PrimitiveType::String), make_span()),
+                Type::new(TypeKind::Primitive(PrimitiveType::Nil), make_span()),
+            ]),
+            make_span(),
+        );
+
+        let result = remove_nil_from_type(&union_type).unwrap();
+        // Should result in a single type, not a union
+        assert!(matches!(
+            result.kind,
+            TypeKind::Primitive(PrimitiveType::String)
+        ));
+    }
+
+    #[test]
+    fn test_make_truthy_type_non_union() {
+        let string_type = Type::new(TypeKind::Primitive(PrimitiveType::String), make_span());
+        let nil_type = Type::new(TypeKind::Primitive(PrimitiveType::Nil), make_span());
+
+        // Truthy type should remain unchanged
+        let result = make_truthy_type(&string_type).unwrap();
+        assert!(matches!(
+            result.kind,
+            TypeKind::Primitive(PrimitiveType::String)
+        ));
+
+        // Nil type should become Never
+        let result = make_truthy_type(&nil_type).unwrap();
+        assert!(matches!(
+            result.kind,
+            TypeKind::Primitive(PrimitiveType::Never)
+        ));
+    }
+
+    #[test]
+    fn test_make_falsy_type() {
+        let union_type = Type::new(
+            TypeKind::Union(vec![
+                Type::new(TypeKind::Primitive(PrimitiveType::String), make_span()),
+                Type::new(TypeKind::Primitive(PrimitiveType::Nil), make_span()),
+                Type::new(TypeKind::Literal(Literal::Boolean(false)), make_span()),
+            ]),
+            make_span(),
+        );
+
+        let falsy = make_falsy_type(&union_type).unwrap();
+
+        if let TypeKind::Union(types) = &falsy.kind {
+            assert_eq!(types.len(), 2); // nil and false
+        } else {
+            panic!("Expected union type");
+        }
+    }
+
+    #[test]
+    fn test_make_falsy_type_non_union() {
+        let nil_type = Type::new(TypeKind::Primitive(PrimitiveType::Nil), make_span());
+        let string_type = Type::new(TypeKind::Primitive(PrimitiveType::String), make_span());
+
+        // Nil type should remain unchanged
+        let result = make_falsy_type(&nil_type).unwrap();
+        assert!(matches!(
+            result.kind,
+            TypeKind::Primitive(PrimitiveType::Nil)
+        ));
+
+        // String type should become Never
+        let result = make_falsy_type(&string_type).unwrap();
+        assert!(matches!(
+            result.kind,
+            TypeKind::Primitive(PrimitiveType::Never)
+        ));
+    }
+
+    #[test]
+    fn test_exclude_type_from_union() {
+        let union_type = Type::new(
+            TypeKind::Union(vec![
+                Type::new(TypeKind::Primitive(PrimitiveType::String), make_span()),
+                Type::new(TypeKind::Primitive(PrimitiveType::Number), make_span()),
+                Type::new(TypeKind::Primitive(PrimitiveType::Boolean), make_span()),
+            ]),
+            make_span(),
+        );
+
+        let to_exclude = Type::new(TypeKind::Primitive(PrimitiveType::Number), make_span());
+        let result = exclude_type(&union_type, &to_exclude).unwrap();
+
+        if let TypeKind::Union(types) = &result.kind {
+            assert_eq!(types.len(), 2);
+        } else {
+            panic!("Expected union type");
+        }
+    }
+
+    #[test]
+    fn test_exclude_type_results_in_single() {
+        let union_type = Type::new(
+            TypeKind::Union(vec![
+                Type::new(TypeKind::Primitive(PrimitiveType::String), make_span()),
+                Type::new(TypeKind::Primitive(PrimitiveType::Number), make_span()),
+            ]),
+            make_span(),
+        );
+
+        let to_exclude = Type::new(TypeKind::Primitive(PrimitiveType::Number), make_span());
+        let result = exclude_type(&union_type, &to_exclude).unwrap();
+
+        // Should result in a single type
+        assert!(matches!(
+            result.kind,
+            TypeKind::Primitive(PrimitiveType::String)
+        ));
+    }
+
+    #[test]
+    fn test_exclude_all_types_becomes_never() {
+        let union_type = Type::new(
+            TypeKind::Union(vec![Type::new(
+                TypeKind::Primitive(PrimitiveType::String),
+                make_span(),
+            )]),
+            make_span(),
+        );
+
+        let to_exclude = Type::new(TypeKind::Primitive(PrimitiveType::String), make_span());
+        let result = exclude_type(&union_type, &to_exclude).unwrap();
+
+        assert!(matches!(
+            result.kind,
+            TypeKind::Primitive(PrimitiveType::Never)
+        ));
+    }
+
+    #[test]
+    fn test_exclude_type_non_union() {
+        let string_type = Type::new(TypeKind::Primitive(PrimitiveType::String), make_span());
+        let number_type = Type::new(TypeKind::Primitive(PrimitiveType::Number), make_span());
+
+        // Exclude different type - should remain unchanged
+        let result = exclude_type(&string_type, &number_type).unwrap();
+        assert!(matches!(
+            result.kind,
+            TypeKind::Primitive(PrimitiveType::String)
+        ));
+
+        // Exclude same type - should become Never
+        let result = exclude_type(&string_type, &string_type).unwrap();
+        assert!(matches!(
+            result.kind,
+            TypeKind::Primitive(PrimitiveType::Never)
+        ));
+    }
+
+    #[test]
+    fn test_types_equal() {
+        let string1 = Type::new(TypeKind::Primitive(PrimitiveType::String), make_span());
+        let string2 = Type::new(TypeKind::Primitive(PrimitiveType::String), make_span());
+        let number = Type::new(TypeKind::Primitive(PrimitiveType::Number), make_span());
+
+        assert!(types_equal(&string1, &string2));
+        assert!(!types_equal(&string1, &number));
+    }
+
+    #[test]
+    fn test_typeof_string_to_type() {
+        assert!(typeof_string_to_type("nil").is_some());
+        assert!(typeof_string_to_type("boolean").is_some());
+        assert!(typeof_string_to_type("number").is_some());
+        assert!(typeof_string_to_type("string").is_some());
+        assert!(typeof_string_to_type("table").is_some());
+        assert!(typeof_string_to_type("unknown").is_none());
+        assert!(typeof_string_to_type("function").is_none());
+    }
+
+    #[test]
+    fn test_extract_nil_check_basic() {
+        let interner = typedlua_parser::string_interner::StringInterner::new();
+        let x_id = interner.intern("x");
+
+        // x == nil
+        let left = Expression {
+            kind: ExpressionKind::Identifier(x_id),
+            span: make_span(),
+            annotated_type: None,
+            receiver_class: None,
+        };
+        let right = Expression {
+            kind: ExpressionKind::Literal(Literal::Nil),
+            span: make_span(),
+            annotated_type: None,
+            receiver_class: None,
+        };
+
+        let result = extract_nil_check(&interner, &left, &right);
+        assert!(result.is_some());
+        let (name, is_nil) = result.unwrap();
+        assert_eq!(name, x_id);
+        assert!(is_nil);
+    }
+
+    #[test]
+    fn test_extract_nil_check_reversed() {
+        let interner = typedlua_parser::string_interner::StringInterner::new();
+        let x_id = interner.intern("x");
+
+        // nil == x
+        let left = Expression {
+            kind: ExpressionKind::Literal(Literal::Nil),
+            span: make_span(),
+            annotated_type: None,
+            receiver_class: None,
+        };
+        let right = Expression {
+            kind: ExpressionKind::Identifier(x_id),
+            span: make_span(),
+            annotated_type: None,
+            receiver_class: None,
+        };
+
+        let result = extract_nil_check(&interner, &left, &right);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_extract_nil_check_not_nil() {
+        let interner = typedlua_parser::string_interner::StringInterner::new();
+        let x_id = interner.intern("x");
+
+        // x == "string" - not a nil check
+        let left = Expression {
+            kind: ExpressionKind::Identifier(x_id),
+            span: make_span(),
+            annotated_type: None,
+            receiver_class: None,
+        };
+        let right = Expression {
+            kind: ExpressionKind::Literal(Literal::String("hello".to_string())),
+            span: make_span(),
+            annotated_type: None,
+            receiver_class: None,
+        };
+
+        let result = extract_nil_check(&interner, &left, &right);
+        assert!(result.is_none());
+    }
 }

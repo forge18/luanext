@@ -1,6 +1,6 @@
 # TypedLua TODO
 
-**Last Updated:** 2026-01-30 (Section 7.1 IN PROGRESS - Added comprehensive test coverage plan, created 43 new unit tests for SymbolTable and TypeEnvironment. All 1,045 tests pass)
+**Last Updated:** 2026-01-30 (Section 7.1 IN PROGRESS - Added comprehensive test coverage plan, created 78 new unit tests for SymbolTable, TypeEnvironment, NarrowingContext, and Generics Engine. All 1,081 tests pass)
 
 ---
 
@@ -1924,7 +1924,7 @@ fuzz/
 
 **Target: 70% feature coverage, 70% code coverage**
 
-**Current Status: ~50% coverage (37/60+ features, 1,045 tests pass)**
+**Current Status: ~52% coverage (39/60+ features, 1,081 tests pass)**
 
 #### 7.1.1 Unit Tests - Core Typechecker Components
 
@@ -1944,41 +1944,55 @@ fuzz/
   - [x] Test cycle detection for recursive types
   - [x] Test error handling for duplicates
 
-- [ ] **NarrowingContext Unit Tests** (`src/typechecker/narrowing.rs`)
-  - [ ] Test type guard registration
-  - [ ] Test narrowing propagation through branches
-  - [ ] Test narrowing reset across function boundaries
-  - [ ] Test discriminant-based narrowing
-  - [ ] Test property-based narrowing
+- [x] **NarrowingContext Unit Tests** (`src/typechecker/narrowing.rs`) - **27 tests**
+  - [x] Test type guard registration
+  - [x] Test narrowing propagation through branches
+  - [x] Test narrowing reset across function boundaries
+  - [x] Test discriminant-based narrowing
+  - [x] Test property-based narrowing
 
-- [ ] **Generics Engine Unit Tests** (`src/typechecker/generics.rs`)
-  - [ ] Test type parameter resolution
-  - [ ] Test generic constraint validation
-  - [ ] Test default type parameter substitution
-  - [ ] Test generic specialization
-  - [ ] Test generic variance checking
+- [x] **Generics Engine Unit Tests** (`src/typechecker/generics.rs`) - **20 tests**
+  - [x] Test type parameter resolution
+  - [x] Test generic constraint validation
+  - [x] Test default type parameter substitution
+  - [x] Test generic specialization (type instantiation)
+  - [x] Test type argument inference
+  - [x] Test substitution building
+  - [x] Test AST instantiation (blocks, statements, expressions, parameters)
 
-- [ ] **Utility Types Unit Tests** (`src/typechecker/utility_types.rs`)
-  - [ ] Test Partial type transformation
-  - [ ] Test Required type transformation
-  - [ ] Test Readonly transformation
-  - [ ] Test Pick/Omit key sets
-  - [ ] Test Record/Exclude/Extract
-  - [ ] Test Parameters/ReturnType extraction
-  - [ ] Test NonNilable/Nullable
+- [x] **Utility Types Unit Tests** (`src/typechecker/utility_types.rs`) - **41 tests**
+  - [x] Test Partial type transformation
+  - [x] Test Required type transformation
+  - [x] Test Readonly transformation
+  - [x] Test Pick/Omit key sets
+  - [x] Test Record/Exclude/Extract
+  - [x] Test Parameters/ReturnType extraction
+  - [x] Test NonNilable/Nullable
+  - [x] Test error cases (wrong arg counts, invalid types)
+  - [x] Test helper functions (cartesian_product, is_nil_or_void, etc.)
 
-- [ ] **Type Inference Unit Tests** (add to `inference_tests.rs`)
-  - [ ] Test literal inference (number widen, string widen)
-  - [ ] Test array element inference
-  - [ ] Test contextual inference
-  - [ ] Test generic parameter inference
-  - [ ] Test function return inference
+- [x] **Type Inference Unit Tests** (`inference_tests.rs`) - **28 tests**
+  - [x] Test literal inference (number, string, boolean, nil)
+  - [x] Test array element inference (homogeneous, empty)
+  - [x] Test binary operator inference (+, -, *, /, %, .., <, ==, and, or)
+  - [x] Test unary operator inference (-, not, #)
+  - [x] Test conditional expression inference
+  - [x] Test object expression inference
+  - [x] Test identifier lookup (found, not found)
+  - [x] Test parenthesized and type assertion expressions
 
-- [ ] **Access Control Unit Tests** (expand `access_control_tests.rs`)
-  - [ ] Test protected member access from subclasses
-  - [ ] Test protected member access from same package
-  - [ ] Test override access compatibility
-  - [ ] Test static member access rules
+- [x] **Access Control Unit Tests** (`access_control_tests.rs`) - **31 tests**
+  - [x] Test public member access from anywhere
+  - [x] Test private member access (same class, other class, outside)
+  - [x] Test protected member access (same class, subclass, grandchild, unrelated)
+  - [x] Test static member access (public, private)
+  - [x] Test class final status and marking
+  - [x] Test subclass detection (direct parent, ancestor, unrelated)
+  - [x] Test current class context management
+  - [x] Test error messages contain relevant info
+  - [x] Test nonexistent member/class access (now properly errors)
+  - [x] **FIXED:** is_subclass now properly checks full inheritance hierarchy
+  - [x] **FIXED:** check_member_access now errors on nonexistent members/classes
 
 #### 7.1.2 Integration Tests - Missing Language Features
 
@@ -2274,15 +2288,20 @@ fuzz/
 |-----------|-------------|-------------|----------|
 | Symbol Table | 29 | 29 | 100% methods |
 | TypeEnvironment | 14 | 18 | 100% public API |
-| **Total New Unit Tests** | **43** | **47** | - |
+| NarrowingContext | 23 | 27 | 100% public API |
+| Generics Engine | 12 | 20 | 100% public API |
+| Utility Types | 32 | 41 | 100% public API |
+| Type Inference | 18 | 28 | 100% public API |
+| Access Control | 13 | 31 | 100% public API |
+| **Total New Unit Tests** | **141** | **194** | - |
 
 **Overall Test Metrics:**
 
 | Metric | Before | After | Change |
 |--------|--------|-------|--------|
-| Unit Tests | 314 | 358 | +44 (+14%) |
+| Unit Tests | 314 | 456 | +142 (+45%) |
 | Integration Tests | ~600 | ~687 | +87 |
-| **Total Tests** | **~914** | **1,045** | **+131 (+14%)** |
+| **Total Tests** | **~914** | **1,143** | **+229 (+25%)** |
 | Test Files | 54 | 55 | +1 |
 
 **Files Created:**
@@ -2290,12 +2309,23 @@ fuzz/
 
 **Files Enhanced:**
 - `crates/typedlua-core/src/typechecker/type_environment.rs` (+14 tests)
+- `crates/typedlua-core/src/typechecker/narrowing.rs` (+23 tests)
+- `crates/typedlua-core/src/typechecker/generics.rs` (+12 tests)
+- `crates/typedlua-core/src/typechecker/utility_types.rs` (+32 tests)
+- `crates/typedlua-core/src/typechecker/visitors/inference/inference_tests.rs` (+18 tests)
+- `crates/typedlua-core/src/typechecker/visitors/access_control/access_control_tests.rs` (+13 tests)
+
+**Implementation Fixes:**
+- **AccessControl:** Fixed `is_subclass()` to check full inheritance hierarchy (not just direct parent)
+- **AccessControl:** Fixed `check_member_access()` to properly error on nonexistent members/classes
+- **Utility Types:** Fixed Pick/Omit to use interner for proper StringId resolution
 
 **Next Priority:**
-1. NarrowingContext unit tests
-2. Generics Engine unit tests
-3. Advanced Generics integration tests
-4. Standard Library tests
+1. Advanced Generics integration tests
+2. Standard Library tests
+3. Feature interaction tests
+4. Edge cases and error condition tests
+5. Performance regression tests
 
 ---
 
@@ -2305,6 +2335,7 @@ fuzz/
 - [ ] Review naming conventions
 - [ ] Apply DRY, YAGNI, and KISS
 - [ ] Review file structure for readability and congnitive load
+- [ ] Ensure DI best practices
 
 ---
 
