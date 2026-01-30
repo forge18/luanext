@@ -1,0 +1,54 @@
+# name: Miri
+#
+# on:
+#   push:
+#     branches: [ main ]
+#   pull_request:
+#     branches: [ main ]
+#   schedule:
+#     # Run at 00:00 UTC every day
+#     - cron: '0 0 * * *'
+#
+# env:
+#   CARGO_TERM_COLOR: always
+#   MIRIFLAGS: "-Zmiri-strict-provenance -Zmiri-backtrace=full"
+#
+# jobs:
+#   miri:
+#     name: Miri Test
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+#
+#       - name: Setup Rust (nightly)
+#         uses: dtolnay/rust-toolchain@nightly
+#         with:
+#           components: miri
+#
+#       - name: Setup Miri
+#         run: cargo miri setup
+#
+#       - name: Cache cargo registry
+#         uses: actions/cache@v4
+#         with:
+#           path: ~/.cargo/registry
+#           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+#
+#       - name: Cache cargo index
+#         uses: actions/cache@v4
+#         with:
+#           path: ~/.cargo/git
+#           key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+#
+#       - name: Run Miri tests (typedlua-core)
+#         run: cargo miri test -p typedlua-core --lib
+#         timeout-minutes: 30
+#
+#       - name: Run Miri tests (typedlua-parser)
+#         run: cargo miri test -p typedlua-parser --lib
+#         timeout-minutes: 30
+#
+#       - name: Run Miri tests (typedlua-runtime)
+#         run: cargo miri test -p typedlua-runtime --lib
+#         timeout-minutes: 30

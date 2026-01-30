@@ -1,0 +1,111 @@
+# name: Fuzzing
+#
+# on:
+#   push:
+#     branches: [ main ]
+#   schedule:
+#     # Run at 00:00 UTC every day
+#     - cron: '0 0 * * *'
+#
+# env:
+#   CARGO_TERM_COLOR: always
+#
+# jobs:
+#   fuzz-lexer:
+#     name: Fuzz Lexer
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+#
+#       - name: Setup Rust (nightly)
+#         uses: dtolnay/rust-toolchain@nightly
+#
+#       - name: Install cargo-fuzz
+#         run: cargo install cargo-fuzz
+#
+#       - name: Cache cargo registry
+#         uses: actions/cache@v4
+#         with:
+#           path: ~/.cargo/registry
+#           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+#
+#       - name: Cache fuzz corpus
+#         uses: actions/cache@v4
+#         with:
+#           path: fuzz/corpus
+#           key: fuzz-corpus-${{ github.run_id }}
+#           restore-keys: |
+#             fuzz-corpus-
+#
+#       - name: Run fuzzer (lexer)
+#         run: |
+#           cd fuzz
+#           cargo fuzz run fuzz_lexer -- -max_total_time=300 -max_len=4096
+#         timeout-minutes: 10
+#
+#   fuzz-parser:
+#     name: Fuzz Parser
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+#
+#       - name: Setup Rust (nightly)
+#         uses: dtolnay/rust-toolchain@nightly
+#
+#       - name: Install cargo-fuzz
+#         run: cargo install cargo-fuzz
+#
+#       - name: Cache cargo registry
+#         uses: actions/cache@v4
+#         with:
+#           path: ~/.cargo/registry
+#           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+#
+#       - name: Cache fuzz corpus
+#         uses: actions/cache@v4
+#         with:
+#           path: fuzz/corpus
+#           key: fuzz-corpus-${{ github.run_id }}
+#           restore-keys: |
+#             fuzz-corpus-
+#
+#       - name: Run fuzzer (parser)
+#         run: |
+#           cd fuzz
+#           cargo fuzz run fuzz_parser -- -max_total_time=300 -max_len=4096
+#         timeout-minutes: 10
+#
+#   fuzz-typechecker:
+#     name: Fuzz Type Checker
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+#
+#       - name: Setup Rust (nightly)
+#         uses: dtolnay/rust-toolchain@nightly
+#
+#       - name: Install cargo-fuzz
+#         run: cargo install cargo-fuzz
+#
+#       - name: Cache cargo registry
+#         uses: actions/cache@v4
+#         with:
+#           path: ~/.cargo/registry
+#           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+#
+#       - name: Cache fuzz corpus
+#         uses: actions/cache@v4
+#         with:
+#           path: fuzz/corpus
+#           key: fuzz-corpus-${{ github.run_id }}
+#           restore-keys: |
+#             fuzz-corpus-
+#
+#       - name: Run fuzzer (type checker)
+#         run: |
+#           cd fuzz
+#           cargo fuzz run fuzz_typechecker -- -max_total_time=300 -max_len=4096
+#         timeout-minutes: 10

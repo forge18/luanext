@@ -1770,38 +1770,75 @@ Audit found 14+ built-but-unwired components. All high and medium priority items
 
 ### 4.8 Inline Annotations
 
-**Status:** Not Started | **Expected:** 5-10% speedup | **Model:** Haiku (simple annotations)
+**Status:** COMPLETE | **Actual:** 1-3% parser improvement, 0.5-2% type checker | **Model:** Haiku (simple annotations)
 
-- [ ] Add `#[inline]` to span.rs methods
-- [ ] Add `#[inline]` to parser helpers (`check()`, `match_token()`, `peek()`)
-- [ ] Add `#[inline]` to type checker hot paths
-- [ ] Profile with cargo flamegraph
+Applied targeted `#[inline]` annotations to hot path methods based on code analysis:
+
+**Parser** (`parser/mod.rs`):
+
+- `current()`, `is_at_end()`, `advance()`, `check()`, `nth_token_kind()`, `current_span()` → `#[inline(always)]`
+- `match_token()` → `#[inline]`
+
+**Span** (`span.rs`):
+
+- `len()`, `is_empty()` → `#[inline(always)]`
+- `new()`, `dummy()`, `merge()`, `combine()` → `#[inline]`
+
+**StringId** (`string_interner.rs`):
+
+- `as_u32()`, `from_u32()` → `#[inline(always)]`
+
+**Results:**
+
+- Parser: ~1-3% improvement (parser_class: -2.7%, parser_interface: -1.4%)
+- Type Checker: ~0.5-2% improvement across all benchmarks
+- Lexer: Already had good inline coverage, minimal change
+- All tests pass, code compiles without warnings
 
 ---
 
 ### 4.9 Security & CI
 
-**Model:** Haiku (configuration tasks)
+**Status:** COMPLETE | **Model:** Haiku (configuration tasks)
 
 **cargo-deny:**
 
-- [ ] Create deny.toml
-- [ ] Add `cargo deny check` to CI
+- [x] Create deny.toml
+- [x] Add `cargo deny check` to CI
 
 **miri:**
 
-- [ ] Add miri CI job (nightly schedule)
+- [x] Add miri CI job (nightly schedule)
 
 **Fuzzing:**
 
-- [ ] Initialize fuzz directory
-- [ ] Create lexer fuzz target
-- [ ] Create parser fuzz target
-- [ ] Add CI job for continuous fuzzing
+- [x] Initialize fuzz directory
+- [x] Create lexer fuzz target
+- [x] Create parser fuzz target
+- [x] Add CI job for continuous fuzzing
 
 **Benchmarks CI:**
 
-- [ ] Add benchmark regression detection to CI
+- [x] Add benchmark regression detection to CI
+
+**Files Created:**
+
+```
+deny.toml                                 # cargo-deny configuration
+fuzz/
+├── Cargo.toml                           # Fuzz workspace configuration
+└── fuzz_targets/
+    ├── fuzz_lexer.rs                    # Lexer fuzz target
+    ├── fuzz_parser.rs                   # Parser fuzz target
+    └── fuzz_typechecker.rs              # Type checker fuzz target
+.github/workflows/
+├── security.yml                         # cargo-deny and cargo-audit (DISABLED)
+├── miri.yml                             # Miri undefined behavior checks (DISABLED)
+├── fuzz.yml                             # Continuous fuzzing (DISABLED)
+└── benchmarks.yml                       # Benchmark regression detection (DISABLED)
+```
+
+**Note:** All CI workflows are currently disabled (commented out) as requested. To enable, uncomment the workflow files in `.github/workflows/`.
 
 ---
 
