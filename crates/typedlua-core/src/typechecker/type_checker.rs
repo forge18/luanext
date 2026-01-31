@@ -3311,8 +3311,40 @@ impl<'a> TypeChecker<'a> {
 
                     // Also register in type_env so it can be resolved in type annotations
                     self.type_env
-                        .register_type_alias(name_str.to_string(), import_type)
+                        .register_type_alias(name_str.to_string(), import_type.clone())
                         .map_err(|e| TypeCheckError::new(e, spec.span))?;
+
+                    // If it's an interface/object type, register it in access control
+                    // so member access checks work correctly
+                    if let TypeKind::Object(obj_type) = &import_type.kind {
+                        self.access_control.register_class(&name_str, None);
+                        // Register all members for access control
+                        for member in &obj_type.members {
+                            let member_info = match member {
+                                ObjectTypeMember::Property(prop) => ClassMemberInfo {
+                                    name: self.interner.resolve(prop.name.node).to_string(),
+                                    access: AccessModifier::Public,
+                                    _is_static: false,
+                                    kind: ClassMemberKind::Property {
+                                        type_annotation: prop.type_annotation.clone(),
+                                    },
+                                    is_final: prop.is_readonly,
+                                },
+                                ObjectTypeMember::Method(method) => ClassMemberInfo {
+                                    name: self.interner.resolve(method.name.node).to_string(),
+                                    access: AccessModifier::Public,
+                                    _is_static: false,
+                                    kind: ClassMemberKind::Method {
+                                        parameters: method.parameters.clone(),
+                                        return_type: Some(method.return_type.clone()),
+                                    },
+                                    is_final: false,
+                                },
+                                ObjectTypeMember::Index(_) => continue,
+                            };
+                            self.access_control.register_member(&name_str, member_info);
+                        }
+                    }
                 }
             }
             ImportClause::Namespace(name) => {
@@ -3327,6 +3359,39 @@ impl<'a> TypeChecker<'a> {
                 self.symbol_table
                     .declare(symbol)
                     .map_err(|e| TypeCheckError::new(e, import.span))?;
+            }
+            ImportClause::Mixed { default, named } => {
+                // Handle default import
+                let default_name_str = self.interner.resolve(default.node);
+                let any_type = Type::new(TypeKind::Primitive(PrimitiveType::Unknown), import.span);
+                let default_symbol = Symbol::new(
+                    default_name_str.to_string(),
+                    SymbolKind::Variable,
+                    any_type,
+                    default.span,
+                );
+                self.symbol_table
+                    .declare(default_symbol)
+                    .map_err(|e| TypeCheckError::new(e, default.span))?;
+
+                // Handle named imports
+                for spec in named {
+                    let name_str = self.interner.resolve(spec.imported.node);
+
+                    // Try to resolve the type from the source module
+                    let import_type =
+                        self.resolve_import_type(&import.source, &name_str, import.span)?;
+
+                    let symbol = Symbol::new(
+                        name_str.to_string(),
+                        SymbolKind::Variable,
+                        import_type,
+                        spec.span,
+                    );
+                    self.symbol_table
+                        .declare(symbol)
+                        .map_err(|e| TypeCheckError::new(e, spec.span))?;
+                }
             }
         }
         Ok(())

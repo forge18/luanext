@@ -1,6 +1,6 @@
-[submodule "crates/lua-sourcemap"]
-	path = crates/lua-sourcemap
-	url = /Users/forge18/Repos/lua-sourcemap
+[submodule "crates/typedlua-sourcemap"]
+	path = crates/typedlua-sourcemap
+	url = /Users/forge18/Repos/typedlua-sourcemap
 [submodule "crates/typedlua-parser"]
 	path = crates/typedlua-parser
 	url = /Users/forge18/Repos/typedlua-parser
