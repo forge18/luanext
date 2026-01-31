@@ -1118,18 +1118,48 @@ impl<'a> TypeChecker<'a> {
 
         let mut member_types = FxHashMap::default();
         for (i, member) in enum_decl.members.iter().enumerate() {
-            let member_type_name =
-                format!("{}.{}", enum_name, self.interner.resolve(member.name.node));
+            let member_name_str = self.interner.resolve(member.name.node).to_string();
+            let member_type_name = format!("{}.{}", enum_name, member_name_str);
             let member_type = Type::new(
-                TypeKind::Literal(Literal::String(
-                    self.interner.resolve(member.name.node).to_string(),
-                )),
+                TypeKind::Literal(Literal::String(member_name_str.clone())),
                 member.span,
             );
             self.type_env
                 .register_type_alias(member_type_name, member_type.clone())
                 .map_err(|e| TypeCheckError::new(e, member.span))?;
-            member_types.insert(i, member_type);
+            member_types.insert(i, member_type.clone());
+
+            // Register enum variant as a static public property for member access
+            self.access_control.register_member(
+                &enum_name,
+                ClassMemberInfo {
+                    name: member_name_str,
+                    access: AccessModifier::Public,
+                    _is_static: true,
+                    kind: ClassMemberKind::Property {
+                        type_annotation: member_type,
+                    },
+                    is_final: true,
+                },
+            );
+        }
+
+        // Register enum methods as members for access control
+        for method in &enum_decl.methods {
+            let method_name = self.interner.resolve(method.name.node).to_string();
+            self.access_control.register_member(
+                &enum_name,
+                ClassMemberInfo {
+                    name: method_name,
+                    access: AccessModifier::Public,
+                    _is_static: false,
+                    kind: ClassMemberKind::Method {
+                        parameters: method.parameters.clone(),
+                        return_type: method.return_type.clone(),
+                    },
+                    is_final: false,
+                },
+            );
         }
 
         let enum_type = Type::new(
@@ -2702,7 +2732,7 @@ impl<'a> TypeChecker<'a> {
                     // Better approach: look up the interface's type params from declarations.
                     // Since we don't have the declaration here, we use the type_env.
                     if self.type_env.lookup_type(&ref_name).is_none()
-                        && !self.type_env.lookup_type_alias(&ref_name).is_some()
+                        && self.type_env.lookup_type_alias(&ref_name).is_none()
                     {
                         // This is likely a type parameter - substitute with first type arg
                         // TODO: Map parameter position properly when multiple type params exist

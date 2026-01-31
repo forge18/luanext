@@ -1,6 +1,6 @@
 # TypedLua TODO
 
-**Last Updated:** 2026-01-30 (Section 7.1.2 IN PROGRESS - Fixed generic type alias instantiation, improved test pass rate from 12/30 to 13/30. Added object type substitution in generics.rs for Property/Method/Index members)
+**Last Updated:** 2026-01-31 (Section 7.1.2 COMPLETE - All 30/30 feature interaction tests passing. Implemented generic call syntax, decorator on primary constructors, interface defaults with generics, class hierarchy member resolution, type parameter constraints, implements-based assignability, and rich enum with interface support)
 
 ---
 
@@ -222,7 +222,10 @@ Lexer keywords `Throw`, `Try`, `Catch`, `Finally`, `Rethrow`, `Throws`, `BangBan
 - [x] Parse enum members with constructor arguments syntax
 - [x] Parse field declarations inside enum
 - [x] Parse constructor inside enum
-- [x] Parse methods inside enum
+- [x] Parse methods inside enum (with `function` keyword)
+- [x] Parse methods in class-like syntax (without `function` keyword, e.g., `print(): void { ... }`)
+- [x] Parse `implements` clause for enums (e.g., `enum Status implements Printable`)
+- [x] Optional comma separators in rich enum bodies (commas not required between methods/fields)
 
 #### 2.2.3 Rich Enum Type Checker
 
@@ -230,6 +233,9 @@ Lexer keywords `Throw`, `Try`, `Catch`, `Finally`, `Rethrow`, `Throws`, `BangBan
 - [x] Validate enum member arguments match constructor signature
 - [x] Type check methods with `self` bound to enum type
 - [x] Auto-generate signatures for `name()`, `ordinal()`, `values()`, `valueOf()`
+- [x] Register enum variants as static access-control members (enables `Status.Active`)
+- [x] Register enum methods as instance access-control members (enables `status.print()`)
+- [x] Support `implements` clause on enums (interface implementation)
 
 #### 2.2.4 Rich Enum Codegen
 
@@ -1926,7 +1932,7 @@ fuzz/
 
 **Target: 70% feature coverage, 70% code coverage**
 
-**Current Status: ~52% coverage (39/60+ features, 1,081 tests pass)**
+**Current Status: ~55% coverage (42/60+ features, 1,100+ tests pass)**
 
 #### 7.1.1 Unit Tests - Core Typechecker Components
 
@@ -1998,7 +2004,7 @@ fuzz/
 
 #### 7.1.2 Integration Tests - IMPLEMENTED
 
-**Status:** Test files created and partially passing. Parser fixes implemented to support stdlib parsing.
+**Status:** All feature interaction tests passing (30/30). Standard library tests complete (58/58). Advanced generics partially passing (18/29).
 
 - [x] **Advanced Generics Tests** (`tests/generics_advanced_tests.rs`) - **18 of 29 tests passing**
   - [x] Generic classes with fields and methods (blocked by `this` keyword)
@@ -2038,17 +2044,21 @@ fuzz/
   - [x] **Coroutine Library:** `create`, `resume`, `yield`, `wrap`, `status`
   - [x] **Debug Library:** `getinfo`, `traceback`
 
-- [ ] **Feature Interaction Tests** (`tests/feature_interactions_tests.rs`) - **13 of 30 tests passing** (was 7)
-  - [ ] **Override + Generics:** (failing - needs generic class inheritance support)
-  - [ ] **Final + Generics:** (failing - needs generic class final method support)
-  - [ ] **Primary Constructor + Generics:** (failing - needs generic primary constructor support)
+- [x] **Feature Interaction Tests** (`tests/feature_interactions_tests.rs`) - **30 of 30 tests passing** ✅
+  - [x] **Override + Generics:** ✅ **FIXED** - Generic call syntax parsing, class hierarchy member resolution
+  - [x] **Final + Generics:** ✅ **FIXED** - `find_member_in_hierarchy()` walks parent chain for inherited members
+  - [x] **Primary Constructor + Generics:** ✅ **FIXED** - Generic primary constructor support and generic interface assignability
   - [x] **Pattern Matching + Generics:** ✅ **FIXED** - Generic type alias instantiation now works
-  - [ ] **Decorators + Primary Constructor:** (failing - needs decorator on generic class support)
+  - [x] **Decorators + Primary Constructor:** ✅ **FIXED** - Parser handles `@decorator` on constructor params, `@readonly` maps to `is_readonly`
   - [x] **Safe Navigation + Type Narrowing:** ✅ **FIXED** - Added union type resolution in `is_type_assignable()`
   - [x] **Safe Navigation Chains:** ✅ **FIXED** - `infer_member()` now handles union types and type references
   - [x] **Null Coalescing + Type Inference:** ✅ **FIXED** - `is_nil()` now handles `Literal(Nil)`
-  - [x] **Reflect + Inheritance:**
-  - [ ] **Method-to-Function + Virtual Dispatch:** (failing - needs method-to-function conversion)
+  - [x] **Reflect + Inheritance:** ✅ **FIXED** - Reflection stdlib uses `declare namespace` pattern
+  - [x] **Method-to-Function + Virtual Dispatch:** ✅ (passing)
+  - [x] **Interface Defaults + Generics:** ✅ **FIXED** - Generic interface instantiation before implements check
+  - [x] **Pattern Guards + Generic Constraints:** ✅ **FIXED** - `implements` keyword in type params, constraint-based member resolution
+  - [x] **Primary Constructor + Generic Interface:** ✅ **FIXED** - `check_implements_assignable()` for class-to-interface assignment
+  - [x] **Rich Enum + Interface:** ✅ **FIXED** - Enum `implements` clause, class-like method syntax, variant member registration
 
 - [ ] **Module System Edge Cases** (`tests/module_edge_cases_tests.rs`) - **22 of 31 tests passing**
   - [ ] **Circular Dependencies:** (syntax supported, full module system not implemented)
@@ -2071,6 +2081,12 @@ fuzz/
 - [x] Fixed null coalescing type inference to handle `Literal(Nil)`
 - [x] Fixed stdlib arrow syntax: `->` instead of `=>`
 - [x] **Fixed boolean literal patterns in match arms** - Moved `TokenKind::True` and `TokenKind::False` before keyword check in `parse_pattern()` to properly parse `true`/`false` as literals instead of identifiers
+- [x] **Generic call syntax** - Fixed parsing of `foo<Type>(args)` expressions for generic function/constructor calls
+- [x] **Decorator on primary constructor params** - Parser handles `@decorator` before constructor parameters, `@readonly` maps to `is_readonly`
+- [x] **`implements` in type parameter constraints** - `parse_type_parameters` accepts both `extends` and `implements` for constraints
+- [x] **Enum `implements` clause** - Parser handles `enum Foo implements Bar { ... }` syntax
+- [x] **Enum class-like method syntax** - Methods without `function` keyword (e.g., `print(): void { ... }`) via lookahead disambiguation
+- [x] **Optional enum comma separators** - Commas no longer required between rich enum items (methods, fields, members)
 
 **Type Checker Fixes Implemented:**
 
@@ -2089,6 +2105,12 @@ fuzz/
   - `is_type_assignable()` now handles generic type references with type arguments
   - `substitute_type()` in generics.rs now handles Object types (Property, Method, Index members)
   - Fixed: `const success: Result<number> = { ok: true, value: 42 }` where `Result<T>` is a union type
+- [x] **Class hierarchy member resolution** - `find_member_in_hierarchy()` walks parent chain for inherited members, strips generic type args from parent names
+- [x] **Type parameter constraints** - `TypeEnvironment` tracks constraints (e.g., `T implements Identifiable`), `infer_member()` resolves constraints before member access
+- [x] **Generic interface instantiation** - `substitute_type_args_in_type()` substitutes type params in interface members before implements check
+- [x] **Implements-based assignability** - `check_implements_assignable()` allows class-to-interface assignment (e.g., `const box: Storable<number> = new Box<number>(42)`)
+- [x] **Rich enum member registration** - Enum variants registered as static access-control members, methods as instance members
+- [x] **Reflection stdlib** - Rewrote `reflection.d.tl` using `declare namespace Reflect` pattern (consistent with other stdlib modules)
 - [x] **Test fixes** - Changed TypeScript-style `if (cond) {` to Lua-style `if cond then` in integration tests
 - [x] **Convention fixes** - Changed `this` to `self` in all test files per Lua convention
 - [x] **Debug cleanup** - Removed all DEBUG eprintln! statements from type checker and inference modules
