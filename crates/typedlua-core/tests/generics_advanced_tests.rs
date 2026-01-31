@@ -47,7 +47,7 @@ fn test_generic_class_with_fields() {
         class Container<T> {
             value: T
             constructor(val: T) {
-                this.value = val
+                self.value = val
             }
         }
         
@@ -70,15 +70,15 @@ fn test_generic_class_with_methods() {
             private value: T
             
             constructor(val: T) {
-                this.value = val
+                self.value = val
             }
             
             getValue(): T {
-                return this.value
+                return self.value
             }
             
             setValue(val: T): void {
-                this.value = val
+                self.value = val
             }
         }
         
@@ -132,14 +132,14 @@ fn test_nested_generic_types() {
         class Box<T> {
             value: T
             constructor(val: T) {
-                this.value = val
+                self.value = val
             }
         }
         
         class Container<T> {
             inner: T
             constructor(val: T) {
-                this.inner = val
+                self.inner = val
             }
         }
         
@@ -161,7 +161,7 @@ fn test_triple_nested_generics() {
         class Wrapper<T> {
             data: T
             constructor(d: T) {
-                this.data = d
+                self.data = d
             }
         }
         
@@ -193,20 +193,20 @@ fn test_recursive_generic_tree_node() {
             right: TreeNode<T> | nil
             
             constructor(val: T) {
-                this.value = val
-                this.left = nil
-                this.right = nil
+                self.value = val
+                self.left = nil
+                self.right = nil
             }
             
             addLeft(val: T): TreeNode<T> {
                 const node = new TreeNode<T>(val)
-                this.left = node
+                self.left = node
                 return node
             }
             
             addRight(val: T): TreeNode<T> {
                 const node = new TreeNode<T>(val)
-                this.right = node
+                self.right = node
                 return node
             }
         }
@@ -232,13 +232,13 @@ fn test_recursive_generic_linked_list() {
             next: ListNode<T> | nil
             
             constructor(val: T) {
-                this.value = val
-                this.next = nil
+                self.value = val
+                self.next = nil
             }
             
             append(val: T): ListNode<T> {
                 const node = new ListNode<T>(val)
-                this.next = node
+                self.next = node
                 return node
             }
         }
@@ -274,11 +274,11 @@ fn test_generic_constraints_with_multiple_interfaces() {
             items: T[]
             
             constructor() {
-                this.items = []
+                self.items = []
             }
             
             add(item: T): void {
-                this.items.push(item)
+                self.items.push(item)
             }
         }
     "#;
@@ -306,15 +306,15 @@ fn test_generic_constraints_with_intersection() {
             people: T[]
             
             constructor() {
-                this.people = []
+                self.people = []
             }
             
             register(person: T): void {
-                this.people.push(person)
+                self.people.push(person)
             }
             
             findByName(n: string): T | nil {
-                for (const p of this.people) {
+                for (const p of self.people) {
                     if (p.name == n) {
                         return p
                     }
@@ -696,7 +696,7 @@ fn test_generic_default_parameters() {
         class Container<T = string> {
             value: T
             constructor(val: T) {
-                this.value = val
+                self.value = val
             }
         }
         
@@ -719,11 +719,11 @@ fn test_generic_default_with_multiple_params() {
             entries: [K, V][]
             
             constructor() {
-                this.entries = []
+                self.entries = []
             }
             
             set(key: K, value: V): void {
-                this.entries.push([key, value])
+                self.entries.push([key, value])
             }
         }
         
@@ -773,11 +773,11 @@ fn test_generic_type_alias_with_constraints() {
         class NumberWrapper implements Comparable {
             value: number
             constructor(v: number) {
-                this.value = v
+                self.value = v
             }
             compareTo(other: Comparable): number {
                 if (other instanceof NumberWrapper) {
-                    return this.value - other.value
+                    return self.value - other.value
                 }
                 return 0
             }

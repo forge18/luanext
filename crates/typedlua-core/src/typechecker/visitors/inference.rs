@@ -736,6 +736,7 @@ impl TypeInferenceVisitor for TypeInferrer<'_> {
     fn is_nil(&self, typ: &Type) -> bool {
         match &typ.kind {
             TypeKind::Primitive(PrimitiveType::Nil) => true,
+            TypeKind::Literal(Literal::Nil) => true,
             TypeKind::Nullable(inner) => self.is_nil(inner),
             _ => false,
         }
@@ -747,8 +748,22 @@ impl TypeInferenceVisitor for TypeInferrer<'_> {
         right: &Type,
         span: Span,
     ) -> Result<Type, TypeCheckError> {
+        // If left is T | nil, the result is T (left without nil)
+        // If left is just nil, the result is the type of right
+        // Otherwise, the result is the type of left
         let left_without_nil = self.remove_nil(left, span)?;
-        let result = Type::new(TypeKind::Union(vec![left_without_nil, right.clone()]), span);
+
+        // If left was just nil, return right's type
+        // Otherwise return left's type without nil
+        let result = if matches!(
+            left_without_nil.kind,
+            TypeKind::Primitive(PrimitiveType::Never)
+        ) {
+            right.clone()
+        } else {
+            left_without_nil
+        };
+
         Ok(result)
     }
 
