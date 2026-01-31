@@ -153,6 +153,15 @@ impl<'a> TypeChecker<'a> {
 
     /// Type check a program
     pub fn check_program(&mut self, program: &mut Program) -> Result<(), TypeCheckError> {
+        // PASS 1: Register all function declarations (hoisting)
+        // This allows functions to be called before they appear in source order
+        for statement in program.statements.iter() {
+            if let Statement::Function(func_decl) = statement {
+                self.register_function_signature(func_decl)?;
+            }
+        }
+
+        // PASS 2: Type check all statements (including function bodies)
         let mut first_error: Option<TypeCheckError> = None;
         for statement in program.statements.iter_mut() {
             if let Err(e) = self.check_statement(statement) {
@@ -166,6 +175,64 @@ impl<'a> TypeChecker<'a> {
         } else {
             Ok(())
         }
+    }
+
+    /// Register a function's signature in the symbol table without checking its body
+    /// This is used during the first pass of check_program to enable function hoisting
+    fn register_function_signature(
+        &mut self,
+        decl: &FunctionDeclaration,
+    ) -> Result<(), TypeCheckError> {
+        // Validate type predicate return types
+        if let Some(return_type) = &decl.return_type {
+            if let TypeKind::TypePredicate(predicate) = &return_type.kind {
+                // Validate that the parameter name in the predicate matches one of the function parameters
+                let param_exists = decl.parameters.iter().any(|param| {
+                    if let Pattern::Identifier(ident) = &param.pattern {
+                        ident.node == predicate.parameter_name.node
+                    } else {
+                        false
+                    }
+                });
+
+                if !param_exists {
+                    return Err(TypeCheckError::new(
+                        format!(
+                            "Type predicate parameter '{}' does not match any function parameter",
+                            predicate.parameter_name.node
+                        ),
+                        predicate.span,
+                    ));
+                }
+            }
+        }
+
+        // Create function type
+        let func_type = Type::new(
+            TypeKind::Function(FunctionType {
+                type_parameters: decl.type_parameters.clone(),
+                parameters: decl.parameters.clone(),
+                return_type: Box::new(decl.return_type.clone().unwrap_or_else(|| {
+                    Type::new(TypeKind::Primitive(PrimitiveType::Void), decl.span)
+                })),
+                throws: decl.throws.clone(),
+                span: decl.span,
+            }),
+            decl.span,
+        );
+
+        // Declare function in symbol table
+        let symbol = Symbol::new(
+            self.interner.resolve(decl.name.node).to_string(),
+            SymbolKind::Function,
+            func_type,
+            decl.span,
+        );
+        self.symbol_table
+            .declare(symbol)
+            .map_err(|e| TypeCheckError::new(e, decl.span))?;
+
+        Ok(())
     }
 
     /// Type check a statement
@@ -376,58 +443,9 @@ impl<'a> TypeChecker<'a> {
         &mut self,
         decl: &mut FunctionDeclaration,
     ) -> Result<(), TypeCheckError> {
-        // For generic functions, we still declare them in the symbol table
-        // but we'll instantiate their type parameters when they're called
-
-        // Validate type predicate return types
-        if let Some(return_type) = &decl.return_type {
-            if let TypeKind::TypePredicate(predicate) = &return_type.kind {
-                // Validate that the parameter name in the predicate matches one of the function parameters
-                let param_exists = decl.parameters.iter().any(|param| {
-                    if let Pattern::Identifier(ident) = &param.pattern {
-                        ident.node == predicate.parameter_name.node
-                    } else {
-                        false
-                    }
-                });
-
-                if !param_exists {
-                    return Err(TypeCheckError::new(
-                        format!(
-                            "Type predicate parameter '{}' does not match any function parameter",
-                            predicate.parameter_name.node
-                        ),
-                        predicate.span,
-                    ));
-                }
-            }
-        }
-
-        // Create function type
-        let func_type = Type::new(
-            TypeKind::Function(FunctionType {
-                type_parameters: decl.type_parameters.clone(),
-                parameters: decl.parameters.clone(),
-                return_type: Box::new(decl.return_type.clone().unwrap_or_else(|| {
-                    Type::new(TypeKind::Primitive(PrimitiveType::Void), decl.span)
-                })),
-                throws: decl.throws.clone(),
-                span: decl.span,
-            }),
-            decl.span,
-        );
-
-        // Declare function in symbol table
-
-        let symbol = Symbol::new(
-            self.interner.resolve(decl.name.node).to_string(),
-            SymbolKind::Function,
-            func_type,
-            decl.span,
-        );
-        self.symbol_table
-            .declare(symbol)
-            .map_err(|e| TypeCheckError::new(e, decl.span))?;
+        // NOTE: Function signature is already registered in the symbol table during pass 1
+        // (see register_function_signature method called from check_program)
+        // This method now only checks the function body
 
         // Enter new scope for function body
         self.symbol_table.enter_scope();
