@@ -20,7 +20,7 @@ rustc-hash.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 tracing.workspace = true
 typedlua-runtime = { path = "../typedlua-runtime" }
-lua-sourcemap = { path = "../lua-sourcemap" }
+lua-sourcemap = { path = "../typedlua-sourcemap" }
 typedlua-parser = { path = "../typedlua-parser" }
 
 [dev-dependencies]

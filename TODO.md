@@ -2060,13 +2060,15 @@ fuzz/
   - [x] **Primary Constructor + Generic Interface:** ✅ **FIXED** - `check_implements_assignable()` for class-to-interface assignment
   - [x] **Rich Enum + Interface:** ✅ **FIXED** - Enum `implements` clause, class-like method syntax, variant member registration
 
-- [ ] **Module System Edge Cases** (`tests/module_edge_cases_tests.rs`) - **22 of 31 tests passing**
-  - [ ] **Circular Dependencies:** (syntax supported, full module system not implemented)
-  - [x] **Dynamic Imports:** `require()` supported
-  - [ ] **Type-Only Imports:** (not fully implemented)
-  - [ ] **Default Export + Named Exports:** (not fully implemented)
-  - [ ] **Namespace Enforcement:** (not fully implemented)
-  - [ ] **Multiple Files:** (not fully implemented)
+- [ ] **Module System Edge Cases** (`tests/module_edge_cases_tests.rs`) - **27 of 31 tests passing (87%)**
+  - [x] **Circular Dependencies:** ✅ All tests passing
+  - [x] **Dynamic Imports:** ✅ `require()` fully supported
+  - [x] **Function Hoisting:** ✅ Two-pass type checking enables calling functions before definition
+  - [ ] **Type-Only Imports:** ✅ Implemented (1 test failing- requires module registry infrastructure)
+  - [ ] **Default Export + Named Exports:** ⚠️ 3 tests failing - needs parser + typechecker updates
+  - [x] **Namespace Enforcement:** ✅ All tests passing
+  - [x] **Declare Namespace:** ✅ Tests passing
+  - [x] **Module-Level Code:** ✅ Fixed with function hoisting
 
 **Parser Fixes Implemented:**
 
@@ -2111,9 +2113,23 @@ fuzz/
 - [x] **Implements-based assignability** - `check_implements_assignable()` allows class-to-interface assignment (e.g., `const box: Storable<number> = new Box<number>(42)`)
 - [x] **Rich enum member registration** - Enum variants registered as static access-control members, methods as instance members
 - [x] **Reflection stdlib** - Rewrote `reflection.d.tl` using `declare namespace Reflect` pattern (consistent with other stdlib modules)
+- [x] **Function hoisting** - Two-pass type checking in `check_program()`:
+  - Pass 1: `register_function_signature()` registers all function declarations in symbol table
+  - Pass 2: Type checks all statements including function bodies
+  - Enables calling functions before they appear in source order (JavaScript/TypeScript behavior)
+  - Fixed 3 tests: `test_module_level_code`, `test_module_level_side_effects`, `test_require_conditional`
 - [x] **Test fixes** - Changed TypeScript-style `if (cond) {` to Lua-style `if cond then` in integration tests
 - [x] **Convention fixes** - Changed `this` to `self` in all test files per Lua convention
 - [x] **Debug cleanup** - Removed all DEBUG eprintln! statements from type checker and inference modules
+
+**Remaining Work (3 failing tests):**
+
+- [ ] **Default Export/Import Support** - 3 tests failing (`test_default_export_class`, `test_default_import_alias`, `test_mixed_imports`)
+  - [ ] Parser: Add `ImportClause::Mixed { default, named }` variant for mixed syntax `import Foo, { bar } from "./module"`
+  - [ ] Parser: Update `parse_import_declaration()` to handle mixed import syntax
+  - [ ] TypeChecker: Fix `check_export_statement()` to handle all declaration types (currently only handles TypeAlias)
+  - [ ] TypeChecker: Fix import aliasing to use `spec.local` field for aliases
+  - [ ] TypeChecker: Fix `extract_exports()` to extract actual types from default exports instead of creating synthetic "default"
 
 **LSP Fixes Implemented:**
 

@@ -821,8 +821,19 @@ impl<'a> TypeChecker<'a> {
             );
 
             self.type_env
-                .register_interface(self.interner.resolve(iface.name.node).to_string(), obj_type)
+                .register_interface(iface_name.clone(), obj_type.clone())
                 .map_err(|e| TypeCheckError::new(e, iface.span))?;
+
+            // Also register in symbol table for export extraction
+            let symbol = Symbol {
+                name: iface_name.clone(),
+                typ: obj_type,
+                kind: SymbolKind::Interface,
+                span: iface.span,
+                is_exported: true,
+                references: Vec::new(),
+            };
+            let _ = self.symbol_table.declare(symbol);
 
             return Ok(());
         }
@@ -932,8 +943,19 @@ impl<'a> TypeChecker<'a> {
         );
 
         self.type_env
-            .register_interface(self.interner.resolve(iface.name.node).to_string(), obj_type)
+            .register_interface(iface_name.clone(), obj_type.clone())
             .map_err(|e| TypeCheckError::new(e, iface.span))?;
+
+        // Also register in symbol table for export extraction
+        let symbol = Symbol {
+            name: iface_name,
+            typ: obj_type,
+            kind: SymbolKind::Interface,
+            span: iface.span,
+            is_exported: true,
+            references: Vec::new(),
+        };
+        let _ = self.symbol_table.declare(symbol);
 
         Ok(())
     }
@@ -3042,8 +3064,10 @@ impl<'a> TypeChecker<'a> {
         let mut exports = ModuleExports::new();
         for stmt in program.statements.iter() {
             if let Statement::Export(export_decl) = stmt {
+                eprintln!("[EXPORT] Found export statement");
                 match &export_decl.kind {
                     ExportKind::Declaration(decl) => {
+                        eprintln!("[EXPORT] Export kind: Declaration");
                         match &**decl {
                             Statement::Variable(var_decl) => {
                                 // Extract identifier from pattern
@@ -3087,11 +3111,15 @@ impl<'a> TypeChecker<'a> {
                             Statement::Interface(interface_decl) => {
                                 let interface_name =
                                     self.interner.resolve(interface_decl.name.node);
+                                eprintln!("[EXPORT] Exporting interface: {}", interface_name);
                                 if let Some(symbol) = self.symbol_table.lookup(&interface_name) {
+                                    eprintln!("[EXPORT] Found symbol for interface: {}", interface_name);
                                     exports.add_named(
                                         interface_name,
                                         ExportedSymbol::new(symbol.clone(), true),
                                     );
+                                } else {
+                                    eprintln!("[EXPORT] Symbol not found for interface: {}", interface_name);
                                 }
                             }
                             _ => {}

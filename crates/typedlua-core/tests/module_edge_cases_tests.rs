@@ -1,8 +1,11 @@
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 use typedlua_core::codegen::CodeGenerator;
 use typedlua_core::config::{CompilerOptions, OptimizationLevel};
 use typedlua_core::diagnostics::CollectingDiagnosticHandler;
+use typedlua_core::fs::MockFileSystem;
+use typedlua_core::module_resolver::{ModuleConfig, ModuleId, ModuleRegistry, ModuleResolver, LuaFilePolicy};
 use typedlua_core::typechecker::TypeChecker;
 use typedlua_parser::lexer::Lexer;
 use typedlua_parser::parser::Parser;
@@ -35,6 +38,94 @@ fn compile_and_check(source: &str) -> Result<String, String> {
     let output = codegen.generate(&mut program);
 
     Ok(output)
+}
+
+/// Compile multiple modules with a shared module registry (for cross-module imports)
+fn compile_modules_with_registry(modules: Vec<(&str, &str)>) -> Result<Vec<String>, String> {
+    let handler = Arc::new(CollectingDiagnosticHandler::new());
+    let (interner, common_ids) = StringInterner::new_with_common_identifiers();
+    let interner = Rc::new(interner);
+    let options = CompilerOptions::default();
+
+    // Create mock filesystem with all modules
+    let mut fs = MockFileSystem::new();
+    for (path, _) in &modules {
+        fs.add_file(path, "");
+    }
+    let fs = Arc::new(fs);
+
+    // Create module resolver and registry
+    let config = ModuleConfig {
+        module_paths: vec![PathBuf::from("/")],
+        lua_file_policy: LuaFilePolicy::RequireDeclaration,
+    };
+    let resolver = Arc::new(ModuleResolver::new(fs, config, PathBuf::from("/")));
+    let registry = Arc::new(ModuleRegistry::new());
+
+    // Store parsed programs
+    let mut programs = Vec::new();
+
+    // PASS 1: Parse all modules and register them
+    for (path, source) in &modules {
+        let module_id = ModuleId::new(PathBuf::from(path));
+
+        // Lex and parse
+        let mut lexer = Lexer::new(source, handler.clone(), &interner);
+        let tokens = lexer
+            .tokenize()
+            .map_err(|e| format!("Lexing failed for {}: {:?}", path, e))?;
+
+        let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
+        let program = parser
+            .parse()
+            .map_err(|e| format!("Parsing failed for {}: {:?}", path, e))?;
+
+        // Register the parsed module in the registry
+        registry.register_parsed(
+            module_id.clone(),
+            Arc::new(program.clone()),
+            Arc::new(Default::default()),
+        );
+
+        programs.push((path, module_id, program));
+    }
+
+    // PASS 2: Type check each module and immediately register exports
+    // This ensures exports are available for subsequent modules
+    let mut outputs = Vec::new();
+    for (path, module_id, mut program) in programs {
+        // Type check with module support
+        let mut type_checker = TypeChecker::new_with_module_support(
+            handler.clone(),
+            &interner,
+            &common_ids,
+            registry.clone(),
+            module_id.clone(),
+            resolver.clone(),
+        )
+        .with_options(options.clone());
+
+        type_checker
+            .check_program(&mut program)
+            .map_err(|e| format!("Type checking failed for {}: {}", path, e.message))?;
+
+        // Extract and register exports IMMEDIATELY so next module can use them
+        eprintln!("[DEBUG] Program has {} statements for {}", program.statements.len(), path);
+        for (i, stmt) in program.statements.iter().enumerate() {
+            eprintln!("[DEBUG]   Statement {}: {:?}", i, std::mem::discriminant(stmt));
+        }
+        let exports = type_checker.extract_exports(&program);
+        eprintln!("[DEBUG] Extracted exports from {}: {:?}", path, exports);
+        registry
+            .register_exports(&module_id, exports)
+            .map_err(|e| format!("Failed to register exports for {}: {:?}", path, e))?;
+
+        // Generate code
+        let mut codegen = CodeGenerator::new(interner.clone());
+        outputs.push(codegen.generate(&mut program));
+    }
+
+    Ok(outputs)
 }
 
 // ============================================================================
@@ -304,21 +395,20 @@ fn test_require_in_try_catch() {
 // ============================================================================
 
 #[test]
-#[ignore = "Requires full module resolution infrastructure"]
 fn test_type_only_import_basic() {
     let source_module = r#"
         namespace DataModule;
-        
+
         export interface User {
             id: number
             name: string
         }
-        
+
         export interface Config {
             host: string
             port: number
         }
-        
+
         export function createUser(name: string): User {
             return { id: 1, name }
         }
@@ -326,30 +416,28 @@ fn test_type_only_import_basic() {
 
     let source_consumer = r#"
         namespace ConsumerModule;
-        
+
         import type { User, Config } from "./dataModule"
-        
+
         function processUser(user: User): string {
             return user.name
         }
-        
+
         function setupConfig(config: Config): void {
             print(`${config.host}:${config.port}`)
         }
     "#;
 
-    let result_module = compile_and_check(source_module);
-    let result_consumer = compile_and_check(source_consumer);
+    let modules = vec![
+        ("/dataModule.tl", source_module),
+        ("/consumerModule.tl", source_consumer),
+    ];
 
+    let result = compile_modules_with_registry(modules);
     assert!(
-        result_module.is_ok(),
-        "Module with types should compile: {:?}",
-        result_module.err()
-    );
-    assert!(
-        result_consumer.is_ok(),
+        result.is_ok(),
         "Type-only import should compile: {:?}",
-        result_consumer.err()
+        result.err()
     );
 }
 
