@@ -402,3 +402,115 @@ fn test_getter_setter_access_modifiers() {
         "Getters and setters with different access modifiers should work"
     );
 }
+
+#[test]
+fn test_protected_access_from_same_class() {
+    // Protected members should be accessible within the same class
+    let source = r#"
+        class Container {
+            protected items: Array<string> = {}
+            
+            protected addItem(item: string): void {
+                table.insert(self.items, item)
+            }
+            
+            public getCount(): number {
+                self.addItem("internal")  // Can call protected method from same class
+                return #self.items
+            }
+        }
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Protected members should be accessible within the same class"
+    );
+}
+
+#[test]
+fn test_multiple_access_layers_deep_inheritance() {
+    // Test multiple layers of access modifiers in deep inheritance
+    let source = r#"
+        class Level1 {
+            private level1Private: number = 1
+            protected level1Protected: number = 10
+            public level1Public: number = 100
+        }
+        
+        class Level2 extends Level1 {
+            private level2Private: number = 2
+            protected level2Protected: number = 20
+            
+            public accessLevel1(): number {
+                return self.level1Protected + self.level2Protected
+            }
+        }
+        
+        class Level3 extends Level2 {
+            public accessAll(): number {
+                return self.level1Protected + self.level2Protected
+            }
+        }
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Multiple access layers should work correctly in deep inheritance"
+    );
+}
+
+#[test]
+fn test_protected_method_override_access() {
+    // Test that protected methods can be overridden and accessed correctly
+    let source = r#"
+        class Shape {
+            protected calculateArea(): number {
+                return 0
+            }
+            
+            public getArea(): number {
+                return self.calculateArea()
+            }
+        }
+        
+        class Circle extends Shape {
+            private radius: number = 5
+            
+            protected calculateArea(): number {
+                return 3.14159 * self.radius * self.radius
+            }
+        }
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Protected method overrides should maintain access rules"
+    );
+}
+
+#[test]
+fn test_static_protected_chain() {
+    // Test protected static access through inheritance chain
+    let source = r#"
+        class A {
+            protected static value: string = "A"
+        }
+        
+        class B extends A {
+            protected static getValue(): string {
+                return B.value
+            }
+        }
+        
+        class C extends B {
+            public static getChainValue(): string {
+                return C.getValue() .. "-" .. C.value
+            }
+        }
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Protected static should be accessible through inheritance chain"
+    );
+}

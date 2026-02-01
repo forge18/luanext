@@ -393,7 +393,7 @@ impl CodeGenerator {
             }
 
             // Merge module source map mappings into the bundle source map
-            if let (Some(ref mut builder), Some(ref module_builder)) = (
+            if let (Some(ref mut builder), Some(module_builder)) = (
                 source_map_builder.as_mut(),
                 module_source_map_builder.as_ref(),
             ) {

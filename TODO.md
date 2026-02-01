@@ -2437,19 +2437,22 @@ fuzz/
   - [x] Enum valueOf() calling
   - [x] Enum equality checks
 
-- [ ] **Expand Access Modifiers Tests** (`tests/access_modifiers_tests.rs`)
-  - [ ] Protected accessed from subclass
-  - [ ] Protected accessed from same package (if applicable)
-  - [ ] Multiple access modifier layers (private in protected base)
-  - [ ] Static member access rules
+- [x] **Expand Access Modifiers Tests** (`tests/access_modifiers_tests.rs`) - **COMPLETE**
+  - [x] Protected accessed from subclass
+  - [x] Protected accessed from same class
+  - [x] Multiple access modifier layers (private in protected base)
+  - [x] Static member access rules (within class and subclass)
+  - [x] Protected method override access
+  - [x] Static protected chain through inheritance
+  - [x] Multiple access layers in deep inheritance
 
-- [ ] **Expand Generics Tests** (expand `generic_specialization_tests.rs`)
-  - [ ] Generic classes
-  - [ ] Generic interfaces
-  - [ ] Generic nested classes
-  - [ ] Default type parameters
-  - [ ] Generic constraints with extends
-  - [ ] Variadic generics
+- [x] **Expand Generics Tests** (expand `generic_specialization_tests.rs`) - **COMPLETE**
+  - [x] Generic classes
+  - [x] Generic interfaces
+  - [x] Generic nested classes
+  - [x] Default type parameters
+  - [x] Generic constraints with extends
+  - [x] Variadic generics
 
 #### 7.1.6 Coverage Verification
 

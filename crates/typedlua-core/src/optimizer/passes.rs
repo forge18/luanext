@@ -3120,7 +3120,7 @@ impl StringConcatOptimizationPass {
         while i < statements.len() {
             // Look for pattern: local s = "" followed by a loop with s = s .. value
             if let Some((concat_var, loop_idx)) =
-                self.find_loop_string_concat_pattern(&statements, i)
+                self.find_loop_string_concat_pattern(statements, i)
             {
                 // Transform the pattern
                 if let Some(new_stmts) =
@@ -3217,7 +3217,7 @@ impl StringConcatOptimizationPass {
                     || if_stmt
                         .else_block
                         .as_ref()
-                        .map_or(false, |b| self.block_contains_string_concat(b, var))
+                        .is_some_and(|b| self.block_contains_string_concat(b, var))
             }
             _ => false,
         }

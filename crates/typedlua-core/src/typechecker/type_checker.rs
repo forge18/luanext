@@ -3080,12 +3080,14 @@ impl<'a> TypeChecker<'a> {
                             Some(t) => Ok(t.clone()),
                             None => match self.symbol_table.lookup(&name) {
                                 Some(symbol) => Ok(symbol.typ.clone()),
-                                None => Err(format!("Cannot resolve typeof for identifier '{}'", name)),
+                                None => {
+                                    Err(format!("Cannot resolve typeof for identifier '{}'", name))
+                                }
                             },
                         }
                     }
                     ExpressionKind::Call(callee, _args, _type_args) => {
-                        // For function calls like typeof(getNumber()), 
+                        // For function calls like typeof(getNumber()),
                         // look up the return type of the function
                         if let ExpressionKind::Identifier(name_id) = &callee.kind {
                             let name = self.interner.resolve(*name_id);
@@ -3094,16 +3096,25 @@ impl<'a> TypeChecker<'a> {
                                     if let TypeKind::Function(func) = &symbol.typ.kind {
                                         Ok((*func.return_type).clone())
                                     } else {
-                                        Ok(Type::new(TypeKind::Primitive(PrimitiveType::Unknown), typ.span))
+                                        Ok(Type::new(
+                                            TypeKind::Primitive(PrimitiveType::Unknown),
+                                            typ.span,
+                                        ))
                                     }
                                 }
                                 None => Err(format!("Cannot resolve typeof for call '{}'", name)),
                             }
                         } else {
-                            Ok(Type::new(TypeKind::Primitive(PrimitiveType::Unknown), typ.span))
+                            Ok(Type::new(
+                                TypeKind::Primitive(PrimitiveType::Unknown),
+                                typ.span,
+                            ))
                         }
                     }
-                    _ => Ok(Type::new(TypeKind::Primitive(PrimitiveType::Unknown), typ.span)),
+                    _ => Ok(Type::new(
+                        TypeKind::Primitive(PrimitiveType::Unknown),
+                        typ.span,
+                    )),
                 }
             }
             TypeKind::Reference(type_ref) => {

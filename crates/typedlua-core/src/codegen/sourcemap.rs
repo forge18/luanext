@@ -170,14 +170,9 @@ impl SourceMapBuilder {
                 .get(&mapping.source_index)
                 .copied()
                 .unwrap_or(0);
-            let name_index = mapping
-                .name_index
-                .map(|_idx| {
-                    // If the other builder has names, we need to add them to our names
-                    // For now, we skip name mappings in merge to keep it simple
-                    None
-                })
-                .flatten();
+            // If the other builder has names, we need to add them to our names
+            // For now, we skip name mappings in merge to keep it simple
+            let name_index = None;
 
             self.mappings.push(Mapping {
                 generated_line: mapping.generated_line + line_offset,
