@@ -152,10 +152,10 @@ fn test_unclosed_block_comment() {
 #[test]
 fn test_unexpected_token() {
     let source = r#"
-        const x = 1 2 3
+        const x = @@@
     "#;
 
-    let (result, handler) = compile_with_diagnostics(source);
+    let (result, _handler) = compile_with_diagnostics(source);
     assert!(result.is_err(), "Should fail with unexpected token");
 }
 

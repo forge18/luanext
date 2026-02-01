@@ -10,6 +10,7 @@ use rustc_hash::FxHashMap;
 use std::sync::Arc;
 use typedlua_parser::ast::expression::*;
 use typedlua_parser::ast::pattern::{ArrayPatternElement, Pattern};
+use typedlua_parser::ast::statement::{Block, Statement};
 use typedlua_parser::ast::types::*;
 use typedlua_parser::prelude::{
     Argument, MatchArm, MatchArmBody, MatchExpression, PropertySignature,
@@ -464,9 +465,72 @@ impl TypeInferenceVisitor for TypeInferrer<'_> {
                 ))
             }
 
-            ExpressionKind::Function(_) => {
-                // Function expressions not fully supported yet
-                Ok(Type::new(TypeKind::Primitive(PrimitiveType::Unknown), span))
+            ExpressionKind::Function(func_expr) => {
+                // Enter a new scope for the function expression
+                self.symbol_table.enter_scope();
+
+                // Register parameters in the scope
+                for param in &func_expr.parameters {
+                    if let Pattern::Identifier(ident) = &param.pattern {
+                        let param_type = if let Some(type_ann) = &param.type_annotation {
+                            // Use the declared type
+                            type_ann.clone()
+                        } else {
+                            // No type annotation - use unknown
+                            Type::new(TypeKind::Primitive(PrimitiveType::Unknown), param.span)
+                        };
+
+                        let symbol = Symbol::new(
+                            self.interner.resolve(ident.node).to_string(),
+                            SymbolKind::Variable,
+                            param_type,
+                            ident.span,
+                        );
+                        let _ = self.symbol_table.declare(symbol);
+                    }
+                }
+
+                // Infer the return type from the block body
+                let mut body = func_expr.body.clone();
+                let body_type = match self.infer_block_return_type(&mut body)? {
+                    Some(return_type) => return_type,
+                    None => {
+                        // No return statements found - void function
+                        Type::new(TypeKind::Primitive(PrimitiveType::Void), span)
+                    }
+                };
+
+                // Check return type if specified
+                if let Some(declared_return_type) = &func_expr.return_type {
+                    if !TypeCompatibility::is_assignable(&body_type, declared_return_type) {
+                        self.diagnostic_handler.error(
+                            span,
+                            &format!(
+                                "Function expression return type mismatch: expected '{:?}', found '{:?}'",
+                                declared_return_type.kind, body_type.kind
+                            ),
+                        );
+                    }
+                }
+
+                // Exit the function scope
+                self.symbol_table.exit_scope();
+
+                // Build the function type
+                let func_type = FunctionType {
+                    type_parameters: func_expr.type_parameters.clone(),
+                    parameters: func_expr.parameters.clone(),
+                    return_type: Box::new(
+                        func_expr
+                            .return_type
+                            .clone()
+                            .unwrap_or_else(|| body_type.clone()),
+                    ),
+                    throws: None,
+                    span,
+                };
+
+                Ok(Type::new(TypeKind::Function(func_type), span))
             }
 
             ExpressionKind::Arrow(arrow_fn) => {
@@ -638,19 +702,33 @@ impl TypeInferenceVisitor for TypeInferrer<'_> {
             | BinaryOp::Power
             | BinaryOp::IntegerDivide => {
                 // Check that both operands are numbers
-                let left_is_number = matches!(left.kind, TypeKind::Primitive(PrimitiveType::Number) | TypeKind::Literal(Literal::Number(_)));
-                let right_is_number = matches!(right.kind, TypeKind::Primitive(PrimitiveType::Number) | TypeKind::Literal(Literal::Number(_)));
+                let left_is_number = matches!(
+                    left.kind,
+                    TypeKind::Primitive(PrimitiveType::Number)
+                        | TypeKind::Literal(Literal::Number(_))
+                );
+                let right_is_number = matches!(
+                    right.kind,
+                    TypeKind::Primitive(PrimitiveType::Number)
+                        | TypeKind::Literal(Literal::Number(_))
+                );
 
                 if !left_is_number {
                     self.diagnostic_handler.error(
                         span,
-                        &format!("Left operand of arithmetic operation must be a number, found {:?}", left.kind),
+                        &format!(
+                            "Left operand of arithmetic operation must be a number, found {:?}",
+                            left.kind
+                        ),
                     );
                 }
                 if !right_is_number {
                     self.diagnostic_handler.error(
                         span,
-                        &format!("Right operand of arithmetic operation must be a number, found {:?}", right.kind),
+                        &format!(
+                            "Right operand of arithmetic operation must be a number, found {:?}",
+                            right.kind
+                        ),
                     );
                 }
 
@@ -1056,7 +1134,7 @@ impl TypeInferenceVisitor for TypeInferrer<'_> {
             self.check_pattern(&arm.pattern, &value_type)?;
 
             // Then narrow the type based on the pattern for variable bindings
-            let narrowed_type = self.narrow_type_by_pattern(&arm.pattern, &value_type)?;
+            let _narrowed_type = self.narrow_type_by_pattern(&arm.pattern, &value_type)?;
 
             // Check the guard if present
             if let Some(guard) = &mut arm.guard {
@@ -1155,21 +1233,24 @@ impl TypeInferenceVisitor for TypeInferrer<'_> {
                 let pattern_is_boolean = matches!(lit, Literal::Boolean(_));
                 let pattern_is_nil = matches!(lit, Literal::Nil);
 
-                let expected_is_number = matches!(expected_type.kind,
-                    TypeKind::Primitive(PrimitiveType::Number | PrimitiveType::Integer) |
-                    TypeKind::Literal(Literal::Number(_) | Literal::Integer(_))
+                let expected_is_number = matches!(
+                    expected_type.kind,
+                    TypeKind::Primitive(PrimitiveType::Number | PrimitiveType::Integer)
+                        | TypeKind::Literal(Literal::Number(_) | Literal::Integer(_))
                 );
-                let expected_is_string = matches!(expected_type.kind,
-                    TypeKind::Primitive(PrimitiveType::String) |
-                    TypeKind::Literal(Literal::String(_))
+                let expected_is_string = matches!(
+                    expected_type.kind,
+                    TypeKind::Primitive(PrimitiveType::String)
+                        | TypeKind::Literal(Literal::String(_))
                 );
-                let expected_is_boolean = matches!(expected_type.kind,
-                    TypeKind::Primitive(PrimitiveType::Boolean) |
-                    TypeKind::Literal(Literal::Boolean(_))
+                let expected_is_boolean = matches!(
+                    expected_type.kind,
+                    TypeKind::Primitive(PrimitiveType::Boolean)
+                        | TypeKind::Literal(Literal::Boolean(_))
                 );
-                let expected_is_nil = matches!(expected_type.kind,
-                    TypeKind::Primitive(PrimitiveType::Nil) |
-                    TypeKind::Literal(Literal::Nil)
+                let expected_is_nil = matches!(
+                    expected_type.kind,
+                    TypeKind::Primitive(PrimitiveType::Nil) | TypeKind::Literal(Literal::Nil)
                 );
 
                 let is_compatible = (pattern_is_number && expected_is_number)
@@ -1966,6 +2047,149 @@ impl TypeInferrer<'_> {
                     Ok(Type::new(TypeKind::Union(narrowed_types), typ.span))
                 }
             }
+        }
+    }
+
+    /// Infer the return type from a block by collecting all return statements
+    /// Returns None if no return statements are found (void function)
+    fn infer_block_return_type(
+        &mut self,
+        block: &mut Block,
+    ) -> Result<Option<Type>, TypeCheckError> {
+        self.infer_block_return_type_recursive(block)
+    }
+
+    /// Recursively collect return types from a block
+    fn infer_block_return_type_recursive(
+        &mut self,
+        block: &mut Block,
+    ) -> Result<Option<Type>, TypeCheckError> {
+        let mut return_types: Vec<Type> = Vec::new();
+
+        for stmt in &mut block.statements {
+            match stmt {
+                Statement::Return(return_stmt) => {
+                    // Infer the type of the return expression(s)
+                    if return_stmt.values.is_empty() {
+                        // Void return
+                        return_types.push(Type::new(
+                            TypeKind::Primitive(PrimitiveType::Void),
+                            return_stmt.span,
+                        ));
+                    } else if return_stmt.values.len() == 1 {
+                        // Single return value
+                        let mut expr = return_stmt.values[0].clone();
+                        let typ = self.infer_expression(&mut expr)?;
+                        return_types.push(typ);
+                    } else {
+                        // Multiple return values - create a tuple
+                        let mut tuple_types = Vec::new();
+                        for expr in return_stmt.values.iter_mut() {
+                            let mut expr_copy: Expression = expr.clone();
+                            let typ = self.infer_expression(&mut expr_copy)?;
+                            tuple_types.push(typ);
+                        }
+                        return_types
+                            .push(Type::new(TypeKind::Tuple(tuple_types), return_stmt.span));
+                    }
+                }
+                Statement::If(if_stmt) => {
+                    // Check the then block
+                    if let Some(then_type) =
+                        self.infer_block_return_type_recursive(&mut if_stmt.then_block)?
+                    {
+                        return_types.push(then_type);
+                    }
+
+                    // Check else-if blocks
+                    for else_if in &mut if_stmt.else_ifs {
+                        if let Some(else_if_type) =
+                            self.infer_block_return_type_recursive(&mut else_if.block)?
+                        {
+                            return_types.push(else_if_type);
+                        }
+                    }
+
+                    // Check else block
+                    if let Some(else_block) = &mut if_stmt.else_block {
+                        if let Some(else_type) =
+                            self.infer_block_return_type_recursive(else_block)?
+                        {
+                            return_types.push(else_type);
+                        }
+                    }
+                }
+                Statement::Try(try_stmt) => {
+                    // Check try block
+                    if let Some(try_type) =
+                        self.infer_block_return_type_recursive(&mut try_stmt.try_block)?
+                    {
+                        return_types.push(try_type);
+                    }
+
+                    // Check catch blocks
+                    for catch in &mut try_stmt.catch_clauses {
+                        if let Some(catch_type) =
+                            self.infer_block_return_type_recursive(&mut catch.body)?
+                        {
+                            return_types.push(catch_type);
+                        }
+                    }
+
+                    // Check finally block (though finally typically doesn't return)
+                    if let Some(finally) = &mut try_stmt.finally_block {
+                        if let Some(finally_type) =
+                            self.infer_block_return_type_recursive(finally)?
+                        {
+                            return_types.push(finally_type);
+                        }
+                    }
+                }
+                Statement::While(while_stmt) => {
+                    if let Some(body_type) =
+                        self.infer_block_return_type_recursive(&mut while_stmt.body)?
+                    {
+                        return_types.push(body_type);
+                    }
+                }
+                Statement::Repeat(repeat_stmt) => {
+                    if let Some(body_type) =
+                        self.infer_block_return_type_recursive(&mut repeat_stmt.body)?
+                    {
+                        return_types.push(body_type);
+                    }
+                }
+                Statement::For(for_stmt) => match &mut **for_stmt {
+                    typedlua_parser::ast::statement::ForStatement::Numeric(numeric) => {
+                        if let Some(body_type) =
+                            self.infer_block_return_type_recursive(&mut numeric.body)?
+                        {
+                            return_types.push(body_type);
+                        }
+                    }
+                    typedlua_parser::ast::statement::ForStatement::Generic(generic) => {
+                        if let Some(body_type) =
+                            self.infer_block_return_type_recursive(&mut generic.body)?
+                        {
+                            return_types.push(body_type);
+                        }
+                    }
+                },
+                _ => {
+                    // Other statements don't contain return statements at the top level
+                    // but might contain them in nested expressions (like lambdas)
+                }
+            }
+        }
+
+        if return_types.is_empty() {
+            Ok(None)
+        } else if return_types.len() == 1 {
+            Ok(Some(return_types[0].clone()))
+        } else {
+            // Multiple return types - try to find a common type
+            // For now, create a union of all return types
+            Ok(Some(Type::new(TypeKind::Union(return_types), block.span)))
         }
     }
 }

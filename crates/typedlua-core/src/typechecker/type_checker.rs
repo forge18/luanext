@@ -522,16 +522,30 @@ impl<'a> TypeChecker<'a> {
 
             let param_type = if param.is_rest {
                 // Rest parameters are arrays
-                let elem_type = param.type_annotation.clone().unwrap_or_else(|| {
+                let elem_type = if let Some(type_ann) = &param.type_annotation {
+                    // Evaluate to resolve type references
+                    let evaluated = self
+                        .evaluate_type(type_ann)
+                        .map_err(|e| TypeCheckError::new(e, param.span))
+                        .unwrap_or_else(|_| type_ann.clone());
+                    // Deep resolve to handle nested types
+                    self.deep_resolve_type(&evaluated)
+                } else {
                     Type::new(TypeKind::Primitive(PrimitiveType::Unknown), param.span)
-                });
+                };
 
                 // Wrap in array type
                 Type::new(TypeKind::Array(Box::new(elem_type)), param.span)
+            } else if let Some(type_ann) = &param.type_annotation {
+                // Evaluate to resolve type references
+                let evaluated = self
+                    .evaluate_type(type_ann)
+                    .map_err(|e| TypeCheckError::new(e, param.span))
+                    .unwrap_or_else(|_| type_ann.clone());
+                // Deep resolve to handle nested types
+                self.deep_resolve_type(&evaluated)
             } else {
-                param.type_annotation.clone().unwrap_or_else(|| {
-                    Type::new(TypeKind::Primitive(PrimitiveType::Unknown), param.span)
-                })
+                Type::new(TypeKind::Primitive(PrimitiveType::Unknown), param.span)
             };
 
             self.declare_pattern(
@@ -1654,6 +1668,12 @@ impl<'a> TypeChecker<'a> {
 
                 primary_constructor_properties.push(param);
             }
+
+            // Register the class constructor for parent argument validation
+            self.type_env.register_class_constructor(
+                class_name.clone(),
+                class_decl.primary_constructor.clone().unwrap(),
+            );
         }
 
         // Validate parent constructor arguments if present
@@ -1663,8 +1683,50 @@ impl<'a> TypeChecker<'a> {
                 self.infer_expression_type(arg)?;
             }
 
-            // TODO: Validate argument count and types match parent constructor
-            // This requires tracking constructor signatures, which we'll add later
+            // Validate argument count and types match parent constructor
+            if let Some(extends_type) = &class_decl.extends {
+                if let TypeKind::Reference(type_ref) = &extends_type.kind {
+                    let parent_name = self.interner.resolve(type_ref.name.node);
+                    // Clone the constructor parameters to avoid borrow issues
+                    let parent_constructor =
+                        self.type_env.get_class_constructor(&parent_name).cloned();
+
+                    if let Some(parent_constructor) = parent_constructor {
+                        // Check argument count
+                        if parent_args.len() != parent_constructor.len() {
+                            return Err(TypeCheckError::new(
+                                format!(
+                                    "Parent constructor argument count mismatch: expected {}, found {}",
+                                    parent_constructor.len(),
+                                    parent_args.len()
+                                ),
+                                class_decl.span,
+                            ));
+                        }
+
+                        // Check argument types
+                        for (i, (arg, param)) in parent_args
+                            .iter_mut()
+                            .zip(parent_constructor.iter())
+                            .enumerate()
+                        {
+                            let arg_type = self.infer_expression_type(arg)?;
+                            let param_type = &param.type_annotation;
+                            if !TypeCompatibility::is_assignable(&arg_type, param_type) {
+                                return Err(TypeCheckError::new(
+                                    format!(
+                                        "Parent constructor argument {} type mismatch: expected '{:?}', found '{:?}'",
+                                        i + 1,
+                                        param_type.kind,
+                                        arg_type.kind
+                                    ),
+                                    arg.span,
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // Collect class members for access checking
@@ -2260,9 +2322,18 @@ impl<'a> TypeChecker<'a> {
 
             // Declare parameters
             for param in &ctor.parameters {
-                let param_type = param.type_annotation.clone().unwrap_or_else(|| {
+                let param_type = if let Some(type_ann) = &param.type_annotation {
+                    // Evaluate the type annotation to resolve any type references
+                    let evaluated = self
+                        .evaluate_type(type_ann)
+                        .map_err(|e| TypeCheckError::new(e, param.span))
+                        .unwrap_or_else(|_| type_ann.clone()); // Fall back to unevaluated if evaluation fails
+
+                    // Deep resolve to handle nested types in function types, arrays, etc.
+                    self.deep_resolve_type(&evaluated)
+                } else {
                     Type::new(TypeKind::Primitive(PrimitiveType::Unknown), param.span)
-                });
+                };
 
                 self.declare_pattern(
                     &param.pattern,
@@ -2336,6 +2407,9 @@ impl<'a> TypeChecker<'a> {
         // Enter method scope
         self.symbol_table.enter_scope();
 
+        let method_name_str = self.interner.resolve(method.name.node).to_string();
+        eprintln!("[DEBUG] check_class_method: '{}' - entered scope", method_name_str);
+
         // Do all method body work in a closure to ensure scope cleanup on error
         let old_return_type = self.current_function_return_type.clone();
         let result = (|| -> Result<(), TypeCheckError> {
@@ -2359,9 +2433,12 @@ impl<'a> TypeChecker<'a> {
                         self_type,
                         method.span,
                     );
+                    eprintln!("[DEBUG]   declaring 'self' for method '{}'", method_name_str);
                     self.symbol_table
                         .declare(symbol)
                         .map_err(|e| TypeCheckError::new(e, method.span))?;
+                } else {
+                    eprintln!("[DEBUG]   NO class context for method '{}' - self NOT declared", method_name_str);
                 }
             }
 
@@ -2387,16 +2464,31 @@ impl<'a> TypeChecker<'a> {
 
             // Declare parameters
             for param in &method.parameters {
-                let param_type = param.type_annotation.clone().unwrap_or_else(|| {
-                    Type::new(TypeKind::Primitive(PrimitiveType::Unknown), param.span)
-                });
+                let param_type = if let Some(type_ann) = &param.type_annotation {
+                    // Evaluate the type annotation to resolve any type references (e.g., T, U in generic methods)
+                    let evaluated = self
+                        .evaluate_type(type_ann)
+                        .map_err(|e| TypeCheckError::new(e, param.span))
+                        .unwrap_or_else(|_| type_ann.clone()); // Fall back to unevaluated if evaluation fails
 
+                    // Deep resolve to handle nested types in function types, arrays, etc.
+                    self.deep_resolve_type(&evaluated)
+                } else {
+                    Type::new(TypeKind::Primitive(PrimitiveType::Unknown), param.span)
+                };
+
+                let param_name_dbg = match &param.pattern {
+                    typedlua_parser::ast::Pattern::Identifier(id) => self.interner.resolve(id.node).to_string(),
+                    _ => "<pattern>".to_string(),
+                };
+                eprintln!("[DEBUG]   declaring param '{}' type={:?}", param_name_dbg, param_type.kind);
                 self.declare_pattern(
                     &param.pattern,
                     param_type,
                     SymbolKind::Parameter,
                     param.span,
                 )?;
+                eprintln!("[DEBUG]   param '{}' declared OK, lookup={}", param_name_dbg, self.symbol_table.lookup(&param_name_dbg).is_some());
             }
 
             // Set current function return type for return statement checking
@@ -2404,6 +2496,9 @@ impl<'a> TypeChecker<'a> {
 
             // Check method body
             if let Some(body) = &mut method.body {
+                eprintln!("[DEBUG]   checking body for method '{}', visible symbols: {:?}",
+                    method_name_str,
+                    self.symbol_table.all_visible_symbols().keys().collect::<Vec<_>>());
                 self.check_block(body)?;
             }
 
@@ -2510,12 +2605,20 @@ impl<'a> TypeChecker<'a> {
         }
 
         // Declare the parameter
-        let param_type = setter.parameter.type_annotation.clone().unwrap_or_else(|| {
+        let param_type = if let Some(type_ann) = &setter.parameter.type_annotation {
+            // Evaluate to resolve type references
+            let evaluated = self
+                .evaluate_type(type_ann)
+                .map_err(|e| TypeCheckError::new(e, setter.parameter.span))
+                .unwrap_or_else(|_| type_ann.clone());
+            // Deep resolve to handle nested types
+            self.deep_resolve_type(&evaluated)
+        } else {
             Type::new(
                 TypeKind::Primitive(PrimitiveType::Unknown),
                 setter.parameter.span,
             )
-        });
+        };
 
         self.declare_pattern(
             &setter.parameter.pattern,
@@ -3002,6 +3105,31 @@ impl<'a> TypeChecker<'a> {
             TypeKind::Tuple(elems) => {
                 let resolved: Vec<Type> = elems.iter().map(|e| self.deep_resolve_type(e)).collect();
                 Type::new(TypeKind::Tuple(resolved), typ.span)
+            }
+            TypeKind::Function(func_type) => {
+                // Recursively resolve parameter types and return type in function types
+                let resolved_params: Vec<typedlua_parser::ast::statement::Parameter> = func_type
+                    .parameters
+                    .iter()
+                    .map(|param| typedlua_parser::ast::statement::Parameter {
+                        type_annotation: param
+                            .type_annotation
+                            .as_ref()
+                            .map(|t| self.deep_resolve_type(t)),
+                        ..param.clone()
+                    })
+                    .collect();
+
+                let resolved_return = self.deep_resolve_type(&func_type.return_type);
+
+                Type::new(
+                    TypeKind::Function(typedlua_parser::ast::types::FunctionType {
+                        parameters: resolved_params,
+                        return_type: Box::new(resolved_return),
+                        ..func_type.clone()
+                    }),
+                    typ.span,
+                )
             }
             _ => typ.clone(),
         }
@@ -3691,7 +3819,10 @@ impl<'a> TypeChecker<'a> {
             // No module support - report error for missing module
             self.diagnostic_handler.error(
                 span,
-                &format!("Module '{}' not found (module resolution not configured)", source),
+                &format!(
+                    "Module '{}' not found (module resolution not configured)",
+                    source
+                ),
             );
         }
 
@@ -3860,6 +3991,25 @@ impl<'a> TypeChecker<'a> {
                     .unwrap_or(false);
                 then_returns && else_returns
             }
+            Statement::Try(try_stmt) => {
+                // Try-catch always returns if:
+                // 1. Finally block always returns (catches all paths), OR
+                // 2. Try block always returns AND all catch blocks always return
+                if let Some(ref finally) = try_stmt.finally_block {
+                    if self.block_always_returns(finally) {
+                        return true;
+                    }
+                }
+
+                // Check try block and all catch blocks
+                let try_returns = self.block_always_returns(&try_stmt.try_block);
+                let all_catches_return = try_stmt
+                    .catch_clauses
+                    .iter()
+                    .all(|catch| self.block_always_returns(&catch.body));
+
+                try_returns && all_catches_return && !try_stmt.catch_clauses.is_empty()
+            }
             Statement::Throw(_) => true,
             Statement::Expression(expr) => {
                 // Check if the expression is a call to a function that never returns
@@ -3906,7 +4056,10 @@ mod tests {
             .any(|d| d.level == crate::diagnostics::DiagnosticLevel::Error);
 
         if has_errors {
-            Err(TypeCheckError::new("Type checking failed with errors", Default::default()))
+            Err(TypeCheckError::new(
+                "Type checking failed with errors",
+                Default::default(),
+            ))
         } else {
             result
         }

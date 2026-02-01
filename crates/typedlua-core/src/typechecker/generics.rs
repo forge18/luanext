@@ -1737,7 +1737,11 @@ mod tests {
         let number_type = Type::new(TypeKind::Primitive(PrimitiveType::Number), span);
 
         // Wrong number of arguments
-        let result = infer_type_arguments(std::slice::from_ref(&type_param), std::slice::from_ref(&param_a), &[]);
+        let result = infer_type_arguments(
+            std::slice::from_ref(&type_param),
+            std::slice::from_ref(&param_a),
+            &[],
+        );
         assert!(result.is_err());
 
         let result = infer_type_arguments(

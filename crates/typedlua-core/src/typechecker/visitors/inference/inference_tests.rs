@@ -1074,7 +1074,9 @@ mod tests {
         assert!(result.is_ok());
         let typ = result.unwrap();
         // Parenthesized expressions now correctly infer the type of their inner expression
-        assert!(matches!(typ.kind, TypeKind::Literal(Literal::Number(n)) if (n - 42.0).abs() < f64::EPSILON));
+        assert!(
+            matches!(typ.kind, TypeKind::Literal(Literal::Number(n)) if (n - 42.0).abs() < f64::EPSILON)
+        );
     }
 
     #[test]

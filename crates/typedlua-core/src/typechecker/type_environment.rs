@@ -1,5 +1,5 @@
 use rustc_hash::FxHashMap;
-use typedlua_parser::ast::statement::TypeParameter;
+use typedlua_parser::ast::statement::{ConstructorParameter, TypeParameter};
 use typedlua_parser::ast::types::{PrimitiveType, Type, TypeKind};
 use typedlua_parser::span::Span;
 
@@ -29,6 +29,8 @@ pub struct TypeEnvironment {
     class_implements: FxHashMap<String, Vec<Type>>,
     /// Abstract classes (class name -> is_abstract)
     abstract_classes: FxHashMap<String, bool>,
+    /// Class primary constructors (class name -> constructor parameters)
+    class_constructors: FxHashMap<String, Vec<ConstructorParameter>>,
 }
 
 impl TypeEnvironment {
@@ -42,6 +44,7 @@ impl TypeEnvironment {
             type_param_constraints: FxHashMap::default(),
             class_implements: FxHashMap::default(),
             abstract_classes: FxHashMap::default(),
+            class_constructors: FxHashMap::default(),
         };
 
         env.register_builtins();
@@ -202,6 +205,20 @@ impl TypeEnvironment {
             .get(class_name)
             .copied()
             .unwrap_or(false)
+    }
+
+    /// Register a class's primary constructor parameters
+    pub fn register_class_constructor(
+        &mut self,
+        class_name: String,
+        params: Vec<ConstructorParameter>,
+    ) {
+        self.class_constructors.insert(class_name, params);
+    }
+
+    /// Get a class's primary constructor parameters
+    pub fn get_class_constructor(&self, class_name: &str) -> Option<&Vec<ConstructorParameter>> {
+        self.class_constructors.get(class_name)
     }
 
     /// Resolve a type reference, detecting cycles

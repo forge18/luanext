@@ -76,17 +76,17 @@ fn test_generic_method_overriding_generic_parent() {
 fn test_generic_method_overriding_non_generic_parent() {
     let source = r#"
         class Processor {
-            process(value: any): any {
+            process(value: unknown): unknown {
                 return value
             }
         }
-        
+
         class TypedProcessor<T> extends Processor {
             override process(value: T): T {
                 return value
             }
         }
-        
+
         const processor = new TypedProcessor<string>()
         const result = processor.process("hello")
     "#;
