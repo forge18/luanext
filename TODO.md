@@ -2394,9 +2394,9 @@ fuzz/
     - [x] Inlining count at O2 vs O3 - Function inlining tests in function_inlining_tests.rs and optimizer_integration_tests.rs
     - [x] Dead code elimination - O1 tests verify dead code after return is eliminated
     - [x] Constant folding - O1 tests verify constant arithmetic expressions are folded
-  - [ ] **Incremental Compilation:**
-    - [ ] Re-typecheck after single-file change
-    - [ ] Cache hit rate for unchanged modules
+  - [x] **Incremental Compilation:**
+    - [x] Re-typecheck after single-file change
+    - [x] Cache hit rate for unchanged modules
 
 - [x] **Stress Tests** (expand `tests/stress_tests.rs`)
   - [x] Large array literal (10K+ elements)

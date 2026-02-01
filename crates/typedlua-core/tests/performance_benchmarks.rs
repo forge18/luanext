@@ -985,3 +985,260 @@ fn test_rich_enum_instance_precomputation() {
         duration
     );
 }
+
+// ============================================================================
+// Incremental Compilation Benchmarks (Section 7.2)
+// ============================================================================
+
+use typedlua_core::cache::{CacheManager, CachedModule};
+use typedlua_core::config::CompilerOptions;
+use typedlua_core::module_resolver::ModuleExports;
+use typedlua_core::typechecker::SerializableSymbolTable;
+
+/// Benchmark incremental compilation: re-typecheck after single-file change
+#[test]
+fn test_incremental_retypecheck_single_file_change() {
+    // Create a multi-file project simulation
+    let project_root = std::env::temp_dir().join("typedlua_incremental_test");
+    let _ = std::fs::remove_dir_all(&project_root);
+    std::fs::create_dir_all(&project_root).unwrap();
+
+    // Create 10 module files
+    let mut file_paths = Vec::new();
+    for i in 0..10 {
+        let file_path = project_root.join(format!("module_{}.tl", i));
+        let mut content = String::new();
+
+        // Each module exports a class and some functions
+        content.push_str(&format!("export class Module{} {{\n", i));
+        content.push_str("    public value: number\n");
+        content.push_str(&format!(
+            "    constructor(v: number) {{ self.value = v }}\n"
+        ));
+        content.push_str("}\n\n");
+
+        // Add some functions that use other modules (imports)
+        if i > 0 {
+            content.push_str(&format!(
+                "import {{ Module{} }} from './module_{}'\n",
+                i - 1,
+                i - 1
+            ));
+            content.push_str(&format!(
+                "export function processModule{}(m: Module{}): number {{\n",
+                i,
+                i - 1
+            ));
+            content.push_str("    return m.value * 2\n");
+            content.push_str("}\n");
+        }
+
+        std::fs::write(&file_path, content).unwrap();
+        file_paths.push(file_path);
+    }
+
+    // First compile - full compile, populate cache
+    let config = CompilerOptions::default();
+    let mut cache_manager = CacheManager::new(&project_root, &config).unwrap();
+    let _ = cache_manager.clear();
+
+    let handler = Arc::new(CollectingDiagnosticHandler::new());
+    let (interner, common_ids) = StringInterner::new_with_common_identifiers();
+    let interner = Rc::new(interner);
+
+    let full_compile_start = Instant::now();
+
+    // Compile all files
+    for file_path in &file_paths {
+        let source = std::fs::read_to_string(file_path).unwrap();
+        let mut lexer = Lexer::new(&source, handler.clone(), &interner);
+        let tokens = lexer.tokenize().expect("Lexing failed");
+        let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
+        let mut program = parser.parse().expect("Parsing failed");
+
+        let mut type_checker =
+            TypeChecker::new(handler.clone(), &interner, &common_ids).with_options(config.clone());
+        type_checker
+            .check_program(&mut program)
+            .expect("Type checking failed");
+
+        // Save to cache
+        let exports = ModuleExports::new();
+        let symbol_table = SerializableSymbolTable { symbols: vec![] };
+        let interner_strings: Vec<String> = vec![];
+        let cached = CachedModule::new(
+            file_path.clone(),
+            program.clone(),
+            exports,
+            symbol_table,
+            interner_strings,
+        );
+        let _ = cache_manager.save_module(file_path, &cached, vec![]);
+    }
+
+    let full_compile_time = full_compile_start.elapsed();
+    println!("Full compile (10 modules): {:?}", full_compile_time);
+
+    // Simulate changing one file
+    let changed_file = &file_paths[5];
+    let mut modified_content = std::fs::read_to_string(changed_file).unwrap();
+    modified_content.push_str("\n// Modified\n");
+    std::fs::write(changed_file, modified_content).unwrap();
+
+    // Incremental compile - only recompile changed file and dependents
+    let incremental_start = Instant::now();
+
+    // Detect changes
+    let changed = cache_manager.detect_changes(&file_paths).unwrap();
+    let stale_files = cache_manager.compute_stale_modules(&changed);
+
+    // Recompile only stale files
+    let mut recompiled = 0;
+    for file_path in &file_paths {
+        let canonical = file_path
+            .canonicalize()
+            .unwrap_or_else(|_| file_path.clone());
+        if stale_files.contains(&canonical) {
+            recompiled += 1;
+            let source = std::fs::read_to_string(file_path).unwrap();
+            let mut lexer = Lexer::new(&source, handler.clone(), &interner);
+            let tokens = lexer.tokenize().expect("Lexing failed");
+            let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
+            let mut program = parser.parse().expect("Parsing failed");
+
+            let mut type_checker = TypeChecker::new(handler.clone(), &interner, &common_ids)
+                .with_options(config.clone());
+            type_checker
+                .check_program(&mut program)
+                .expect("Type checking failed");
+        }
+    }
+
+    let incremental_time = incremental_start.elapsed();
+    println!(
+        "Incremental compile ({} modules changed): {:?}",
+        recompiled, incremental_time
+    );
+
+    // Cleanup
+    let _ = std::fs::remove_dir_all(&project_root);
+
+    // Assert incremental is significantly faster
+    let speedup = full_compile_time.as_millis() as f64 / incremental_time.as_millis().max(1) as f64;
+    println!("Incremental speedup: {:.2}x", speedup);
+
+    assert!(
+        recompiled < 10,
+        "Should only recompile changed file and dependents, not all {} modules",
+        recompiled
+    );
+    assert!(
+        incremental_time < full_compile_time / 2,
+        "Incremental compile should be at least 2x faster than full compile"
+    );
+}
+
+/// Benchmark cache hit rate for unchanged modules
+#[test]
+fn test_cache_hit_rate_unchanged_modules() {
+    // Create a multi-file project
+    let project_root = std::env::temp_dir().join("typedlua_cache_hit_test");
+    let _ = std::fs::remove_dir_all(&project_root);
+    std::fs::create_dir_all(&project_root).unwrap();
+
+    // Create 20 module files
+    let mut file_paths = Vec::new();
+    for i in 0..20 {
+        let file_path = project_root.join(format!("cache_module_{}.tl", i));
+        let mut content = String::new();
+
+        content.push_str(&format!("export class CacheModule{} {{\n", i));
+        content.push_str("    public data: string\n");
+        content.push_str("    public count: number\n");
+        content.push_str(&format!("    constructor() {{\n"));
+        content.push_str(&format!("        self.data = \"module{}\"\n", i));
+        content.push_str("        self.count = 0\n");
+        content.push_str("    }\n");
+        content.push_str("}\n\n");
+
+        // Add export functions
+        for j in 0..5 {
+            content.push_str(&format!(
+                "export function helper{}(): number {{ return {} }}\n",
+                j,
+                j * 10
+            ));
+        }
+
+        std::fs::write(&file_path, content).unwrap();
+        file_paths.push(file_path);
+    }
+
+    let config = CompilerOptions::default();
+    let mut cache_manager = CacheManager::new(&project_root, &config).unwrap();
+    let _ = cache_manager.clear();
+
+    // First compile - populate cache
+    let handler = Arc::new(CollectingDiagnosticHandler::new());
+    let (interner, common_ids) = StringInterner::new_with_common_identifiers();
+    let interner = Rc::new(interner);
+
+    for file_path in &file_paths {
+        let source = std::fs::read_to_string(file_path).unwrap();
+        let mut lexer = Lexer::new(&source, handler.clone(), &interner);
+        let tokens = lexer.tokenize().expect("Lexing failed");
+        let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
+        let mut program = parser.parse().expect("Parsing failed");
+
+        let mut type_checker =
+            TypeChecker::new(handler.clone(), &interner, &common_ids).with_options(config.clone());
+        type_checker
+            .check_program(&mut program)
+            .expect("Type checking failed");
+
+        let exports = ModuleExports::new();
+        let symbol_table = SerializableSymbolTable { symbols: vec![] };
+        let interner_strings: Vec<String> = vec![];
+        let cached = CachedModule::new(
+            file_path.clone(),
+            program.clone(),
+            exports,
+            symbol_table,
+            interner_strings,
+        );
+        let _ = cache_manager.save_module(file_path, &cached, vec![]);
+    }
+
+    // Second compile - all files should be cache hits
+    let cache_start = Instant::now();
+
+    let changed = cache_manager.detect_changes(&file_paths).unwrap();
+    let stale_files = cache_manager.compute_stale_modules(&changed);
+
+    let total_files = file_paths.len();
+    let stale_count = stale_files.len();
+    let cache_hits = total_files - stale_count;
+    let hit_rate = (cache_hits as f64 / total_files as f64) * 100.0;
+
+    let cache_time = cache_start.elapsed();
+
+    println!(
+        "Cache hit rate: {}/{} files ({:.1}%)",
+        cache_hits, total_files, hit_rate
+    );
+    println!("Cache check time: {:?}", cache_time);
+
+    // Cleanup
+    let _ = std::fs::remove_dir_all(&project_root);
+
+    assert!(
+        hit_rate >= 95.0,
+        "Cache hit rate should be >= 95% for unchanged files, got {:.1}%",
+        hit_rate
+    );
+    assert!(
+        cache_time.as_millis() < 100,
+        "Cache validation should be fast (< 100ms), took {:?}",
+        cache_time
+    );
+}
