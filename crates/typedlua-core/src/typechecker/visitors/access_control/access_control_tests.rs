@@ -6,6 +6,7 @@ mod tests {
     };
     use typedlua_parser::ast::statement::AccessModifier;
     use typedlua_parser::ast::types::{PrimitiveType, Type, TypeKind};
+    use typedlua_parser::prelude::OperatorKind;
     use typedlua_parser::span::Span;
 
     fn create_test_member(name: &str, access: AccessModifier) -> ClassMemberInfo {
@@ -32,6 +33,50 @@ mod tests {
                 parameters: vec![],
                 return_type: None,
                 is_abstract: false,
+            },
+            is_final: false,
+        }
+    }
+
+    fn create_test_getter(
+        name: &str,
+        access: AccessModifier,
+        return_type: Type,
+    ) -> ClassMemberInfo {
+        ClassMemberInfo {
+            name: name.to_string(),
+            access,
+            _is_static: false,
+            kind: ClassMemberKind::Getter { return_type },
+            is_final: false,
+        }
+    }
+
+    fn create_test_setter(name: &str, access: AccessModifier, param_type: Type) -> ClassMemberInfo {
+        ClassMemberInfo {
+            name: name.to_string(),
+            access,
+            _is_static: false,
+            kind: ClassMemberKind::Setter {
+                parameter_type: param_type,
+            },
+            is_final: false,
+        }
+    }
+
+    fn create_test_operator(
+        name: &str,
+        access: AccessModifier,
+        operator: OperatorKind,
+    ) -> ClassMemberInfo {
+        ClassMemberInfo {
+            name: name.to_string(),
+            access,
+            _is_static: true,
+            kind: ClassMemberKind::Operator {
+                operator,
+                parameters: vec![],
+                return_type: None,
             },
             is_final: false,
         }
@@ -890,6 +935,279 @@ mod tests {
         assert!(
             access_control.get_current_class().is_none(),
             "Should have no current class after clearing"
+        );
+    }
+
+    #[test]
+    fn test_getter_member_access() {
+        let mut access_control = AccessControl::new();
+
+        access_control.register_class("MyClass", None);
+        access_control.register_member(
+            "MyClass",
+            ClassMemberInfo {
+                name: "value".to_string(),
+                access: AccessModifier::Public,
+                _is_static: false,
+                kind: ClassMemberKind::Getter {
+                    return_type: Type::new(
+                        TypeKind::Primitive(PrimitiveType::Number),
+                        Span::default(),
+                    ),
+                },
+                is_final: false,
+            },
+        );
+
+        let current_class = Some(ClassContext {
+            name: "MyClass".to_string(),
+            parent: None,
+            extends_type: None,
+        });
+
+        let result =
+            access_control.check_member_access(&current_class, "MyClass", "value", Span::default());
+
+        assert!(result.is_ok(), "Getter should be accessible");
+    }
+
+    #[test]
+    fn test_setter_member_access() {
+        let mut access_control = AccessControl::new();
+
+        access_control.register_class("MyClass", None);
+        access_control.register_member(
+            "MyClass",
+            ClassMemberInfo {
+                name: "value".to_string(),
+                access: AccessModifier::Public,
+                _is_static: false,
+                kind: ClassMemberKind::Setter {
+                    parameter_type: Type::new(
+                        TypeKind::Primitive(PrimitiveType::Number),
+                        Span::default(),
+                    ),
+                },
+                is_final: false,
+            },
+        );
+
+        let current_class = Some(ClassContext {
+            name: "MyClass".to_string(),
+            parent: None,
+            extends_type: None,
+        });
+
+        let result =
+            access_control.check_member_access(&current_class, "MyClass", "value", Span::default());
+
+        assert!(result.is_ok(), "Setter should be accessible");
+    }
+
+    #[test]
+    fn test_operator_overload_access() {
+        let mut access_control = AccessControl::new();
+
+        access_control.register_class("MyClass", None);
+        access_control.register_member(
+            "MyClass",
+            ClassMemberInfo {
+                name: "__add".to_string(),
+                access: AccessModifier::Public,
+                _is_static: true,
+                kind: ClassMemberKind::Operator {
+                    operator: OperatorKind::Add,
+                    parameters: vec![],
+                    return_type: None,
+                },
+                is_final: false,
+            },
+        );
+
+        let current_class: Option<ClassContext> = None;
+
+        let result =
+            access_control.check_member_access(&current_class, "MyClass", "__add", Span::default());
+
+        assert!(result.is_ok(), "Operator overload should be accessible");
+    }
+
+    #[test]
+    fn test_final_property_access() {
+        let mut access_control = AccessControl::new();
+
+        access_control.register_class("MyClass", None);
+        access_control.register_member(
+            "MyClass",
+            create_test_member("constProp", AccessModifier::Public),
+        );
+        access_control.register_class("MyClass", None);
+        let mut member = create_test_member("constProp", AccessModifier::Public);
+        member.is_final = true;
+        access_control.register_member("MyClass", member);
+
+        let current_class: Option<ClassContext> = None;
+
+        let result = access_control.check_member_access(
+            &current_class,
+            "MyClass",
+            "constProp",
+            Span::default(),
+        );
+
+        assert!(
+            result.is_ok(),
+            "Final property should be accessible for reading"
+        );
+    }
+
+    #[test]
+    fn test_protected_access_from_great_grandchild() {
+        let mut access_control = AccessControl::new();
+
+        access_control.register_class("GreatGrandParent", None);
+        access_control.register_member(
+            "GreatGrandParent",
+            create_test_member("ancestral", AccessModifier::Protected),
+        );
+
+        access_control.register_class("GrandParent", Some("GreatGrandParent".to_string()));
+        access_control.register_class("Parent", Some("GrandParent".to_string()));
+        access_control.register_class("Child", Some("Parent".to_string()));
+
+        let current_class = Some(ClassContext {
+            name: "Child".to_string(),
+            parent: Some("Parent".to_string()),
+            extends_type: None,
+        });
+        access_control.set_current_class(current_class.clone());
+
+        let result = access_control.check_member_access(
+            &current_class,
+            "GreatGrandParent",
+            "ancestral",
+            Span::default(),
+        );
+
+        assert!(
+            result.is_ok(),
+            "Protected member should be accessible from great-grandchild"
+        );
+    }
+
+    #[test]
+    fn test_is_class_final_nonexistent() {
+        let access_control = AccessControl::new();
+
+        assert!(
+            !access_control.is_class_final("NonExistentClass"),
+            "Nonexistent class should not be considered final"
+        );
+    }
+
+    #[test]
+    fn test_register_class_implements() {
+        let mut access_control = AccessControl::new();
+
+        access_control.register_class("MyClass", None);
+        access_control.register_class_implements(
+            "MyClass",
+            vec!["Printable".to_string(), "Cloneable".to_string()],
+        );
+
+        let interfaces = access_control.get_class_implements("MyClass");
+        assert!(
+            interfaces.is_some(),
+            "Should return Some for existing class"
+        );
+        let interfaces = interfaces.unwrap();
+        assert_eq!(interfaces.len(), 2, "Should have two interfaces");
+        assert!(interfaces.contains(&"Printable".to_string()));
+        assert!(interfaces.contains(&"Cloneable".to_string()));
+    }
+
+    #[test]
+    fn test_get_class_implements_nonexistent() {
+        let access_control = AccessControl::new();
+
+        let interfaces = access_control.get_class_implements("NonExistentClass");
+        assert!(interfaces.is_none(), "Nonexistent class should return None");
+    }
+
+    #[test]
+    fn test_mixed_static_and_instance_members() {
+        let mut access_control = AccessControl::new();
+
+        access_control.register_class("MyClass", None);
+        access_control.register_member(
+            "MyClass",
+            ClassMemberInfo {
+                name: "instanceProp".to_string(),
+                access: AccessModifier::Public,
+                _is_static: false,
+                kind: ClassMemberKind::Property {
+                    type_annotation: Type::new(
+                        TypeKind::Primitive(PrimitiveType::Number),
+                        Span::default(),
+                    ),
+                },
+                is_final: false,
+            },
+        );
+        access_control.register_member(
+            "MyClass",
+            ClassMemberInfo {
+                name: "staticProp".to_string(),
+                access: AccessModifier::Public,
+                _is_static: true,
+                kind: ClassMemberKind::Property {
+                    type_annotation: Type::new(
+                        TypeKind::Primitive(PrimitiveType::Number),
+                        Span::default(),
+                    ),
+                },
+                is_final: false,
+            },
+        );
+
+        let members = access_control.get_class_members("MyClass").unwrap();
+        assert_eq!(members.len(), 2, "Class should have both members");
+    }
+
+    #[test]
+    fn test_protected_with_same_named_member_in_child() {
+        let mut access_control = AccessControl::new();
+
+        access_control.register_class("Parent", None);
+        access_control.register_member(
+            "Parent",
+            create_test_member("value", AccessModifier::Protected),
+        );
+
+        access_control.register_class("Child", Some("Parent".to_string()));
+        access_control.register_member(
+            "Child",
+            create_test_member("value", AccessModifier::Private),
+        );
+
+        let current_class = Some(ClassContext {
+            name: "Child".to_string(),
+            parent: Some("Parent".to_string()),
+            extends_type: None,
+        });
+        access_control.set_current_class(current_class.clone());
+
+        // Child should be able to access its own private member
+        let result =
+            access_control.check_member_access(&current_class, "Child", "value", Span::default());
+        assert!(result.is_ok(), "Child should access its own private member");
+
+        // Parent's protected member should still be accessible
+        let result =
+            access_control.check_member_access(&current_class, "Parent", "value", Span::default());
+        assert!(
+            result.is_ok(),
+            "Child should access parent's protected member"
         );
     }
 }

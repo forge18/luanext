@@ -89,6 +89,9 @@ pub trait AccessControlVisitor: TypeCheckVisitor {
 
     /// Register the interfaces that a class implements
     fn register_class_implements(&mut self, class_name: &str, interfaces: Vec<String>);
+
+    /// Get the interfaces implemented by a class
+    fn get_class_implements(&self, class_name: &str) -> Option<&Vec<String>>;
 }
 
 /// Default implementation of access control
@@ -320,6 +323,10 @@ impl AccessControlVisitor for AccessControl {
     fn register_class_implements(&mut self, class_name: &str, interfaces: Vec<String>) {
         self.class_implements
             .insert(class_name.to_string(), interfaces);
+    }
+
+    fn get_class_implements(&self, class_name: &str) -> Option<&Vec<String>> {
+        self.class_implements.get(class_name)
     }
 }
 

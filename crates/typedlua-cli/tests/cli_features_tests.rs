@@ -124,7 +124,23 @@ fn test_lexer_error_reporting() {
     // Invalid character that lexer can't handle
     fs::write(&input_file, "const x = @@@").unwrap();
 
-    typedlua_cmd().arg(input_file).assert().failure();
+    let output = typedlua_cmd().arg(&input_file).output().unwrap();
+
+    assert!(
+        !output.status.success(),
+        "Lexer error should cause compilation failure"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("error"),
+        "Error output should contain 'error', got: {}",
+        stderr
+    );
+    assert!(
+        stderr.contains("Unexpected token") || stderr.contains("error"),
+        "Lexer error should mention unexpected token or generic error, got: {}",
+        stderr
+    );
 }
 
 /// Test parser errors are reported
@@ -136,7 +152,23 @@ fn test_parser_error_reporting() {
     // Syntax error: unclosed brace
     fs::write(&input_file, "const obj = { x = 1").unwrap();
 
-    typedlua_cmd().arg(input_file).assert().failure();
+    let output = typedlua_cmd().arg(&input_file).output().unwrap();
+
+    assert!(
+        !output.status.success(),
+        "Parser error should cause compilation failure"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("error"),
+        "Error output should contain 'error', got: {}",
+        stderr
+    );
+    assert!(
+        stderr.contains("Expected") || stderr.contains("error"),
+        "Parser error should mention expected or generic error, got: {}",
+        stderr
+    );
 }
 
 // ============================================================================
@@ -162,9 +194,22 @@ fn test_out_file_concatenation() {
         .assert()
         .success();
 
-    assert!(out_file.exists());
+    assert!(out_file.exists(), "Output bundle file should exist");
     let content = fs::read_to_string(&out_file).unwrap();
-    assert!(content.contains("a") && content.contains("b"));
+    assert!(
+        content.contains("a"),
+        "Bundled output should contain 'a', got: {}",
+        content
+    );
+    assert!(
+        content.contains("b"),
+        "Bundled output should contain 'b', got: {}",
+        content
+    );
+    assert!(
+        !content.contains(": number"),
+        "Type annotations should be stripped from bundled output"
+    );
 }
 
 /// Test inline source maps
@@ -182,9 +227,23 @@ fn test_inline_source_map() {
         .assert()
         .success();
 
+    assert!(
+        output_file.exists(),
+        "Output file should exist after compilation"
+    );
     let output = fs::read_to_string(&output_file).unwrap();
-    // Inline source maps are embedded as comments
-    assert!(output.contains("sourceMappingURL") || !output.is_empty());
+    assert!(
+        !output.is_empty(),
+        "Generated Lua output should not be empty"
+    );
+    assert!(
+        output.contains("sourceMappingURL"),
+        "Inline source map should include sourceMappingURL comment"
+    );
+    assert!(
+        !output.contains(": number"),
+        "Type annotations should be stripped"
+    );
 }
 
 // ============================================================================

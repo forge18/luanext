@@ -43,10 +43,26 @@ fn test_compile_with_type_error() {
     )
     .unwrap();
 
-    typedlua_cmd()
+    let output = typedlua_cmd()
         .arg(input_file.to_str().unwrap())
-        .assert()
-        .failure();
+        .output()
+        .unwrap();
+
+    assert!(
+        !output.status.success(),
+        "Compilation should fail for type error"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("Type mismatch"),
+        "Error should mention 'Type mismatch', got: {}",
+        stderr
+    );
+    assert!(
+        stderr.contains("error"),
+        "Error should contain 'error', got: {}",
+        stderr
+    );
 }
 
 /// Test output directory option
@@ -166,7 +182,30 @@ fn test_function_compilation() {
         .success();
 
     let output = fs::read_to_string(&output_file).unwrap();
-    assert!(output.contains("function add"));
+    assert!(
+        output.contains("function add"),
+        "Generated Lua should contain 'function add'"
+    );
+    assert!(
+        output.contains("return"),
+        "Generated Lua should contain 'return' statement"
+    );
+    assert!(
+        output.contains("a + b"),
+        "Generated Lua should preserve the addition expression"
+    );
+    assert!(
+        output.contains("result"),
+        "Generated Lua should contain the const variable name"
+    );
+    assert!(
+        !output.contains(": number"),
+        "Type annotations should be stripped from generated Lua"
+    );
+    assert!(
+        !output.contains(": string"),
+        "Type annotations should be stripped from generated Lua"
+    );
 }
 
 /// Test class compilation
@@ -192,7 +231,32 @@ fn test_class_compilation() {
         .assert()
         .success();
 
-    assert!(output_file.exists());
+    assert!(
+        output_file.exists(),
+        "Output file should exist after successful compilation"
+    );
+
+    let output = fs::read_to_string(&output_file).unwrap();
+    assert!(
+        output.contains("Point"),
+        "Generated Lua should contain class name 'Point'"
+    );
+    assert!(
+        output.contains("x"),
+        "Generated Lua should contain field 'x'"
+    );
+    assert!(
+        output.contains("y"),
+        "Generated Lua should contain field 'y'"
+    );
+    assert!(
+        !output.contains("public"),
+        "Access modifiers should be stripped from generated Lua"
+    );
+    assert!(
+        !output.contains(": number"),
+        "Type annotations should be stripped from generated Lua"
+    );
 }
 
 /// Test interface type checking
@@ -241,12 +305,28 @@ fn test_invalid_interface() {
     )
     .unwrap();
 
-    typedlua_cmd()
+    let output = typedlua_cmd()
         .arg(input_file.to_str().unwrap())
         .arg("--no-emit")
-        .arg("--no-cache") // Disable cache to ensure type error is detected
-        .assert()
-        .failure();
+        .arg("--no-cache")
+        .output()
+        .unwrap();
+
+    assert!(
+        !output.status.success(),
+        "Compilation should fail for missing interface field"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("Type mismatch"),
+        "Error should mention 'Type mismatch' for interface mismatch, got: {}",
+        stderr
+    );
+    assert!(
+        stderr.contains("User"),
+        "Error should reference the interface name 'User', got: {}",
+        stderr
+    );
 }
 
 /// Test --version flag

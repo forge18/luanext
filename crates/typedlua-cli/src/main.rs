@@ -727,14 +727,24 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
         match result.result {
             Ok(output) => {
                 if !cli.no_emit {
-                    // Write output file
                     if let Some(parent) = output.output_path.parent() {
                         std::fs::create_dir_all(parent)?;
                     }
-                    std::fs::write(&output.output_path, &output.lua_code)?;
+
+                    let code_to_write = if cli.inline_source_map {
+                        if let Some(ref source_map) = output.source_map {
+                            let comment = source_map.to_comment()?;
+                            format!("{}\n{}", output.lua_code, comment)
+                        } else {
+                            output.lua_code
+                        }
+                    } else {
+                        output.lua_code
+                    };
+
+                    std::fs::write(&output.output_path, &code_to_write)?;
                     info!("Generated: {:?}", output.output_path);
 
-                    // Write source map if requested
                     if cli.source_map && !cli.inline_source_map {
                         if let Some(source_map) = output.source_map {
                             let map_path = output.output_path.with_extension("lua.map");
