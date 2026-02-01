@@ -974,21 +974,17 @@ impl TypeInferenceVisitor for TypeInferrer<'_> {
                 // Only use concrete type annotations (no unresolved type parameters).
                 // Generic class members contain raw type params like T that need
                 // substitution, so we skip those and fall through to Unknown.
-                if let Some(class_members) =
-                    self.access_control.get_class_members(&type_name)
-                {
+                if let Some(class_members) = self.access_control.get_class_members(&type_name) {
                     for m in class_members {
                         if m.name == member {
                             match &m.kind {
                                 ClassMemberKind::Property { type_annotation }
-                                    if !self
-                                        .type_has_unresolved_params(type_annotation) =>
+                                    if !self.type_has_unresolved_params(type_annotation) =>
                                 {
                                     return Ok(type_annotation.clone());
                                 }
                                 ClassMemberKind::Getter { return_type }
-                                    if !self
-                                        .type_has_unresolved_params(return_type) =>
+                                    if !self.type_has_unresolved_params(return_type) =>
                                 {
                                     return Ok(return_type.clone());
                                 }
@@ -1444,14 +1440,12 @@ impl TypeInferrer<'_> {
                 self.type_env.lookup_type(&name).is_none()
                     && self.access_control.get_class_members(&name).is_none()
             }
-            TypeKind::Union(types)
-            | TypeKind::Intersection(types)
-            | TypeKind::Tuple(types) => {
+            TypeKind::Union(types) | TypeKind::Intersection(types) | TypeKind::Tuple(types) => {
                 types.iter().any(|t| self.type_has_unresolved_params(t))
             }
-            TypeKind::Array(elem)
-            | TypeKind::Nullable(elem)
-            | TypeKind::Parenthesized(elem) => self.type_has_unresolved_params(elem),
+            TypeKind::Array(elem) | TypeKind::Nullable(elem) | TypeKind::Parenthesized(elem) => {
+                self.type_has_unresolved_params(elem)
+            }
             _ => false,
         }
     }

@@ -2372,11 +2372,11 @@ fuzz/
     - [x] Type checking 10K lines of code
     - [x] Type checking 100K lines of code
     - [x] Full compilation (parse + typecheck + codegen)
-  - [ ] **Optimization Benchmarks:**
-    - [ ] O0 vs O1 optimization time
-    - [ ] O1 vs O2 optimization time
-    - [ ] O2 vs O3 optimization time
-    - [ ] Generated code size reduction % at each level
+  - [x] **Optimization Benchmarks:***
+    - [x] O0 vs O1 optimization time
+    - [x] O1 vs O2 optimization time
+    - [x] O2 vs O3 optimization time
+    - [x] Generated code size reduction % at each level
   - [ ] **Feature Performance:**
     - [ ] Deep inheritance (5, 10, 20 levels)
     - [ ] Complex generic inference

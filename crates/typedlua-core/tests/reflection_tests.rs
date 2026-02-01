@@ -57,6 +57,17 @@ fn test_class_has_type_metadata() {
 
             getName(): string {
                 return self.name
+            }
+        }
+    "#;
+
+    let result = compile_and_generate(source);
+    match &result {
+        Ok(output) => {
+            println!("Generated code:\n{}", output);
+        }
+        Err(e) => {
+            panic!("Should compile successfully: {}", e);
         }
     }
 }

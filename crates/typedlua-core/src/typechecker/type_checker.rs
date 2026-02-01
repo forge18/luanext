@@ -560,7 +560,11 @@ impl<'a> TypeChecker<'a> {
 
         // Set current function return type for return statement checking
         let old_return_type = self.current_function_return_type.clone();
-        self.current_function_return_type = decl.return_type.clone();
+        let resolved_return_type = decl.return_type.as_ref().map(|rt| {
+            let evaluated = self.evaluate_type(rt).unwrap_or_else(|_| rt.clone());
+            self.deep_resolve_type(&evaluated)
+        });
+        self.current_function_return_type = resolved_return_type;
 
         // Check function body (scope-safe: always exit scope even on error)
         let body_result = self.check_block(&mut decl.body);

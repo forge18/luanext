@@ -165,7 +165,7 @@ fn test_typecheck_1k_lines() {
 
 #[test]
 fn test_typecheck_10k_lines() {
-    let source = generate_test_code(10_000);
+    let source = generate_test_code(10000);
     let line_count = source.lines().count();
     println!("Testing type checking with {} lines of code", line_count);
 
@@ -216,7 +216,7 @@ fn test_full_compile_1k_lines() {
 
 #[test]
 fn test_full_compile_10k_lines() {
-    let source = generate_test_code(10_000);
+    let source = generate_test_code(10000);
     let line_count = source.lines().count();
     println!("Testing full compilation with {} lines of code", line_count);
 
@@ -382,63 +382,81 @@ fn benchmark_optimization_level(
 /// Generates code that benefits from optimizations
 fn generate_optimizable_code(target_lines: usize) -> String {
     let mut code = String::new();
-
+    
     // Add header
     code.push_str("// Optimizable code for benchmarking\n\n");
-
+    
     // Generate constants for constant folding
     for i in 0..100 {
         code.push_str(&format!("const CONST{} = {}\n", i, i * 10));
     }
     code.push_str("\n");
-
+    
     // Generate functions with opportunities for inlining
     let func_count = target_lines / 20;
     for i in 0..func_count {
-        code.push_str(&format!("function smallFunc{}(x: number): number {{\n", i));
+        code.push_str(&format!(
+            "function smallFunc{}(x: number): number {{\n",
+            i
+        ));
         code.push_str("    return x + 1\n");
         code.push_str("}\n\n");
-
-        code.push_str(&format!("function caller{}(): number {{\n", i));
-        code.push_str(&format!("    const a = smallFunc{}(1)\n", i));
-        code.push_str(&format!("    const b = smallFunc{}(a)\n", i));
-        code.push_str(&format!("    const c = smallFunc{}(b)\n", i));
+        
+        code.push_str(&format!(
+            "function caller{}(): number {{\n",
+            i
+        ));
+        code.push_str(&format!(
+            "    const a = smallFunc{}(1)\n",
+            i
+        ));
+        code.push_str(&format!(
+            "    const b = smallFunc{}(a)\n",
+            i
+        ));
+        code.push_str(&format!(
+            "    const c = smallFunc{}(b)\n",
+            i
+        ));
         code.push_str("    return a + b + c\n");
         code.push_str("}\n\n");
     }
-
+    
     // Generate dead code for DCE
     for i in 0..50 {
-        code.push_str(&format!("function deadFunc{}(): void {{\n", i));
+        code.push_str(&format!(
+            "function deadFunc{}(): void {{\n",
+            i
+        ));
         code.push_str("    const unused = 42\n");
         code.push_str("}\n\n");
     }
-
+    
     code
 }
 
 #[test]
 fn test_o0_vs_o1_optimization_time() {
     let source = generate_optimizable_code(2000);
-
+    
     let (o0_time, o0_size) = benchmark_optimization_level(&source, OptimizationLevel::O0)
         .expect("O0 compilation should succeed");
     let (o1_time, o1_size) = benchmark_optimization_level(&source, OptimizationLevel::O1)
         .expect("O1 compilation should succeed");
-
+    
     println!("O0 optimization: {:?}, size: {} bytes", o0_time, o0_size);
     println!("O1 optimization: {:?}, size: {} bytes", o1_time, o1_size);
-
+    
     // O1 should not be significantly slower than O0 (within 2x)
     let slowdown_ratio = o1_time.as_secs_f64() / o0_time.as_secs_f64().max(0.001);
     println!("O1/O0 slowdown ratio: {:.2}x", slowdown_ratio);
-
+    
     assert!(
         slowdown_ratio < 3.0,
         "O1 should not be more than 3x slower than O0, was {:.2}x",
         slowdown_ratio
     );
-
+    
     // O1 should produce smaller or equal code
     assert!(
         o1_size <= o0_size * 11 / 10, // Allow 10% variance
@@ -449,25 +467,25 @@ fn test_o0_vs_o1_optimization_time() {
 #[test]
 fn test_o1_vs_o2_optimization_time() {
     let source = generate_optimizable_code(2000);
-
+    
     let (o1_time, o1_size) = benchmark_optimization_level(&source, OptimizationLevel::O1)
         .expect("O1 compilation should succeed");
     let (o2_time, o2_size) = benchmark_optimization_level(&source, OptimizationLevel::O2)
         .expect("O2 compilation should succeed");
-
+    
     println!("O1 optimization: {:?}, size: {} bytes", o1_time, o1_size);
     println!("O2 optimization: {:?}, size: {} bytes", o2_time, o2_size);
-
+    
     // O2 may be slower than O1 but should still be reasonable (within 3x)
     let slowdown_ratio = o2_time.as_secs_f64() / o1_time.as_secs_f64().max(0.001);
     println!("O2/O1 slowdown ratio: {:.2}x", slowdown_ratio);
-
+    
     assert!(
         slowdown_ratio < 5.0,
         "O2 should not be more than 5x slower than O1, was {:.2}x",
         slowdown_ratio
     );
-
+    
     // O2 should produce smaller or equal code
     assert!(
         o2_size <= o1_size * 11 / 10, // Allow 10% variance
@@ -478,25 +496,25 @@ fn test_o1_vs_o2_optimization_time() {
 #[test]
 fn test_o2_vs_o3_optimization_time() {
     let source = generate_optimizable_code(2000);
-
+    
     let (o2_time, o2_size) = benchmark_optimization_level(&source, OptimizationLevel::O2)
         .expect("O2 compilation should succeed");
     let (o3_time, o3_size) = benchmark_optimization_level(&source, OptimizationLevel::O3)
         .expect("O3 compilation should succeed");
-
+    
     println!("O2 optimization: {:?}, size: {} bytes", o2_time, o2_size);
     println!("O3 optimization: {:?}, size: {} bytes", o3_time, o3_size);
-
+    
     // O3 may be slower than O2 due to aggressive optimizations
     let slowdown_ratio = o3_time.as_secs_f64() / o2_time.as_secs_f64().max(0.001);
     println!("O3/O2 slowdown ratio: {:.2}x", slowdown_ratio);
-
+    
     assert!(
         slowdown_ratio < 10.0,
         "O3 should not be more than 10x slower than O2, was {:.2}x",
         slowdown_ratio
     );
-
+    
     // O3 should produce smaller or equal code
     assert!(
         o3_size <= o2_size * 11 / 10, // Allow 10% variance
@@ -507,7 +525,7 @@ fn test_o2_vs_o3_optimization_time() {
 #[test]
 fn test_code_size_reduction_at_each_level() {
     let source = generate_optimizable_code(3000);
-
+    
     let (_, o0_size) = benchmark_optimization_level(&source, OptimizationLevel::O0)
         .expect("O0 compilation should succeed");
     let (_, o1_size) = benchmark_optimization_level(&source, OptimizationLevel::O1)
@@ -516,23 +534,19 @@ fn test_code_size_reduction_at_each_level() {
         .expect("O2 compilation should succeed");
     let (_, o3_size) = benchmark_optimization_level(&source, OptimizationLevel::O3)
         .expect("O3 compilation should succeed");
-
-    println!(
-        "Code sizes - O0: {}, O1: {}, O2: {}, O3: {}",
-        o0_size, o1_size, o2_size, o3_size
-    );
-
+    
+    println!("Code sizes - O0: {}, O1: {}, O2: {}, O3: {}", 
+             o0_size, o1_size, o2_size, o3_size);
+    
     // Calculate reduction percentages
-    let o1_reduction = o0_size.saturating_sub(o1_size) as f64 / o0_size as f64 * 100.0;
-    let o2_reduction = o1_size.saturating_sub(o2_size) as f64 / o1_size as f64 * 100.0;
-    let o3_reduction = o2_size.saturating_sub(o3_size) as f64 / o2_size as f64 * 100.0;
-    let total_reduction = o0_size.saturating_sub(o3_size) as f64 / o0_size as f64 * 100.0;
-
-    println!(
-        "Size reduction - O0→O1: {:.1}%, O1→O2: {:.1}%, O2→O3: {:.1}%, Total: {:.1}%",
-        o1_reduction, o2_reduction, o3_reduction, total_reduction
-    );
-
+    let o1_reduction = ((o0_size - o1_size) as f64 / o0_size as f64 * 100.0).max(0.0);
+    let o2_reduction = ((o1_size - o2_size) as f64 / o1_size as f64 * 100.0).max(0.0);
+    let o3_reduction = ((o2_size - o3_size) as f64 / o2_size as f64 * 100.0).max(0.0);
+    let total_reduction = ((o0_size - o3_size) as f64 / o0_size as f64 * 100.0).max(0.0);
+    
+    println!("Size reduction - O0→O1: {:.1}%, O1→O2: {:.1}%, O2→O3: {:.1}%, Total: {:.1}%",
+             o1_reduction, o2_reduction, o3_reduction, total_reduction);
+    
     // Each level should not increase code size significantly
     assert!(
         o1_size <= o0_size * 105 / 100,
@@ -546,7 +560,7 @@ fn test_code_size_reduction_at_each_level() {
         o3_size <= o2_size * 105 / 100,
         "O3 should not increase code size by more than 5%"
     );
-
+    
     // Log the actual reductions for monitoring
     println!("Code size reduction from O0 to O3: {:.1}%", total_reduction);
 }
@@ -564,21 +578,19 @@ fn test_optimization_preserves_correctness() {
         
         const result = compute(5)
     "#;
-
-    let (_, o0_size) =
-        benchmark_optimization_level(source, OptimizationLevel::O0).expect("O0 should succeed");
-    let (_, o1_size) =
-        benchmark_optimization_level(source, OptimizationLevel::O1).expect("O1 should succeed");
-    let (_, o2_size) =
-        benchmark_optimization_level(source, OptimizationLevel::O2).expect("O2 should succeed");
-    let (_, o3_size) =
-        benchmark_optimization_level(source, OptimizationLevel::O3).expect("O3 should succeed");
-
-    println!(
-        "Correctness test sizes - O0: {}, O1: {}, O2: {}, O3: {}",
-        o0_size, o1_size, o2_size, o3_size
-    );
-
+    
+    let (_, o0_size) = benchmark_optimization_level(source, OptimizationLevel::O0)
+        .expect("O0 should succeed");
+    let (_, o1_size) = benchmark_optimization_level(source, OptimizationLevel::O1)
+        .expect("O1 should succeed");
+    let (_, o2_size) = benchmark_optimization_level(source, OptimizationLevel::O2)
+        .expect("O2 should succeed");
+    let (_, o3_size) = benchmark_optimization_level(source, OptimizationLevel::O3)
+        .expect("O3 should succeed");
+    
+    println!("Correctness test sizes - O0: {}, O1: {}, O2: {}, O3: {}",
+             o0_size, o1_size, o2_size, o3_size);
+    
     // All levels should produce valid output (non-zero size)
     assert!(o0_size > 0, "O0 should produce output");
     assert!(o1_size > 0, "O1 should produce output");
