@@ -1,6 +1,8 @@
 pub mod builder;
+pub mod emitter;
 pub mod sourcemap;
 pub mod strategies;
+pub mod traits;
 
 pub mod classes;
 pub mod decorators;
@@ -9,6 +11,8 @@ pub mod expressions;
 pub mod modules;
 pub mod patterns;
 pub mod statements;
+
+pub use emitter::Emitter;
 
 use super::optimizer::Optimizer;
 pub use builder::CodeGeneratorBuilder;
@@ -101,10 +105,7 @@ pub enum CodeGenMode {
 
 /// Code generator for TypedLua to Lua
 pub struct CodeGenerator {
-    output: String,
-    indent_level: usize,
-    indent_str: String,
-    source_map: Option<SourceMapBuilder>,
+    emitter: Emitter,
     target: LuaTarget,
     current_class_parent: Option<StringId>,
     uses_built_in_decorators: bool,
@@ -134,18 +135,13 @@ pub struct CodeGenerator {
     registered_types: std::collections::HashMap<String, u32>,
     /// Code generation strategy for Lua version-specific logic
     strategy: Box<dyn strategies::CodeGenStrategy>,
-    /// Output format for generated code
-    output_format: crate::config::OutputFormat,
 }
 
 impl CodeGenerator {
     pub fn new(interner: Rc<StringInterner>) -> Self {
         let target = LuaTarget::default();
         Self {
-            output: String::new(),
-            indent_level: 0,
-            indent_str: "    ".to_string(),
-            source_map: None,
+            emitter: Emitter::new(),
             target,
             current_class_parent: None,
             uses_built_in_decorators: false,
@@ -162,18 +158,11 @@ impl CodeGenerator {
             next_type_id: 1,
             registered_types: std::collections::HashMap::new(),
             strategy: Self::create_strategy(target),
-            output_format: crate::config::OutputFormat::Readable,
         }
     }
 
     pub fn with_output_format(mut self, format: crate::config::OutputFormat) -> Self {
-        self.output_format = format;
-        // Adjust indent string based on format
-        self.indent_str = match format {
-            crate::config::OutputFormat::Minified => "".to_string(),
-            crate::config::OutputFormat::Compact => " ".to_string(),
-            crate::config::OutputFormat::Readable => "    ".to_string(),
-        };
+        self.emitter = self.emitter.with_output_format(format);
         self
     }
 
@@ -199,7 +188,7 @@ impl CodeGenerator {
     }
 
     pub fn with_source_map(mut self, source_file: String) -> Self {
-        self.source_map = Some(SourceMapBuilder::new(source_file));
+        self.emitter = self.emitter.with_source_map(source_file);
         self
     }
 
@@ -272,7 +261,7 @@ impl CodeGenerator {
             self.writeln(reflection::REFLECTION_MODULE);
         }
 
-        self.output.clone()
+        self.emitter.clone_output()
     }
 
     /// Generate a bundle from multiple modules
@@ -375,13 +364,13 @@ impl CodeGenerator {
 
             // If we're building a source map, enable it for the generator
             if with_source_map {
-                generator.source_map = Some(SourceMapBuilder::new(module_id.clone()));
+                generator.emitter = generator.emitter.with_source_map(module_id.clone());
             }
 
             let module_code = generator.generate(&mut program);
 
-            // Take the source map builder from the generator
-            let module_source_map_builder = generator.source_map.take();
+            // Clone the source map builder from the generator for merging
+            let module_source_map_builder = generator.emitter.clone_source_map();
 
             // Indent the module code and add mappings
             for line in module_code.lines() {
@@ -393,7 +382,7 @@ impl CodeGenerator {
             }
 
             // Merge module source map mappings into the bundle source map
-            if let (Some(ref mut builder), Some(module_builder)) = (
+            if let (Some(ref mut builder), Some(module_map)) = (
                 source_map_builder.as_mut(),
                 module_source_map_builder.as_ref(),
             ) {
@@ -404,8 +393,8 @@ impl CodeGenerator {
 
                     // Merge the module's mappings with proper offsets
                     // The module code is indented by 4 spaces, so we add 4 to the column offset
-                    builder.merge_mappings_from(
-                        module_builder,
+                    builder.merge_mappings_from_source_map(
+                        module_map,
                         start_line,
                         start_col + 4,
                         &source_index_map,
@@ -430,59 +419,27 @@ impl CodeGenerator {
     }
 
     pub fn take_source_map(&mut self) -> Option<SourceMap> {
-        self.source_map.take().map(|builder| builder.build())
+        self.emitter.take_source_map()
     }
 
     fn write(&mut self, s: &str) {
-        self.output.push_str(s);
-        if let Some(source_map) = &mut self.source_map {
-            source_map.advance(s);
-        }
+        self.emitter.write(s);
     }
 
     fn writeln(&mut self, s: &str) {
-        match self.output_format {
-            crate::config::OutputFormat::Minified => {
-                // In minified mode, only add newlines for statements that require them
-                // (like end keywords) but strip them from regular lines
-                self.output.push_str(s);
-            }
-            crate::config::OutputFormat::Compact => {
-                self.output.push_str(s);
-                self.output.push('\n');
-            }
-            crate::config::OutputFormat::Readable => {
-                self.output.push_str(s);
-                self.output.push('\n');
-            }
-        }
-        if let Some(source_map) = &mut self.source_map {
-            source_map.advance(s);
-            if !matches!(self.output_format, crate::config::OutputFormat::Minified) {
-                source_map.advance("\n");
-            }
-        }
+        self.emitter.writeln(s);
     }
 
     fn indent(&mut self) {
-        if !matches!(self.output_format, crate::config::OutputFormat::Minified) {
-            self.indent_level += 1;
-        }
+        self.emitter.indent();
     }
 
     fn dedent(&mut self) {
-        if self.indent_level > 0 {
-            self.indent_level -= 1;
-        }
+        self.emitter.dedent();
     }
 
     fn write_indent(&mut self) {
-        if matches!(self.output_format, crate::config::OutputFormat::Minified) {
-            return;
-        }
-        for _ in 0..self.indent_level {
-            self.write(&self.indent_str.clone());
-        }
+        self.emitter.write_indent();
     }
 
     fn finalize_module(&mut self) {
@@ -600,7 +557,6 @@ mod tests {
     fn test_generate_while_loop() {
         let source = "while x < 10 do x = x + 1 end";
         let output = generate_code(source);
-        println!("Generated output:\n{}", output);
         assert!(output.contains("while (x < 10) do"));
         // Assignment is parsed and will be in the output
         assert!(!output.trim().is_empty());
@@ -955,7 +911,6 @@ end
             }
         "#;
         let output = generate_code(source);
-        println!("Generated:\n{}", output);
 
         assert!(output.contains("local Person = {}"));
         assert!(output.contains("Person.__index = Person"));
@@ -974,7 +929,6 @@ end
             }
         "#;
         let output = generate_code(source);
-        println!("Generated:\n{}", output);
 
         assert!(output.contains("local Person = {}"));
         assert!(output.contains("Person.__index = Person"));
@@ -993,7 +947,6 @@ end
             }
         "#;
         let output = generate_code(source);
-        println!("Generated:\n{}", output);
 
         assert!(output.contains("local Calculator = {}"));
         assert!(output.contains("Calculator.__index = Calculator"));
@@ -1011,7 +964,6 @@ end
             }
         "#;
         let output = generate_code(source);
-        println!("Generated:\n{}", output);
 
         assert!(output.contains("local Math = {}"));
         assert!(output.contains("Math.__index = Math"));
@@ -1038,7 +990,6 @@ end
             }
         "#;
         let output = generate_code(source);
-        println!("Generated:\n{}", output);
 
         assert!(output.contains("local Counter = {}"));
         assert!(output.contains("Counter.__index = Counter"));
@@ -1059,7 +1010,6 @@ end
             }
         "#;
         let output = generate_code(source);
-        println!("Generated:\n{}", output);
 
         assert!(output.contains("local Animal = {}"));
         assert!(output.contains("Animal.__index = Animal"));
@@ -1083,7 +1033,6 @@ end
             }
         "#;
         let output = generate_code(source);
-        println!("Generated:\n{}", output);
 
         assert!(output.contains("local Person = {}"));
         assert!(output.contains("function Person:get_fullName()"));
@@ -1119,7 +1068,6 @@ end
             }
         "#;
         let output = generate_code(source);
-        println!("Generated:\n{}", output);
 
         // Check Animal class
         assert!(output.contains("local Animal = {}"));
@@ -1174,7 +1122,6 @@ end
             }
         "#;
         let output = generate_code(source);
-        println!("Generated:\n{}", output);
 
         // Check that super.speak() is translated to Animal.speak(self)
         assert!(output.contains("Animal.speak(self)"));
@@ -1205,7 +1152,6 @@ end
             }
         "#;
         let output = generate_code(source);
-        println!("Generated:\n{}", output);
 
         // Check that Animal has _init method
         assert!(output.contains("function Animal._init(self, name)"));

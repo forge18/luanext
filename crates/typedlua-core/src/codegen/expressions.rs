@@ -770,9 +770,9 @@ impl CodeGenerator {
     }
 
     pub fn expression_to_string(&mut self, expr: &Expression) -> String {
-        let original_output = std::mem::take(&mut self.output);
+        let original_output = std::mem::take(self.emitter.output_mut());
         self.generate_expression(expr);
-        std::mem::replace(&mut self.output, original_output)
+        std::mem::replace(self.emitter.output_mut(), original_output)
     }
 
     pub fn generate_null_coalesce(&mut self, left: &Expression, right: &Expression) {

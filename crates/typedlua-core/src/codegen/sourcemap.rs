@@ -185,6 +185,34 @@ impl SourceMapBuilder {
         }
     }
 
+    /// Merge mappings from another source map into this one
+    /// Applies the given line and column offsets to the generated positions
+    /// and remaps source indices using the provided source index mapping
+    pub fn merge_mappings_from_source_map(
+        &mut self,
+        other: &SourceMap,
+        line_offset: usize,
+        column_offset: usize,
+        source_index_map: &HashMap<usize, usize>,
+    ) {
+        for mapping in &other.mappings {
+            let new_source_index = source_index_map
+                .get(&mapping.source_index)
+                .copied()
+                .unwrap_or(0);
+            let name_index = None;
+
+            self.mappings.push(Mapping {
+                generated_line: mapping.generated_line + line_offset,
+                generated_column: mapping.generated_column + column_offset,
+                source_index: new_source_index,
+                source_line: mapping.source_line,
+                source_column: mapping.source_column,
+                name_index,
+            });
+        }
+    }
+
     /// Encode mappings using VLQ (Variable Length Quantity) encoding
     fn encode_mappings(&self) -> String {
         let mut result = String::new();
