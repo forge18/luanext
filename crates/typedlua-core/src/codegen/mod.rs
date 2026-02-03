@@ -382,7 +382,7 @@ impl CodeGenerator {
             }
 
             // Merge module source map mappings into the bundle source map
-            if let (Some(ref mut builder), Some(module_map)) = (
+            if let (Some(ref mut builder), Some(module_builder)) = (
                 source_map_builder.as_mut(),
                 module_source_map_builder.as_ref(),
             ) {
@@ -393,8 +393,8 @@ impl CodeGenerator {
 
                     // Merge the module's mappings with proper offsets
                     // The module code is indented by 4 spaces, so we add 4 to the column offset
-                    builder.merge_mappings_from_source_map(
-                        module_map,
+                    builder.merge_mappings_from(
+                        module_builder,
                         start_line,
                         start_col + 4,
                         &source_index_map,

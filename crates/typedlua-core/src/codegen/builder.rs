@@ -324,13 +324,13 @@ mod tests {
 
         // Without source map
         let generator = CodeGeneratorBuilder::new(interner.clone()).build();
-        assert!(generator.source_map.is_none());
+        assert!(generator.emitter.source_map().is_none());
 
         // With source map
         let generator = CodeGeneratorBuilder::new(interner)
             .source_map("test.tl".to_string())
             .build();
-        assert!(generator.source_map.is_some());
+        assert!(generator.emitter.source_map().is_some());
     }
 
     #[test]
@@ -394,7 +394,7 @@ mod tests {
             .build();
 
         assert_eq!(generator.target, LuaTarget::Lua53);
-        assert!(generator.source_map.is_some());
+        assert!(generator.emitter.source_map().is_some());
         assert!(matches!(
             generator.mode,
             CodeGenMode::Bundle { module_id } if module_id == "src/main"
