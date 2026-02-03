@@ -3,8 +3,6 @@ use crate::optimizer::OptimizationPass;
 use typedlua_parser::ast::expression::{Expression, ExpressionKind};
 use typedlua_parser::ast::statement::Statement;
 use typedlua_parser::ast::Program;
-use typedlua_parser::ast::Spanned;
-use typedlua_parser::span::Span;
 
 pub struct TablePreallocationPass;
 

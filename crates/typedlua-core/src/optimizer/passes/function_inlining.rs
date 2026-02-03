@@ -12,7 +12,6 @@ use typedlua_parser::ast::statement::{
     VariableDeclaration, VariableKind,
 };
 use typedlua_parser::ast::Program;
-use typedlua_parser::ast::Spanned;
 use typedlua_parser::span::Span;
 use typedlua_parser::string_interner::{StringId, StringInterner};
 

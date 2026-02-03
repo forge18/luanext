@@ -6,7 +6,7 @@ use crate::config::OptimizationLevel;
 use crate::optimizer::OptimizationPass;
 use typedlua_parser::ast::expression::Expression;
 use typedlua_parser::ast::expression::ExpressionKind;
-use typedlua_parser::ast::statement::{Block, ForStatement, Statement};
+use typedlua_parser::ast::statement::{ForStatement, Statement};
 use typedlua_parser::ast::Program;
 
 /// Tail call optimization pass

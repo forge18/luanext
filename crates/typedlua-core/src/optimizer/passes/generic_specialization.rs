@@ -10,13 +10,11 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use typedlua_parser::ast::expression::{
-    Argument, ArrayElement, Expression, ExpressionKind, ObjectProperty,
+    ArrayElement, Expression, ExpressionKind, ObjectProperty,
 };
-use typedlua_parser::ast::statement::{Block, ForStatement, FunctionDeclaration, Statement};
+use typedlua_parser::ast::statement::{ForStatement, FunctionDeclaration, Statement};
 use typedlua_parser::ast::types::Type;
 use typedlua_parser::ast::Program;
-use typedlua_parser::ast::Spanned;
-use typedlua_parser::span::Span;
 use typedlua_parser::string_interner::{StringId, StringInterner};
 
 /// Computes a hash of type arguments for caching specialized functions
