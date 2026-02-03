@@ -18,6 +18,10 @@ Cargo.lock
 /coverage
 /tarpaulin-report.html
 
+# Profiling
+*.dhat*.json
+dhat-heap.json
+
 # IDE
 .vscode/
 .idea/
