@@ -64,7 +64,7 @@ fn inlining_o2_vs_o3() {
 #[test]
 fn dead_code_after_return() {
     let src = "function f(): number { return 42 const x = 100 } const r = f()";
-    let o0 = compile(src, OptimizationLevel::O0).unwrap();
+    let _o0 = compile(src, OptimizationLevel::O0).unwrap();
     let o1 = compile(src, OptimizationLevel::O1).unwrap();
     let o1_has = o1.contains("100") || o1.contains("x = 100");
     println!("O1 has dead: {}", o1_has);

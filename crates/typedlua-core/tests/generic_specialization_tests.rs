@@ -71,7 +71,7 @@ fn number_type(span: Span) -> Type {
 }
 
 /// Helper to create a string type
-fn string_type(span: Span) -> Type {
+fn _string_type(span: Span) -> Type {
     Type::new(TypeKind::Primitive(PrimitiveType::String), span)
 }
 
@@ -170,7 +170,7 @@ fn test_simple_identity_specialization() {
     assert!(result.is_ok(), "Optimization should succeed");
 
     // Check that a specialized function was created
-    let has_specialized = program.statements.iter().any(|s| {
+    let _has_specialized = program.statements.iter().any(|s| {
         if let Statement::Function(func) = s {
             let name = interner.resolve(func.name.node);
             // Should have created id__spec0
