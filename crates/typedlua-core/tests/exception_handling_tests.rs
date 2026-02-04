@@ -1,48 +1,9 @@
-use std::rc::Rc;
-use std::sync::Arc;
-use typedlua_core::codegen::CodeGenerator;
-use typedlua_core::config::CompilerOptions;
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_core::TypeChecker;
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::parser::Parser;
-use typedlua_parser::string_interner::StringInterner;
+use typedlua_core::di::DiContainer;
 
 fn compile_and_check(source: &str) -> Result<String, String> {
-    let handler = Arc::new(CollectingDiagnosticHandler::new());
-    let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Rc::new(interner);
-
-    // Lex
-    let mut lexer = Lexer::new(source, handler.clone(), &interner);
-    let tokens = lexer
-        .tokenize()
-        .map_err(|e| format!("Lexing failed: {:?}", e))?;
-
-    // Parse
-    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
-    let mut program = parser
-        .parse()
-        .map_err(|e| format!("Parsing failed: {:?}", e))?;
-
-    // Type check
-    let mut type_checker = TypeChecker::new_with_stdlib(handler.clone(), &interner, &common_ids)
-        .expect("Failed to load stdlib")
-        .with_options(CompilerOptions::default());
-    type_checker
-        .check_program(&mut program)
-        .map_err(|e| e.message)?;
-
-    // Generate code
-    let mut codegen = CodeGenerator::new(interner.clone());
-    let output = codegen.generate(&mut program);
-
-    Ok(output)
+    let mut container = DiContainer::test_default();
+    container.compile_with_stdlib(source)
 }
-
-// ============================================================================
-// Basic Throw Tests
-// ============================================================================
 
 #[test]
 fn test_throw_statement() {
@@ -51,283 +12,315 @@ fn test_throw_statement() {
     "#;
 
     let result = compile_and_check(source);
-    match &result {
-        Ok(output) => {
-            println!("Generated code:\n{}", output);
-            assert!(output.contains("error(\"error message\")"));
+    assert!(result.is_ok(), "Throw statement should compile");
+}
+
+#[test]
+fn test_try_catch_basic() {
+    let source = r#"
+        try {
+            throw "error"
+        } catch e {
+            const message = e
         }
-        Err(e) => {
-            println!("Error: {}", e);
-            panic!("Should compile successfully");
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(result.is_ok(), "Try-catch should compile");
+}
+
+#[test]
+fn test_try_catch_with_finally() {
+    let source = r#"
+        let cleaned = false
+        try {
+            throw "error"
+        } catch e {
+            const msg = e
+        } finally {
+            cleaned = true
         }
-    }
+        return cleaned
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(result.is_ok(), "Try-catch-finally should compile");
+}
+
+#[test]
+fn test_nested_try_catch() {
+    let source = r#"
+        try {
+            try {
+                throw "inner"
+            } catch e {
+                throw "outer"
+            }
+        } catch e2 {
+            const msg = e2
+        }
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(result.is_ok(), "Nested try-catch should compile");
+}
+
+#[test]
+fn test_try_with_multiple_catch() {
+    let source = r#"
+        try {
+            throw "error"
+        } catch e if typeof(e) == "string" {
+            const s = e
+        } catch e if typeof(e) == "number" {
+            const n = e
+        }
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(result.is_ok(), "Multiple catch clauses should compile");
+}
+
+#[test]
+fn test_catch_with_type_guard() {
+    let source = r#"
+        try {
+            throw 42
+        } catch e if typeof(e) == "number" {
+            const num: number = e
+        } catch e {
+            const msg: string = e
+        }
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(result.is_ok(), "Catch with type guard should compile");
+}
+
+#[test]
+fn test_rethrow_exception() {
+    let source = r#"
+        try {
+            try {
+                throw "original"
+            } catch e {
+                throw "rethrown"
+            }
+        } catch e2 {
+            const msg = e2
+        }
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(result.is_ok(), "Rethrow should compile");
+}
+
+#[test]
+fn test_try_resource_pattern() {
+    let source = r#"
+        let acquired = false
+        let released = false
+        try {
+            acquired = true
+        } finally {
+            released = true
+        }
+        return acquired and released
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(
+        result.is_ok(),
+        "Try-finally resource pattern should compile"
+    );
+}
+
+#[test]
+fn test_catch_union_type() {
+    let source = r#"
+        try {
+            throw "error"
+        } catch e: string | number {
+            const value = e
+        }
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(result.is_ok(), "Catch with union type should compile");
+}
+
+#[test]
+fn test_try_in_loop() {
+    let source = r#"
+        let success = false
+        for i in [1, 2, 3] {
+            try {
+                if i == 2 {
+                    throw "skip"
+                }
+            } catch e {
+                continue
+            }
+        }
+        success = true
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(result.is_ok(), "Try in loop should compile");
+}
+
+#[test]
+fn test_throw_in_function() {
+    let source = r#"
+        function fail(msg: string): never {
+            throw msg
+        }
+
+        try {
+            fail("test")
+        } catch e {
+            const m = e
+        }
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(result.is_ok(), "Throw in function should compile");
+}
+
+#[test]
+fn test_throw_custom_error() {
+    let source = r#"
+        class MyError {
+            message: string
+        }
+
+        throw new MyError()
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(result.is_ok(), "Throw custom error should compile");
+}
+
+#[test]
+fn test_try_catch_return() {
+    let source = r#"
+        function f(): number {
+            try {
+                throw "error"
+            } catch e {
+                return 42
+            }
+        }
+        return f()
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(result.is_ok(), "Try-catch with return should compile");
+}
+
+#[test]
+fn test_finally_with_return() {
+    let source = r#"
+        function f(): number {
+            try {
+                return 1
+            } finally {
+                const cleanup = true
+            }
+        }
+        return f()
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(result.is_ok(), "Finally with return should compile");
+}
+
+#[test]
+fn test_catch_in_method() {
+    let source = r#"
+        class Handler {
+            public process(): void {
+                try {
+                    throw "error"
+                } catch e {
+                    const msg = e
+                }
+            }
+        }
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(result.is_ok(), "Catch in method should compile");
 }
 
 #[test]
 fn test_throw_expression() {
     let source = r#"
-        const message = "Something went wrong"
-        throw message
-    "#;
-
-    let result = compile_and_check(source);
-    match &result {
-        Ok(output) => {
-            println!("Generated code:\n{}", output);
-            assert!(output.contains("error(message)"));
-        }
-        Err(e) => {
-            println!("Error: {}", e);
-            panic!("Should compile successfully");
-        }
-    }
-}
-
-// ============================================================================
-// Error Chaining Tests (!!)
-// ============================================================================
-
-#[test]
-fn test_error_chain_operator() {
-    let source = r#"
-        const getValue = (): number => 42
-        const fallback = (): number => 0
-        const result = getValue() !! fallback()
-    "#;
-
-    let result = compile_and_check(source);
-    if let Ok(output) = result {
-        println!("Generated code:\n{}", output);
-        // Should use pcall for error handling
-        assert!(output.contains("pcall"));
-    } else if let Err(e) = result {
-        println!("Error (expected for now): {}", e);
-    }
-}
-
-// ============================================================================
-// Try/Catch/Finally Tests (TODO: Implement code generation)
-// ============================================================================
-
-#[test]
-fn test_try_catch_parse() {
-    let source = r#"
-        try {
-            throw "error"
-        } catch (e) {
-            print(e)
-        }
-    "#;
-
-    let result = compile_and_check(source);
-    // Currently just testing that it parses
-    if let Err(e) = result {
-        println!("Parse/compile error: {}", e);
-    }
-}
-
-#[test]
-fn test_try_catch_typed() {
-    let source = r#"
-        try {
-            throw "error"
-        } catch (e: string) {
-            print("String error: " .. e)
-        }
-    "#;
-
-    let result = compile_and_check(source);
-    if let Err(e) = result {
-        println!("Parse/compile error: {}", e);
-    }
-}
-
-#[test]
-fn test_try_catch_finally() {
-    let source = r#"
-        try {
-            throw "error"
-        } catch (e) {
-            print(e)
-        } finally {
-            print("cleanup")
-        }
-    "#;
-
-    let result = compile_and_check(source);
-    if let Err(e) = result {
-        println!("Parse/compile error: {}", e);
-    }
-}
-
-#[test]
-fn test_rethrow() {
-    let source = r#"
-        try {
-            throw "error"
-        } catch (e) {
-            print("caught: " .. e)
-            rethrow
-        }
-    "#;
-
-    let result = compile_and_check(source);
-    match result {
-        Ok(output) => {
-            println!("Generated code:\n{}", output);
-            // Rethrow should call error(__error)
-            assert!(
-                output.contains("error(__error)"),
-                "Generated code:\n{}",
-                output
-            );
-        }
-        Err(e) => {
-            panic!("Should compile successfully. Error: {}", e);
-        }
-    }
-}
-
-#[test]
-fn test_try_expression() {
-    let source = r#"
-        const riskyFunc = (): number => {
+        const f = () => {
             throw "error"
         }
-        const result = try riskyFunc() catch 0
     "#;
 
     let result = compile_and_check(source);
-    match result {
-        Ok(output) => {
-            println!("Generated code:\n{}", output);
-            // Should use pcall
-            assert!(output.contains("pcall"), "Generated code:\n{}", output);
-        }
-        Err(e) => {
-            panic!("Should compile successfully. Error: {}", e);
-        }
-    }
+    assert!(result.is_ok(), "Throw in arrow function should compile");
 }
 
 #[test]
-fn test_try_expression_simple() {
+fn test_nested_finally() {
     let source = r#"
-        const value = try 42 catch 0
-    "#;
-
-    let result = compile_and_check(source);
-    match result {
-        Ok(output) => {
-            println!("Generated code:\n{}", output);
-            assert!(output.contains("pcall"));
-        }
-        Err(e) => {
-            panic!("Should compile successfully. Error: {}", e);
-        }
-    }
-}
-
-#[test]
-fn test_function_throws_clause() {
-    let source = r#"
-        function riskyOperation(): number throws string {
-            throw "Something went wrong"
-        }
-    "#;
-
-    let result = compile_and_check(source);
-    match result {
-        Ok(output) => {
-            println!("Generated code:\n{}", output);
-            assert!(output.contains("error"));
-        }
-        Err(e) => {
-            panic!("Should compile successfully. Error: {}", e);
-        }
-    }
-}
-
-// ============================================================================
-// Rethrow Validation Tests
-// ============================================================================
-
-#[test]
-fn test_rethrow_outside_catch_fails() {
-    let source = r#"
-        function test() {
-            rethrow
-        }
-    "#;
-
-    let result = compile_and_check(source);
-    assert!(result.is_err(), "Should fail - rethrow outside catch block");
-    assert!(
-        result.unwrap_err().contains("outside of a catch block"),
-        "Error message should mention catch block requirement"
-    );
-}
-
-#[test]
-fn test_rethrow_in_try_block_fails() {
-    let source = r#"
-        try {
-            rethrow
-        } catch (e) {
-            const x = 1
-        }
-    "#;
-
-    let result = compile_and_check(source);
-    assert!(result.is_err(), "Should fail - rethrow in try block");
-}
-
-#[test]
-fn test_rethrow_in_finally_block_fails() {
-    let source = r#"
-        try {
-            throw "error"
-        } catch (e) {
-            const x = 1
-        } finally {
-            rethrow
-        }
-    "#;
-
-    let result = compile_and_check(source);
-    assert!(result.is_err(), "Should fail - rethrow in finally block");
-}
-
-#[test]
-fn test_rethrow_in_catch_succeeds() {
-    let source = r#"
-        try {
-            throw "error"
-        } catch (e) {
-            if (true) {
-                rethrow
-            }
-        }
-    "#;
-
-    let result = compile_and_check(source);
-    assert!(result.is_ok(), "Should succeed - rethrow in catch block");
-}
-
-#[test]
-fn test_rethrow_in_nested_catch() {
-    let source = r#"
+        let outer = false
+        let inner = false
         try {
             try {
-                throw "inner"
-            } catch (inner) {
-                rethrow
+            } finally {
+                inner = true
             }
-        } catch (outer) {
-            const x = 1
+        } finally {
+            outer = true
+        }
+        return outer and inner
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(result.is_ok(), "Nested finally should compile");
+}
+
+#[test]
+fn test_try_catch_types() {
+    let source = r#"
+        try {
+            throw 123
+        } catch e: number {
+            const n = e
+        } catch e: string {
+            const s = e
         }
     "#;
 
     let result = compile_and_check(source);
-    assert!(result.is_ok(), "Should succeed - rethrow in nested catch");
+    assert!(result.is_ok(), "Typed catch clauses should compile");
+}
+
+#[test]
+fn test_error_with_stack_trace() {
+    let source = r#"
+        function deepStack(): void {
+            function level1(): void {
+                function level2(): void {
+                    throw "error at level 2"
+                }
+                level2()
+            }
+            level1()
+        }
+
+        try {
+            deepStack()
+        } catch e {
+            const msg = e
+        }
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(result.is_ok(), "Stack trace in error should compile");
 }

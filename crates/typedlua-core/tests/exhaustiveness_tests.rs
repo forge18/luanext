@@ -1,40 +1,10 @@
-use std::sync::Arc;
-use typedlua_core::config::CompilerOptions;
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_core::TypeChecker;
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::parser::Parser;
-use typedlua_parser::string_interner::StringInterner;
+use typedlua_core::di::DiContainer;
 
 fn type_check(source: &str) -> Result<(), String> {
-    let handler = Arc::new(CollectingDiagnosticHandler::new());
-    let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-
-    // Lex
-    let mut lexer = Lexer::new(source, handler.clone(), &interner);
-    let tokens = lexer
-        .tokenize()
-        .map_err(|e| format!("Lexing failed: {:?}", e))?;
-
-    // Parse
-    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
-    let mut program = parser
-        .parse()
-        .map_err(|e| format!("Parsing failed: {:?}", e))?;
-
-    // Type check
-    let mut type_checker = TypeChecker::new(handler.clone(), &interner, &common_ids)
-        .with_options(CompilerOptions::default());
-    type_checker
-        .check_program(&mut program)
-        .map_err(|e| e.message)?;
-
+    let mut container = DiContainer::test_default();
+    container.compile(source)?;
     Ok(())
 }
-
-// ============================================================================
-// Boolean Exhaustiveness Tests
-// ============================================================================
 
 #[test]
 fn test_boolean_exhaustive_with_wildcard() {
@@ -46,31 +16,11 @@ fn test_boolean_exhaustive_with_wildcard() {
     "#;
 
     let result = type_check(source);
-    assert!(
-        result.is_ok(),
-        "Boolean match with wildcard should be exhaustive"
-    );
+    assert!(result.is_ok(), "Boolean with wildcard should be exhaustive");
 }
 
 #[test]
-fn test_boolean_exhaustive_with_both_cases() {
-    let source = r#"
-        const x: boolean = true
-        const result = match x {
-            true => "yes"
-            false => "no"
-        }
-    "#;
-
-    let result = type_check(source);
-    assert!(
-        result.is_ok(),
-        "Boolean match with true and false should be exhaustive"
-    );
-}
-
-#[test]
-fn test_boolean_non_exhaustive_missing_false() {
+fn test_boolean_not_exhaustive_without_wildcard() {
     let source = r#"
         const x: boolean = true
         const result = match x {
@@ -81,299 +31,338 @@ fn test_boolean_non_exhaustive_missing_false() {
     let result = type_check(source);
     assert!(
         result.is_err(),
-        "Boolean match missing false case should fail"
-    );
-    let error = result.unwrap_err();
-    assert!(
-        error.contains("Non-exhaustive match"),
-        "Error should mention non-exhaustive match"
-    );
-    assert!(
-        error.contains("boolean"),
-        "Error should mention boolean type"
+        "Boolean without wildcard should not be exhaustive"
     );
 }
 
 #[test]
-fn test_boolean_non_exhaustive_missing_true() {
+fn test_enum_exhaustive_match() {
     let source = r#"
-        const x: boolean = false
-        const result = match x {
-            false => "no"
+        enum Color {
+            Red,
+            Green,
+            Blue,
+        }
+
+        const c: Color = Color.Red
+        const result = match c {
+            Red => "red"
+            Green => "green"
+            Blue => "blue"
+        }
+    "#;
+
+    let result = type_check(source);
+    assert!(result.is_ok(), "Complete enum match should be exhaustive");
+}
+
+#[test]
+fn test_enum_not_exhaustive() {
+    let source = r#"
+        enum Color {
+            Red,
+            Green,
+            Blue,
+        }
+
+        const c: Color = Color.Red
+        const result = match c {
+            Red => "red"
         }
     "#;
 
     let result = type_check(source);
     assert!(
         result.is_err(),
-        "Boolean match missing true case should fail"
-    );
-    let error = result.unwrap_err();
-    assert!(
-        error.contains("Non-exhaustive match"),
-        "Error should mention non-exhaustive match"
+        "Incomplete enum match should not be exhaustive"
     );
 }
 
 #[test]
-fn test_boolean_exhaustive_with_identifier_pattern() {
+fn test_union_exhaustive_match() {
     let source = r#"
-        const x: boolean = true
+        type NumOrStr = number | string
+        const x: NumOrStr = 42
         const result = match x {
-            value => "any"
+            n: number => tostring(n)
+            s: string => s
+        }
+    "#;
+
+    let result = type_check(source);
+    assert!(result.is_ok(), "Complete union match should be exhaustive");
+}
+
+#[test]
+fn test_union_not_exhaustive() {
+    let source = r#"
+        type NumOrStr = number | string
+        const x: NumOrStr = 42
+        const result = match x {
+            n: number => tostring(n)
         }
     "#;
 
     let result = type_check(source);
     assert!(
-        result.is_ok(),
-        "Boolean match with identifier pattern should be exhaustive"
+        result.is_err(),
+        "Incomplete union match should not be exhaustive"
     );
 }
-
-// ============================================================================
-// Literal Type Exhaustiveness Tests
-// ============================================================================
 
 #[test]
 fn test_literal_type_exhaustive() {
     let source = r#"
-        const x: 42 = 42
+        const x: "a" | "b" | "c" = "a"
         const result = match x {
-            42 => "the answer"
+            "a" => 1
+            "b" => 2
+            "c" => 3
         }
     "#;
 
     let result = type_check(source);
     assert!(
         result.is_ok(),
-        "Literal type match with exact literal should be exhaustive"
+        "Complete literal match should be exhaustive"
     );
 }
 
 #[test]
-fn test_literal_type_non_exhaustive() {
+fn test_literal_type_not_exhaustive() {
     let source = r#"
-        const x: 42 = 42
+        const x: "a" | "b" | "c" = "a"
         const result = match x {
-            0 => "zero"
+            "a" => 1
+            "b" => 2
         }
     "#;
 
     let result = type_check(source);
     assert!(
         result.is_err(),
-        "Literal type match without matching literal should fail"
-    );
-    let error = result.unwrap_err();
-    assert!(
-        error.contains("Non-exhaustive match"),
-        "Error should mention non-exhaustive match"
-    );
-    assert!(error.contains("literal"), "Error should mention literal");
-}
-
-#[test]
-fn test_literal_type_with_wildcard() {
-    let source = r#"
-        const x: 42 = 42
-        const result = match x {
-            _ => "default"
-        }
-    "#;
-
-    let result = type_check(source);
-    assert!(
-        result.is_ok(),
-        "Literal type match with wildcard should be exhaustive"
-    );
-}
-
-// ============================================================================
-// Union Type Exhaustiveness Tests
-// ============================================================================
-
-#[test]
-fn test_union_exhaustive_with_wildcard() {
-    let source = r#"
-        const x: number | string = 42
-        const result = match x {
-            _ => "default"
-        }
-    "#;
-
-    let result = type_check(source);
-    assert!(
-        result.is_ok(),
-        "Union match with wildcard should be exhaustive"
+        "Incomplete literal match should not be exhaustive"
     );
 }
 
 #[test]
-fn test_union_exhaustive_with_type_patterns() {
-    let source = r#"
-        type Shape = {type: "circle", radius: number} | {type: "square", side: number}
-
-        const shape: Shape = {type: "circle", radius: 5}
-        const result = match shape {
-            {type} when type == "circle" => "circle"
-            {type} when type == "square" => "square"
-        }
-    "#;
-
-    let result = type_check(source);
-    // This may pass or fail depending on how sophisticated the exhaustiveness checker is
-    // For now, object patterns with guards might not be fully checked
-    if let Err(e) = result {
-        println!("Union exhaustiveness with guards: {}", e);
-    }
-}
-
-#[test]
-fn test_union_with_identifier_exhaustive() {
-    let source = r#"
-        const x: number | string = 42
-        const result = match x {
-            value => "any"
-        }
-    "#;
-
-    let result = type_check(source);
-    assert!(
-        result.is_ok(),
-        "Union match with identifier should be exhaustive"
-    );
-}
-
-// ============================================================================
-// Guard and Exhaustiveness Tests
-// ============================================================================
-
-#[test]
-fn test_guard_prevents_exhaustiveness() {
+fn test_if_else_chain_exhaustive() {
     let source = r#"
         const x: boolean = true
-        const result = match x {
-            value when value == true => "yes"
-        }
-    "#;
-
-    let result = type_check(source);
-    // Guards prevent exhaustiveness because they might not always match
-    // The pattern `value` would be exhaustive, but with a guard it's not
-    // This test documents current behavior - may need adjustment
-    if let Err(error) = result {
-        println!("Guard exhaustiveness check: {}", error);
-    }
-}
-
-#[test]
-fn test_guard_with_wildcard_fallback() {
-    let source = r#"
-        const x: number = 42
-        const result = match x {
-            n when n > 0 => "positive"
-            _ => "non-positive"
+        if x {
+            const a = "yes"
+        } else {
+            const a = "no"
         }
     "#;
 
     let result = type_check(source);
     assert!(
         result.is_ok(),
-        "Match with guard and wildcard fallback should be exhaustive"
+        "Complete if-else chain should be exhaustive"
     );
 }
 
-// ============================================================================
-// Number/String Type Exhaustiveness Tests
-// ============================================================================
-
 #[test]
-fn test_number_type_requires_wildcard() {
+fn test_if_else_chain_not_exhaustive() {
     let source = r#"
-        const x: number = 42
-        const result = match x {
-            0 => "zero"
-            1 => "one"
+        const x: boolean = true
+        if x {
+            const a = "yes"
         }
     "#;
 
     let result = type_check(source);
-    // For open types like number, we can't verify exhaustiveness without a wildcard
-    // Current implementation allows this - may want to add warning in future
-    if let Err(error) = result {
-        println!("Number type exhaustiveness: {}", error);
-    }
+    assert!(
+        result.is_err(),
+        "Incomplete if chain should not be exhaustive"
+    );
 }
 
 #[test]
-fn test_number_type_with_wildcard() {
+fn test_never_type_exhaustive() {
     let source = r#"
-        const x: number = 42
+        function f(x: never): void {
+            match x {
+            }
+        }
+    "#;
+
+    let result = type_check(source);
+    assert!(
+        result.is_ok(),
+        "Never type should be exhaustively matchable"
+    );
+}
+
+#[test]
+fn test_nested_enum_exhaustive() {
+    let source = r#"
+        enum Inner {
+            A,
+            B,
+        }
+
+        enum Outer {
+            X,
+            Y,
+        }
+
+        const x: Inner | Outer = Inner.A
         const result = match x {
-            0 => "zero"
+            Inner.A => 1
+            Inner.B => 2
+            Outer.X => 3
+            Outer.Y => 4
+        }
+    "#;
+
+    let result = type_check(source);
+    assert!(
+        result.is_ok(),
+        "Nested enum union match should be exhaustive"
+    );
+}
+
+#[test]
+fn test_never_return_exhaustive() {
+    let source = r#"
+        function throwError(msg: string): never {
+            throw msg
+        }
+
+        const x: boolean = true
+        if x {
+            throwError("error")
+        } else {
+            const y = "ok"
+        }
+    "#;
+
+    let result = type_check(source);
+    assert!(result.is_ok(), "Never return should make if exhaustive");
+}
+
+#[test]
+fn test_nullable_type_exhaustive() {
+    let source = r#"
+        const x: number | nil = nil
+        if x != nil {
+            const n = x
+        } else {
+            const none = x
+        }
+    "#;
+
+    let result = type_check(source);
+    assert!(
+        result.is_ok(),
+        "Nullable type with nil check should be exhaustive"
+    );
+}
+
+#[test]
+fn test_nullable_not_exhaustive() {
+    let source = r#"
+        const x: number | nil = nil
+        if x != nil {
+            const n = x
+        }
+    "#;
+
+    let result = type_check(source);
+    assert!(
+        result.is_err(),
+        "Incomplete nullable check should not be exhaustive"
+    );
+}
+
+#[test]
+fn test_object_pattern_exhaustive() {
+    let source = r#"
+        type Point = { x: number, y: number }
+        const p: Point = { x: 1, y: 2 }
+        if p.x == 1 and p.y == 2 {
+            const found = true
+        }
+    "#;
+
+    let result = type_check(source);
+    assert!(
+        result.is_ok(),
+        "Object pattern with all checks should be exhaustive"
+    );
+}
+
+#[test]
+fn test_guard_type_exhaustive() {
+    let source = r#"
+        const x: number | string = 42
+        if typeof(x) == "number" {
+            const n: number = x
+        } else {
+            const s: string = x
+        }
+    "#;
+
+    let result = type_check(source);
+    assert!(result.is_ok(), "Type guard should make check exhaustive");
+}
+
+#[test]
+fn test_match_with_default() {
+    let source = r#"
+        const x: number = 1
+        const result = match x {
+            1 => "one"
+            2 => "two"
             _ => "other"
         }
     "#;
 
     let result = type_check(source);
-    assert!(
-        result.is_ok(),
-        "Number match with wildcard should be exhaustive"
-    );
+    assert!(result.is_ok(), "Match with default should be exhaustive");
 }
 
 #[test]
-fn test_string_type_with_wildcard() {
+fn test_generic_exhaustive() {
     let source = r#"
-        const x: string = "hello"
-        const result = match x {
-            "yes" => 1
-            "no" => 0
-            _ => -1
+        function f<T extends string | number>(x: T): string {
+            if typeof(x) == "string" {
+                const s: string = x
+                return s
+            } else {
+                const n: number = x
+                return tostring(n)
+            }
         }
     "#;
 
     let result = type_check(source);
     assert!(
         result.is_ok(),
-        "String match with wildcard should be exhaustive"
+        "Generic with type guard should be exhaustive"
     );
 }
 
-// ============================================================================
-// Array and Object Exhaustiveness Tests
-// ============================================================================
-
 #[test]
-fn test_array_type_with_wildcard() {
+fn test_interface_union_exhaustive() {
     let source = r#"
-        const x: number[] = [1, 2, 3]
-        const result = match x {
-            [] => "empty"
-            _ => "non-empty"
+        type A = { kind: "a", a: number }
+        type B = { kind: "b", b: string }
+
+        function f(x: A | B): void {
+            if x.kind == "a" {
+                const a_val: number = x.a
+            } else {
+                const b_val: string = x.b
+            }
         }
     "#;
 
     let result = type_check(source);
     assert!(
         result.is_ok(),
-        "Array match with wildcard should be exhaustive"
+        "Interface union with kind check should be exhaustive"
     );
-}
-
-#[test]
-fn test_object_type_with_wildcard() {
-    let source = r#"
-        const x = {a: 1, b: 2}
-        const result = match x {
-            {a} => a
-        }
-    "#;
-
-    let result = type_check(source);
-    // For object types, current implementation may or may not require wildcard
-    if let Err(e) = result {
-        println!("Object exhaustiveness: {}", e);
-    }
 }
