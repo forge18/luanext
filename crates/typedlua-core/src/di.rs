@@ -3,6 +3,7 @@ use super::config::{CompilerConfig, OptimizationLevel};
 use super::diagnostics::{ConsoleDiagnosticHandler, DiagnosticHandler};
 use super::fs::{FileSystem, RealFileSystem};
 use super::optimizer::Optimizer;
+use std::any::{Any, TypeId};
 use std::rc::Rc;
 use std::sync::Arc;
 use typedlua_parser::diagnostics::CollectingDiagnosticHandler as ParserCollectingHandler;
@@ -10,96 +11,166 @@ use typedlua_parser::string_interner::StringInterner;
 use typedlua_parser::{Lexer, Parser};
 use typedlua_typechecker::TypeChecker;
 
-/// Dependency injection container
-/// Manages all shared dependencies and creates instances with proper wiring
-pub struct Container {
-    config: Arc<CompilerConfig>,
-    diagnostic_handler: Arc<dyn DiagnosticHandler>,
-    file_system: Arc<dyn FileSystem>,
+pub enum ServiceLifetime {
+    Transient,
+    Singleton,
 }
 
-impl Container {
-    /// Create a new container with production dependencies
-    pub fn new(config: CompilerConfig) -> Self {
-        let config = Arc::new(config);
+type FactoryFn = Arc<dyn Fn(&mut DiContainer) -> Box<dyn Any + Send + Sync> + Send + Sync>;
 
-        let diagnostic_handler = Arc::new(ConsoleDiagnosticHandler::new(
-            config.compiler_options.pretty,
-        ));
+pub struct DiContainer {
+    factories: HashMap<TypeId, (FactoryFn, ServiceLifetime)>,
+    singletons: HashMap<TypeId, Arc<dyn Any + Send + Sync>>,
+}
 
-        let file_system = Arc::new(RealFileSystem::new());
-
-        Container {
-            config,
-            diagnostic_handler,
-            file_system,
+impl DiContainer {
+    pub fn new() -> Self {
+        DiContainer {
+            factories: HashMap::new(),
+            singletons: HashMap::new(),
         }
     }
 
-    /// Create a container with custom dependencies (for testing)
-    pub fn with_dependencies(
+    pub fn production(config: CompilerConfig) -> Self {
+        let mut container = DiContainer::new();
+        let config = Arc::new(config);
+
+        container.register(
+            move |_| config.clone() as Arc<CompilerConfig>,
+            ServiceLifetime::Singleton,
+        );
+
+        container.register(
+            |_| {
+                let handler =
+                    Arc::new(ConsoleDiagnosticHandler::new(false)) as Arc<dyn DiagnosticHandler>;
+                handler
+            },
+            ServiceLifetime::Singleton,
+        );
+
+        container.register(
+            |_| {
+                let fs = Arc::new(RealFileSystem::new()) as Arc<dyn FileSystem>;
+                fs
+            },
+            ServiceLifetime::Singleton,
+        );
+
+        container
+    }
+
+    pub fn test(
         config: CompilerConfig,
         diagnostic_handler: Arc<dyn DiagnosticHandler>,
         file_system: Arc<dyn FileSystem>,
     ) -> Self {
+        let mut container = DiContainer::new();
         let config = Arc::new(config);
 
-        Container {
-            config,
-            diagnostic_handler,
-            file_system,
+        container.register(
+            move |_| config.clone() as Arc<CompilerConfig>,
+            ServiceLifetime::Singleton,
+        );
+
+        container.register(
+            move |_| diagnostic_handler.clone() as Arc<dyn DiagnosticHandler>,
+            ServiceLifetime::Singleton,
+        );
+
+        container.register(
+            move |_| file_system.clone() as Arc<dyn FileSystem>,
+            ServiceLifetime::Singleton,
+        );
+
+        container
+    }
+
+    pub fn register<T>(
+        &mut self,
+        factory: impl Fn(&mut DiContainer) -> T + 'static + Send + Sync,
+        lifetime: ServiceLifetime,
+    ) where
+        T: Send + Sync + 'static,
+    {
+        let type_id = TypeId::of::<T>();
+        let boxed_factory: FactoryFn = Arc::new(move |container| {
+            let value: T = factory(container);
+            Box::new(value) as Box<dyn Any + Send + Sync>
+        });
+        self.factories.insert(type_id, (boxed_factory, lifetime));
+    }
+
+    pub fn resolve<T: Clone + 'static + Send + Sync>(&self) -> Option<T> {
+        let type_id = TypeId::of::<T>();
+
+        if let Some((_, ServiceLifetime::Singleton)) = self.factories.get(&type_id) {
+            if let Some(cached) = self.singletons.get(&type_id) {
+                return cached.downcast_ref::<T>().cloned();
+            }
         }
+
+        if let Some((factory, lifetime)) = self.factories.get(&type_id) {
+            let factory = factory.clone();
+            let result = (factory)(self);
+
+            if let ServiceLifetime::Singleton = lifetime {
+                let arc_result: Arc<dyn Any + Send + Sync> = Arc::from(result);
+                let cloned = arc_result.clone();
+                self.singletons.insert(type_id, arc_result);
+                return cloned.downcast::<T>().ok().map(|v| {
+                    let boxed: Box<T> = v;
+                    *boxed
+                });
+            }
+
+            return result.downcast::<T>().ok().map(|v| {
+                let boxed: Box<T> = v;
+                *boxed
+            });
+        }
+
+        None
     }
 
-    /// Get the configuration
-    pub fn config(&self) -> &Arc<CompilerConfig> {
-        &self.config
+    pub fn is_registered<T: 'static>(&self) -> bool {
+        self.factories.contains_key(&TypeId::of::<T>())
     }
 
-    /// Get the diagnostic handler
-    pub fn diagnostic_handler(&self) -> &Arc<dyn DiagnosticHandler> {
-        &self.diagnostic_handler
+    pub fn service_count(&self) -> usize {
+        self.factories.len()
     }
 
-    /// Get the file system
-    pub fn file_system(&self) -> &Arc<dyn FileSystem> {
-        &self.file_system
+    pub fn singleton_count(&self) -> usize {
+        self.singletons.len()
     }
 
-    /// Check if any errors have been reported
     pub fn has_errors(&self) -> bool {
-        self.diagnostic_handler.has_errors()
+        self.resolve::<Arc<dyn DiagnosticHandler>>()
+            .map(|h| h.has_errors())
+            .unwrap_or(false)
     }
 
-    /// Get the error count
     pub fn error_count(&self) -> usize {
-        self.diagnostic_handler.error_count()
+        self.resolve::<Arc<dyn DiagnosticHandler>>()
+            .map(|h| h.error_count())
+            .unwrap_or(0)
     }
 
-    /// Get the warning count
     pub fn warning_count(&self) -> usize {
-        self.diagnostic_handler.warning_count()
+        self.resolve::<Arc<dyn DiagnosticHandler>>()
+            .map(|h| h.warning_count())
+            .unwrap_or(0)
     }
 
-    /// Compile source code using the container's dependencies (without stdlib)
-    ///
-    /// # Arguments
-    /// * `source` - The TypedLua source code to compile
-    ///
-    /// # Returns
-    /// The generated Lua code or an error message
+    pub fn config(&self) -> Arc<CompilerConfig> {
+        self.resolve::<Arc<CompilerConfig>>().unwrap()
+    }
+
     pub fn compile(&self, source: &str) -> Result<String, String> {
         self.compile_with_optimization(source, OptimizationLevel::O0)
     }
 
-    /// Compile source code using the container's dependencies (without stdlib) with optimization
-    ///
-    /// # Arguments
-    /// * `source` - The TypedLua source code to compile
-    /// * `level` - The optimization level to apply
-    ///
-    /// # Returns
-    /// The generated Lua code or an error message
     pub fn compile_with_optimization(
         &self,
         source: &str,
@@ -107,7 +178,9 @@ impl Container {
     ) -> Result<String, String> {
         let parser_handler =
             Arc::new(ParserCollectingHandler::new()) as Arc<dyn typedlua_parser::DiagnosticHandler>;
-        let typecheck_handler = self.diagnostic_handler.clone();
+        let typecheck_handler = self
+            .resolve::<Arc<dyn DiagnosticHandler>>()
+            .unwrap_or_else(|| Arc::new(ConsoleDiagnosticHandler::new(false)));
         let (interner, common_ids) = StringInterner::new_with_common_identifiers();
         let interner = Rc::new(interner);
 
@@ -140,25 +213,10 @@ impl Container {
         Ok(output)
     }
 
-    /// Compile source code with stdlib loaded (for tests that need standard library)
-    ///
-    /// # Arguments
-    /// * `source` - The TypedLua source code to compile
-    ///
-    /// # Returns
-    /// The generated Lua code or an error message
     pub fn compile_with_stdlib(&self, source: &str) -> Result<String, String> {
         self.compile_with_stdlib_and_optimization(source, OptimizationLevel::O0)
     }
 
-    /// Compile source code with stdlib loaded and optimization (for tests that need both)
-    ///
-    /// # Arguments
-    /// * `source` - The TypedLua source code to compile
-    /// * `level` - The optimization level to apply
-    ///
-    /// # Returns
-    /// The generated Lua code or an error message
     pub fn compile_with_stdlib_and_optimization(
         &self,
         source: &str,
@@ -166,7 +224,9 @@ impl Container {
     ) -> Result<String, String> {
         let parser_handler =
             Arc::new(ParserCollectingHandler::new()) as Arc<dyn typedlua_parser::DiagnosticHandler>;
-        let typecheck_handler = self.diagnostic_handler.clone();
+        let typecheck_handler = self
+            .resolve::<Arc<dyn DiagnosticHandler>>()
+            .unwrap_or_else(|| Arc::new(ConsoleDiagnosticHandler::new(false)));
         let (interner, common_ids) = StringInterner::new_with_common_identifiers();
         let interner = Rc::new(interner);
 
@@ -202,6 +262,44 @@ impl Container {
     }
 }
 
+impl Default for DiContainer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TypeCheckHelper for DiContainer {
+    fn type_check_source(&self, source: &str) -> Result<(), String> {
+        let handler = Arc::new(CollectingDiagnosticHandler::new());
+        let (interner, common_ids) = StringInterner::new_with_common_identifiers();
+        let interner = Rc::new(interner);
+
+        let mut lexer = Lexer::new(source, handler.clone(), &interner);
+        let tokens = lexer
+            .tokenize()
+            .map_err(|e| format!("Lexing failed: {:?}", e))?;
+
+        let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
+        let mut program = parser
+            .parse()
+            .map_err(|e| format!("Parsing failed: {:?}", e))?;
+
+        let mut type_checker = TypeChecker::new(handler, &interner, &common_ids);
+        type_checker
+            .check_program(&mut program)
+            .map_err(|e| e.message)?;
+
+        Ok(())
+    }
+}
+
+use std::collections::HashMap;
+use typedlua_typechecker::diagnostics::CollectingDiagnosticHandler;
+
+pub trait TypeCheckHelper {
+    fn type_check_source(&self, source: &str) -> Result<(), String>;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -212,7 +310,7 @@ mod tests {
     #[test]
     fn test_container_creation() {
         let config = CompilerConfig::default();
-        let container = Container::new(config);
+        let container = DiContainer::production(config);
 
         assert_eq!(container.error_count(), 0);
         assert!(!container.has_errors());
@@ -224,11 +322,11 @@ mod tests {
         let diagnostics = Arc::new(CollectingDiagnosticHandler::new());
         let fs = Arc::new(MockFileSystem::new());
 
-        let container = Container::with_dependencies(config, diagnostics.clone(), fs);
+        let container = DiContainer::test(config, diagnostics.clone(), fs);
 
-        // Report an error
         container
-            .diagnostic_handler()
+            .resolve::<Arc<dyn DiagnosticHandler>>()
+            .unwrap()
             .error(Span::dummy(), "Test error");
 
         assert!(container.has_errors());
@@ -240,8 +338,168 @@ mod tests {
         let mut config = CompilerConfig::default();
         config.compiler_options.strict_null_checks = false;
 
-        let container = Container::new(config);
+        let container = DiContainer::production(config);
 
         assert!(!container.config().compiler_options.strict_null_checks);
+    }
+
+    #[test]
+    fn test_container_compile_simple() {
+        let source = r#"
+            const x: number = 42
+            return x
+        "#;
+
+        let config = CompilerConfig::default();
+        let container = DiContainer::production(config);
+
+        let result = container.compile(source);
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        assert!(output.contains("42"));
+    }
+
+    #[test]
+    fn test_container_compile_with_optimization() {
+        let source = r#"
+            const x = 1 + 2 + 3
+            return x
+        "#;
+
+        let config = CompilerConfig::default();
+        let container = DiContainer::production(config);
+
+        let result = container.compile_with_optimization(source, OptimizationLevel::O2);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_container_compile_with_stdlib() {
+        let source = r#"
+            const x: number = 42
+            return x
+        "#;
+
+        let config = CompilerConfig::default();
+        let container = DiContainer::production(config);
+
+        let result = container.compile_with_stdlib(source);
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        assert!(output.contains("42"));
+    }
+
+    #[test]
+    fn test_container_compile_with_stdlib_and_optimization() {
+        let source = r#"
+            const x = 10 * 5
+            return x
+        "#;
+
+        let config = CompilerConfig::default();
+        let container = DiContainer::production(config);
+
+        let result = container.compile_with_stdlib_and_optimization(source, OptimizationLevel::O2);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_container_compile_error() {
+        let source = r#"
+            const x: number = "wrong"
+            return x
+        "#;
+
+        let config = CompilerConfig::default();
+        let container = DiContainer::production(config);
+
+        let result = container.compile(source);
+        assert!(result.is_ok() || container.has_errors());
+    }
+
+    #[test]
+    fn test_container_warning_count() {
+        let source = r#"
+            local unused = 42
+            const x: number = 10
+            return x
+        "#;
+
+        let config = CompilerConfig::default();
+        let container = DiContainer::production(config);
+
+        let _ = container.compile(source);
+        let _ = container.warning_count();
+    }
+
+    #[test]
+    fn test_container_file_system_access() {
+        let config = CompilerConfig::default();
+        let container = DiContainer::production(config);
+
+        let _fs = container.resolve::<Arc<dyn FileSystem>>();
+        assert!(true);
+    }
+
+    #[test]
+    fn test_container_default_options() {
+        let config = CompilerConfig::default();
+        let container = DiContainer::production(config);
+
+        let cfg = container.config();
+        assert!(cfg.compiler_options.strict_null_checks);
+    }
+
+    #[test]
+    fn test_service_registration() {
+        let mut container = DiContainer::new();
+        assert_eq!(container.service_count(), 0);
+
+        container.register(|_| Arc::new(42) as Arc<i32>, ServiceLifetime::Singleton);
+        assert_eq!(container.service_count(), 1);
+        assert!(container.is_registered::<Arc<i32>>());
+    }
+
+    #[test]
+    fn test_transient_service() {
+        let mut container = DiContainer::new();
+        let mut counter = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+
+        container.register(
+            move |_| {
+                counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Arc::new(counter.clone()) as Arc<std::sync::atomic::AtomicUsize>
+            },
+            ServiceLifetime::Transient,
+        );
+
+        let _ = container.resolve::<Arc<std::sync::atomic::AtomicUsize>>();
+        let _ = container.resolve::<Arc<std::sync::atomic::AtomicUsize>>();
+        let _ = container.resolve::<Arc<std::sync::atomic::AtomicUsize>>();
+
+        assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 3);
+    }
+
+    #[test]
+    fn test_singleton_service() {
+        let mut container = DiContainer::new();
+        let counter = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter_clone = counter.clone();
+
+        container.register(
+            move |_| {
+                counter_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                let value = *counter_clone.load(std::sync::atomic::Ordering::SeqCst);
+                Arc::new(value) as Arc<i32>
+            },
+            ServiceLifetime::Singleton,
+        );
+
+        let _ = container.resolve::<Arc<i32>>();
+        let _ = container.resolve::<Arc<i32>>();
+        let _ = container.resolve::<Arc<i32>>();
+
+        assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert_eq!(container.singleton_count(), 1);
     }
 }

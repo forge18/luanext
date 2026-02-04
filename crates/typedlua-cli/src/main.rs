@@ -390,7 +390,7 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
     // --- DI Container setup ---
     let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let compiler_config = CompilerConfig::default();
-    let container = typedlua_core::di::Container::new(compiler_config);
+    let container = typedlua_core::di::DiContainer::production(compiler_config);
     let use_cache = !cli.no_cache;
 
     // Determine which files need recompilation

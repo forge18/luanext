@@ -1,9 +1,9 @@
 use typedlua_core::config::{CompilerConfig, OptimizationLevel};
-use typedlua_core::di::Container;
+use typedlua_core::di::DiContainer;
 
 fn compile_with_opt_level(source: &str, level: OptimizationLevel) -> Result<String, String> {
     let config = CompilerConfig::default();
-    let container = Container::new(config);
+    let container = DiContainer::production(config);
     container.compile_with_stdlib_and_optimization(source, level)
 }
 
