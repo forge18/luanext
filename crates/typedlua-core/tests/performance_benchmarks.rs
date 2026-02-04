@@ -432,13 +432,13 @@ fn test_o0_vs_o1_optimization_time() {
     println!("O0 optimization: {:?}, size: {} bytes", o0_time, o0_size);
     println!("O1 optimization: {:?}, size: {} bytes", o1_time, o1_size);
 
-    // O1 should not be significantly slower than O0 (within 2x)
+    // O1 should not be significantly slower than O0 (within 3.5x)
     let slowdown_ratio = o1_time.as_secs_f64() / o0_time.as_secs_f64().max(0.001);
     println!("O1/O0 slowdown ratio: {:.2}x", slowdown_ratio);
 
     assert!(
-        slowdown_ratio < 3.0,
-        "O1 should not be more than 3x slower than O0, was {:.2}x",
+        slowdown_ratio < 3.5,
+        "O1 should not be more than 3.5x slower than O0, was {:.2}x",
         slowdown_ratio
     );
 

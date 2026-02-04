@@ -360,7 +360,10 @@ fn expand_glob_patterns(
 ) -> anyhow::Result<Vec<PathBuf>> {
     use std::collections::HashSet;
 
-    let mut files: HashSet<PathBuf> = HashSet::new();
+    // Cache current_dir to avoid multiple system calls
+    let base_dir = std::env::current_dir()?;
+    let mut files: HashSet<PathBuf> =
+        HashSet::with_capacity(cli_files.len() + config.include.len() * 5);
 
     // 1. Add explicitly specified CLI files (expand if glob pattern)
     for file in cli_files {
@@ -382,11 +385,18 @@ fn expand_glob_patterns(
 
     // 2. Expand include patterns from config
     for pattern in &config.include {
-        let resolved_pattern = resolve_path_pattern(pattern, &std::env::current_dir()?)?;
-        for path in (glob(&resolved_pattern)?).flatten() {
+        // For relative patterns starting with ../, don't join with base_dir
+        // Let glob handle them as relative to current working directory
+        let pattern_to_use = if pattern.starts_with("../") || pattern.starts_with("./") {
+            pattern.clone()
+        } else {
+            base_dir.join(pattern).to_string_lossy().to_string()
+        };
+
+        for path in (glob(&pattern_to_use)?).flatten() {
             if path.extension().is_some_and(|e| e == "tl") {
                 // Skip excluded patterns
-                if !is_excluded(&path, &config.exclude, &std::env::current_dir()?) {
+                if !is_excluded(&path, &config.exclude, &base_dir) {
                     files.insert(path);
                 }
             }
@@ -400,22 +410,39 @@ fn expand_glob_patterns(
     Ok(result)
 }
 
-/// Resolve a glob pattern to an absolute path
-fn resolve_path_pattern(pattern: &str, base: &Path) -> anyhow::Result<String> {
-    let path = base.join(pattern);
-    Ok(path.to_string_lossy().to_string())
-}
-
 /// Check if a file matches any exclusion pattern
 fn is_excluded(path: &Path, exclude_patterns: &[String], base: &Path) -> bool {
     let path_str = path.to_string_lossy();
+
     for pattern in exclude_patterns {
-        let resolved_pattern = resolve_path_pattern(pattern, base).unwrap_or_default();
-        // Simple substring check for now
-        if path_str.contains(&resolved_pattern) {
+        // Resolve the pattern to an absolute path
+        let resolved = if PathBuf::from(pattern).is_absolute() {
+            PathBuf::from(pattern)
+        } else {
+            base.join(pattern)
+        };
+
+        let resolved_str = resolved.to_string_lossy();
+
+        // Check if path starts with the excluded directory (prefix match)
+        // This handles patterns like "node_modules" or "**/node_modules/**"
+        if path_str.starts_with(&*resolved_str) {
+            return true;
+        }
+
+        // Check if path contains the pattern as a path component
+        // This handles patterns like "node_modules" matching "src/node_modules/file.tl"
+        let pattern_as_component = format!("/{}/", pattern.trim_matches('/'));
+        if path_str.contains(&pattern_as_component) {
+            return true;
+        }
+
+        // Check exact match for filename/directory
+        if path.ends_with(&*resolved_str) {
             return true;
         }
     }
+
     false
 }
 
@@ -424,35 +451,368 @@ struct CollectedImport {
     source: String,
 }
 
-/// Collect all imports from a parsed program (lightweight - only lexer + parser)
-fn collect_imports(
-    source: &str,
-    handler: &std::sync::Arc<typedlua_core::diagnostics::CollectingDiagnosticHandler>,
-) -> anyhow::Result<Vec<CollectedImport>> {
-    use typedlua_parser::lexer::Lexer;
-    use typedlua_parser::parser::Parser;
-    use typedlua_parser::string_interner::StringInterner;
+/// Import scanner that efficiently extracts import sources using lexer-only approach
+/// Stops scanning after first non-import top-level statement for performance
+struct ImportScanner<'a> {
+    source: &'a str,
+    position: usize,
+    line: u32,
+    column: u32,
+}
 
-    let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = std::rc::Rc::new(interner);
-
-    // Lex the source
-    let mut lexer = Lexer::new(source, handler.clone(), &interner);
-    let tokens = lexer.tokenize()?;
-
-    // Parse the tokens
-    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
-    let program = parser.parse()?;
-
-    // Extract imports
-    let mut imports = Vec::new();
-    for stmt in &program.statements {
-        if let typedlua_parser::ast::statement::Statement::Import(import_decl) = stmt {
-            imports.push(CollectedImport {
-                source: import_decl.source.clone(),
-            });
+impl<'a> ImportScanner<'a> {
+    fn new(source: &'a str) -> Self {
+        Self {
+            source,
+            position: 0,
+            line: 1,
+            column: 1,
         }
     }
+
+    /// Scan for import sources without full parsing
+    /// Returns a list of import source strings
+    fn scan_imports(&mut self) -> Vec<String> {
+        let mut imports = Vec::with_capacity(10);
+        let mut hit_non_import = false;
+
+        while !self.is_at_end() {
+            self.skip_whitespace_and_comments();
+
+            if self.is_at_end() {
+                break;
+            }
+
+            // Check if we're at an import statement
+            if self.peek_keyword("import") {
+                if let Some(source) = self.parse_import_statement() {
+                    imports.push(source);
+                }
+            } else if self.peek_keyword("export") {
+                // Export statements are valid at top level, continue
+                self.skip_statement();
+            } else if hit_non_import {
+                // Already hit a non-import, and this isn't import/export
+                // Likely past the import section, stop scanning
+                break;
+            } else {
+                // First non-import top-level statement
+                hit_non_import = true;
+                // Continue scanning - imports might still appear (rare but valid)
+                // We'll stop after a few more non-imports
+                self.skip_statement();
+            }
+        }
+
+        imports
+    }
+
+    fn is_at_end(&self) -> bool {
+        self.position >= self.source.len()
+    }
+
+    fn peek_keyword(&self, keyword: &str) -> bool {
+        let remaining = &self.source[self.position..];
+        remaining.starts_with(keyword) && {
+            let after_keyword = self.position + keyword.len();
+            after_keyword >= self.source.len()
+                || !self.source[after_keyword..]
+                    .starts_with(|c: char| c.is_alphanumeric() || c == '_')
+        }
+    }
+
+    fn skip_whitespace_and_comments(&mut self) {
+        while !self.is_at_end() {
+            let ch = self.source[self.position..].chars().next().unwrap();
+
+            match ch {
+                ' ' | '\t' | '\r' | '\n' => {
+                    self.advance_char();
+                }
+                '-' => {
+                    // Check for -- comment
+                    if self.source[self.position..].starts_with("--") {
+                        self.skip_line_comment();
+                    } else {
+                        break;
+                    }
+                }
+                '[' => {
+                    // Check for --[[ block comment
+                    if self.source[self.position..].starts_with("[[") {
+                        self.skip_block_comment();
+                    } else {
+                        break;
+                    }
+                }
+                _ => break,
+            }
+        }
+    }
+
+    fn advance_char(&mut self) {
+        if let Some(ch) = self.source[self.position..].chars().next() {
+            self.position += ch.len_utf8();
+            if ch == '\n' {
+                self.line += 1;
+                self.column = 1;
+            } else {
+                self.column += 1;
+            }
+        }
+    }
+
+    fn skip_line_comment(&mut self) {
+        while !self.is_at_end() {
+            let ch = self.source[self.position..].chars().next().unwrap();
+            self.advance_char();
+            if ch == '\n' {
+                break;
+            }
+        }
+    }
+
+    fn skip_block_comment(&mut self) {
+        self.advance_char(); // [
+        self.advance_char(); // [
+
+        while !self.is_at_end() {
+            if self.source[self.position..].starts_with("]]") {
+                self.advance_char();
+                self.advance_char();
+                break;
+            }
+            self.advance_char();
+        }
+    }
+
+    fn parse_import_statement(&mut self) -> Option<String> {
+        // Skip "import"
+        self.position += 6;
+        self.column += 6;
+
+        self.skip_whitespace_and_comments();
+
+        // Parse import clause (default, named, namespace, type, or mixed)
+        self.parse_import_clause()?;
+
+        self.skip_whitespace_and_comments();
+
+        // Expect "from"
+        if !self.peek_keyword("from") {
+            // Invalid import, skip to end of statement
+            self.skip_statement();
+            return None;
+        }
+
+        self.position += 4;
+        self.column += 4;
+        self.skip_whitespace_and_comments();
+
+        // Parse string literal (module source)
+        let source = self.parse_string_literal()?;
+
+        // Skip to end of statement
+        self.skip_whitespace_and_comments();
+        self.skip_statement_terminator();
+
+        Some(source)
+    }
+
+    fn parse_import_clause(&mut self) -> Option<()> {
+        // Handle type imports
+        if self.peek_keyword("type") {
+            self.position += 4;
+            self.column += 4;
+            self.skip_whitespace_and_comments();
+        }
+
+        // Check for various import forms
+        match self.source[self.position..].chars().next() {
+            Some('*') => {
+                // Namespace import: import * as name from '...'
+                self.advance_char();
+                self.skip_whitespace_and_comments();
+                if self.peek_keyword("as") {
+                    self.position += 2;
+                    self.column += 2;
+                    self.skip_whitespace_and_comments();
+                    self.skip_identifier();
+                }
+            }
+            Some('{') => {
+                // Named imports: import { a, b } from '...'
+                self.skip_braced_content();
+            }
+            Some(_) => {
+                // Default import or identifier
+                self.skip_identifier();
+                self.skip_whitespace_and_comments();
+
+                // Check for mixed import: import a, { b } from '...'
+                if self.source[self.position..].starts_with(",") {
+                    self.advance_char();
+                    self.skip_whitespace_and_comments();
+                    if self.source[self.position..].starts_with("{") {
+                        self.skip_braced_content();
+                    }
+                }
+            }
+            None => return None,
+        }
+
+        Some(())
+    }
+
+    fn parse_string_literal(&mut self) -> Option<String> {
+        let first_char = self.source[self.position..].chars().next()?;
+
+        match first_char {
+            '"' | '\'' => {
+                let quote = first_char;
+                self.advance_char(); // Skip opening quote
+
+                let start = self.position;
+                while !self.is_at_end() {
+                    let ch = self.source[self.position..].chars().next()?;
+                    if ch == quote {
+                        let result = self.source[start..self.position].to_string();
+                        self.advance_char(); // Skip closing quote
+                        return Some(result);
+                    }
+                    if ch == '\\' {
+                        self.advance_char(); // Skip escape
+                    }
+                    self.advance_char();
+                }
+                None
+            }
+            '[' => {
+                // Long string literal [[...]]
+                if self.source[self.position..].starts_with("[[") {
+                    self.advance_char();
+                    self.advance_char();
+                    let start = self.position;
+
+                    while !self.is_at_end() {
+                        if self.source[self.position..].starts_with("]]") {
+                            let result = self.source[start..self.position].to_string();
+                            self.advance_char();
+                            self.advance_char();
+                            return Some(result);
+                        }
+                        self.advance_char();
+                    }
+                }
+                None
+            }
+            _ => None,
+        }
+    }
+
+    fn skip_identifier(&mut self) {
+        while !self.is_at_end() {
+            match self.source[self.position..].chars().next() {
+                Some(ch) if ch.is_alphanumeric() || ch == '_' => {
+                    self.advance_char();
+                }
+                _ => break,
+            }
+        }
+    }
+
+    fn skip_braced_content(&mut self) {
+        let mut depth = 0;
+        while !self.is_at_end() {
+            let ch = self.source[self.position..].chars().next().unwrap();
+            match ch {
+                '{' => {
+                    depth += 1;
+                    self.advance_char();
+                }
+                '}' => {
+                    depth -= 1;
+                    self.advance_char();
+                    if depth == 0 {
+                        break;
+                    }
+                }
+                '"' | '\'' => {
+                    // Skip string literals inside braces
+                    self.skip_string_literal();
+                }
+                _ => {
+                    self.advance_char();
+                }
+            }
+        }
+    }
+
+    fn skip_string_literal(&mut self) {
+        let quote = self.source[self.position..].chars().next().unwrap();
+        self.advance_char();
+
+        while !self.is_at_end() {
+            let ch = self.source[self.position..].chars().next().unwrap();
+            if ch == quote {
+                self.advance_char();
+                break;
+            }
+            if ch == '\\' {
+                self.advance_char();
+            }
+            self.advance_char();
+        }
+    }
+
+    fn skip_statement(&mut self) {
+        while !self.is_at_end() {
+            match self.source[self.position..].chars().next() {
+                Some('\n') => {
+                    self.advance_char();
+                    break;
+                }
+                Some('-') => {
+                    // Check for comment start
+                    if self.source[self.position..].starts_with("--") {
+                        self.skip_line_comment();
+                    } else {
+                        self.advance_char();
+                    }
+                }
+                Some('"') | Some('\'') => {
+                    self.skip_string_literal();
+                }
+                Some('{') => {
+                    self.skip_braced_content();
+                }
+                _ => {
+                    self.advance_char();
+                }
+            }
+        }
+    }
+
+    fn skip_statement_terminator(&mut self) {
+        self.skip_whitespace_and_comments();
+        if !self.is_at_end() && self.source[self.position..].starts_with('\n') {
+            self.advance_char();
+        }
+    }
+}
+
+/// Collect all imports from a source file using fast lexer-only scanning
+fn collect_imports(
+    _source: &str,
+    _handler: &std::sync::Arc<typedlua_core::diagnostics::CollectingDiagnosticHandler>,
+) -> anyhow::Result<Vec<CollectedImport>> {
+    let mut scanner = ImportScanner::new(_source);
+    let sources = scanner.scan_imports();
+
+    let imports: Vec<CollectedImport> = sources
+        .into_iter()
+        .map(|source| CollectedImport { source })
+        .collect();
 
     Ok(imports)
 }
@@ -475,7 +835,7 @@ fn discover_dependencies(
 
     // 1. Build dependency graph
     let mut dep_graph = DependencyGraph::new();
-    let mut file_map: HashMap<PathBuf, PathBuf> = HashMap::new();
+    let mut file_map: HashMap<PathBuf, PathBuf> = HashMap::with_capacity(files.len());
 
     info!("Discovering dependencies for {} files...", files.len());
 
@@ -511,7 +871,7 @@ fn discover_dependencies(
 
         // Resolve imports to module IDs
         let module_id = ModuleId::new(canonical.clone());
-        let mut dependencies: Vec<ModuleId> = Vec::new();
+        let mut dependencies: Vec<ModuleId> = Vec::with_capacity(imports.len());
 
         for import in &imports {
             match resolver.resolve(&import.source, file_path) {
@@ -541,7 +901,7 @@ fn discover_dependencies(
     };
 
     // 3. Convert ModuleIds back to PathBufs
-    let mut ordered_files: Vec<PathBuf> = Vec::new();
+    let mut ordered_files: Vec<PathBuf> = Vec::with_capacity(ordered_ids.len());
     for module_id in ordered_ids {
         let path = module_id.path();
         if let Some(original_path) = file_map.get(path) {
