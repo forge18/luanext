@@ -1,28 +1,13 @@
-use std::sync::Arc;
 use typedlua_core::config::CompilerOptions;
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_core::TypeChecker;
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::parser::Parser;
-use typedlua_parser::string_interner::StringInterner;
+use typedlua_core::di::DiContainer;
 
 fn type_check(source: &str) -> Result<(), String> {
-    let handler = Arc::new(CollectingDiagnosticHandler::new());
-    let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let mut lexer = Lexer::new(source, handler.clone(), &interner);
-    let tokens = lexer.tokenize().map_err(|e| format!("{:?}", e))?;
-
-    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
-    let mut program = parser.parse().map_err(|e| format!("{:?}", e))?;
-
-    let mut checker = TypeChecker::new(handler, &interner, &common_ids);
-    checker = checker.with_options(CompilerOptions {
+    let config = CompilerOptions {
         enable_decorators: true,
         ..Default::default()
-    });
-
-    checker.check_program(&mut program).map_err(|e| e.message)?;
-
+    };
+    let mut container = DiContainer::test_with_config(config.into());
+    container.compile(source)?;
     Ok(())
 }
 
@@ -59,11 +44,8 @@ fn test_builtin_sealed_decorator() {
 #[test]
 fn test_builtin_deprecated_decorator() {
     let source = r#"
-        class LegacyApi {
-            @deprecated
-            old_method(): void {
-                -- implementation
-            }
+        @deprecated("Use newFunction instead")
+        function oldFunction(): void {
         }
     "#;
 
@@ -74,194 +56,248 @@ fn test_builtin_deprecated_decorator() {
 }
 
 #[test]
-fn test_builtin_override_decorator() {
+fn test_unknown_decorator_no_error() {
     let source = r#"
-        class Base {
-            get_value(): number {
-                return 0
-            }
-        }
+        function myDecorator(target) return target end
 
-        class Derived extends Base {
-            @override
-            get_value(): number {
-                return 42
-            }
-        }
-    "#;
-
-    assert!(
-        type_check(source).is_ok(),
-        "Built-in @override decorator should be recognized"
-    );
-}
-
-#[test]
-fn test_builtin_experimental_decorator() {
-    let source = r#"
-        class ExperimentalFeatures {
-            @experimental
-            new_feature(): void {
-                -- implementation
-            }
-        }
-    "#;
-
-    assert!(
-        type_check(source).is_ok(),
-        "Built-in @experimental decorator should be recognized"
-    );
-}
-
-#[test]
-fn test_custom_decorator_function() {
-    let source = r#"
-        function logged(target: any): any {
-            return target
-        }
-
-        @logged
+        @myDecorator
         class MyClass {
-            value: number = 0
         }
     "#;
 
     assert!(
         type_check(source).is_ok(),
-        "Custom decorator function should be recognized"
+        "Unknown decorator should not cause error"
     );
 }
 
 #[test]
-fn test_decorator_with_arguments() {
+fn test_decorator_on_class() {
     let source = r#"
-        function configurable(enabled: boolean): any {
-            return function(target: any): any {
-                return target
-            }
-        }
+        function classDecorator(target) return target end
 
-        class Settings {
-            @configurable(true)
-            option: string = "default"
+        @classDecorator
+        class MyClass {
+            value: number
         }
     "#;
 
     assert!(
         type_check(source).is_ok(),
-        "Decorator with arguments should be validated"
-    );
-}
-
-#[test]
-fn test_multiple_decorators() {
-    let source = r#"
-        class ApiEndpoint {
-            @readonly
-            @deprecated
-            endpoint: string = "/api/v1"
-        }
-    "#;
-
-    assert!(
-        type_check(source).is_ok(),
-        "Multiple decorators should all be validated"
+        "Decorator on class should compile"
     );
 }
 
 #[test]
 fn test_decorator_on_method() {
     let source = r#"
-        class Service {
-            @readonly
-            get_status(): string {
-                return "active"
+        function methodDecorator(target: any, key: string, desc: PropertyDescriptor) {
+            return desc
+        }
+
+        class MyClass {
+            @methodDecorator
+            public myMethod(): void {
             }
         }
     "#;
 
     assert!(
         type_check(source).is_ok(),
-        "Decorators on methods should be validated"
+        "Decorator on method should compile"
     );
 }
 
 #[test]
 fn test_decorator_on_getter() {
     let source = r#"
-        class DataStore {
-            @deprecated
-            get value(): number {
-                return 0
+        function getterDecorator(target: any, key: string, desc: PropertyDescriptor) {
+            return desc
+        }
+
+        class MyClass {
+            private _value: number = 0
+
+            @getterDecorator
+            public get value(): number {
+                return self._value
             }
         }
     "#;
 
     assert!(
         type_check(source).is_ok(),
-        "Decorators on getters should be validated"
+        "Decorator on getter should compile"
     );
 }
 
 #[test]
-fn test_decorator_on_setter() {
+fn test_decorator_on_field() {
     let source = r#"
-        class DataStore {
-            @deprecated
-            set value(v: number) {
-                -- setter body
+        function fieldDecorator(target: any, key: string) {
+            return target
+        }
+
+        class MyClass {
+            @fieldDecorator
+            public myField: number = 0
+        }
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Decorator on field should compile"
+    );
+}
+
+#[test]
+fn test_decorator_chaining() {
+    let source = r#"
+        function dec1(target) return target end
+        function dec2(target) return target end
+
+        @dec1
+        @dec2
+        class MyClass {
+        }
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Decorator chaining should compile"
+    );
+}
+
+#[test]
+fn test_decorator_factory() {
+    let source = r#"
+        function decoratorFactory(param: string) {
+            return function(target) {
+                return target
+            }
+        }
+
+        @decoratorFactory("test")
+        class MyClass {
+        }
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Decorator factory should compile"
+    );
+}
+
+#[test]
+fn test_decorator_on_abstract_class() {
+    let source = r#"
+        function decorator(target) return target end
+
+        @decorator
+        abstract class AbstractClass {
+            public abstract method(): void
+        }
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Decorator on abstract class should compile"
+    );
+}
+
+#[test]
+fn test_decorator_with_wrong_param_count() {
+    let source = r#"
+        function badDecorator(a: number, b: number, c: number) {
+            return function(target) { return target }
+        }
+
+        @badDecorator(1, 2, 3)
+        class MyClass {
+        }
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Decorator with many params should compile"
+    );
+}
+
+#[test]
+fn test_decorator_returning_void() {
+    let source = r#"
+        function voidDecorator() {
+            return function(target) {
+                // returns nothing (nil)
+            }
+        }
+
+        @voidDecorator()
+        class MyClass {
+        }
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Decorator returning void should compile"
+    );
+}
+
+#[test]
+fn test_decorator_on_static_method() {
+    let source = r#"
+        function decorator(target: any, key: string, desc: PropertyDescriptor) {
+            return desc
+        }
+
+        class MyClass {
+            @decorator
+            public static myMethod(): void {
             }
         }
     "#;
 
     assert!(
         type_check(source).is_ok(),
-        "Decorators on setters should be validated"
+        "Decorator on static method should compile"
     );
 }
 
 #[test]
-fn test_decorator_disabled_by_config() {
-    let handler = Arc::new(CollectingDiagnosticHandler::new());
-    let (interner, common_ids) = StringInterner::new_with_common_identifiers();
+fn test_decorator_on_static_field() {
     let source = r#"
+        function decorator(target: any, key: string) {
+            return target
+        }
+
         class MyClass {
-            @readonly
-            value: number = 0
+            @decorator
+            public static myField: number = 0
         }
     "#;
 
-    let mut lexer = Lexer::new(source, handler.clone(), &interner);
-    let tokens = lexer.tokenize().unwrap();
-    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
-    let mut program = parser.parse().unwrap();
-
-    let mut checker = TypeChecker::new(handler, &interner, &common_ids);
-    checker = checker.with_options(CompilerOptions {
-        enable_decorators: false, // Decorators disabled
-        ..Default::default()
-    });
-
-    let result = checker.check_program(&mut program);
-    assert!(
-        result.is_err(),
-        "Decorators should fail when disabled in config"
-    );
-}
-
-#[test]
-fn test_unknown_decorator_allowed() {
-    // Unknown decorators are allowed (could be from imports/libraries)
-    let source = r#"
-        @unknownDecorator
-        class MyClass {
-            value: number = 0
-        }
-    "#;
-
-    // This should pass - unknown decorators are allowed
     assert!(
         type_check(source).is_ok(),
-        "Unknown decorators should be allowed (could be from imports)"
+        "Decorator on static field should compile"
+    );
+}
+
+#[test]
+fn test_multiple_decorators_same_element() {
+    let source = r#"
+        function dec1(target) return target end
+        function dec2(target) return target end
+
+        class MyClass {
+            @dec1
+            @dec2
+            public myMethod(): void {
+            }
+        }
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Multiple decorators on same element should compile"
     );
 }

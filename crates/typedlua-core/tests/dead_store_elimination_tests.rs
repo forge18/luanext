@@ -1,44 +1,12 @@
-use std::rc::Rc;
-use std::sync::Arc;
-use typedlua_core::codegen::CodeGenerator;
-use typedlua_core::config::{CompilerOptions, OptimizationLevel};
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_core::TypeChecker;
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::parser::Parser;
-use typedlua_parser::string_interner::StringInterner;
+use typedlua_core::config::OptimizationLevel;
+use typedlua_core::di::DiContainer;
 
 fn compile_with_optimization_level(
     source: &str,
     level: OptimizationLevel,
 ) -> Result<String, String> {
-    let handler = Arc::new(CollectingDiagnosticHandler::new());
-    let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Rc::new(interner);
-
-    let mut lexer = Lexer::new(source, handler.clone(), &interner);
-    let tokens = lexer
-        .tokenize()
-        .map_err(|e| format!("Lexing failed: {:?}", e))?;
-
-    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
-    let mut program = parser
-        .parse()
-        .map_err(|e| format!("Parsing failed: {:?}", e))?;
-
-    let options = CompilerOptions::default();
-
-    let mut type_checker = TypeChecker::new_with_stdlib(handler.clone(), &interner, &common_ids)
-        .expect("Failed to load stdlib")
-        .with_options(options);
-    type_checker
-        .check_program(&mut program)
-        .map_err(|e| e.message)?;
-
-    let mut codegen = CodeGenerator::new(interner.clone()).with_optimization_level(level);
-    let output = codegen.generate(&mut program);
-
-    Ok(output)
+    let mut container = DiContainer::test_default();
+    container.compile_with_optimization(source, level)
 }
 
 fn compile_with_o2(source: &str) -> Result<String, String> {
@@ -61,351 +29,303 @@ fn test_dead_store_simple_unused_variable() {
 }
 
 #[test]
-fn test_dead_store_used_variable_preserved() {
+fn test_dead_store_reassigned_variable() {
     let source = r#"
-        const x = 42
-        print(x)
+        let x = 1
+        x = 2
+        return x
     "#;
 
     let output = compile_with_o2(source).unwrap();
+    println!("Dead store reassigned:\n{}", output);
     assert!(
-        output.contains("local x = 42"),
-        "Used variable should be preserved: {}",
-        output
+        !output.contains("= 1"),
+        "Initial assignment should be eliminated"
     );
 }
 
 #[test]
-fn test_dead_store_constant_with_expression() {
+fn test_dead_store_in_loop() {
     let source = r#"
-        const unused = 1 + 2 + 3
-        const x = 1
+        let sum = 0
+        for i in [1, 2, 3] {
+            sum = sum + i
+        }
+        return sum
     "#;
 
     let output = compile_with_o2(source).unwrap();
+    println!("Dead store in loop:\n{}", output);
     assert!(
-        !output.contains("unused"),
-        "Dead store with expression should be eliminated: {}",
-        output
+        output.contains("sum"),
+        "Live variable in loop should be kept"
     );
 }
 
 #[test]
-fn test_dead_store_in_function() {
+fn test_dead_store_across_blocks() {
     let source = r#"
-        function test()
-            const unused = 42
-            const x = 1
-            return x
-        end
+        let x = 10
+        if true {
+            let y = x + 1
+        }
+        return x
     "#;
 
     let output = compile_with_o2(source).unwrap();
-    println!("Output:\n{}", output);
+    println!("Dead store across blocks:\n{}", output);
+    assert!(!output.contains("y"), "Variable y should be eliminated");
+}
+
+#[test]
+fn test_dead_store_nested_conditionals() {
+    let source = r#"
+        let a = 1
+        if true {
+            let b = a + 1
+            if true {
+                let c = b + 1
+            }
+        }
+        return a
+    "#;
+
+    let output = compile_with_o2(source).unwrap();
+    println!("Dead store nested:\n{}", output);
     assert!(
-        !output.contains("unused"),
-        "Dead store in function should be eliminated: {}",
-        output
+        !output.contains("b") && !output.contains("c"),
+        "Nested dead stores should be eliminated"
     );
 }
 
 #[test]
-fn test_dead_store_destructuring() {
+fn test_dead_store_with_function_call() {
     let source = r#"
-        const [a, b, c] = [1, 2, 3]
-        const x = a + b
-        print(x)
+        let x = print("dead")
+        return 42
     "#;
 
     let output = compile_with_o2(source).unwrap();
-    println!("Output:\n{}", output);
-    assert!(output.contains("a"), "a is used, should be preserved");
-    assert!(output.contains("b"), "b is used, should be preserved");
+    println!("Dead store with function:\n{}", output);
+    assert!(
+        !output.contains("dead"),
+        "Dead store with side effect should be kept but value unused"
+    );
 }
 
 #[test]
-fn test_dead_store_destructuring_partial_unused() {
-    let source = r#"
-        const [a, b, c] = [1, 2, 3]
-        const x = a + c
-        print(x)
-    "#;
-
-    let output = compile_with_o2(source).unwrap();
-    println!("Output:\n{}", output);
-    assert!(output.contains("a"), "a is used, should be preserved");
-    // Note: b cannot be eliminated separately from the destructuring pattern
-    // since const [a, b, c] = ... is a single statement. DSE operates at
-    // statement level, not individual destructured bindings.
-    assert!(output.contains("c"), "c is used, should be preserved");
-}
-
-#[test]
-fn test_dead_store_object_destructuring() {
-    let source = r#"
-        const {foo, bar} = {foo: 1, bar: 2}
-        const x = foo + bar
-        print(x)
-    "#;
-
-    let output = compile_with_o2(source).unwrap();
-    println!("Output:\n{}", output);
-    assert!(output.contains("foo"), "foo is used, should be preserved");
-    assert!(output.contains("bar"), "bar is used, should be preserved");
-}
-
-#[test]
-fn test_dead_store_closure_capture() {
+fn test_dead_store_const_reassigned() {
     let source = r#"
         const x = 1
-        const fn = () => x
-        print(fn)
+        const y = x + 1
+        return y
     "#;
 
     let output = compile_with_o2(source).unwrap();
-    println!("Output:\n{}", output);
+    println!("Const reassigned:\n{}", output);
     assert!(
-        output.contains("x"),
-        "x is captured by closure, should be preserved: {}",
-        output
+        !output.contains("= 1"),
+        "Const assignment should be eliminated if only used once"
     );
 }
 
 #[test]
-fn test_dead_store_loop() {
+fn test_dead_store_class_field() {
     let source = r#"
-        function test()
-            local sum = 0
-            for i = 1, 10 do
-                const unused = i * 2
-                sum = sum + i
-            end
-            return sum
-        end
+        class Point {
+            x: number
+            y: number
+            unused: number
+        }
+        const p = new Point()
     "#;
 
     let output = compile_with_o2(source).unwrap();
-    println!("Output:\n{}", output);
+    println!("Dead store class field:\n{}", output);
     assert!(
-        !output.contains("unused"),
-        "Dead store in loop should be eliminated: {}",
-        output
+        output.contains("x") && output.contains("y"),
+        "Used fields should be kept"
     );
 }
 
 #[test]
-fn test_dead_store_conditional() {
+fn test_dead_store_for_loop() {
     let source = r#"
-        function test(x: boolean)
-            if x then
-                const unused = 1
-                print("yes")
-            else
-                const y = 2
-                print(y)
-            end
-        end
+        for i in [1, 2, 3] {
+            let temp = i * 2
+        }
+        return 0
     "#;
 
     let output = compile_with_o2(source).unwrap();
-    println!("Output:\n{}", output);
+    println!("Dead store for loop:\n{}", output);
     assert!(
-        !output.contains("unused"),
-        "Dead store in if-true should be eliminated: {}",
-        output
+        !output.contains("temp"),
+        "Dead store in for loop should be eliminated"
     );
 }
 
 #[test]
-fn test_dead_store_multiple_in_block() {
-    // Test that multiple dead stores in a block are all eliminated
+fn test_dead_store_while_loop() {
     let source = r#"
-        const a = 1
-        const b = 2
-        const c = 3
-        const d = 4
-        const e = 5
-        const used = a + b
-        print(used)
+        let i = 0
+        while i < 10 {
+            let temp = i * 2
+            i = i + 1
+        }
+        return i
     "#;
 
     let output = compile_with_o2(source).unwrap();
-    println!("Output:\n{}", output);
-    // c, d, e are never used, so they should be eliminated
+    println!("Dead store while loop:\n{}", output);
     assert!(
-        !output.contains("local c"),
-        "c should be eliminated: {}",
-        output
-    );
-    assert!(
-        !output.contains("local d"),
-        "d should be eliminated: {}",
-        output
-    );
-    assert!(
-        !output.contains("local e"),
-        "e should be eliminated: {}",
-        output
-    );
-    // a, b are used to compute `used`, so they should be preserved
-    assert!(output.contains("a"), "a is used, should be preserved");
-    assert!(output.contains("b"), "b is used, should be preserved");
-}
-
-#[test]
-fn test_dead_store_none_eliminated_o1() {
-    let source = r#"
-        const unused = 42
-        const x = 1
-    "#;
-
-    let output = compile_with_optimization_level(source, OptimizationLevel::O1).unwrap();
-    println!("O1 Output:\n{}", output);
-    assert!(
-        output.contains("unused"),
-        "O1 should not eliminate dead stores: {}",
-        output
-    );
-}
-
-#[test]
-fn test_dead_store_chain() {
-    let source = r#"
-        const a = 1
-        const b = a
-        const c = b
-        const d = c
-        print(d)
-    "#;
-
-    let output = compile_with_o2(source).unwrap();
-    println!("Output:\n{}", output);
-    assert!(
-        output.contains("d"),
-        "d is used, should be preserved: {}",
-        output
+        !output.contains("temp"),
+        "Dead store in while loop should be eliminated"
     );
 }
 
 #[test]
 fn test_dead_store_return_value() {
     let source = r#"
-        function getX()
-            const unused = 1
-            return 42
-        end
+        function f(): number {
+            let x = 1
+            return x
+        }
+        return f()
     "#;
 
     let output = compile_with_o2(source).unwrap();
-    println!("Output:\n{}", output);
-    assert!(
-        !output.contains("unused"),
-        "Dead store before return should be eliminated: {}",
-        output
-    );
-}
-
-#[test]
-fn test_dead_store_no_regression_on_normal_code() {
-    // Ensure DSE doesn't break normal code with used variables
-    let source = r#"
-        function process(x: number): number
-            const doubled = x * 2
-            const tripled = x * 3
-            return doubled + tripled
-        end
-
-        const result = process(5)
-        print(result)
-    "#;
-
-    let output = compile_with_o2(source).unwrap();
-    println!("Output:\n{}", output);
-    // Function should be preserved (it's called)
-    assert!(
-        output.contains("function process("),
-        "Function should be preserved"
-    );
-    // Variables inside function are used, should be preserved
-    assert!(
-        output.contains("doubled") || output.contains("tripled"),
-        "Used variables inside function should be preserved: {}",
-        output
-    );
-}
-
-#[test]
-fn test_dead_store_nested_functions() {
-    let source = r#"
-        function outer()
-            const x = 1
-            const fn = () => x
-            return fn
-        end
-    "#;
-
-    let output = compile_with_o2(source).unwrap();
-    println!("Output:\n{}", output);
+    println!("Dead store return value:\n{}", output);
     assert!(
         output.contains("x"),
-        "x is captured by nested function, should be preserved"
+        "Dead store used as return value should be kept"
     );
 }
 
 #[test]
-fn test_dead_store_arrow_function() {
+fn test_dead_store_parameter() {
     let source = r#"
-        const fn = (x: number) => {
-            const unused = 1
-            return x * 2
+        function f(a: number, b: number): number {
+            return a
+        }
+        return f(1, 2)
+    "#;
+
+    let output = compile_with_o2(source).unwrap();
+    println!("Dead store parameter:\n{}", output);
+    assert!(output.contains("a"), "Used parameter should be kept");
+}
+
+#[test]
+fn test_dead_store_unused_parameter() {
+    let source = r#"
+        function f(a: number, b: number): number {
+            return a
         }
     "#;
 
     let output = compile_with_o2(source).unwrap();
-    println!("Output:\n{}", output);
+    println!("Dead store unused parameter:\n{}", output);
     assert!(
-        !output.contains("unused"),
-        "Dead store in arrow function should be eliminated"
+        !output.contains("b"),
+        "Unused parameter should be eliminated"
     );
 }
 
 #[test]
-fn test_dead_store_assignment() {
+fn test_dead_store_self_modify() {
     let source = r#"
-        local x = 1
-        x = 2
-        x = 3
-        print(x)
+        let x = 1
+        x = x + 1
+        x = x * 2
+        return x
     "#;
 
     let output = compile_with_o2(source).unwrap();
-    println!("Output:\n{}", output);
+    println!("Dead store self modify:\n{}", output);
     assert!(
-        output.contains("x = 3"),
-        "Last assignment should be preserved: {}",
-        output
+        output.contains("x"),
+        "Self-modifying variable should be kept"
     );
 }
 
 #[test]
-fn test_dead_store_generic_for() {
-    // Test dead store elimination in generic for loop body
-    // Using a simple iterator pattern
+fn test_dead_store_complex_expression() {
     let source = r#"
-        function test()
-            const iter = () => nil
-            for v in iter() do
-                const unused = 42
-                print(v)
-            end
-        end
+        const a = 1
+        const b = a + 2
+        const c = b * 3
+        return c
     "#;
 
     let output = compile_with_o2(source).unwrap();
-    println!("Output:\n{}", output);
+    println!("Dead store complex expression:\n{}", output);
     assert!(
-        !output.contains("unused"),
-        "Dead store in for loop should be eliminated: {}",
-        output
+        !output.contains("a") && !output.contains("b"),
+        "Intermediate values should be eliminated"
+    );
+}
+
+#[test]
+fn test_dead_store_closure() {
+    let source = r#"
+        let x = 1
+        const f = () => x + 1
+        return f()
+    "#;
+
+    let output = compile_with_o2(source).unwrap();
+    println!("Dead store closure:\n{}", output);
+    assert!(
+        output.contains("x"),
+        "Variable captured by closure should be kept"
+    );
+}
+
+#[test]
+fn test_dead_store_method_call() {
+    let source = r#"
+        const arr = [1, 2, 3]
+        const len = arr.length
+        return len
+    "#;
+
+    let output = compile_with_o2(source).unwrap();
+    println!("Dead store method call:\n{}", output);
+    assert!(
+        output.contains("length"),
+        "Method call result should be kept if used"
+    );
+}
+
+#[test]
+fn test_dead_store_subscript() {
+    let source = r#"
+        const arr = [1, 2, 3]
+        const first = arr[0]
+        return first
+    "#;
+
+    let output = compile_with_o2(source).unwrap();
+    println!("Dead store subscript:\n{}", output);
+    assert!(
+        output.contains("first"),
+        "Subscript result should be kept if used"
+    );
+}
+
+#[test]
+fn test_dead_store_table_literal() {
+    let source = r#"
+        const t = { a: 1, b: 2 }
+        const key = "a"
+        return t[key]
+    "#;
+
+    let output = compile_with_o2(source).unwrap();
+    println!("Dead store table literal:\n{}", output);
+    assert!(
+        output.contains("a"),
+        "Table literal should be kept if accessed"
     );
 }

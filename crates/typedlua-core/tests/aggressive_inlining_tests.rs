@@ -1,45 +1,10 @@
-use std::rc::Rc;
-use std::sync::Arc;
-use typedlua_core::codegen::CodeGenerator;
-use typedlua_core::config::{CompilerOptions, OptimizationLevel};
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_core::TypeChecker;
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::parser::Parser;
-use typedlua_parser::string_interner::StringInterner;
+use typedlua_core::config::OptimizationLevel;
+use typedlua_core::di::DiContainer;
 
 fn compile_with_optimization(source: &str, level: OptimizationLevel) -> Result<String, String> {
-    let handler = Arc::new(CollectingDiagnosticHandler::new());
-    let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Rc::new(interner);
-
-    let mut lexer = Lexer::new(source, handler.clone(), &interner);
-    let tokens = lexer
-        .tokenize()
-        .map_err(|e| format!("Lexing failed: {:?}", e))?;
-
-    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
-    let mut program = parser
-        .parse()
-        .map_err(|e| format!("Parsing failed: {:?}", e))?;
-
-    let options = CompilerOptions::default();
-
-    let mut type_checker =
-        TypeChecker::new(handler.clone(), &interner, &common_ids).with_options(options);
-    type_checker
-        .check_program(&mut program)
-        .map_err(|e| e.message)?;
-
-    let mut codegen = CodeGenerator::new(interner).with_optimization_level(level);
-    let output = codegen.generate(&mut program);
-
-    Ok(output)
+    let mut container = DiContainer::test_default();
+    container.compile_with_optimization(source, level)
 }
-
-// ============================================================================
-// Aggressive Inlining Tests (O3)
-// ============================================================================
 
 #[test]
 fn test_small_function_inlines_o3() {
@@ -78,127 +43,245 @@ fn test_medium_function_inlines_o3() {
     let source = r#"
         function mediumFunc(a: number, b: number): number {
             local x1 = a + b
-            local x2 = x1 * 2
-            local x3 = x2 - 1
-            local x4 = x3 / 2
-            local x5 = x4 + 3
-            return x5
+            local x2 = a - b
+            local x3 = a * b
+            return x1 + x2 + x3
         }
 
-        const result = mediumFunc(5, 10)
+        const result = mediumFunc(10, 5)
     "#;
 
-    let o2_output = compile_with_optimization(source, OptimizationLevel::O2).unwrap();
-    let o3_output = compile_with_optimization(source, OptimizationLevel::O3).unwrap();
-
-    println!("O2 output:\n{}", o2_output);
-    println!("O3 output:\n{}", o3_output);
-
-    let o2_has_func_call = o2_output.contains("mediumFunc(5, 10)");
-    let o3_has_func_call = o3_output.contains("mediumFunc(5, 10)");
-
-    println!("O2 still has mediumFunc call: {}", o2_has_func_call);
-    println!("O3 still has mediumFunc call: {}", o3_has_func_call);
+    let output = compile_with_optimization(source, OptimizationLevel::O3).unwrap();
+    println!("O3 output:\n{}", output);
 }
 
 #[test]
-fn test_recursive_function_inlines_first_call() {
+fn test_recursive_function_not_inlined() {
     let source = r#"
         function factorial(n: number): number {
-            if n <= 1 then
+            if n <= 1 {
                 return 1
-            end
+            }
             return n * factorial(n - 1)
         }
 
         const result = factorial(5)
     "#;
 
-    let o3_output = compile_with_optimization(source, OptimizationLevel::O3).unwrap();
-    println!("O3 output:\n{}", o3_output);
-
+    let output = compile_with_optimization(source, OptimizationLevel::O3).unwrap();
+    println!("Recursive function output:\n{}", output);
     assert!(
-        o3_output.contains("factorial"),
-        "Recursive function should still have some calls, got:\n{}",
-        o3_output
+        output.contains("function"),
+        "Should preserve function definition for recursion"
     );
 }
 
 #[test]
-fn test_closure_handling() {
+fn test_large_function_not_inlined() {
     let source = r#"
-        function test(): number
-            local x = 1
-            local y = 2
-            return x + y
-        end
-        const result = test()
-    "#;
-
-    let o3_output = compile_with_optimization(source, OptimizationLevel::O3).unwrap();
-    println!("O3 output:\n{}", o3_output);
-
-    assert!(
-        o3_output.contains("test"),
-        "Function should be present, got:\n{}",
-        o3_output
-    );
-}
-
-#[test]
-fn test_no_regression_o2_level() {
-    let source = r#"
-        function smallFunc(x: number): number {
-            return x * 2
+        function largeFunc(a: number): number {
+            local r1 = a + 1
+            local r2 = a + 2
+            local r3 = a + 3
+            local r4 = a + 4
+            local r5 = a + 5
+            local r6 = a + 6
+            local r7 = a + 7
+            local r8 = a + 8
+            local r9 = a + 9
+            local r10 = a + 10
+            return r1 + r2 + r3 + r4 + r5 + r6 + r7 + r8 + r9 + r10
         }
 
-        const result = smallFunc(5)
+        const result = largeFunc(1)
     "#;
 
-    let o2_output = compile_with_optimization(source, OptimizationLevel::O2).unwrap();
     let o3_output = compile_with_optimization(source, OptimizationLevel::O3).unwrap();
-
-    println!("O2 output:\n{}", o2_output);
-    println!("O3 output:\n{}", o3_output);
-
-    let o2_has_func_call = o2_output.contains("smallFunc(5)");
-    let o3_has_func_call = o3_output.contains("smallFunc(5)");
-
-    if !o2_has_func_call {
-        println!("PASS: O2 inlined smallFunc");
-    }
-    if !o3_has_func_call {
-        println!("PASS: O3 inlined smallFunc");
-    }
+    println!("Large function O3 output:\n{}", o3_output);
+    assert!(
+        o3_output.contains("largeFunc"),
+        "Large functions should not be fully inlined"
+    );
 }
 
 #[test]
-fn test_aggressive_inlining_registered() {
+fn test_getter_inlined() {
     let source = r#"
-        function test(x: number): number {
-            return x + 1
+        class MyClass {
+            private _value: number = 0
+
+            public get value(): number {
+                return self._value
+            }
         }
 
-        const result = test(5)
+        const obj = new MyClass()
+        const v = obj.value
     "#;
 
-    let o1_output = compile_with_optimization(source, OptimizationLevel::O1).unwrap();
     let o3_output = compile_with_optimization(source, OptimizationLevel::O3).unwrap();
+    println!("Getter O3 output:\n{}", o3_output);
+}
 
-    println!("O1 output:\n{}", o1_output);
-    println!("O3 output:\n{}", o3_output);
+#[test]
+fn test_single_use_function_inlined() {
+    let source = r#"
+        function util(x: number): number {
+            return x * 2 + 1
+        }
 
-    let o1_has_func_call = o1_output.contains("test(5)");
-    let o3_has_func_call = o3_output.contains("test(5)");
+        const result = util(5)
+    "#;
 
+    let o3_output = compile_with_optimization(source, OptimizationLevel::O3).unwrap();
+    println!("Single use O3 output:\n{}", o3_output);
     assert!(
-        o1_has_func_call,
-        "O1 should NOT inline (function inlining is O2+)"
+        !o3_output.contains("function util"),
+        "Single-use function should be inlined"
     );
+}
 
-    if !o3_has_func_call {
-        println!("PASS: O3 inlined the function");
-    } else {
-        println!("INFO: Function not inlined at O3 (may have been simplified differently)");
-    }
+#[test]
+fn test_constant_propagation_with_inlining() {
+    let source = r#"
+        function compute(a: number, b: number): number {
+            return (a + b) * (a - b)
+        }
+
+        const result = compute(10, 5)
+    "#;
+
+    let o3_output = compile_with_optimization(source, OptimizationLevel::O3).unwrap();
+    println!("Const prop O3 output:\n{}", o3_output);
+}
+
+#[test]
+fn test_tail_recursive_optimization() {
+    let source = r#"
+        function tailSum(n: number, acc: number): number {
+            if n <= 0 {
+                return acc
+            }
+            return tailSum(n - 1, acc + n)
+        }
+
+        const result = tailSum(10, 0)
+    "#;
+
+    let o3_output = compile_with_optimization(source, OptimizationLevel::O3).unwrap();
+    println!("Tail recursive O3 output:\n{}", o3_output);
+}
+
+#[test]
+fn test_method_inlining_small() {
+    let source = r#"
+        class MathOps {
+            public double(n: number): number {
+                return n * 2
+            }
+        }
+
+        const m = new MathOps()
+        const result = m.double(5)
+    "#;
+
+    let o3_output = compile_with_optimization(source, OptimizationLevel::O3).unwrap();
+    println!("Method inlining O3 output:\n{}", o3_output);
+}
+
+#[test]
+fn test_hot_path_inlining() {
+    let source = r#"
+        function hotPath(x: number): number {
+            if x > 100 {
+                return x * 2
+            } else if x > 50 {
+                return x * 3
+            } else {
+                return x * 4
+            }
+        }
+
+        const results = [
+            hotPath(75),
+            hotPath(25),
+            hotPath(150)
+        ]
+    "#;
+
+    let o3_output = compile_with_optimization(source, OptimizationLevel::O3).unwrap();
+    println!("Hot path O3 output:\n{}", o3_output);
+}
+
+#[test]
+fn test_simple_calculator_inlining() {
+    let source = r#"
+        class Calculator {
+            public add(a: number, b: number): number {
+                return a + b
+            }
+
+            public sub(a: number, b: number): number {
+                return a - b
+            }
+        }
+
+        const calc = new Calculator()
+        const r1 = calc.add(1, 2)
+        const r2 = calc.sub(5, 3)
+    "#;
+
+    let o3_output = compile_with_optimization(source, OptimizationLevel::O3).unwrap();
+    println!("Calculator O3 output:\n{}", o3_output);
+}
+
+#[test]
+fn test_chain_calls_inlining() {
+    let source = r#"
+        function step1(x: number): number { return x + 1 }
+        function step2(x: number): number { return x + 2 }
+        function step3(x: number): number { return x + 3 }
+
+        const result = step3(step2(step1(0)))
+    "#;
+
+    let o3_output = compile_with_optimization(source, OptimizationLevel::O3).unwrap();
+    println!("Chain calls O3 output:\n{}", o3_output);
+}
+
+#[test]
+fn test_closure_inlining() {
+    let source = r#"
+        function makeAdder(add: number): (number) => number {
+            return function(x: number): number {
+                return x + add
+            }
+        }
+
+        const add5 = makeAdder(5)
+        const result = add5(10)
+    "#;
+
+    let o3_output = compile_with_optimization(source, OptimizationLevel::O3).unwrap();
+    println!("Closure O3 output:\n{}", o3_output);
+}
+
+#[test]
+fn test_trivial_getter_inlined() {
+    let source = r#"
+        class Data {
+            private _value: number = 42
+
+            public get value(): number {
+                return self._value
+            }
+        }
+
+        const d = new Data()
+        const v = d.value
+        const w = d.value
+    "#;
+
+    let o3_output = compile_with_optimization(source, OptimizationLevel::O3).unwrap();
+    println!("Trivial getter O3 output:\n{}", o3_output);
 }

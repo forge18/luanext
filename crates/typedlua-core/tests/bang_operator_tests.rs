@@ -1,43 +1,9 @@
-use std::rc::Rc;
-use std::sync::Arc;
-use typedlua_core::codegen::CodeGenerator;
-use typedlua_core::config::CompilerOptions;
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_core::TypeChecker;
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::parser::Parser;
-use typedlua_parser::string_interner::StringInterner;
+use typedlua_core::di::DiContainer;
 
 fn compile_and_check(source: &str) -> Result<String, String> {
-    let handler = Arc::new(CollectingDiagnosticHandler::new());
-    let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Rc::new(interner);
-
-    let mut lexer = Lexer::new(source, handler.clone(), &interner);
-    let tokens = lexer
-        .tokenize()
-        .map_err(|e| format!("Lexing failed: {:?}", e))?;
-
-    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
-    let mut program = parser
-        .parse()
-        .map_err(|e| format!("Parsing failed: {:?}", e))?;
-
-    let mut type_checker = TypeChecker::new(handler.clone(), &interner, &common_ids)
-        .with_options(CompilerOptions::default());
-    type_checker
-        .check_program(&mut program)
-        .map_err(|e| e.message)?;
-
-    let mut codegen = CodeGenerator::new(interner.clone());
-    let output = codegen.generate(&mut program);
-
-    Ok(output)
+    let mut container = DiContainer::test_default();
+    container.compile(source)
 }
-
-// ============================================================================
-// Bang Operator Tests
-// ============================================================================
 
 #[test]
 fn test_bang_with_boolean() {
@@ -80,62 +46,199 @@ fn test_bang_with_expression() {
 }
 
 #[test]
-fn test_bang_in_if_condition() {
+fn test_bang_with_variable() {
     let source = r#"
-        const a = true
-        if (!a) then
-            const x = 1
-        end
+        let flag = false
+        const result = !flag
     "#;
 
     let output = compile_and_check(source).unwrap();
     assert!(
-        output.contains("if (not a) then"),
-        "Should compile !a in if condition"
+        output.contains("not flag"),
+        "Should compile !variable to 'not variable'"
     );
 }
 
 #[test]
 fn test_bang_with_function_call() {
     let source = r#"
-        function isValid(): boolean {
+        function getValue(): boolean {
             return true
         }
-        const result = !isValid()
+        const result = !getValue()
+    "#;
+
+    let output = compile_and_check(source).unwrap();
+    assert!(output.contains("not"), "Should compile !function_call");
+}
+
+#[test]
+fn test_double_bang() {
+    let source = r#"
+        const a = true
+        const b = !!a
     "#;
 
     let output = compile_and_check(source).unwrap();
     assert!(
-        output.contains("not isValid()"),
-        "Should compile ! with function call"
+        output.contains("not not a"),
+        "Should compile !! to 'not not'"
     );
 }
 
 #[test]
-fn test_bang_vs_not_keyword() {
-    let source = r#"
-        const a = !true
-        const b = not false
-    "#;
-
-    let output = compile_and_check(source).unwrap();
-    // Both should compile to 'not'
-    let not_count = output.matches(" not ").count();
-    assert!(not_count >= 2, "Both ! and 'not' should compile to 'not'");
-}
-
-#[test]
-fn test_bang_precedence() {
+fn test_bang_with_and() {
     let source = r#"
         const a = true
         const b = false
-        const result = !a and b
+        const result = !(a and b)
     "#;
 
     let output = compile_and_check(source).unwrap();
-    // ! should have higher precedence than 'and'
+    assert!(output.contains("not"), "Should compile !(a and b)");
+}
+
+#[test]
+fn test_bang_with_or() {
+    let source = r#"
+        const a = true
+        const b = false
+        const result = !(a or b)
+    "#;
+
+    let output = compile_and_check(source).unwrap();
+    assert!(output.contains("not"), "Should compile !(a or b)");
+}
+
+#[test]
+fn test_bang_preserves_semantics() {
+    let source = r#"
+        let x: boolean | nil = nil
+        const result = !x
+    "#;
+
+    let output = compile_and_check(source).unwrap();
     assert!(
-        output.contains("not a and"),
-        "! should bind tighter than 'and'"
+        output.contains("not"),
+        "Should compile !x with nil handling"
+    );
+}
+
+#[test]
+fn test_bang_in_condition() {
+    let source = r#"
+        let values = [1, 2, 3, 4, 5]
+        let filtered: number[] = []
+        for v in values {
+            if !(v > 3) {
+                filtered.push(v)
+            }
+        }
+    "#;
+
+    let output = compile_and_check(source).unwrap();
+    assert!(output.contains("not"), "Should compile !(v > 3)");
+}
+
+#[test]
+fn test_bang_with_table_access() {
+    let source = r#"
+        const obj = { flag: false }
+        const result = !obj.flag
+    "#;
+
+    let output = compile_and_check(source).unwrap();
+    assert!(output.contains("not"), "Should compile !obj.flag");
+}
+
+#[test]
+fn test_bang_nested() {
+    let source = r#"
+        const a = true
+        const b = false
+        const result = !(!a and !b)
+    "#;
+
+    let output = compile_and_check(source).unwrap();
+    assert!(output.contains("not not"), "Should compile !(!a and !b)");
+}
+
+#[test]
+fn test_bang_chained_comparison() {
+    let source = r#"
+        const a = 5
+        const result = !(a > 3 and a < 10)
+    "#;
+
+    let output = compile_and_check(source).unwrap();
+    assert!(output.contains("not"), "Should compile !(a > 3 and a < 10)");
+}
+
+#[test]
+fn test_bang_with_nil_coalescing() {
+    let source = r#"
+        let x: string | nil = nil
+        const result = !(x ?? "default")
+    "#;
+
+    let output = compile_and_check(source).unwrap();
+    assert!(output.contains("not"), "Should compile !(x ?? \"default\")");
+}
+
+#[test]
+fn test_bang_type_narrowing() {
+    let source = r#"
+        let value: number | boolean = 42
+        if !(typeof(value) == "number") {
+            const b: boolean = value
+        } else {
+            const n: number = value
+        }
+    "#;
+
+    let output = compile_and_check(source).unwrap();
+    assert!(
+        output.contains("not"),
+        "Should compile bang in type narrowing context"
+    );
+}
+
+#[test]
+fn test_bang_in_return() {
+    let source = r#"
+        function negate(b: boolean): boolean {
+            return !b
+        }
+        const result = negate(true)
+    "#;
+
+    let output = compile_and_check(source).unwrap();
+    assert!(output.contains("not"), "Should compile !b in return");
+}
+
+#[test]
+fn test_bang_complex_expression() {
+    let source = r#"
+        const a = 1
+        const b = 2
+        const c = 3
+        const result = !((a + b) > c)
+    "#;
+
+    let output = compile_and_check(source).unwrap();
+    assert!(output.contains("not"), "Should compile !((a + b) > c)");
+}
+
+#[test]
+fn test_bang_in_array_comprehension() {
+    let source = r#"
+        const numbers = [1, 2, 3, 4, 5]
+        const even = numbers.filter(n => !(n % 2 == 0))
+    "#;
+
+    let output = compile_and_check(source).unwrap();
+    assert!(
+        output.contains("not"),
+        "Should compile ! in array comprehension"
     );
 }

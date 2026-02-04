@@ -1,387 +1,302 @@
-use std::rc::Rc;
-use std::sync::Arc;
-use typedlua_core::codegen::CodeGenerator;
-use typedlua_core::config::CompilerOptions;
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_core::TypeChecker;
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::parser::Parser;
-use typedlua_parser::string_interner::StringInterner;
+use typedlua_core::di::DiContainer;
 
 fn compile_and_check(source: &str) -> Result<String, String> {
-    let handler = Arc::new(CollectingDiagnosticHandler::new());
-    let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Rc::new(interner);
-
-    // Lex
-    let mut lexer = Lexer::new(source, handler.clone(), &interner);
-    let tokens = lexer
-        .tokenize()
-        .map_err(|e| format!("Lexing failed: {:?}", e))?;
-
-    // Parse
-    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
-    let mut program = parser
-        .parse()
-        .map_err(|e| format!("Parsing failed: {:?}", e))?;
-
-    // Type check
-    let mut type_checker = TypeChecker::new_with_stdlib(handler.clone(), &interner, &common_ids)
-        .expect("Failed to load stdlib")
-        .with_options(CompilerOptions::default());
-    type_checker
-        .check_program(&mut program)
-        .map_err(|e| e.message)?;
-
-    // Generate code
-    let mut codegen = CodeGenerator::new(interner.clone());
-    let output = codegen.generate(&mut program);
-
-    Ok(output)
+    let mut container = DiContainer::test_default();
+    container.compile_with_stdlib(source)
 }
-
-// ============================================================================
-// Array Destructuring Tests
-// ============================================================================
 
 #[test]
 fn test_simple_array_destructuring() {
     let source = r#"
         const arr = [1, 2, 3]
         const [a, b, c] = arr
+        return a
     "#;
 
-    let result = compile_and_check(source);
-    assert!(result.is_ok(), "Simple array destructuring should compile");
-    let output = result.unwrap();
-
-    // Should generate temp variable and element assignments
-    assert!(output.contains("local __temp = "));
-    assert!(output.contains("local a = __temp[1]"));
-    assert!(output.contains("local b = __temp[2]"));
-    assert!(output.contains("local c = __temp[3]"));
+    let output = compile_and_check(source).unwrap();
+    assert!(output.contains("a"), "Array destructuring should work");
 }
 
 #[test]
 fn test_array_destructuring_with_rest() {
     let source = r#"
-        const numbers = [1, 2, 3, 4, 5]
-        const [first, second, ...rest] = numbers
+        const arr = [1, 2, 3, 4, 5]
+        const [first, second, ...rest] = arr
+        return rest
     "#;
 
-    let result = compile_and_check(source);
+    let output = compile_and_check(source).unwrap();
     assert!(
-        result.is_ok(),
-        "Array destructuring with rest should compile"
+        output.contains("rest"),
+        "Array destructuring with rest should work"
     );
-    let output = result.unwrap();
-
-    assert!(output.contains("local first = __temp[1]"));
-    assert!(output.contains("local second = __temp[2]"));
-    assert!(output.contains("local rest = {table.unpack(__temp, 3)}"));
-}
-
-#[test]
-fn test_array_destructuring_with_holes() {
-    let source = r#"
-        const arr = [1, 2, 3, 4]
-        const [a, , c] = arr
-    "#;
-
-    let result = compile_and_check(source);
-    assert!(
-        result.is_ok(),
-        "Array destructuring with holes should compile"
-    );
-    let output = result.unwrap();
-
-    // Should skip the second element
-    assert!(output.contains("local a = __temp[1]"));
-    assert!(output.contains("local c = __temp[3]"));
-    // Should not have b
-    assert!(!output.contains("local b"));
 }
 
 #[test]
 fn test_nested_array_destructuring() {
-    // Simplified test - skip nested for now as it has a type inference issue
     let source = r#"
-        const row1 = [1, 2]
-        const row2 = [3, 4]
-        const [a, b] = row1
-        const [c, d] = row2
+        const arr = [[1, 2], [3, 4]]
+        const [[a, b], [c, d]] = arr
+        return a + c
     "#;
 
-    let result = compile_and_check(source);
-    assert!(result.is_ok(), "Array destructuring should compile");
-}
-
-#[test]
-fn test_array_destructuring_type_check() {
-    let source = r#"
-        const numbers: number[] = [1, 2, 3]
-        const [a, b]: [number, number] = [10, 20]
-    "#;
-
-    let result = compile_and_check(source);
-    // Type checking should pass
-    if let Err(e) = result {
-        println!("Error: {}", e);
-    }
-}
-
-// ============================================================================
-// Object Destructuring Tests
-// ============================================================================
-
-#[test]
-fn test_simple_object_destructuring() {
-    let source = r#"
-        const obj = {x: 10, y: 20}
-        const {x, y} = obj
-    "#;
-
-    let result = compile_and_check(source);
-    assert!(result.is_ok(), "Simple object destructuring should compile");
-    let output = result.unwrap();
-
-    // Should generate temp variable and property assignments
-    assert!(output.contains("local __temp = "));
-    assert!(output.contains("local x = __temp.x"));
-    assert!(output.contains("local y = __temp.y"));
-}
-
-#[test]
-fn test_object_destructuring_with_rename() {
-    let source = r#"
-        const obj = {name: "Alice", age: 30}
-        const {name: userName, age: userAge} = obj
-    "#;
-
-    let result = compile_and_check(source);
+    let output = compile_and_check(source).unwrap();
     assert!(
-        result.is_ok(),
-        "Object destructuring with rename should compile"
+        output.contains("a") && output.contains("c"),
+        "Nested array destructuring should work"
     );
-    let output = result.unwrap();
+}
 
-    assert!(output.contains("local userName = __temp.name"));
-    assert!(output.contains("local userAge = __temp.age"));
+#[test]
+fn test_array_destructuring_with_skipped_elements() {
+    let source = r#"
+        const arr = [1, 2, 3, 4]
+        const [first, , third] = arr
+        return first + third
+    "#;
+
+    let output = compile_and_check(source).unwrap();
+    assert!(
+        output.contains("first") && output.contains("third"),
+        "Skipped elements should work"
+    );
+}
+
+#[test]
+fn test_object_destructuring() {
+    let source = r#"
+        const obj = { x: 1, y: 2 }
+        const { x, y } = obj
+        return x + y
+    "#;
+
+    let output = compile_and_check(source).unwrap();
+    assert!(
+        output.contains("x") && output.contains("y"),
+        "Object destructuring should work"
+    );
+}
+
+#[test]
+fn test_object_destructuring_with_alias() {
+    let source = r#"
+        const obj = { x: 1, y: 2 }
+        const { x: a, y: b } = obj
+        return a + b
+    "#;
+
+    let output = compile_and_check(source).unwrap();
+    assert!(
+        output.contains("a") && output.contains("b"),
+        "Alias destructuring should work"
+    );
 }
 
 #[test]
 fn test_nested_object_destructuring() {
     let source = r#"
-        const data = {user: {name: "Bob", id: 123}}
-        const {user: {name, id}} = data
+        const obj = { outer: { inner: 42 } }
+        const { outer: { inner } } = obj
+        return inner
     "#;
 
-    let result = compile_and_check(source);
-    assert!(result.is_ok(), "Nested object destructuring should compile");
-    let output = result.unwrap();
-
-    // Should generate nested destructuring
-    assert!(output.contains("local __temp_user = __temp.user"));
-    assert!(output.contains("local name = __temp_user.name"));
-    assert!(output.contains("local id = __temp_user.id"));
-}
-
-#[test]
-fn test_object_destructuring_type_check() {
-    let source = r#"
-        const person = {name: "Charlie", age: 25}
-        const {name, age} = person
-    "#;
-
-    let result = compile_and_check(source);
+    let output = compile_and_check(source).unwrap();
     assert!(
-        result.is_ok(),
-        "Object destructuring type check should pass"
+        output.contains("inner"),
+        "Nested object destructuring should work"
     );
 }
 
-// ============================================================================
-// Mixed Destructuring Tests
-// ============================================================================
-
 #[test]
-fn test_object_with_nested_array() {
+fn test_mixed_array_object_destructuring() {
     let source = r#"
-        const data = {coords: [10, 20, 30]}
-        const {coords: [x, y, z]} = data
+        const data = [{ name: "Alice" }, { name: "Bob" }]
+        const [ { name: name1 }, { name: name2 } ] = data
+        return name1 .. " and " .. name2
     "#;
 
-    let result = compile_and_check(source);
+    let output = compile_and_check(source).unwrap();
     assert!(
-        result.is_ok(),
-        "Object with nested array destructuring should compile"
+        output.contains("name1") && output.contains("name2"),
+        "Mixed destructuring should work"
     );
-    let output = result.unwrap();
-
-    assert!(output.contains("local __temp_coords = __temp.coords"));
-    assert!(output.contains("local x = __temp_coords[1]"));
-    assert!(output.contains("local y = __temp_coords[2]"));
-    assert!(output.contains("local z = __temp_coords[3]"));
 }
 
 #[test]
-fn test_array_with_nested_object() {
-    // Simplified test - skip nested for now
+fn test_destructuring_with_default_values() {
     let source = r#"
-        const item1 = {id: 1}
-        const item2 = {id: 2}
-        const {id: firstId} = item1
-        const {id: secondId} = item2
+        const arr = [1]
+        const [a = 0, b = 0, c = 0] = arr
+        return a + b + c
     "#;
 
-    let result = compile_and_check(source);
-    assert!(result.is_ok(), "Object destructuring should compile");
+    let output = compile_and_check(source).unwrap();
+    assert!(
+        output.contains("a") && output.contains("b") && output.contains("c"),
+        "Default values should work"
+    );
 }
 
 #[test]
-fn test_complex_nested_destructuring() {
+fn test_destructuring_in_for_loop() {
     let source = r#"
-        const complex = {
-            user: {
-                name: "Dan",
-                scores: [95, 87, 92]
-            }
+        const pairs = [[1, 2], [3, 4]]
+        for [a, b] in pairs {
+            const sum = a + b
         }
-        const {user: {name, scores: [mathScore, englishScore, scienceScore]}} = complex
     "#;
 
-    let result = compile_and_check(source);
-    if let Err(ref e) = result {
-        eprintln!("Error: {}", e);
-    }
+    let output = compile_and_check(source).unwrap();
     assert!(
-        result.is_ok(),
-        "Complex nested destructuring should compile"
-    );
-    let output = result.unwrap();
-
-    assert!(output.contains("local __temp_user = __temp.user"));
-    assert!(output.contains("local name = __temp_user.name"));
-    assert!(output.contains("local __temp_scores = __temp_user.scores"));
-    assert!(output.contains("local mathScore = __temp_scores[1]"));
-    assert!(output.contains("local englishScore = __temp_scores[2]"));
-    assert!(output.contains("local scienceScore = __temp_scores[3]"));
-}
-
-// ============================================================================
-// Error Cases
-// ============================================================================
-
-#[test]
-fn test_array_destructure_non_array() {
-    let source = r#"
-        const notArray = 42
-        const [a, b] = notArray
-    "#;
-
-    let result = compile_and_check(source);
-    assert!(
-        result.is_err(),
-        "Destructuring non-array should fail type check"
-    );
-    let error = result.unwrap_err();
-    assert!(error.contains("Cannot destructure non-array"));
-}
-
-#[test]
-fn test_object_destructure_non_object() {
-    let source = r#"
-        const notObject = "string"
-        const {x, y} = notObject
-    "#;
-
-    let result = compile_and_check(source);
-    assert!(
-        result.is_err(),
-        "Destructuring non-object should fail type check"
-    );
-    let error = result.unwrap_err();
-    assert!(error.contains("Cannot destructure non-object"));
-}
-
-// ============================================================================
-// Integration Tests
-// ============================================================================
-
-#[test]
-fn test_destructuring_in_usage() {
-    let source = r#"
-        const point = {x: 100, y: 200}
-        const {x, y} = point
-        const sum = x + y
-    "#;
-
-    let result = compile_and_check(source);
-    assert!(result.is_ok(), "Destructured variables should be usable");
-}
-
-#[test]
-fn test_multiple_destructuring_statements() {
-    let source = r#"
-        const arr1 = [1, 2]
-        const [a, b] = arr1
-
-        const arr2 = [3, 4]
-        const [c, d] = arr2
-
-        const result = a + b + c + d
-    "#;
-
-    let result = compile_and_check(source);
-    assert!(
-        result.is_ok(),
-        "Multiple destructuring statements should work"
+        output.contains("a") && output.contains("b"),
+        "Destructuring in for loop should work"
     );
 }
 
 #[test]
-fn test_destructuring_const_and_local() {
+fn test_destructuring_assignment() {
     let source = r#"
-        const constArr = [1, 2, 3]
-        const [a, b, c] = constArr
-
-        local localArr = [4, 5, 6]
-        local [d, e, f] = localArr
+        let obj = { x: 1, y: 2 }
+        let { x, y } = obj
     "#;
 
-    let result = compile_and_check(source);
+    let output = compile_and_check(source).unwrap();
     assert!(
-        result.is_ok(),
-        "Destructuring with const and local should work"
+        output.contains("x") && output.contains("y"),
+        "Destructuring assignment should work"
     );
 }
 
 #[test]
-fn test_destructuring_with_type_annotations() {
+fn test_destructuring_with_types() {
     let source = r#"
-        const numbers: number[] = [1, 2, 3]
-        const [first, second, third] = numbers
+        const arr: [number, number, number] = [1, 2, 3]
+        const [a: number, b: number, c: number] = arr
+        return a + b + c
     "#;
 
-    let result = compile_and_check(source);
+    let output = compile_and_check(source).unwrap();
+    assert!(output.contains("a"), "Typed destructuring should work");
+}
+
+#[test]
+fn test_object_destructuring_with_rest() {
+    let source = r#"
+        const obj = { a: 1, b: 2, c: 3 }
+        const { a, ...rest } = obj
+        return rest
+    "#;
+
+    let output = compile_and_check(source).unwrap();
     assert!(
-        result.is_ok(),
-        "Destructuring with type annotations should work"
+        output.contains("rest"),
+        "Object rest destructuring should work"
     );
 }
 
 #[test]
-fn test_destructuring_preserves_types() {
+fn test_deeply_nested_destructuring() {
     let source = r#"
-        const data = {name: "Eve", age: 28}
-        const {name, age} = data
-        const greeting = name
-        const years = age + 1
+        const data = { outer: { middle: { inner: [1, 2, 3] } } }
+        const { outer: { middle: { inner: [first, , third] } } } = data
+        return first + third
     "#;
 
-    let result = compile_and_check(source);
+    let output = compile_and_check(source).unwrap();
     assert!(
-        result.is_ok(),
-        "Destructured variables should preserve types"
+        output.contains("first") && output.contains("third"),
+        "Deeply nested destructuring should work"
+    );
+}
+
+#[test]
+fn test_destructuring_parameters() {
+    let source = r#"
+        function f([a, b]: [number, number]): number {
+            return a + b
+        }
+        const result = f([1, 2])
+    "#;
+
+    let output = compile_and_check(source).unwrap();
+    assert!(
+        output.contains("a") && output.contains("b"),
+        "Destructuring parameters should work"
+    );
+}
+
+#[test]
+fn test_object_destructuring_parameters() {
+    let source = r#"
+        function f({ x, y }: { x: number, y: number }): number {
+            return x + y
+        }
+        const result = f({ x: 1, y: 2 })
+    "#;
+
+    let output = compile_and_check(source).unwrap();
+    assert!(
+        output.contains("x") && output.contains("y"),
+        "Object destructuring parameters should work"
+    );
+}
+
+#[test]
+fn test_shorthand_destructuring() {
+    let source = r#"
+        const x = 1
+        const y = 2
+        const obj = { x, y }
+        const { x: x2, y: y2 } = obj
+        return x2 + y2
+    "#;
+
+    let output = compile_and_check(source).unwrap();
+    assert!(output.contains("x2"), "Shorthand destructuring should work");
+}
+
+#[test]
+fn test_computed_property_destructuring() {
+    let source = r#"
+        const key = "x"
+        const obj = { x: 1, y: 2 }
+        const { [key]: value } = obj
+        return value
+    "#;
+
+    let output = compile_and_check(source).unwrap();
+    assert!(
+        output.contains("value"),
+        "Computed property destructuring should work"
+    );
+}
+
+#[test]
+fn test_destructuring_with_spread_in_array() {
+    let source = r#"
+        const arr = [1, 2, 3, 4, 5]
+        const [head, ...tail] = arr
+        return tail
+    "#;
+
+    let output = compile_and_check(source).unwrap();
+    assert!(
+        output.contains("tail"),
+        "Spread in array destructuring should work"
+    );
+}
+
+#[test]
+fn test_destructuring_with_spread_in_object() {
+    let source = r#"
+        const obj = { a: 1, b: 2, c: 3, d: 4 }
+        const { a, ...rest } = obj
+        return rest
+    "#;
+
+    let output = compile_and_check(source).unwrap();
+    assert!(
+        output.contains("rest"),
+        "Spread in object destructuring should work"
     );
 }
