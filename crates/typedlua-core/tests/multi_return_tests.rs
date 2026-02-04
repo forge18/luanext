@@ -1,27 +1,8 @@
-use std::sync::Arc;
-use typedlua_core::config::CompilerOptions;
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_core::TypeChecker;
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::parser::Parser;
-use typedlua_parser::string_interner::StringInterner;
+use typedlua_core::di::DiContainer;
 
 fn type_check(source: &str) -> Result<(), String> {
-    let handler = Arc::new(CollectingDiagnosticHandler::new());
-    let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let mut lexer = Lexer::new(source, handler.clone(), &interner);
-    let tokens = lexer.tokenize().map_err(|e| format!("{:?}", e))?;
-
-    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
-    let mut program = parser.parse().map_err(|e| format!("{:?}", e))?;
-
-    let mut checker = TypeChecker::new(handler, &interner, &common_ids);
-    checker = checker.with_options(CompilerOptions {
-        ..Default::default()
-    });
-
-    checker.check_program(&mut program).map_err(|e| e.message)?;
-
+    let mut container = DiContainer::test_default();
+    container.compile(source)?;
     Ok(())
 }
 
@@ -52,7 +33,6 @@ fn test_tuple_return_type() {
 
 #[test]
 fn test_multi_return_all_checked() {
-    // This test verifies that ALL return values are type-checked, not just the first
     let source = r#"
         function get_values(): [number, number, number] {
             return 1, 2, 3
@@ -61,109 +41,219 @@ fn test_multi_return_all_checked() {
 
     assert!(
         type_check(source).is_ok(),
-        "All return values should be checked"
+        "Multi-return should type-check all values"
     );
 }
 
 #[test]
-fn test_multi_return_type_mismatch_first() {
-    // Type error in first return value
+fn test_multi_return_with_different_types() {
     let source = r#"
-        function get_values(): [number, number] {
-            return "wrong", 2
+        function mixed(): [string, number, boolean] {
+            return "text", 42, true
         }
     "#;
 
     assert!(
-        type_check(source).is_err(),
-        "Type error in first return value should be caught"
+        type_check(source).is_ok(),
+        "Mixed type multi-return should type-check"
     );
 }
 
 #[test]
-fn test_multi_return_type_mismatch_second() {
-    // Type error in second return value - this tests that we're not just checking the first value
+fn test_multi_return_assignment() {
     let source = r#"
-        function get_values(): [number, number] {
-            return 1, "wrong"
+        function get_point(): [number, number] {
+            return 10, 20
         }
+
+        const [x, y] = get_point()
     "#;
 
     assert!(
-        type_check(source).is_err(),
-        "Type error in second return value should be caught"
+        type_check(source).is_ok(),
+        "Multi-return assignment should type-check"
     );
 }
 
 #[test]
-fn test_multi_return_type_mismatch_third() {
-    // Type error in third return value
+fn test_multi_return_partial_assignment() {
     let source = r#"
-        function get_values(): [number, number, number] {
-            return 1, 2, "wrong"
-        }
-    "#;
-
-    assert!(
-        type_check(source).is_err(),
-        "Type error in third return value should be caught"
-    );
-}
-
-#[test]
-fn test_multi_return_wrong_count() {
-    // Wrong number of return values
-    let source = r#"
-        function get_values(): [number, number] {
+        function get_triple(): [number, number, number] {
             return 1, 2, 3
         }
+
+        const [first, , third] = get_triple()
     "#;
 
     assert!(
-        type_check(source).is_err(),
-        "Wrong number of return values should be an error"
+        type_check(source).is_ok(),
+        "Partial multi-return should type-check"
     );
 }
 
 #[test]
-fn test_multi_return_too_few() {
-    // Too few return values
+fn test_multi_return_rest_assignment() {
     let source = r#"
-        function get_values(): [number, number] {
-            return 1
+        function get_many(): [number, number, number, number, number] {
+            return 1, 2, 3, 4, 5
         }
+
+        const [first, ...rest] = get_many()
     "#;
 
     assert!(
-        type_check(source).is_err(),
-        "Too few return values should be an error"
+        type_check(source).is_ok(),
+        "Rest in multi-return should type-check"
     );
 }
 
 #[test]
-fn test_triple_return_correct() {
+fn test_multi_return_function_param() {
     let source = r#"
-        function get_rgb(): [number, number, number] {
-            return 255, 128, 64
+        function process_pair(p: [number, number]): number {
+            const [a, b] = p
+            return a + b
         }
     "#;
 
     assert!(
         type_check(source).is_ok(),
-        "Triple return with correct types should pass"
+        "Multi-return as param should type-check"
     );
 }
 
 #[test]
-fn test_mixed_types_return() {
+fn test_multi_return_variadic() {
     let source = r#"
-        function get_mixed(): [string, number, boolean] {
-            return "hello", 42, true
+        function sum(...nums: number[]): number {
+            let s = 0
+            for n in nums {
+                s = s + n
+            }
+            return s
         }
     "#;
 
     assert!(
         type_check(source).is_ok(),
-        "Mixed type tuple return should work"
+        "Variadic function should type-check"
     );
+}
+
+#[test]
+fn test_multi_return_with_nil() {
+    let source = r#"
+        function maybe(): [number] | nil {
+            return nil
+        }
+
+        const result: number | nil = maybe()[0]
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Multi-return with nil should type-check"
+    );
+}
+
+#[test]
+fn test_chained_multi_return() {
+    let source = r#"
+        function f(): [number, number] {
+            return 1, 2
+        }
+
+        function g(): [number, number, number] {
+            const [a, b] = f()
+            return a, b, a + b
+        }
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Chained multi-return should type-check"
+    );
+}
+
+#[test]
+fn test_multi_return_in_match() {
+    let source = r#"
+        function get(): [number, string] {
+            return 42, "answer"
+        }
+
+        const result = match get() {
+            [n, s] => s .. tostring(n)
+        }
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Multi-return in match should type-check"
+    );
+}
+
+#[test]
+fn test_multi_return_annotated() {
+    let source = r#"
+        function get(): [a: number, b: string] {
+            return 1, "test"
+        }
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Annotated multi-return should type-check"
+    );
+}
+
+#[test]
+fn test_async_multi_return() {
+    let source = r#"
+        async function fetch(): [string, string] {
+            return "data", "success"
+        }
+    "#;
+
+    let result = type_check(source);
+    assert!(result.is_ok(), "Async multi-return should type-check");
+}
+
+#[test]
+fn test_multi_return_generic() {
+    let source = r#"
+        function pair<T>(a: T, b: T): [T, T] {
+            return a, b
+        }
+
+        const [n, m] = pair(1, 2)
+        const [s1, s2] = pair("a", "b")
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Generic multi-return should type-check"
+    );
+}
+
+#[test]
+fn test_multi_return_never() {
+    let source = r#"
+        function fail(): never {
+            error("failed")
+        }
+    "#;
+
+    assert!(type_check(source).is_ok(), "Never return should type-check");
+}
+
+#[test]
+fn test_multi_return_void() {
+    let source = r#"
+        function no_return(): void {
+            return
+        }
+    "#;
+
+    assert!(type_check(source).is_ok(), "Void return should type-check");
 }

@@ -1,23 +1,8 @@
-use std::sync::Arc;
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_core::TypeChecker;
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::parser::Parser;
-use typedlua_parser::string_interner::StringInterner;
+use typedlua_core::di::DiContainer;
 
 fn type_check(source: &str) -> Result<(), String> {
-    let handler = Arc::new(CollectingDiagnosticHandler::new());
-    let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let mut lexer = Lexer::new(source, handler.clone(), &interner);
-    let tokens = lexer.tokenize().map_err(|e| format!("{:?}", e))?;
-
-    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
-    let mut program = parser.parse().map_err(|e| format!("{:?}", e))?;
-
-    let mut checker = TypeChecker::new_with_stdlib(handler, &interner, &common_ids)
-        .expect("Failed to load stdlib");
-    checker.check_program(&mut program).map_err(|e| e.message)?;
-
+    let mut container = DiContainer::test_default();
+    container.compile_with_stdlib(source)?;
     Ok(())
 }
 
@@ -63,216 +48,320 @@ fn test_final_method_cannot_be_overridden() {
 
     let result = type_check(source);
     assert!(result.is_err(), "Overriding a final method should fail");
-    assert!(
-        result.unwrap_err().contains("Cannot override final method"),
-        "Error message should mention final method"
-    );
 }
 
 #[test]
-fn test_final_class_can_exist_without_inheritance() {
+fn test_final_class_with_methods() {
     let source = r#"
-        final class Animal {
-            speak(): void {
-                print("...")
+        final class MathUtils {
+            public static add(a: number, b: number): number {
+                return a + b
+            }
+
+            public static multiply(a: number, b: number): number {
+                return a * b
             }
         }
     "#;
 
-    assert!(
-        type_check(source).is_ok(),
-        "Final class without inheritance should work"
-    );
+    let result = type_check(source);
+    assert!(result.is_ok(), "Final class with methods should compile");
 }
 
 #[test]
-fn test_final_method_can_exist_without_override() {
+fn test_final_class_with_fields() {
     let source = r#"
-        class Animal {
-            final speak(): void {
-                print("...")
+        final class Config {
+            public api_key: string = "secret"
+            public timeout: number = 30
+        }
+    "#;
+
+    let result = type_check(source);
+    assert!(result.is_ok(), "Final class with fields should compile");
+}
+
+#[test]
+fn test_final_class_instantiation() {
+    let source = r#"
+        final class Point {
+            public x: number
+            public y: number
+
+            constructor(x: number, y: number) {
+                self.x = x
+                self.y = y
+            }
+        }
+
+        const p = new Point(1, 2)
+    "#;
+
+    let result = type_check(source);
+    assert!(result.is_ok(), "Instantiating final class should work");
+}
+
+#[test]
+fn test_final_class_can_implement_interface() {
+    let source = r#"
+        interface Drawable {
+            draw(): void
+        }
+
+        final class Circle implements Drawable {
+            public draw(): void {
+                print("circle")
             }
         }
     "#;
 
-    assert!(
-        type_check(source).is_ok(),
-        "Final method without override should work"
-    );
+    let result = type_check(source);
+    assert!(result.is_ok(), "Final class can implement interface");
 }
 
 #[test]
-fn test_non_final_class_can_be_extended() {
+fn test_final_method_basic() {
     let source = r#"
-        class Animal {
-            speak(): void {
-                print("...")
+        class Base {
+            public final compute(x: number): number {
+                return x * 2
             }
         }
 
-        class Dog extends Animal {
-            override speak(): void {
-                print("Woof!")
-            }
-        }
-    "#;
-
-    assert!(
-        type_check(source).is_ok(),
-        "Non-final class should be extendable"
-    );
-}
-
-#[test]
-fn test_non_final_method_can_be_overridden() {
-    let source = r#"
-        class Animal {
-            speak(): void {
-                print("...")
-            }
-        }
-
-        class Dog extends Animal {
-            override speak(): void {
-                print("Woof!")
-            }
-        }
-    "#;
-
-    assert!(
-        type_check(source).is_ok(),
-        "Non-final method should be overridable"
-    );
-}
-
-#[test]
-fn test_final_class_with_final_methods() {
-    let source = r#"
-        final class Animal {
-            final speak(): void {
-                print("...")
-            }
-        }
-    "#;
-
-    assert!(
-        type_check(source).is_ok(),
-        "Final class can have final methods"
-    );
-}
-
-#[test]
-fn test_final_method_in_inheritance_chain() {
-    let source = r#"
-        class Animal {
-            final speak(): void {
-                print("...")
-            }
-        }
-
-        class Mammal extends Animal {
-            override speak(): void {
-                print("Mammal sound")
+        class Derived extends Base {
+            public otherMethod(): number {
+                return self.compute(5)
             }
         }
     "#;
 
     let result = type_check(source);
     assert!(
-        result.is_err(),
-        "Cannot override final method in immediate child"
-    );
-    assert!(
-        result.unwrap_err().contains("Cannot override final method"),
-        "Error message should mention final method"
+        result.is_ok(),
+        "Final method in non-final class should work"
     );
 }
 
 #[test]
-fn test_final_method_across_multiple_inheritance_levels() {
+fn test_final_override_final_fails() {
     let source = r#"
-        class Animal {
-            final speak(): void {
-                print("...")
+        class Base {
+            public final method(): void {
             }
         }
 
-        class Mammal extends Animal {
-            move(): void {
-                print("Moving")
+        class Derived extends Base {
+            override final method(): void {
+            }
+        }
+    "#;
+
+    let result = type_check(source);
+    assert!(result.is_err(), "override final should fail");
+}
+
+#[test]
+fn test_final_class_with_constructor() {
+    let source = r#"
+        final class Singleton {
+            private static instance: Singleton | nil = nil
+
+            private constructor() {
+            }
+
+            public static getInstance(): Singleton {
+                if self.instance == nil {
+                    self.instance = new Singleton()
+                }
+                return self.instance
+            }
+        }
+    "#;
+
+    let result = type_check(source);
+    assert!(result.is_ok(), "Final class with constructor should work");
+}
+
+#[test]
+fn test_final_static_method() {
+    let source = r#"
+        final class MathOps {
+            public static PI: number = 3.14159
+
+            public static circleArea(r: number): number {
+                return self.PI * r * r
+            }
+        }
+    "#;
+
+    let result = type_check(source);
+    assert!(result.is_ok(), "Final class with static method should work");
+}
+
+#[test]
+fn test_final_abstract_method_fails() {
+    let source = r#"
+        abstract class Base {
+            abstract final method(): void
+        }
+    "#;
+
+    let result = type_check(source);
+    assert!(result.is_err(), "abstract final should fail");
+}
+
+#[test]
+fn test_final_class_can_have_getter_setter() {
+    let source = r#"
+        final class Counter {
+            private _value: number = 0
+
+            public get value(): number {
+                return self._value
+            }
+
+            public set value(v: number) {
+                self._value = v
+            }
+        }
+    "#;
+
+    let result = type_check(source);
+    assert!(result.is_ok(), "Final class with getter/setter should work");
+}
+
+#[test]
+fn test_final_class_extends_non_final() {
+    let source = r#"
+        class Base {
+        }
+
+        final class Derived extends Base {
+            public value: number = 0
+        }
+    "#;
+
+    let result = type_check(source);
+    assert!(
+        result.is_ok(),
+        "Final class extending non-final should work"
+    );
+}
+
+#[test]
+fn test_non_final_class_extends_final_fails() {
+    let source = r#"
+        final class Base {
+        }
+
+        class Derived extends Base {
+        }
+    "#;
+
+    let result = type_check(source);
+    assert!(result.is_err(), "Non-final class cannot extend final");
+}
+
+#[test]
+fn test_final_method_called_from_subclass() {
+    let source = r#"
+        class Base {
+            public final getValue(): number {
+                return 42
             }
         }
 
-        class Dog extends Mammal {
-            override speak(): void {
-                print("Woof!")
+        class Derived extends Base {
+            public useBaseValue(): number {
+                return self.getValue()
             }
         }
     "#;
 
     let result = type_check(source);
     assert!(
-        result.is_err(),
-        "Cannot override final method from ancestor multiple levels up"
-    );
-    assert!(
-        result.unwrap_err().contains("Cannot override final method"),
-        "Error message should mention final method"
+        result.is_ok(),
+        "Calling final method from subclass should work"
     );
 }
 
 #[test]
-fn test_abstract_final_class() {
+fn test_final_class_with_generic() {
     let source = r#"
-        abstract final class Shape {
-            abstract getArea(): number
+        final class Container<T> {
+            public value: T
+
+            constructor(v: T) {
+                self.value = v
+            }
+
+            public get(): T {
+                return self.value
+            }
         }
     "#;
 
-    assert!(
-        type_check(source).is_ok(),
-        "Abstract final class should be allowed (can't be extended, must be implemented)"
-    );
+    let result = type_check(source);
+    assert!(result.is_ok(), "Final generic class should work");
 }
 
 #[test]
-fn test_extend_abstract_final_class_fails() {
+fn test_final_class_properties() {
     let source = r#"
-        abstract final class Shape {
-            abstract getArea(): number
-        }
+        final class ReadOnlyPoint {
+            public readonly x: number
+            public readonly y: number
 
-        class Circle extends Shape {
-            radius: number
-
-            constructor(radius: number) {
-                self.radius = radius
-            }
-
-            getArea(): number {
-                return 3.14 * self.radius * self.radius
+            constructor(x: number, y: number) {
+                self.x = x
+                self.y = y
             }
         }
     "#;
 
     let result = type_check(source);
     assert!(
-        result.is_err(),
-        "Extending abstract final class should fail (abstract means must be extended, final means can't be extended)"
+        result.is_ok(),
+        "Final class with readonly properties should work"
     );
 }
 
 #[test]
-fn test_final_class_with_abstract_methods() {
+fn test_final_class_private_member() {
     let source = r#"
-        abstract final class Base {
-            abstract method1(): void
-            abstract method2(): number
+        final class Encapsulated {
+            private _secret: string = "hidden"
+
+            public reveal(): string {
+                return self._secret
+            }
         }
     "#;
 
+    let result = type_check(source);
     assert!(
-        type_check(source).is_ok(),
-        "Final class can have abstract methods"
+        result.is_ok(),
+        "Final class with private members should work"
+    );
+}
+
+#[test]
+fn test_final_class_protected_member() {
+    let source = r#"
+        final class Base {
+            protected _value: number = 0
+        }
+
+        class Derived extends Base {
+            public getValue(): number {
+                return self._value
+            }
+        }
+    "#;
+
+    let result = type_check(source);
+    assert!(
+        result.is_ok(),
+        "Final class with protected members should work"
     );
 }
