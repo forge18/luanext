@@ -103,4 +103,3 @@ fn test_large_function_not_inlined() {
         "Large functions should not be fully inlined"
     );
 }
-

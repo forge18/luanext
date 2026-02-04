@@ -286,4 +286,3 @@ fn test_if_with_loops() {
         output
     );
 }
-

@@ -6,7 +6,10 @@ fn compile_with_optimization(source: &str, level: OptimizationLevel) -> Result<S
     container.compile_with_optimization(source, level)
 }
 
-fn compile_with_stdlib_optimization(source: &str, level: OptimizationLevel) -> Result<String, String> {
+fn compile_with_stdlib_optimization(
+    source: &str,
+    level: OptimizationLevel,
+) -> Result<String, String> {
     let mut container = DiContainer::test_default();
     container.compile_with_stdlib_and_optimization(source, level)
 }
@@ -81,4 +84,3 @@ fn test_single_use_function_inlined() {
     // Verify compilation succeeds and function structure is preserved
     assert!(!output.is_empty(), "Output should not be empty");
 }
-

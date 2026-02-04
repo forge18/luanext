@@ -31,4 +31,3 @@ fn test_aggressive_inlining_works() {
         "Should have mediumFunction"
     );
 }
-

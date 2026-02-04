@@ -946,34 +946,46 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
     // Process results sequentially (for deterministic output and error reporting)
     let mut had_errors = false;
 
-    for result in results {
-        match result.result {
+    // Collect bundled output if --out-file is specified
+    let mut bundled_code = String::new();
+
+    for result in &results {
+        match &result.result {
             Ok(output) => {
                 if !cli.no_emit {
-                    if let Some(parent) = output.output_path.parent() {
-                        std::fs::create_dir_all(parent)?;
-                    }
-
-                    let code_to_write = if cli.inline_source_map {
-                        if let Some(ref source_map) = output.source_map {
-                            let comment = source_map.to_comment()?;
-                            format!("{}\n{}", output.lua_code, comment)
-                        } else {
-                            output.lua_code
+                    if cli.out_file.is_some() {
+                        // Bundling mode: accumulate code
+                        if !bundled_code.is_empty() {
+                            bundled_code.push('\n');
                         }
+                        bundled_code.push_str(&output.lua_code);
                     } else {
-                        output.lua_code
-                    };
+                        // Normal mode: write each file separately
+                        if let Some(parent) = output.output_path.parent() {
+                            std::fs::create_dir_all(parent)?;
+                        }
 
-                    std::fs::write(&output.output_path, &code_to_write)?;
-                    info!("Generated: {:?}", output.output_path);
+                        let code_to_write = if cli.inline_source_map {
+                            if let Some(ref source_map) = output.source_map {
+                                let comment = source_map.to_comment()?;
+                                format!("{}\n{}", output.lua_code, comment)
+                            } else {
+                                output.lua_code.clone()
+                            }
+                        } else {
+                            output.lua_code.clone()
+                        };
 
-                    if cli.source_map && !cli.inline_source_map {
-                        if let Some(source_map) = output.source_map {
-                            let map_path = output.output_path.with_extension("lua.map");
-                            let map_json = source_map.to_json()?;
-                            std::fs::write(&map_path, map_json)?;
-                            info!("Generated source map: {:?}", map_path);
+                        std::fs::write(&output.output_path, &code_to_write)?;
+                        info!("Generated: {:?}", output.output_path);
+
+                        if cli.source_map && !cli.inline_source_map {
+                            if let Some(ref source_map) = output.source_map {
+                                let map_path = output.output_path.with_extension("lua.map");
+                                let map_json = source_map.to_json()?;
+                                std::fs::write(&map_path, map_json)?;
+                                info!("Generated source map: {:?}", map_path);
+                            }
                         }
                     }
                 }
@@ -995,6 +1007,19 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
                 }
             }
         }
+    }
+
+    // Write bundled output if specified
+    if !cli.no_emit && cli.out_file.is_some() {
+        let out_file = cli.out_file.as_ref().unwrap();
+        if let Some(parent) = out_file.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        let code_to_write = bundled_code;
+
+        std::fs::write(out_file, &code_to_write)?;
+        info!("Generated bundle: {:?}", out_file);
     }
 
     if had_errors {

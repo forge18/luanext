@@ -19,6 +19,9 @@ TypedLua brings static type checking to Lua while maintaining its simplicity and
 - **Rich Type System** - Interfaces, unions, generics, and more
 - **Optional Features** - Enable OOP, functional programming, or decorators as needed
 - **LSP Support** - Full language server with autocomplete, diagnostics, and more
+- **Multi-File Compilation** - Compile entire projects with automatic dependency ordering
+- **Circular Dependency Detection** - Catch import cycles before compilation
+- **Glob Pattern Support** - Use wildcards like `src/**/*.tl` to select files
 
 ## Project Status
 
@@ -30,7 +33,7 @@ The compiler is feature-complete and ready for testing:
 - ✅ Complete parser with 15 statement types, 13 expression kinds, error recovery
 - ✅ Type checker with generics, narrowing, 12 utility types, decorators
 - ✅ Code generator targeting Lua 5.1-5.4 with source maps and bundling
-- ✅ CLI with watch mode, parallel compilation, configuration files
+- ✅ CLI with watch mode, multi-file compilation, dependency ordering, configuration files
 - ✅ LSP with hover, completion, go-to-definition, references, rename, formatting
 - ✅ VS Code extension
 
@@ -88,7 +91,48 @@ local area = calculateArea(radius)
 print("Area:", area)
 ```
 
-## Configuration
+## Multi-File Compilation
+
+TypedLua supports compiling entire projects with automatic dependency ordering:
+
+### Compiling Multiple Files
+
+```bash
+# Compile individual files (order determined by imports)
+typedlua file1.tl file2.tl file3.tl
+
+# Compile with glob patterns
+typedlua "src/**/*.tl"
+typedlua "src/*.tl" "tests/*.tl"
+
+# Bundle all files into single output
+typedlua "src/**/*.tl" --out-file bundle.lua
+```
+
+### How It Works
+
+1. **File Discovery** - TypedLua expands glob patterns and discovers all `.tl` files
+2. **Import Analysis** - Parses imports to build a dependency graph
+3. **Topological Sort** - Determines compilation order (dependencies first)
+4. **Sequential Compilation** - Files compile one-by-one, exporting types for dependents
+5. **Cycle Detection** - Circular dependencies are caught and reported with clear error messages
+
+### Project Structure Example
+
+```
+project/
+├── tlconfig.yaml
+├── src/
+│   ├── utils.tl      # base utilities
+│   ├── models.tl     # imports utils
+│   └── main.tl       # imports models & utils
+└── dist/
+    └── (compiled Lua files)
+```
+
+### Configuration
+
+Create a `tlconfig.yaml` in your project root:
 
 Create a `tlconfig.yaml` in your project root:
 

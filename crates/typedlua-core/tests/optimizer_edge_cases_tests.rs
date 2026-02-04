@@ -486,4 +486,3 @@ fn test_generic_type_inference() {
         output
     );
 }
-

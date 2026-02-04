@@ -44,16 +44,12 @@ impl DiContainer {
         );
 
         container.register(
-            |_| {
-                Arc::new(ConsoleDiagnosticHandler::new(false)) as Arc<dyn DiagnosticHandler>
-            },
+            |_| Arc::new(ConsoleDiagnosticHandler::new(false)) as Arc<dyn DiagnosticHandler>,
             ServiceLifetime::Singleton,
         );
 
         container.register(
-            |_| {
-                Arc::new(RealFileSystem::new()) as Arc<dyn FileSystem>
-            },
+            |_| Arc::new(RealFileSystem::new()) as Arc<dyn FileSystem>,
             ServiceLifetime::Singleton,
         );
 

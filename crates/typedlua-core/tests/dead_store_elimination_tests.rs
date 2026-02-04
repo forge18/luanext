@@ -135,4 +135,3 @@ fn test_dead_store_const_reassigned() {
         "Const assignment should be eliminated if only used once"
     );
 }
-

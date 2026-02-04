@@ -224,4 +224,3 @@ fn test_generic_array_parameters() {
 
     assert!(type_check(source).is_ok());
 }
-

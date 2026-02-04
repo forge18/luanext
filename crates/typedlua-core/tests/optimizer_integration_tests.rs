@@ -30,4 +30,3 @@ fn test_optimizer_runs_successfully() {
     compile_with_optimization(source).unwrap();
     compile_with_optimization(source).unwrap();
 }
-
