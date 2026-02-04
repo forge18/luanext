@@ -1,9 +1,6 @@
-use std::rc::Rc;
 use std::sync::Arc;
-use typedlua_core::codegen::CodeGenerator;
-use typedlua_core::config::CompilerOptions;
+use typedlua_core::di::DiContainer;
 use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_core::TypeChecker;
 use typedlua_parser::lexer::Lexer;
 use typedlua_parser::parser::Parser;
 use typedlua_parser::string_interner::StringInterner;
@@ -21,32 +18,8 @@ fn lex_and_parse(input: &str) -> bool {
 }
 
 fn compile_and_check(input: &str) -> Result<String, String> {
-    let handler = Arc::new(CollectingDiagnosticHandler::new());
-    let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Rc::new(interner);
-
-    let mut lexer = Lexer::new(input, handler.clone(), &interner);
-    let tokens = lexer
-        .tokenize()
-        .map_err(|e| format!("Lexing failed: {:?}", e))?;
-
-    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
-    let mut program = parser
-        .parse()
-        .map_err(|e| format!("Parsing failed: {:?}", e))?;
-
-    let options = CompilerOptions::default();
-
-    let mut type_checker =
-        TypeChecker::new(handler.clone(), &interner, &common_ids).with_options(options);
-    type_checker
-        .check_program(&mut program)
-        .map_err(|e| e.message)?;
-
-    let mut codegen = CodeGenerator::new(interner.clone());
-    let output = codegen.generate(&mut program);
-
-    Ok(output)
+    let mut container = DiContainer::test_default();
+    container.compile(input)
 }
 
 #[test]

@@ -1,43 +1,9 @@
-use std::rc::Rc;
-use std::sync::Arc;
-use typedlua_core::codegen::CodeGenerator;
-use typedlua_core::config::{CompilerOptions, OptimizationLevel};
-use typedlua_core::diagnostics::{CollectingDiagnosticHandler, DiagnosticHandler};
-use typedlua_core::TypeChecker;
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::parser::Parser;
-use typedlua_parser::string_interner::StringInterner;
+use typedlua_core::config::OptimizationLevel;
+use typedlua_core::di::DiContainer;
 
 fn compile_with_optimizer(source: &str, opt_level: OptimizationLevel) -> Result<String, String> {
-    let handler = Arc::new(CollectingDiagnosticHandler::new());
-    let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Rc::new(interner);
-
-    let mut lexer = Lexer::new(source, handler.clone(), &interner);
-    let tokens = lexer
-        .tokenize()
-        .map_err(|e| format!("Lexing failed: {:?}", e))?;
-
-    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
-    let mut program = parser
-        .parse()
-        .map_err(|e| format!("Parsing failed: {:?}", e))?;
-
-    if handler.has_errors() {
-        let diagnostics = handler.get_diagnostics();
-        return Err(format!("Parser reported errors: {:?}", diagnostics));
-    }
-
-    let mut type_checker = TypeChecker::new(handler.clone(), &interner, &common_ids)
-        .with_options(CompilerOptions::default());
-    type_checker
-        .check_program(&mut program)
-        .map_err(|e| e.message)?;
-
-    let mut codegen = CodeGenerator::new(interner.clone()).with_optimization_level(opt_level);
-    let output = codegen.generate(&mut program);
-
-    Ok(output)
+    let mut container = DiContainer::test_default();
+    container.compile_with_optimization(source, opt_level)
 }
 
 #[cfg(test)]

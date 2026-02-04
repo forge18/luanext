@@ -1,64 +1,12 @@
-use std::rc::Rc;
-use std::sync::Arc;
-use typedlua_core::codegen::CodeGenerator;
-use typedlua_core::config::{CompilerOptions, OptimizationLevel};
-use typedlua_core::diagnostics::{CollectingDiagnosticHandler, DiagnosticHandler, DiagnosticLevel};
-use typedlua_core::optimizer::Optimizer;
-use typedlua_core::TypeChecker;
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::parser::Parser;
-use typedlua_parser::string_interner::StringInterner;
+use typedlua_core::config::OptimizationLevel;
+use typedlua_core::di::DiContainer;
 
 fn compile_with_optimization(
     source: &str,
     optimization_level: OptimizationLevel,
 ) -> Result<String, String> {
-    let handler = Arc::new(CollectingDiagnosticHandler::new());
-    let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Rc::new(interner);
-
-    // Lex
-    let mut lexer = Lexer::new(source, handler.clone(), &interner);
-    let tokens = match lexer.tokenize() {
-        Ok(t) => t,
-        Err(e) => return Err(format!("Lexing failed: {:?}", e)),
-    };
-
-    // Parse
-    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
-    let mut program = match parser.parse() {
-        Ok(p) => p,
-        Err(e) => return Err(format!("Parsing failed: {:?}", e)),
-    };
-
-    // Type check
-    let mut type_checker = TypeChecker::new(handler.clone(), &interner, &common_ids)
-        .with_options(CompilerOptions::default());
-    if let Err(e) = type_checker.check_program(&mut program) {
-        return Err(format!("Type checking failed: {}", e.message));
-    }
-
-    // Check for diagnostics
-    let errors: Vec<_> = handler
-        .get_diagnostics()
-        .iter()
-        .filter(|d| d.level == DiagnosticLevel::Error)
-        .map(|d| d.message.clone())
-        .collect();
-    if !errors.is_empty() {
-        return Err(format!("Type checking errors: {:?}", errors));
-    }
-
-    // Run optimizer at O3
-    let mut optimizer = Optimizer::new(optimization_level, handler.clone(), interner.clone());
-    let _ = optimizer.optimize(&mut program);
-
-    // Generate code
-    let mut codegen =
-        CodeGenerator::new(interner.clone()).with_optimization_level(optimization_level);
-    let output = codegen.generate(&mut program);
-
-    Ok(output)
+    let mut container = DiContainer::test_default();
+    container.compile_with_optimization(source, optimization_level)
 }
 
 #[test]

@@ -1,12 +1,13 @@
-use typedlua_core::config::CompilerOptions;
+use typedlua_core::config::{CompilerConfig, CompilerOptions};
 use typedlua_core::di::DiContainer;
 
 fn type_check(source: &str) -> Result<(), String> {
-    let config = CompilerOptions {
+    let mut config = CompilerConfig::default();
+    config.compiler_options = CompilerOptions {
         enable_decorators: true,
         ..Default::default()
     };
-    let mut container = DiContainer::test_with_config(config.into());
+    let mut container = DiContainer::test_with_config(config);
     container.compile(source)?;
     Ok(())
 }
