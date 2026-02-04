@@ -1,27 +1,8 @@
-use std::sync::Arc;
-use typedlua_core::config::CompilerOptions;
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_core::TypeChecker;
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::parser::Parser;
-use typedlua_parser::string_interner::StringInterner;
+use typedlua_core::di::DiContainer;
 
 fn type_check(source: &str) -> Result<(), String> {
-    let handler = Arc::new(CollectingDiagnosticHandler::new());
-    let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let mut lexer = Lexer::new(source, handler.clone(), &interner);
-    let tokens = lexer.tokenize().map_err(|e| format!("{:?}", e))?;
-
-    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
-    let mut program = parser.parse().map_err(|e| format!("{:?}", e))?;
-
-    let mut checker = TypeChecker::new(handler, &interner, &common_ids);
-    checker = checker.with_options(CompilerOptions {
-        ..Default::default()
-    });
-
-    checker.check_program(&mut program).map_err(|e| e.message)?;
-
+    let mut container = DiContainer::test_default();
+    container.compile(source)?;
     Ok(())
 }
 
@@ -67,7 +48,6 @@ fn test_generic_type_reference_different_args() {
         }
     "#;
 
-    // This should fail - Box<number> is not compatible with Box<string>
     assert!(
         type_check(source).is_err(),
         "Generic types with different args should not be compatible"
@@ -102,7 +82,6 @@ fn test_type_reference_missing_type_args() {
         }
     "#;
 
-    // Should fail - Box (no args) is not compatible with Box<number>
     assert!(
         type_check(source).is_err(),
         "Type reference with missing args should not match"
@@ -119,37 +98,24 @@ fn test_type_reference_vs_primitive() {
         }
     "#;
 
-    // Currently this will fail because we don't resolve type aliases
-    // This is a known limitation - we need type environment to resolve
-    // UserId -> number
     let result = type_check(source);
-    // We accept either outcome for now, as this tests the documented limitation
-    // In the future when we implement type resolution, this should pass
-    // Test passes if we reach here (either success or known limitation)
     let _ = result;
 }
 
 #[test]
 fn test_type_reference_compatibility_same_name() {
-    // This test demonstrates a limitation: we can't assign concrete types
-    // to type aliases without type resolution
     let source = r#"
         type Point = { x: number, y: number }
 
         local p: Point = { x: 0, y: 0 }
     "#;
 
-    // This currently fails because we don't resolve Point -> {x: number, y: number}
-    // It's a known limitation that requires passing TypeEnvironment to is_assignable
     let result = type_check(source);
-    // Test passes whether type checking succeeds or fails - both are valid outcomes
-    // with the current implementation
     let _ = result;
 }
 
 #[test]
 fn test_generic_variance_invariant() {
-    // Generic types should be invariant (for now)
     let source = r#"
         type Box<T> = { value: T }
 
@@ -158,9 +124,6 @@ fn test_generic_variance_invariant() {
         }
     "#;
 
-    // With proper variance checking, Box is invariant in T
-    // Box<number> should NOT be assignable to Box<any>
-    // Current implementation rejects this (correct behavior)
     assert!(
         type_check(source).is_err(),
         "Generic types should be invariant"

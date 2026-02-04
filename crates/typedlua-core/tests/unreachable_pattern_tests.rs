@@ -1,45 +1,9 @@
-use std::rc::Rc;
-use std::sync::Arc;
-use typedlua_core::codegen::CodeGenerator;
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_core::TypeChecker;
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::parser::Parser;
-use typedlua_parser::string_interner::StringInterner;
+use typedlua_core::di::DiContainer;
 
 fn compile_and_check(source: &str) -> Result<String, String> {
-    let handler = Arc::new(CollectingDiagnosticHandler::new());
-    let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Rc::new(interner);
-
-    // Lex
-    let mut lexer = Lexer::new(source, handler.clone(), &interner);
-    let tokens = lexer
-        .tokenize()
-        .map_err(|e| format!("Lexing failed: {:?}", e))?;
-
-    // Parse
-    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
-    let mut program = parser
-        .parse()
-        .map_err(|e| format!("Parsing failed: {:?}", e))?;
-
-    // Type check
-    let mut type_checker = TypeChecker::new(handler.clone(), &interner, &common_ids);
-    type_checker
-        .check_program(&mut program)
-        .map_err(|e| e.message)?;
-
-    // Generate code
-    let mut codegen = CodeGenerator::new(interner.clone());
-    let output = codegen.generate(&mut program);
-
-    Ok(output)
+    let mut container = DiContainer::test_default();
+    container.compile(source)
 }
-
-// ========================================
-// Trivial Unreachability Tests
-// ========================================
 
 #[test]
 fn test_unreachable_after_wildcard() {
@@ -52,8 +16,6 @@ fn test_unreachable_after_wildcard() {
     "#;
 
     let _result = compile_and_check(source);
-    // Note: Currently testing infrastructure doesn't easily access warnings
-    // This test documents the expected behavior
 }
 
 #[test]
@@ -67,7 +29,6 @@ fn test_unreachable_after_identifier() {
     "#;
 
     let _result = compile_and_check(source);
-    // Should warn: 5 is unreachable after identifier
 }
 
 #[test]
@@ -81,13 +42,8 @@ fn test_reachable_after_guarded_wildcard() {
     "#;
 
     let result = compile_and_check(source);
-    // Should NOT warn: previous pattern has guard
     assert!(result.is_ok(), "Should compile without errors");
 }
-
-// ========================================
-// Literal Subsumption Tests
-// ========================================
 
 #[test]
 fn test_duplicate_literal() {
@@ -100,7 +56,6 @@ fn test_duplicate_literal() {
     "#;
 
     let _result = compile_and_check(source);
-    // Should warn: duplicate pattern
 }
 
 #[test]
@@ -114,7 +69,6 @@ fn test_or_pattern_subsumes_literal() {
     "#;
 
     let _result = compile_and_check(source);
-    // Should warn: 2 is already covered by or-pattern
 }
 
 #[test]
@@ -128,13 +82,8 @@ fn test_or_pattern_partial_overlap_no_warning() {
     "#;
 
     let result = compile_and_check(source);
-    // Should NOT warn - only partial overlap (3 is new)
     assert!(result.is_ok(), "Should compile without errors");
 }
-
-// ========================================
-// Or-Pattern Subsumption Tests
-// ========================================
 
 #[test]
 fn test_or_pattern_fully_subsumed() {
@@ -147,7 +96,6 @@ fn test_or_pattern_fully_subsumed() {
     "#;
 
     let _result = compile_and_check(source);
-    // Should warn: {2, 3} is subset of {1, 2, 3, 4}
 }
 
 #[test]
@@ -161,12 +109,7 @@ fn test_multiple_literal_alternatives() {
     "#;
 
     let _result = compile_and_check(source);
-    // Should warn: exact duplicate
 }
-
-// ========================================
-// Array Pattern Tests
-// ========================================
 
 #[test]
 fn test_array_wildcard_subsumes_literal() {
@@ -179,7 +122,6 @@ fn test_array_wildcard_subsumes_literal() {
     "#;
 
     let _result = compile_and_check(source);
-    // Should warn: identifiers subsume literals
 }
 
 #[test]
@@ -193,9 +135,6 @@ fn test_array_no_warning_different_length() {
     "#;
 
     let result = compile_and_check(source);
-    // Note: Different array lengths in patterns are handled by exhaustiveness checking
-    // This test documents the expected behavior (both patterns needed for exhaustiveness)
-    // No unreachable warning should be emitted even if compilation succeeds or fails
     let _ = result;
 }
 
@@ -210,12 +149,7 @@ fn test_array_rest_pattern_subsumption() {
     "#;
 
     let _result = compile_and_check(source);
-    // Should warn: rest pattern covers exact match
 }
-
-// ========================================
-// Object Pattern Tests
-// ========================================
 
 #[test]
 fn test_object_wildcard_subsumes_literal() {
@@ -228,7 +162,6 @@ fn test_object_wildcard_subsumes_literal() {
     "#;
 
     let _result = compile_and_check(source);
-    // Should warn: identifiers subsume literals
 }
 
 #[test]
@@ -242,7 +175,6 @@ fn test_object_different_keys_no_warning() {
     "#;
 
     let result = compile_and_check(source);
-    // Should NOT warn - different constraints
     assert!(result.is_ok(), "Should compile without errors");
 }
 
@@ -257,13 +189,8 @@ fn test_object_missing_property_no_warning() {
     "#;
 
     let result = compile_and_check(source);
-    // Should NOT warn - later pattern has fewer constraints (open world assumption)
     assert!(result.is_ok(), "Should compile without errors");
 }
-
-// ========================================
-// Guard Interaction Tests
-// ========================================
 
 #[test]
 fn test_guarded_pattern_not_subsumer() {
@@ -276,7 +203,6 @@ fn test_guarded_pattern_not_subsumer() {
     "#;
 
     let result = compile_and_check(source);
-    // Should NOT warn: earlier has guard
     assert!(result.is_ok(), "Should compile without errors");
 }
 
@@ -291,12 +217,7 @@ fn test_unreachable_despite_guard() {
     "#;
 
     let _result = compile_and_check(source);
-    // Should warn: unreachable even with guard
 }
-
-// ========================================
-// Edge Cases
-// ========================================
 
 #[test]
 fn test_literal_boolean_true_vs_false() {
@@ -310,7 +231,6 @@ fn test_literal_boolean_true_vs_false() {
     "#;
 
     let _result = compile_and_check(source);
-    // Should warn: duplicate true
 }
 
 #[test]
@@ -323,7 +243,6 @@ fn test_single_arm_no_warning() {
     "#;
 
     let result = compile_and_check(source);
-    // Should NOT warn - only one arm
     assert!(result.is_ok(), "Should compile without errors");
 }
 
@@ -338,6 +257,5 @@ fn test_two_different_patterns_no_warning() {
     "#;
 
     let result = compile_and_check(source);
-    // Should NOT warn - no subsumption between different literals
     assert!(result.is_ok(), "Should compile without errors");
 }
