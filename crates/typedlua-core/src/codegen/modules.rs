@@ -203,15 +203,20 @@ impl CodeGenerator {
 
         self.current_namespace = Some(path.clone());
 
+        // Generate namespace table hierarchy
+        self.writeln("");
         self.write_indent();
         self.writeln(&format!("-- Namespace: {}", path.join(".")));
 
+        // Create root namespace table (or use existing)
         self.write_indent();
-        self.writeln(&format!("local {} = {}", path[0], "{}"));
+        self.writeln(&format!("local {} = {} or {{}}", path[0], path[0]));
 
+        // Create nested namespace tables
         for i in 1..path.len() {
+            let current_path = path[..=i].join(".");
             self.write_indent();
-            self.writeln(&format!("{}.{} = {}", path[0], path[i], "{}"));
+            self.writeln(&format!("{} = {} or {{}}", current_path, current_path));
         }
 
         self.writeln("");

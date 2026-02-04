@@ -135,6 +135,8 @@ pub struct CodeGenerator {
     registered_types: std::collections::HashMap<String, u32>,
     /// Code generation strategy for Lua version-specific logic
     strategy: Box<dyn strategies::CodeGenStrategy>,
+    /// Enforce access modifiers (private/protected/public) at runtime
+    enforce_access_modifiers: bool,
 }
 
 impl CodeGenerator {
@@ -158,11 +160,17 @@ impl CodeGenerator {
             next_type_id: 1,
             registered_types: std::collections::HashMap::new(),
             strategy: Self::create_strategy(target),
+            enforce_access_modifiers: false,
         }
     }
 
     pub fn with_output_format(mut self, format: crate::config::OutputFormat) -> Self {
         self.emitter = self.emitter.with_output_format(format);
+        self
+    }
+
+    pub fn with_enforce_access_modifiers(mut self, enforce: bool) -> Self {
+        self.enforce_access_modifiers = enforce;
         self
     }
 
@@ -477,9 +485,35 @@ impl CodeGenerator {
     }
 
     fn finalize_namespace(&mut self) {
-        if let Some(ns_path) = &self.current_namespace {
+        // Clone namespace path to avoid borrow checker issues
+        let ns_path_clone = self.current_namespace.clone();
+
+        if let Some(ns_path) = ns_path_clone {
             if !ns_path.is_empty() {
+                let ns_full_path = ns_path.join(".");
                 let ns_root = ns_path[0].clone();
+
+                // Assign exports to namespace
+                if !self.exports.is_empty() || self.has_default_export {
+                    self.writeln("");
+
+                    let exports = self.exports.clone();
+                    for name in &exports {
+                        self.write_indent();
+                        self.write(&ns_full_path);
+                        self.write(".");
+                        self.write(name);
+                        self.write(" = ");
+                        self.writeln(name);
+                    }
+
+                    if self.has_default_export {
+                        self.write_indent();
+                        self.write(&ns_full_path);
+                        self.writeln(".default = _default");
+                    }
+                }
+
                 self.writeln("");
                 self.write("return ");
                 self.writeln(&ns_root);

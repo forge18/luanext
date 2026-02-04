@@ -258,6 +258,44 @@ impl CodeGenerator {
         self.write_indent();
         self.writeln("}");
 
+        // Mark class as final if needed
+        if class_decl.is_final {
+            self.write_indent();
+            self.write(&class_name);
+            self.writeln(".__final = true");
+        }
+
+        // Track final methods
+        let final_methods: Vec<String> = class_decl
+            .members
+            .iter()
+            .filter_map(|member| {
+                if let ClassMember::Method(method) = member {
+                    if method.is_final {
+                        Some(self.resolve(method.name.node).to_string())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        if !final_methods.is_empty() {
+            self.write_indent();
+            self.write(&class_name);
+            self.writeln(".__finalMethods = {");
+            self.indent();
+            for method_name in &final_methods {
+                self.write_indent();
+                self.writeln(&format!("\"{}\",", method_name));
+            }
+            self.dedent();
+            self.write_indent();
+            self.writeln("}");
+        }
+
         self.write_indent();
         self.write(&class_name);
         self.writeln(".__ancestors = {");
@@ -300,6 +338,46 @@ impl CodeGenerator {
             self.write_indent();
             self.write(&class_name);
             self.writeln(&format!(".__parent = {}", base_name_str));
+
+            // Check if parent class is final
+            self.writeln("");
+            self.write_indent();
+            self.writeln(&format!("if {}.__final then", base_name_str));
+            self.indent();
+            self.write_indent();
+            self.writeln(&format!(
+                "error(\"Cannot extend final class '{}'\")",
+                base_name_str
+            ));
+            self.dedent();
+            self.write_indent();
+            self.writeln("end");
+
+            // Check for final method overrides
+            self.writeln("");
+            self.write_indent();
+            self.writeln(&format!("if {}.__finalMethods then", base_name_str));
+            self.indent();
+            self.write_indent();
+            self.writeln(&format!("for _, methodName in ipairs({}.__finalMethods) do", base_name_str));
+            self.indent();
+            self.write_indent();
+            self.writeln(&format!(
+                "if {}[methodName] and {}[methodName] ~= {}[methodName] then",
+                class_name, class_name, base_name_str
+            ));
+            self.indent();
+            self.write_indent();
+            self.writeln("error(\"Cannot override final method '\" .. methodName .. \"'\")");
+            self.dedent();
+            self.write_indent();
+            self.writeln("end");
+            self.dedent();
+            self.write_indent();
+            self.writeln("end");
+            self.dedent();
+            self.write_indent();
+            self.writeln("end");
         }
 
         self.writeln("");
