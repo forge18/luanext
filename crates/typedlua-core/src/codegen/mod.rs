@@ -241,20 +241,29 @@ impl CodeGenerator {
             self.writeln("-- ============================================================");
             self.writeln("-- Type Registry for Reflection");
             self.writeln("-- ============================================================");
-            self.writeln("__TypeRegistry = {");
-            self.indent();
+
+            // Generate registry tables (name -> id and id -> class)
+            self.writeln("__TypeRegistry = {}");
+            self.writeln("__TypeIdToClass = {}");
+            self.writeln("");
+
             // Collect into a Vec to avoid borrow checker issues
             let type_entries: Vec<(String, u32)> = self
                 .registered_types
                 .iter()
                 .map(|(k, v)| (k.clone(), *v))
                 .collect();
-            for (type_name, type_id) in type_entries {
-                self.write_indent();
-                self.writeln(&format!("[\"{}\"] = {},", type_name, type_id));
+
+            // Populate __TypeRegistry (name -> id mapping)
+            for (type_name, type_id) in &type_entries {
+                self.writeln(&format!("__TypeRegistry[\"{}\"] = {}", type_name, type_id));
             }
-            self.dedent();
-            self.writeln("}");
+            self.writeln("");
+
+            // Populate __TypeIdToClass (id -> class constructor mapping)
+            for (type_name, type_id) in &type_entries {
+                self.writeln(&format!("__TypeIdToClass[{}] = {}", type_id, type_name));
+            }
             self.writeln("");
 
             // Generate Reflect module from runtime

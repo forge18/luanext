@@ -5,49 +5,23 @@ pub mod di;
 pub mod optimizer;
 pub mod type_checker;
 
-// Re-export everything from external typechecker
+// Re-export shared utilities and types used by typedlua-core
 pub use typedlua_typechecker::{
-    // Utility types
-    apply_utility_type,
-    // Generics
-    build_substitutions,
-    check_type_constraints,
-    // Modules (full re-export)
+    // Modules - shared utilities
     config,
     diagnostics,
     errors,
-    evaluate_conditional_type,
-    evaluate_keyof,
-    evaluate_mapped_type,
-    evaluate_template_literal_type,
-
     fs,
-    infer_type_arguments,
-    instantiate_function_declaration,
-    instantiate_type,
-
     module_resolver,
-    narrow_type_from_condition,
-
-    // Narrowing
-    NarrowingContext,
-    Scope,
-    SerializableSymbol,
+    // Generic specialization optimizer functions
+    build_substitutions,
+    instantiate_function_declaration,
+    // Symbol table for caching
     SerializableSymbolTable,
-
-    // Symbol table
     Symbol,
-    SymbolKind,
     SymbolTable,
-    TypeCheckError,
-    // Main types
+    // Main type checker
     TypeChecker,
-    TypeCheckerState,
-
-    TypeCompatibility,
-
-    // Type system
-    TypeEnvironment,
 };
 
 // Re-export common diagnostics for backward compatibility

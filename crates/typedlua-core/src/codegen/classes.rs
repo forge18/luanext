@@ -54,16 +54,34 @@ impl CodeGenerator {
         } else if has_constructor {
             for member in &class_decl.members {
                 if let ClassMember::Constructor(ctor) = member {
-                    self.generate_class_constructor(&class_name, ctor);
+                    self.generate_class_constructor(&class_name, ctor, class_decl.is_abstract);
                 }
             }
         } else {
+            // Generate default constructor
             self.writeln("");
             self.write_indent();
             self.write("function ");
             self.write(&class_name);
             self.writeln(".new()");
             self.indent();
+
+            // Check for abstract class instantiation
+            if class_decl.is_abstract {
+                self.write_indent();
+                self.write("if self == nil or self.__typeName == \"");
+                self.write(&class_name);
+                self.writeln("\" then");
+                self.indent();
+                self.write_indent();
+                self.write("error(\"Cannot instantiate abstract class '");
+                self.write(&class_name);
+                self.writeln("'\")");
+                self.dedent();
+                self.write_indent();
+                self.writeln("end");
+            }
+
             self.write_indent();
             self.write("local self = setmetatable({}, ");
             self.write(&class_name);
@@ -346,7 +364,7 @@ impl CodeGenerator {
         }
     }
 
-    pub fn generate_class_constructor(&mut self, class_name: &str, ctor: &ConstructorDeclaration) {
+    pub fn generate_class_constructor(&mut self, class_name: &str, ctor: &ConstructorDeclaration, is_abstract: bool) {
         let always_use_init = true;
 
         if always_use_init {
@@ -391,6 +409,22 @@ impl CodeGenerator {
             self.write(class_name);
             self.writeln(")");
 
+            // Check for abstract class instantiation
+            if is_abstract {
+                self.write_indent();
+                self.write("if self.__typeName == \"");
+                self.write(class_name);
+                self.writeln("\" then");
+                self.indent();
+                self.write_indent();
+                self.write("error(\"Cannot instantiate abstract class '");
+                self.write(class_name);
+                self.writeln("'\")");
+                self.dedent();
+                self.write_indent();
+                self.writeln("end");
+            }
+
             self.write_indent();
             self.write(class_name);
             self.write("._init(self");
@@ -427,6 +461,22 @@ impl CodeGenerator {
             self.write("local self = setmetatable({}, ");
             self.write(class_name);
             self.writeln(")");
+
+            // Check for abstract class instantiation
+            if is_abstract {
+                self.write_indent();
+                self.write("if self.__typeName == \"");
+                self.write(class_name);
+                self.writeln("\" then");
+                self.indent();
+                self.write_indent();
+                self.write("error(\"Cannot instantiate abstract class '");
+                self.write(class_name);
+                self.writeln("'\")");
+                self.dedent();
+                self.write_indent();
+                self.writeln("end");
+            }
 
             self.generate_block(&ctor.body);
 
@@ -520,6 +570,22 @@ impl CodeGenerator {
         self.write("local self = setmetatable({}, ");
         self.write(class_name);
         self.writeln(")");
+
+        // Check for abstract class instantiation
+        if class_decl.is_abstract {
+            self.write_indent();
+            self.write("if self.__typeName == \"");
+            self.write(class_name);
+            self.writeln("\" then");
+            self.indent();
+            self.write_indent();
+            self.write("error(\"Cannot instantiate abstract class '");
+            self.write(class_name);
+            self.writeln("'\")");
+            self.dedent();
+            self.write_indent();
+            self.writeln("end");
+        }
 
         self.write_indent();
         self.write(class_name);

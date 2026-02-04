@@ -20,10 +20,17 @@ impl CodeGenerator {
             Pattern::Object(object_pattern) => {
                 self.generate_object_pattern(object_pattern);
             }
-            Pattern::Or(_) => {
-                // Or-patterns should only appear in match expressions
-                // Not in destructuring assignments like: const [a | b] = [1]
-                // Treat as wildcard if encountered (defensive programming)
+            Pattern::Or(or_pattern) => {
+                // OR patterns are only valid in match expressions, not in variable
+                // declarations or destructuring assignments.
+                // If we encounter one here, it's an error that should have been caught
+                // during type checking.
+                eprintln!(
+                    "Error at {:?}: OR patterns (|) are only valid in match expressions, \
+                    not in variable declarations or destructuring assignments",
+                    or_pattern.span
+                );
+                // Generate wildcard as fallback for error recovery
                 self.write("_");
             }
         }

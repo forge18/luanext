@@ -1,6 +1,7 @@
 //! Reflection runtime support for TypedLua.
 
-pub const TYPE_REGISTRY: &str = r#"__TypeRegistry = {
+pub const TYPE_REGISTRY: &str = r#"__TypeRegistry = {}
+__TypeIdToClass = {}
 "#;
 
 pub const REFLECTION_MODULE: &str = r#"-- ============================================================
@@ -44,16 +45,18 @@ function Reflect.getMethods(obj)
 end
 
 function Reflect.forName(name)
-    -- Try global lookup first (for registered types)
+    -- Try type registry lookup first (O(1) via reverse registry)
+    local typeId = __TypeRegistry[name]
+    if typeId then
+        local classConstructor = __TypeIdToClass[typeId]
+        if classConstructor then
+            return classConstructor
+        end
+    end
+    -- Fallback to global lookup for dynamically created types
     _G = _G or getfenv(0)
     if _G[name] and _G[name].__typeName == name then
         return _G[name]
-    end
-    -- Try type registry lookup
-    local typeId = __TypeRegistry[name]
-    if typeId then
-        -- Lookup by typeId would require reverse registry
-        -- For now, rely on global lookup above
     end
     return nil
 end
