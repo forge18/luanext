@@ -1,40 +1,10 @@
-use std::sync::Arc;
-use typedlua_core::config::CompilerOptions;
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_core::TypeChecker;
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::parser::Parser;
-use typedlua_parser::string_interner::StringInterner;
+use typedlua_core::di::DiContainer;
 
 fn type_check(source: &str) -> Result<(), String> {
-    let handler = Arc::new(CollectingDiagnosticHandler::new());
-    let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-
-    // Lex
-    let mut lexer = Lexer::new(source, handler.clone(), &interner);
-    let tokens = lexer
-        .tokenize()
-        .map_err(|e| format!("Lexing failed: {:?}", e))?;
-
-    // Parse
-    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
-    let mut program = parser
-        .parse()
-        .map_err(|e| format!("Parsing failed: {:?}", e))?;
-
-    // Type check
-    let mut type_checker = TypeChecker::new(handler.clone(), &interner, &common_ids)
-        .with_options(CompilerOptions::default());
-    type_checker
-        .check_program(&mut program)
-        .map_err(|e| e.message)?;
-
+    let mut container = DiContainer::test_default();
+    container.compile(source)?;
     Ok(())
 }
-
-// ============================================================================
-// Literal Type Narrowing Tests
-// ============================================================================
 
 #[test]
 fn test_literal_narrowing_number() {
@@ -47,361 +17,278 @@ fn test_literal_narrowing_number() {
     "#;
 
     let result = type_check(source);
-    assert!(
-        result.is_ok(),
-        "Literal pattern should narrow number to literal type"
-    );
+    assert!(result.is_ok(), "Literal narrowing should work");
 }
 
 #[test]
 fn test_literal_narrowing_string() {
     let source = r#"
-        const x: string = "hello"
-        const result = match x {
-            "hello" => "greeting"
-            "bye" => "farewell"
-            _ => "other"
+        const status: "pending" | "active" | "done" = "active"
+        match status {
+            "pending" => "waiting"
+            "active" => "running"
+            "done" => "finished"
         }
     "#;
 
     let result = type_check(source);
-    assert!(
-        result.is_ok(),
-        "Literal pattern should narrow string to literal type"
-    );
+    assert!(result.is_ok(), "String literal narrowing should work");
 }
 
 #[test]
-fn test_literal_narrowing_boolean() {
+fn test_boolean_narrowing() {
     let source = r#"
-        const x: boolean = true
-        const result = match x {
-            true => "yes"
-            false => "no"
+        const flag: boolean = true
+        if flag {
+            const b: true = flag
+        } else {
+            const b: false = flag
         }
     "#;
 
     let result = type_check(source);
-    assert!(
-        result.is_ok(),
-        "Literal pattern should narrow boolean to literal type"
-    );
-}
-
-// ============================================================================
-// Union Type Narrowing Tests
-// ============================================================================
-
-#[test]
-fn test_union_narrowing_with_literals() {
-    let source = r#"
-        const x: "yes" | "no" | "maybe" = "yes"
-        const result = match x {
-            "yes" => 1
-            "no" => 0
-            "maybe" => -1
-        }
-    "#;
-
-    let result = type_check(source);
-    assert!(
-        result.is_ok(),
-        "Union of literals should narrow to each literal type"
-    );
+    assert!(result.is_ok(), "Boolean narrowing should work");
 }
 
 #[test]
-fn test_union_narrowing_number_string() {
+fn test_type_guard_narrowing() {
     let source = r#"
         const x: number | string = 42
-        const result = match x {
-            42 => "the answer"
-            "hello" => "greeting"
-            _ => "other"
+        if typeof(x) == "number" {
+            const n: number = x
+        } else {
+            const s: string = x
         }
     "#;
 
     let result = type_check(source);
-    assert!(
-        result.is_ok(),
-        "Union of number and string should narrow with literals"
-    );
+    assert!(result.is_ok(), "Type guard narrowing should work");
 }
 
 #[test]
-fn test_union_narrowing_with_array_pattern() {
+fn test_nullable_narrowing() {
     let source = r#"
-        const x: number[] | string = [1, 2, 3]
-        const result = match x {
-            [] => "empty array"
-            [first, ...rest] => first
-            _ => "string"
+        const x: number | nil = nil
+        if x != nil {
+            const n: number = x
         }
     "#;
 
     let result = type_check(source);
-    assert!(
-        result.is_ok(),
-        "Array pattern should narrow union to array type"
-    );
+    assert!(result.is_ok(), "Nullable narrowing should work");
 }
 
 #[test]
-fn test_union_narrowing_with_object_pattern() {
-    // Simplified without type aliases - test basic object pattern narrowing
+fn test_narrowing_in_match() {
     let source = r#"
-        const shape = {x: 10, y: 20}
-        const result = match shape {
-            {x, y} => x + y
+        const value: { kind: "a", a: number } | { kind: "b", b: string } = { kind: "a", a: 1 }
+        match value {
+            { kind: "a", a } => const n: number = a
+            { kind: "b", b } => const s: string = b
         }
     "#;
 
     let result = type_check(source);
-    assert!(
-        result.is_ok(),
-        "Object pattern should extract and use properties"
-    );
+    assert!(result.is_ok(), "Narrowing in match should work");
 }
 
-// ============================================================================
-// Object Type Narrowing Tests
-// ============================================================================
-
 #[test]
-fn test_object_pattern_binds_narrowed_properties() {
+fn test_is_operator_narrowing() {
     let source = r#"
-        const obj = {name: "Alice", age: 30}
-        const result = match obj {
-            {name, age} => name
+        const x: unknown = 42
+        if x is number {
+            const n: number = x
         }
     "#;
 
     let result = type_check(source);
-    assert!(
-        result.is_ok(),
-        "Object pattern should bind properties with correct types"
-    );
+    assert!(result.is_ok(), "IS operator narrowing should work");
 }
 
 #[test]
-fn test_discriminated_union_narrowing() {
-    // Simplified test without type aliases since those may not be fully implemented
+fn test_assertion_narrowing() {
     let source = r#"
-        const res = {status: "success", value: 42}
-        const result = match res {
-            {status} when status == "success" => "ok"
-            {status} => "other"
+        const x: number | nil = nil
+        if x != nil {
+            const n: number = x
         }
     "#;
 
     let result = type_check(source);
-    // This tests object pattern with guard narrowing
-    assert!(
-        result.is_ok(),
-        "Object pattern with guard should narrow correctly"
-    );
+    assert!(result.is_ok(), "Assertion narrowing should work");
 }
 
-// ============================================================================
-// Array Type Narrowing Tests
-// ============================================================================
-
 #[test]
-fn test_array_pattern_narrowing() {
+fn test_narrowing_with_exhaustiveness() {
     let source = r#"
-        const arr: number[] = [1, 2, 3]
-        const result = match arr {
-            [] => 0
-            [single] => single
-            [first, second] => first + second
-            _ => -1
+        const x: "a" | "b" | "c" = "a"
+        match x {
+            "a" => const a = "a"
+            "b" => const b = "b"
+            "c" => const c = "c"
         }
     "#;
 
     let result = type_check(source);
-    assert!(result.is_ok(), "Array patterns should narrow array type");
+    assert!(result.is_ok(), "Narrowing with exhaustiveness should work");
 }
 
 #[test]
-fn test_tuple_pattern_narrowing() {
-    // Note: This test uses tuple type annotation [number, string]
-    // In TypedLua, array literals create array types, not tuple types
-    // So we test with proper tuple type annotation
+fn test_narrowing_assignment() {
     let source = r#"
-        const arr: number[] = [1, 2, 3]
-        const result = match arr {
-            [first, second] => first + second
-            _ => 0
+        let x: number | nil = nil
+        if x != nil {
+            x = x
         }
     "#;
 
     let result = type_check(source);
-    assert!(
-        result.is_ok(),
-        "Array pattern should narrow array type with element access"
-    );
+    assert!(result.is_ok(), "Narrowing in assignment should work");
 }
 
-// ============================================================================
-// Nested Pattern Narrowing Tests
-// ============================================================================
-
 #[test]
-fn test_nested_object_pattern_narrowing() {
+fn test_narrowing_loop() {
     let source = r#"
-        const data = {user: {name: "Alice", id: 123}, active: true}
-        const result = match data {
-            {user} => user.name
+        const arr: number[] | nil = nil
+        for i in 0..10 {
+            if arr != nil {
+                const a: number[] = arr
+            }
         }
     "#;
 
     let result = type_check(source);
-    assert!(
-        result.is_ok(),
-        "Nested object pattern should preserve nested type information"
-    );
+    assert!(result.is_ok(), "Narrowing in loop should work");
 }
 
 #[test]
-fn test_nested_array_pattern_narrowing() {
+fn test_nested_narrowing() {
     let source = r#"
-        const matrix: number[][] = [[1, 2], [3, 4]]
-        const result = match matrix {
-            [[a, b], [c, d]] => a + b + c + d
-            _ => 0
+        type A = { kind: "a", value: number }
+        type B = { kind: "b", value: string }
+        const x: A | B | nil = nil
+        if x != nil {
+            if x.kind == "a" {
+                const n: number = x.value
+            }
         }
     "#;
 
     let result = type_check(source);
-    assert!(
-        result.is_ok(),
-        "Nested array pattern should narrow nested array types"
-    );
+    assert!(result.is_ok(), "Nested narrowing should work");
 }
 
-// ============================================================================
-// Identifier and Wildcard Narrowing Tests
-// ============================================================================
+#[test]
+fn test_custom_type_guard() {
+    let source = r#"
+        function isNumber(x: unknown): x is number {
+            return typeof(x) == "number"
+        }
+
+        const x: unknown = 42
+        if isNumber(x) {
+            const n: number = x
+        }
+    "#;
+
+    let result = type_check(source);
+    assert!(result.is_ok(), "Custom type guard should work");
+}
 
 #[test]
-fn test_identifier_pattern_no_narrowing() {
+fn test_narrowing_preserves_union() {
     let source = r#"
         const x: number | string = 42
-        const result = match x {
-            value => value
-        }
+        const y = x
     "#;
 
     let result = type_check(source);
-    assert!(
-        result.is_ok(),
-        "Identifier pattern should not narrow type (keeps union)"
-    );
+    assert!(result.is_ok(), "Narrowing should preserve union");
 }
 
 #[test]
-fn test_wildcard_pattern_no_narrowing() {
+fn test_discriminant_narrowing() {
     let source = r#"
-        const x: number | string = 42
-        const result = match x {
-            _ => "any"
+        type ClickEvent = { type: "click", x: number, y: number }
+        type KeyEvent = { type: "key", key: string }
+
+        const event: ClickEvent | KeyEvent = { type: "click", x: 1, y: 2 }
+        if event.type == "click" {
+            const x: number = event.x
         }
     "#;
 
     let result = type_check(source);
-    assert!(result.is_ok(), "Wildcard pattern should not narrow type");
-}
-
-// ============================================================================
-// Complex Narrowing Scenarios
-// ============================================================================
-
-#[test]
-fn test_multiple_union_members_narrowing() {
-    // Simplified without type aliases
-    let source = r#"
-        const shape = {type: "circle", radius: 5}
-        const result = match shape {
-            {type, radius} when type == "circle" => radius
-            {type} => 0
-        }
-    "#;
-
-    let result = type_check(source);
-    // This tests object pattern with multiple properties and guards
-    assert!(
-        result.is_ok(),
-        "Object pattern with guards should work correctly"
-    );
+    assert!(result.is_ok(), "Discriminant narrowing should work");
 }
 
 #[test]
-fn test_nullable_type_narrowing() {
+fn test_narrowing_function_return() {
     let source = r#"
-        const x: number | nil = 42
-        const result = match x {
-            nil => 0
-            value => value
+        function parse(input: string): { success: boolean, value: number } | nil {
+            return nil
+        }
+
+        const result = parse("test")
+        if result != nil && result.success {
+            const n: number = result.value
         }
     "#;
 
     let result = type_check(source);
-    assert!(
-        result.is_ok(),
-        "Nullable type should narrow with nil pattern"
-    );
+    assert!(result.is_ok(), "Narrowing function return should work");
 }
 
 #[test]
-fn test_literal_union_narrowing() {
+fn test_narrowing_inferred_type() {
     let source = r#"
-        const status: "pending" | "success" | "error" = "pending"
-        const result = match status {
-            "pending" => 0
-            "success" => 1
-            "error" => -1
-        }
+        const value: number | string = 42
+        const inferred = value
     "#;
 
     let result = type_check(source);
-    assert!(
-        result.is_ok(),
-        "Literal union should narrow to each literal in patterns"
-    );
-}
-
-// ============================================================================
-// Narrowing with Guards
-// ============================================================================
-
-#[test]
-fn test_narrowing_preserved_in_guard() {
-    let source = r#"
-        const x: number = 42
-        const result = match x {
-            n when n > 0 => "positive"
-            n when n < 0 => "negative"
-            _ => "zero"
-        }
-    "#;
-
-    let result = type_check(source);
-    assert!(
-        result.is_ok(),
-        "Type narrowing should be available in guard expressions"
-    );
+    assert!(result.is_ok(), "Inferred type narrowing should work");
 }
 
 #[test]
-fn test_literal_narrowing_with_guard() {
+fn test_narrowing_with_equality() {
     let source = r#"
-        const x: number = 42
-        const result = match x {
-            42 when true => "the answer with guard"
-            _ => "other"
+        const x: 1 | 2 | 3 = 2
+        if x == 2 {
+            const y: 2 = x
         }
     "#;
 
     let result = type_check(source);
-    assert!(result.is_ok(), "Literal narrowing should work with guards");
+    assert!(result.is_ok(), "Equality narrowing should work");
+}
+
+#[test]
+fn test_narrowing_in_ternary() {
+    let source = r#"
+        const x: number | nil = nil
+        const y = x != nil ? (x as number) + 1 : 0
+    "#;
+
+    let result = type_check(source);
+    assert!(result.is_ok(), "Narrowing in ternary should work");
+}
+
+#[test]
+fn test_narrowing_complex_union() {
+    let source = r#"
+        type A = { kind: "a" }
+        type B = { kind: "b" }
+        type C = { kind: "c" }
+
+        const x: A | B | C = { kind: "a" }
+        match x {
+            { kind: "a" } => const a = "a"
+            { kind: "b" } => const b = "b"
+            { kind: "c" } => const c = "c"
+        }
+    "#;
+
+    let result = type_check(source);
+    assert!(result.is_ok(), "Complex union narrowing should work");
 }

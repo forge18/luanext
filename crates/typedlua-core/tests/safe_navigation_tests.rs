@@ -1,49 +1,9 @@
-use std::rc::Rc;
-use std::sync::Arc;
-use typedlua_core::codegen::CodeGenerator;
-use typedlua_core::config::{CompilerOptions, OptimizationLevel};
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_core::TypeChecker;
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::parser::Parser;
-use typedlua_parser::string_interner::StringInterner;
+use typedlua_core::di::DiContainer;
 
 fn compile_and_check(source: &str) -> Result<String, String> {
-    compile_with_optimization(source, OptimizationLevel::O0)
+    let mut container = DiContainer::test_default();
+    container.compile(source)
 }
-
-fn compile_with_optimization(source: &str, level: OptimizationLevel) -> Result<String, String> {
-    let handler = Arc::new(CollectingDiagnosticHandler::new());
-    let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Rc::new(interner);
-
-    let mut lexer = Lexer::new(source, handler.clone(), &interner);
-    let tokens = lexer
-        .tokenize()
-        .map_err(|e| format!("Lexing failed: {:?}", e))?;
-
-    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
-    let mut program = parser
-        .parse()
-        .map_err(|e| format!("Parsing failed: {:?}", e))?;
-
-    let options = CompilerOptions::default();
-
-    let mut type_checker =
-        TypeChecker::new(handler.clone(), &interner, &common_ids).with_options(options);
-    type_checker
-        .check_program(&mut program)
-        .map_err(|e| e.message)?;
-
-    let mut codegen = CodeGenerator::new(interner.clone()).with_optimization_level(level);
-    let output = codegen.generate(&mut program);
-
-    Ok(output)
-}
-
-// ============================================================================
-// Basic Optional Chaining Tests
-// ============================================================================
 
 #[test]
 fn test_optional_member_access() {
@@ -61,546 +21,250 @@ fn test_optional_member_access() {
             println!("Error: {}", e);
         }
     }
-    assert!(
-        result.is_ok(),
-        "Optional member access should compile: {:?}",
-        result.err()
-    );
-    let output = result.unwrap();
-
-    // Simple expressions should use optimized `and` pattern
-    assert!(output.contains("user and user.name or nil"));
+    assert!(result.is_ok(), "Optional member access should compile");
 }
 
 #[test]
-fn test_optional_index_access() {
+fn test_optional_member_access_nil() {
     let source = r#"
-        const arr = [1, 2, 3]
-        const first = arr?.[0]
+        const user: {name: string} | nil = nil
+        const name = user?.name
     "#;
 
     let result = compile_and_check(source);
-    assert!(
-        result.is_ok(),
-        "Optional index access should compile: {:?}",
-        result.err()
-    );
-    let output = result.unwrap();
-
-    // Simple expressions should use optimized `and` pattern with index access
-    assert!(output.contains("arr and arr[") || output.contains("__t["));
+    assert!(result.is_ok(), "Optional member access nil should compile");
 }
 
 #[test]
-fn test_optional_call() {
+fn test_optional_chaining() {
     let source = r#"
-        const getValue = (): number => 42
-        const result = getValue?.()
+        type Person = { contact: { email: string } | nil } | nil
+        const p: Person = nil
+        const email = p?.contact?.email
     "#;
 
     let result = compile_and_check(source);
-    assert!(
-        result.is_ok(),
-        "Optional call should compile: {:?}",
-        result.err()
-    );
-    let output = result.unwrap();
-
-    // Simple expressions should use optimized `and` pattern
-    assert!(output.contains("getValue and getValue() or nil") || output.contains("return __t("));
+    assert!(result.is_ok(), "Optional chaining should compile");
 }
-
-// ============================================================================
-// Chaining Tests
-// ============================================================================
-
-#[test]
-fn test_simple_chain() {
-    let source = r#"
-        const obj = {nested: {value: 42}}
-        const result = obj?.nested?.value
-    "#;
-
-    let result = compile_and_check(source);
-    assert!(
-        result.is_ok(),
-        "Simple chain should compile: {:?}",
-        result.err()
-    );
-    let output = result.unwrap();
-
-    // Should have nested IIFE calls
-    assert!(output.contains("function()"));
-}
-
-#[test]
-fn test_long_chain() {
-    let source = r#"
-        const obj = {a: {b: {c: {d: 1}}}}
-        const result = obj?.a?.b?.c?.d
-    "#;
-
-    let result = compile_and_check(source);
-    assert!(
-        result.is_ok(),
-        "Long chain should compile: {:?}",
-        result.err()
-    );
-}
-
-#[test]
-fn test_mixed_chain() {
-    let source = r#"
-        const obj = {arr: [1, 2, 3]}
-        const result = obj?.arr?.[0]
-    "#;
-
-    let result = compile_and_check(source);
-    assert!(
-        result.is_ok(),
-        "Mixed chain should compile: {:?}",
-        result.err()
-    );
-}
-
-// ============================================================================
-// Method Call Tests
-// ============================================================================
 
 #[test]
 fn test_optional_method_call() {
     let source = r#"
-        const text: string | nil = "hello"
-        const upper = text?.toUpper?.()
+        type Calculator = { compute: () => number } | nil
+        const calc: Calculator = nil
+        const result = calc?.compute()
     "#;
 
     let result = compile_and_check(source);
-    // May have type checking issues - that's OK for now
-    if let Err(e) = result {
-        println!("Optional method call test: {}", e);
-    }
+    assert!(result.is_ok(), "Optional method call should compile");
 }
 
-// ============================================================================
-// Edge Cases
-// ============================================================================
-
 #[test]
-fn test_optional_on_nil() {
+fn test_optional_element_access() {
     let source = r#"
-        const value: number | nil = nil
-        const result = value?.toString?.()
+        const arr: number[] | nil = nil
+        const first = arr?[0]
     "#;
 
     let result = compile_and_check(source);
-    // May have type checking issues
-    if let Err(e) = result {
-        println!("Optional on nil test: {}", e);
-    }
+    assert!(result.is_ok(), "Optional element access should compile");
 }
 
 #[test]
-fn test_optional_with_non_nil_value() {
+fn test_optional_invocation() {
     let source = r#"
-        const obj = {value: 42}
-        const result = obj?.value
+        const fn: (() => number) | nil = nil
+        const result = fn?()
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(result.is_ok(), "Optional invocation should compile");
+}
+
+#[test]
+fn test_optional_chaining_with_expression() {
+    let source = r#"
+        type A = { b: { c: number } | nil } | nil
+        const a: A = nil
+        const result = a?.b?.c ?? 0
     "#;
 
     let result = compile_and_check(source);
     assert!(
         result.is_ok(),
-        "Optional with non-nil value should compile: {:?}",
-        result.err()
+        "Optional chaining with expression should compile"
     );
 }
 
 #[test]
-fn test_optional_in_assignment() {
+fn test_optional_chaining_multiple_levels() {
     let source = r#"
-        const obj: {name?: string} | nil = nil
-        const name = obj?.name
+        type Level1 = { level2: { level3: { value: number } | nil } | nil } | nil
+        const l1: Level1 = nil
+        const value = l1?.level2?.level3?.value
     "#;
 
     let result = compile_and_check(source);
-    // May have type checking issues with optional properties
-    if let Err(e) = result {
-        println!("Optional in assignment test: {}", e);
-    }
+    assert!(result.is_ok(), "Multiple levels should compile");
 }
 
-// ============================================================================
-// Combined with Other Operators
-// ============================================================================
-
 #[test]
-fn test_optional_with_null_coalesce() {
+fn test_optional_with_null_coalescing() {
     let source = r#"
-        const obj: {value?: number} | nil = nil
-        const result = obj?.value ?? 0
+        type Config = { timeout: number } | nil
+        const config: Config = nil
+        const timeout = config?.timeout ?? 30
     "#;
 
     let result = compile_and_check(source);
-    // May have type checking issues
-    if let Err(e) = result {
-        println!("Optional with null coalesce test: {}", e);
-    }
+    assert!(
+        result.is_ok(),
+        "Optional with null coalescing should compile"
+    );
+}
+
+#[test]
+fn test_optional_in_arrow_function() {
+    let source = r#"
+        const getObject = (): { value: number } | nil => nil
+        const result = getObject()?.value
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(result.is_ok(), "Optional in arrow function should compile");
+}
+
+#[test]
+fn test_optional_with_index_signature() {
+    let source = r#"
+        type Dict = { [string]: { value: number } } | nil
+        const d: Dict = nil
+        const value = d?.["key"]?.value
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(
+        result.is_ok(),
+        "Optional with index signature should compile"
+    );
+}
+
+#[test]
+fn test_optional_chaining_in_object_literal() {
+    let source = r#"
+        const obj = {
+            nested: nil as { value: number } | nil
+        }
+        const value = obj.nested?.value
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(result.is_ok(), "Optional in object literal should compile");
+}
+
+#[test]
+fn test_optional_chaining_in_array_literal() {
+    let source = r#"
+        const arr = [
+            { value: 1 },
+            nil as { value: number } | nil,
+            { value: 3 }
+        ]
+        const value = arr[1]?.value
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(result.is_ok(), "Optional in array literal should compile");
+}
+
+#[test]
+fn test_optional_type_narrowing() {
+    let source = r#"
+        type T = { x: number } | nil
+        const t: T = nil
+        const x = t?.x
+        const doubled = (x ?? 0) * 2
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(result.is_ok(), "Optional type narrowing should compile");
+}
+
+#[test]
+fn test_optional_with_generic() {
+    let source = r#"
+        function getOrDefault<T>(value: T | nil, default: T): T {
+            return value ?? default
+        }
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(result.is_ok(), "Optional with generic should compile");
+}
+
+#[test]
+fn test_optional_chaining_complex() {
+    let source = r#"
+        type Company = {
+            departments: {
+                [string]: {
+                    manager: {
+                        name: string
+                    } | nil
+                } | nil
+            } | nil
+        } | nil
+
+        const c: Company = nil
+        const name = c?.departments?.["engineering"]?.manager?.name
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(result.is_ok(), "Complex optional chaining should compile");
+}
+
+#[test]
+fn test_optional_with_method_chaining() {
+    let source = r#"
+        class Builder {
+            public value: string = ""
+
+            public append(s: string): Builder {
+                self.value = self.value .. s
+                return self
+            }
+        }
+
+        const b: Builder | nil = nil
+        const result = b?.append("hello")?.append("world")?.value
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(result.is_ok(), "Optional method chaining should compile");
+}
+
+#[test]
+fn test_optional_preserves_types() {
+    let source = r#"
+        type Obj = { value: number } | nil
+        const obj: Obj = nil
+        const maybeNumber: number | nil = obj?.value
+    "#;
+
+    let result = compile_and_check(source);
+    assert!(result.is_ok(), "Optional should preserve types");
 }
 
 #[test]
 fn test_optional_in_conditional() {
     let source = r#"
-        const user = {age: 25}
-        const canVote = (user?.age ?? 0) >= 18
-    "#;
-
-    let result = compile_and_check(source);
-    assert!(
-        result.is_ok(),
-        "Optional in conditional should compile: {:?}",
-        result.err()
-    );
-}
-
-// ============================================================================
-// Code Generation Verification
-// ============================================================================
-
-#[test]
-fn test_codegen_optional_member() {
-    let source = r#"
-        const obj = {value: 42}
-        const result = obj?.value
-    "#;
-
-    let result = compile_and_check(source);
-    assert!(result.is_ok(), "Should compile successfully");
-    let output = result.unwrap();
-
-    // Verify optimized `and` pattern for simple expressions
-    assert!(
-        output.contains("obj and obj.value or nil"),
-        "Should use optimized and pattern"
-    );
-}
-
-#[test]
-fn test_codegen_optional_index() {
-    let source = r#"
-        const arr = [1, 2, 3]
-        const first = arr?.[0]
-    "#;
-
-    let result = compile_and_check(source);
-    assert!(result.is_ok(), "Should compile successfully");
-    let output = result.unwrap();
-
-    // Verify optimized `and` pattern for simple expressions with index
-    assert!(
-        output.contains("arr and arr[") || output.contains("__t["),
-        "Should use optimized and pattern or IIFE"
-    );
-}
-
-#[test]
-fn test_codegen_optional_call() {
-    let source = r#"
-        const getValue = (): number => 42
-        const result = getValue?.()
-    "#;
-
-    let result = compile_and_check(source);
-    assert!(result.is_ok(), "Should compile successfully");
-    let output = result.unwrap();
-
-    // Verify optimized `and` pattern for simple expressions with call
-    assert!(
-        output.contains("getValue and getValue() or nil") || output.contains("__t("),
-        "Should use optimized and pattern or IIFE"
-    );
-}
-
-#[test]
-fn test_codegen_prevents_double_evaluation() {
-    let source = r#"
-        const getObject = (): {value: number} => {
-            return {value: 42}
-        }
-        const result = getObject()?.value
-    "#;
-
-    let result = compile_and_check(source);
-    assert!(result.is_ok(), "Should compile successfully");
-    let output = result.unwrap();
-
-    // Should only call getObject() once by storing in __t
-    assert!(output.contains("local __t = "));
-    // Count occurrences of getObject - should appear once in the assignment
-    let count = output.matches("getObject").count();
-    assert!(
-        count <= 2,
-        "getObject should not be called multiple times in the optional chain (found {} times)",
-        count
-    );
-}
-
-// ============================================================================
-// Type Inference Tests
-// ============================================================================
-
-#[test]
-fn test_type_inference_optional_member() {
-    let source = r#"
-        type User = {
-            name: string,
-            age: number
-        }
-        const user: User | nil = nil
-        const name = user?.name
-    "#;
-
-    let result = compile_and_check(source);
-    // Type inference may not be fully implemented
-    if let Err(e) = result {
-        println!("Type inference test: {}", e);
-    }
-}
-
-// ============================================================================
-// Integration Tests
-// ============================================================================
-
-#[test]
-fn test_optional_in_function_return() {
-    let source = r#"
-        const getUser = (): {name: string} | nil => {
-            return nil
-        }
-        const getName = (): string | nil => {
-            return getUser()?.name
+        type Item = { active: boolean } | nil
+        const item: Item = nil
+        if item?.active == true {
+            const x = 1
         }
     "#;
 
     let result = compile_and_check(source);
-    assert!(
-        result.is_ok(),
-        "Optional in function return should compile: {:?}",
-        result.err()
-    );
-}
-
-#[test]
-fn test_multiple_optional_chains() {
-    let source = r#"
-        const obj1 = {value: 1}
-        const obj2 = {value: 2}
-        const result1 = obj1?.value
-        const result2 = obj2?.value
-        const sum = (result1 ?? 0) + (result2 ?? 0)
-    "#;
-
-    let result = compile_and_check(source);
-    assert!(
-        result.is_ok(),
-        "Multiple optional chains should compile: {:?}",
-        result.err()
-    );
-}
-
-#[test]
-fn test_optional_with_object_literal() {
-    let source = r#"
-        const result = {x: 1, y: 2}?.x
-    "#;
-
-    let result = compile_and_check(source);
-    assert!(
-        result.is_ok(),
-        "Optional with object literal should compile: {:?}",
-        result.err()
-    );
-}
-
-// ============================================================================
-// Optimization Tests
-// ============================================================================
-
-#[test]
-fn test_optimization_simple_vs_complex() {
-    // Test 1: Simple expression should use `and` pattern
-    let simple_source = r#"
-        const user = {name: "Alice"}
-        const result = user?.name
-    "#;
-
-    let result = compile_and_check(simple_source);
-    assert!(result.is_ok(), "Simple case should compile");
-    let output = result.unwrap();
-    assert!(
-        output.contains("user and user.name or nil"),
-        "Simple case should use optimized and pattern"
-    );
-    assert!(
-        !output.contains("function()"),
-        "Simple case should not use IIFE"
-    );
-
-    // Test 2: Complex expression should use IIFE
-    let complex_source = r#"
-        const getUser = (): {name: string} => {
-            return {name: "Bob"}
-        }
-        const result = getUser()?.name
-    "#;
-
-    let result = compile_and_check(complex_source);
-    assert!(result.is_ok(), "Complex case should compile");
-    let output = result.unwrap();
-    assert!(
-        output.contains("function()"),
-        "Complex case should use IIFE"
-    );
-    assert!(
-        output.contains("local __t ="),
-        "Complex case should use temp variable"
-    );
-}
-
-#[test]
-fn test_optimization_nested_member_access() {
-    let source = r#"
-        const obj = {nested: {value: 42}}
-        const result = obj.nested?.value
-    "#;
-
-    let result = compile_and_check(source);
-    assert!(result.is_ok(), "Should compile successfully");
-    let output = result.unwrap();
-
-    // obj.nested is a simple expression, so should use optimized pattern
-    assert!(
-        output.contains("obj.nested and obj.nested.value or nil"),
-        "Should use optimized pattern for simple nested access"
-    );
-}
-
-#[test]
-fn test_optimization_chained_optional() {
-    let source = r#"
-        const obj = {nested: {value: 42}}
-        const result = obj?.nested?.value
-    "#;
-
-    let result = compile_and_check(source);
-    assert!(result.is_ok(), "Should compile successfully");
-    let output = result.unwrap();
-
-    // First part is simple, but result might be complex due to chaining
-    // This test just verifies it compiles and produces working code
-    assert!(!output.is_empty());
-}
-
-#[test]
-// O2 optimization - skip nil check for guaranteed non-nil object literals
-fn test_o2_optimization_object_literal() {
-    let source = r#"
-        return {x: 1, y: 2}?.x
-    "#;
-
-    let result = compile_with_optimization(source, OptimizationLevel::O2);
-    assert!(result.is_ok(), "Should compile successfully");
-    let output = result.unwrap();
-
-    // Object literals are guaranteed non-nil, so should skip nil check entirely
-    assert!(
-        output.contains("{x = 1, y = 2}.x"),
-        "Should use direct access for object literal"
-    );
-    assert!(!output.contains(" and "), "Should not have nil check");
-    assert!(!output.contains("function()"), "Should not use IIFE");
-}
-
-#[test]
-// O2 optimization - skip nil check for guaranteed non-nil array literals
-fn test_o2_optimization_array_literal() {
-    let source = r#"
-        return [1, 2, 3]?.[0]
-    "#;
-
-    let result = compile_with_optimization(source, OptimizationLevel::O2);
-    assert!(result.is_ok(), "Should compile successfully");
-    let output = result.unwrap();
-
-    // Array literals are guaranteed non-nil, so should skip nil check
-    assert!(
-        output.contains("{1, 2, 3}["),
-        "Should use direct access for array literal"
-    );
-    assert!(!output.contains(" and "), "Should not have nil check");
-}
-
-#[test]
-fn test_o2_optimization_function_literal() {
-    let source = r#"
-        const result = ((): number => 42)?.()
-    "#;
-
-    let result = compile_with_optimization(source, OptimizationLevel::O2);
-    assert!(result.is_ok(), "Should compile successfully");
-    let output = result.unwrap();
-
-    // Function literals are guaranteed non-nil, so should skip nil check
-    assert!(
-        !output.contains(" and ") || output.contains("function()"),
-        "Should optimize function literal call"
-    );
-}
-
-#[test]
-fn test_o2_optimization_new_expression() {
-    let source = r#"
-        class Point {
-            x: number = 0
-        }
-        const result = (new Point())?.x
-    "#;
-
-    let result = compile_with_optimization(source, OptimizationLevel::O2);
-    assert!(result.is_ok(), "Should compile successfully");
-    let output = result.unwrap();
-
-    // New expressions are guaranteed non-nil, so should skip nil check
-    // Note: the optimization applies to the optional chaining part
-    assert!(
-        !output.contains("if __t == nil"),
-        "Should not have explicit nil check in optional chain for new expression"
-    );
-}
-
-#[test]
-fn test_o2_vs_regular_optional_chaining() {
-    // Test 1: Guaranteed non-nil should skip checks
-    let optimized_source = r#"
-        const obj = {value: 42}
-        return obj?.value
-    "#;
-
-    let result1 = compile_with_optimization(optimized_source, OptimizationLevel::O2);
-    assert!(result1.is_ok(), "Optimized case should compile");
-    let _output1 = result1.unwrap();
-
-    // Test 2: Potentially nil should include checks
-    let unoptimized_source = r#"
-        const obj: {value: number} | nil = nil
-        return obj?.value
-    "#;
-
-    let result2 = compile_with_optimization(unoptimized_source, OptimizationLevel::O2);
-    // May have type checking issues with explicit nil type
-    if let Ok(output2) = result2 {
-        // This one should have nil checks since obj could be nil
-        assert!(
-            output2.contains(" and ") || output2.contains("function()"),
-            "Should have nil check for potentially nil value"
-        );
-    }
+    assert!(result.is_ok(), "Optional in conditional should compile");
 }

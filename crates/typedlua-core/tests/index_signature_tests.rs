@@ -1,22 +1,8 @@
-use std::sync::Arc;
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_core::TypeChecker;
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::parser::Parser;
-use typedlua_parser::string_interner::StringInterner;
+use typedlua_core::di::DiContainer;
 
 fn type_check(source: &str) -> Result<(), String> {
-    let handler = Arc::new(CollectingDiagnosticHandler::new());
-    let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let mut lexer = Lexer::new(source, handler.clone(), &interner);
-    let tokens = lexer.tokenize().map_err(|e| format!("{:?}", e))?;
-
-    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
-    let mut program = parser.parse().map_err(|e| format!("{:?}", e))?;
-
-    let mut checker = TypeChecker::new(handler, &interner, &common_ids);
-    checker.check_program(&mut program).map_err(|e| e.message)?;
-
+    let mut container = DiContainer::test_default();
+    container.compile(source)?;
     Ok(())
 }
 
@@ -48,93 +34,258 @@ fn test_interface_with_string_index_signature_incompatible_property() {
 
         class MixedMap implements StringMap {
             count: number = 0
-            name: string = "invalid"
+            total: number = 0
+            name: string = "test"
         }
     "#;
 
     assert!(
         type_check(source).is_err(),
-        "Property incompatible with index signature should fail"
+        "Incompatible property should fail"
     );
 }
 
 #[test]
-fn test_interface_with_number_index_signature() {
+fn test_index_signature_basic() {
     let source = r#"
-        interface NumberIndexed {
-            [index: number]: string
-        }
-
-        class ArrayLike implements NumberIndexed {
-            -- Number index signatures are not fully validated yet
+        interface StringToNumberMap {
+            [key: string]: number
         }
     "#;
 
-    // This should pass for now since we don't fully validate number index signatures
     assert!(
         type_check(source).is_ok(),
-        "Number index signatures are not fully validated"
+        "Basic index signature should pass"
     );
 }
 
 #[test]
-fn test_interface_with_index_signature_and_methods() {
+fn test_index_signature_number_key() {
     let source = r#"
-        interface Dictionary {
-            [key: string]: number
-            get_value(key: string): number
+        interface NumberToStringMap {
+            [key: number]: string
+        }
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Number key index signature should pass"
+    );
+}
+
+#[test]
+fn test_index_signature_with_type_parameter() {
+    let source = r#"
+        interface Map<K, V> {
+            [key: K]: V
+        }
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Generic index signature should pass"
+    );
+}
+
+#[test]
+fn test_object_type_with_index_signature() {
+    let source = r#"
+        type StringDictionary = {
+            [key: string]: boolean
+        }
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Object type with index signature should pass"
+    );
+}
+
+#[test]
+fn test_class_implementing_index_signature_interface() {
+    let source = r#"
+        interface Storage {
+            [key: string]: any
         }
 
-        class SimpleDictionary implements Dictionary {
-            count: number = 0
+        class FileStorage implements Storage {
+            files: { [string]: any } = {}
+        }
+    "#;
 
-            get_value(key: string): number {
-                return 0
+    assert!(
+        type_check(source).is_ok(),
+        "Class implementing index signature should pass"
+    );
+}
+
+#[test]
+fn test_index_signature_assignment() {
+    let source = r#"
+        const obj: { [key: string]: number } = {}
+        obj["a"] = 1
+        obj.b = 2
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Index signature assignment should pass"
+    );
+}
+
+#[test]
+fn test_nested_index_signature() {
+    let source = r#"
+        interface Nested {
+            [key: string]: { [key: string]: number }
+        }
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Nested index signature should pass"
+    );
+}
+
+#[test]
+fn test_index_signature_with_union_type() {
+    let source = r#"
+        interface Flexible {
+            [key: string]: string | number | boolean
+        }
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Index signature with union type should pass"
+    );
+}
+
+#[test]
+fn test_index_signature_read() {
+    let source = r#"
+        const obj: { [key: string]: number } = { a: 1, b: 2 }
+        const a = obj.a
+        const c = obj["c"]
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Index signature read should pass"
+    );
+}
+
+#[test]
+fn test_compatible_index_signature() {
+    let source = r#"
+        interface Base {
+            [key: string]: number
+        }
+
+        interface Derived {
+            [key: string]: number
+            extra: string
+        }
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Compatible index signature should pass"
+    );
+}
+
+#[test]
+fn test_index_signature_generic_constraint() {
+    let source = r#"
+        interface ConstrainedMap<T extends string> {
+            [key: T]: number
+        }
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Constrained generic index signature should pass"
+    );
+}
+
+#[test]
+fn test_class_with_index_signature_property() {
+    let source = r#"
+        class Cache {
+            public items: { [key: string]: any } = {}
+
+            public get<T>(key: string): T | nil {
+                return self.items[key] as T
+            }
+
+            public set(key: string, value: any) {
+                self.items[key] = value
             }
         }
     "#;
 
     assert!(
         type_check(source).is_ok(),
-        "Methods should not conflict with index signature"
+        "Class with index signature property should pass"
     );
 }
 
 #[test]
-fn test_multiple_properties_all_compatible() {
+fn test_type_alias_with_index_signature() {
     let source = r#"
-        interface AllNumbers {
+        type StringArray = { [index: number]: string }
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Type alias with index signature should pass"
+    );
+}
+
+#[test]
+fn test_index_signature_compatibility_contravariant() {
+    let source = r#"
+        interface WriteOnly {
             [key: string]: number
         }
 
-        class Stats implements AllNumbers {
-            min: number = 0
-            max: number = 100
-            avg: number = 50
-            count: number = 10
+        const f: (obj: { [key: string]: number }) => void = (obj) => {}
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Index signature contravariance should pass"
+    );
+}
+
+#[test]
+fn test_mixed_properties_and_index_signature() {
+    let source = r#"
+        interface Mixed {
+            name: string
+            age: number
+            [key: string]: string | number
         }
     "#;
 
     assert!(
         type_check(source).is_ok(),
-        "All number properties should be compatible"
+        "Mixed properties and index signature should pass"
     );
 }
 
 #[test]
-fn test_empty_class_with_index_signature() {
+fn test_index_signature_optional_property() {
     let source = r#"
-        interface EmptyIndexed {
-            [key: string]: number
-        }
-
-        class Empty implements EmptyIndexed {
-            -- No properties
+        interface WithOptional {
+            required: number
+            optional?: string
+            [key: string]: number | string | nil
         }
     "#;
 
     assert!(
         type_check(source).is_ok(),
-        "Empty class should be compatible with index signature"
+        "Index signature with optional should pass"
     );
 }

@@ -1,22 +1,8 @@
-use std::sync::Arc;
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_core::TypeChecker;
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::parser::Parser;
-use typedlua_parser::string_interner::StringInterner;
+use typedlua_core::di::DiContainer;
 
 fn type_check(source: &str) -> Result<(), String> {
-    let handler = Arc::new(CollectingDiagnosticHandler::new());
-    let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let mut lexer = Lexer::new(source, handler.clone(), &interner);
-    let tokens = lexer.tokenize().map_err(|e| format!("{:?}", e))?;
-
-    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
-    let mut program = parser.parse().map_err(|e| format!("{:?}", e))?;
-
-    let mut checker = TypeChecker::new(handler, &interner, &common_ids);
-    checker.check_program(&mut program).map_err(|e| e.message)?;
-
+    let mut container = DiContainer::test_default();
+    container.compile(source)?;
     Ok(())
 }
 
@@ -54,10 +40,7 @@ fn test_interface_method_wrong_param_count() {
         }
     "#;
 
-    assert!(
-        type_check(source).is_err(),
-        "Wrong parameter count should fail"
-    );
+    assert!(type_check(source).is_err(), "Wrong param count should fail");
 }
 
 #[test]
@@ -68,16 +51,13 @@ fn test_interface_method_wrong_param_type() {
         }
 
         class BasicCalculator implements Calculator {
-            add(a: string, b: number): number {
+            add(a: number, b: string): number {
                 return 0
             }
         }
     "#;
 
-    assert!(
-        type_check(source).is_err(),
-        "Wrong parameter type should fail"
-    );
+    assert!(type_check(source).is_err(), "Wrong param type should fail");
 }
 
 #[test]
@@ -89,7 +69,7 @@ fn test_interface_method_wrong_return_type() {
 
         class BasicCalculator implements Calculator {
             add(a: number, b: number): string {
-                return "wrong"
+                return ""
             }
         }
     "#;
@@ -98,157 +78,276 @@ fn test_interface_method_wrong_return_type() {
 }
 
 #[test]
-fn test_interface_multiple_methods_all_correct() {
+fn test_interface_method_extra_params() {
     let source = r#"
-        interface MathOps {
+        interface Calculator {
             add(a: number, b: number): number
-            subtract(a: number, b: number): number
-            multiply(a: number, b: number): number
         }
 
-        class Calculator implements MathOps {
-            add(a: number, b: number): number {
-                return 0
+        class BasicCalculator implements Calculator {
+            add(a: number, b: number, c: number): number {
+                return a + b + c
+            }
+        }
+    "#;
+
+    assert!(type_check(source).is_err(), "Extra params should fail");
+}
+
+#[test]
+fn test_interface_method_optional_params() {
+    let source = r#"
+        interface Calculator {
+            add(a: number, b?: number): number
+        }
+
+        class BasicCalculator implements Calculator {
+            add(a: number, b?: number): number {
+                return a + (b ?? 0)
+            }
+        }
+    "#;
+
+    assert!(type_check(source).is_ok(), "Optional params should pass");
+}
+
+#[test]
+fn test_interface_getter() {
+    let source = r#"
+        interface ValueHolder {
+            value: number
+            getValue(): number
+        }
+
+        class Holder implements ValueHolder {
+            value: number = 0
+            getValue(): number {
+                return self.value
+            }
+        }
+    "#;
+
+    assert!(type_check(source).is_ok(), "Interface getter should pass");
+}
+
+#[test]
+fn test_interface_setter() {
+    let source = r#"
+        interface Writable {
+            value: number
+            setValue(v: number): void
+        }
+
+        class Writer implements Writable {
+            value: number = 0
+            setValue(v: number): void {
+                self.value = v
+            }
+        }
+    "#;
+
+    assert!(type_check(source).is_ok(), "Interface setter should pass");
+}
+
+#[test]
+fn test_interface_with_generic_method() {
+    let source = r#"
+        interface Container {
+            getItem<T>(key: string): T | nil
+            setItem<T>(key: string, value: T): void
+        }
+
+        class MapContainer implements Container {
+            items: { [string]: any } = {}
+
+            getItem<T>(key: string): T | nil {
+                return self.items[key] as T
             }
 
-            subtract(a: number, b: number): number {
-                return 0
-            }
-
-            multiply(a: number, b: number): number {
-                return 0
+            setItem<T>(key: string, value: T): void {
+                self.items[key] = value
             }
         }
     "#;
 
     assert!(
         type_check(source).is_ok(),
-        "All correct signatures should pass"
+        "Interface with generic method should pass"
     );
 }
 
 #[test]
-fn test_interface_multiple_methods_one_wrong() {
+fn test_interface_method_covariant_return() {
     let source = r#"
-        interface MathOps {
-            add(a: number, b: number): number
-            subtract(a: number, b: number): number
-            multiply(a: number, b: number): number
+        interface Base {
+            getObject(): { value: number }
         }
 
-        class Calculator implements MathOps {
-            add(a: number, b: number): number {
-                return 0
-            }
+        interface Derived {
+            getObject(): { value: number; extra: string }
+        }
 
-            subtract(a: string, b: number): number {
-                return 0
+        class Impl implements Derived {
+            getObject(): { value: number; extra: string } {
+                return { value: 0, extra: "" }
             }
+        }
+    "#;
 
-            multiply(a: number, b: number): number {
-                return 0
+    assert!(type_check(source).is_ok(), "Covariant return should pass");
+}
+
+#[test]
+fn test_interface_static_method() {
+    let source = r#"
+        interface Factory {
+            static create(): Factory
+        }
+
+        class MyFactory implements Factory {
+            static create(): Factory {
+                return new MyFactory()
             }
         }
     "#;
 
     assert!(
         type_check(source).is_err(),
-        "One wrong signature should fail"
+        "Static method in interface should fail"
     );
 }
 
 #[test]
-fn test_interface_method_extra_params() {
+fn test_interface_method_rest_params() {
     let source = r#"
-        interface Logger {
-            log(message: string): void
+        interface Summer {
+            sum(...nums: number[]): number
         }
 
-        class FileLogger implements Logger {
-            log(message: string, level: number): void {
-                -- extra parameter
+        class BasicSummer implements Summer {
+            sum(...nums: number[]): number {
+                let s = 0
+                for n in nums {
+                    s = s + n
+                }
+                return s
             }
         }
     "#;
 
-    assert!(type_check(source).is_err(), "Extra parameters should fail");
+    assert!(type_check(source).is_ok(), "Rest params should pass");
 }
 
 #[test]
-fn test_interface_method_compatible_types() {
-    // Test that integer return type is compatible with number in interface
-    // This tests covariance of return types
-    let source = r#"
-        interface Processor {
-            process(value: number): number
-        }
-
-        class IntProcessor implements Processor {
-            process(value: number): number {
-                return 42
-            }
-        }
-    "#;
-
-    // This should pass - the test is actually redundant with test_interface_method_correct_signature
-    // but keeping it for clarity
-    assert!(
-        type_check(source).is_ok(),
-        "Compatible return type should pass"
-    );
-}
-
-#[test]
-fn test_interface_method_mixed_types() {
-    let source = r#"
-        interface DataHandler {
-            get_value(): number
-            set_value(val: number): void
-            get_name(): string
-        }
-
-        class DataStore implements DataHandler {
-            get_value(): number {
-                return 0
-            }
-
-            set_value(val: number): void {
-                -- implementation
-            }
-
-            get_name(): string {
-                return "test"
-            }
-        }
-    "#;
-
-    assert!(
-        type_check(source).is_ok(),
-        "Mixed types with correct signatures should pass"
-    );
-}
-
-#[test]
-fn test_interface_method_no_params() {
+fn test_interface_method_this_param() {
     let source = r#"
         interface Counter {
-            increment(): void
-            get_count(): number
+            increment(self): void
         }
 
-        class SimpleCounter implements Counter {
-            increment(): void {
-                -- implementation
+        class MyCounter implements Counter {
+            count: number = 0
+            increment(self): void {
+                self.count = self.count + 1
             }
+        }
+    "#;
 
-            get_count(): number {
-                return 0
+    assert!(type_check(source).is_ok(), "This param should pass");
+}
+
+#[test]
+fn test_interface_multiple_methods() {
+    let source = r#"
+        interface MultiOps {
+            add(a: number, b: number): number
+            sub(a: number, b: number): number
+            mul(a: number, b: number): number
+        }
+
+        class Calculator implements MultiOps {
+            add(a: number, b: number): number { return a + b }
+            sub(a: number, b: number): number { return a - b }
+            mul(a: number, b: number): number { return a * b }
+        }
+    "#;
+
+    assert!(type_check(source).is_ok(), "Multiple methods should pass");
+}
+
+#[test]
+fn test_interface_method_type_alias() {
+    let source = r#"
+        type BinaryOp = (a: number, b: number) => number
+
+        interface Calculator {
+            compute: BinaryOp
+        }
+
+        class SimpleCalc implements Calculator {
+            compute: BinaryOp = (a, b) => a + b
+        }
+    "#;
+
+    assert!(type_check(source).is_ok(), "Method type alias should pass");
+}
+
+#[test]
+fn test_interface_async_method() {
+    let source = r#"
+        interface Fetcher {
+            async fetch(url: string): string
+        }
+
+        class HttpFetcher implements Fetcher {
+            async fetch(url: string): string {
+                return ""
+            }
+        }
+    "#;
+
+    assert!(type_check(source).is_ok(), "Async method should pass");
+}
+
+#[test]
+fn test_interface_getter_setter() {
+    let source = r#"
+        interface PropertyHolder {
+            value: number
+            getValue(): number
+            setValue(v: number): void
+        }
+
+        class Holder implements PropertyHolder {
+            value: number = 0
+            getValue(): number { return self.value }
+            setValue(v: number): void { self.value = v }
+        }
+    "#;
+
+    assert!(
+        type_check(source).is_ok(),
+        "Getter/setter combination should pass"
+    );
+}
+
+#[test]
+fn test_interface_constructor_signature() {
+    let source = r#"
+        interface Constructable {
+            new(x: number): Constructable
+        }
+
+        class MyClass implements Constructable {
+            x: number
+            constructor(x: number) {
+                self.x = x
             }
         }
     "#;
 
     assert!(
         type_check(source).is_ok(),
-        "Methods with no params should work"
+        "Constructor signature should pass"
     );
 }
