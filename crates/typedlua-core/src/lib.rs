@@ -7,15 +7,15 @@ pub mod type_checker;
 
 // Re-export shared utilities and types used by typedlua-core
 pub use typedlua_typechecker::{
+    // Generic specialization optimizer functions
+    build_substitutions,
     // Modules - shared utilities
     config,
     diagnostics,
     errors,
     fs,
-    module_resolver,
-    // Generic specialization optimizer functions
-    build_substitutions,
     instantiate_function_declaration,
+    module_resolver,
     // Symbol table for caching
     SerializableSymbolTable,
     Symbol,
@@ -28,3 +28,21 @@ pub use typedlua_typechecker::{
 pub use typedlua_typechecker::diagnostics::{
     CollectingDiagnosticHandler, Diagnostic, DiagnosticHandler, DiagnosticLevel,
 };
+
+// Re-export parser types
+pub use typedlua_parser::{
+    ast::Program,
+    string_interner::{CommonIdentifiers, StringId, StringInterner},
+};
+
+use std::path::PathBuf;
+
+/// A module after parsing, before type checking.
+/// Foundation for parallel parsing infrastructure.
+pub struct ParsedModule {
+    pub path: PathBuf,
+    pub ast: Program,
+    pub interner: StringInterner,
+    pub common_ids: CommonIdentifiers,
+    pub diagnostics: Vec<Diagnostic>,
+}

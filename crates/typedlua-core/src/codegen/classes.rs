@@ -359,7 +359,10 @@ impl CodeGenerator {
             self.writeln(&format!("if {}.__finalMethods then", base_name_str));
             self.indent();
             self.write_indent();
-            self.writeln(&format!("for _, methodName in ipairs({}.__finalMethods) do", base_name_str));
+            self.writeln(&format!(
+                "for _, methodName in ipairs({}.__finalMethods) do",
+                base_name_str
+            ));
             self.indent();
             self.write_indent();
             self.writeln(&format!(
@@ -442,7 +445,12 @@ impl CodeGenerator {
         }
     }
 
-    pub fn generate_class_constructor(&mut self, class_name: &str, ctor: &ConstructorDeclaration, is_abstract: bool) {
+    pub fn generate_class_constructor(
+        &mut self,
+        class_name: &str,
+        ctor: &ConstructorDeclaration,
+        is_abstract: bool,
+    ) {
         let always_use_init = true;
 
         if always_use_init {
