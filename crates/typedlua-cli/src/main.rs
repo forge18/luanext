@@ -1,8 +1,10 @@
 use clap::Parser;
 use glob::glob;
+use rayon::prelude::*;
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, warn};
 use tracing_subscriber::EnvFilter;
+use typedlua_core::ParsedModule;
 
 /// TypedLua - A TypeScript-inspired type system for Lua
 #[derive(Parser, Debug, Clone)]
@@ -937,6 +939,42 @@ struct CompilationError {
     source: String,
 }
 
+/// Parse a single source file for parallel parsing
+fn parse_single_file(
+    file_path: &Path,
+    file_system: &std::sync::Arc<dyn typedlua_core::fs::FileSystem>,
+) -> anyhow::Result<ParsedModule> {
+    let source = file_system.read_file(file_path)?;
+
+    let handler =
+        std::sync::Arc::new(typedlua_core::diagnostics::CollectingDiagnosticHandler::new());
+    let (interner, common_ids) =
+        typedlua_parser::string_interner::StringInterner::new_with_common_identifiers();
+    let interner = std::rc::Rc::new(interner);
+
+    let mut lexer = typedlua_parser::lexer::Lexer::new(&source, handler.clone(), &interner);
+    let tokens = lexer.tokenize()?;
+
+    let mut parser =
+        typedlua_parser::parser::Parser::new(tokens, handler.clone(), &interner, &common_ids);
+    let mut ast = parser.parse()?;
+
+    if typedlua_core::diagnostics::DiagnosticHandler::has_errors(&*handler) {
+        anyhow::bail!(
+            "Parsing failed with errors: {:?}",
+            typedlua_core::diagnostics::DiagnosticHandler::get_diagnostics(&*handler)
+        );
+    }
+
+    Ok(ParsedModule {
+        path: file_path.to_path_buf(),
+        ast,
+        interner: std::rc::Rc::unwrap_or_clone(interner),
+        common_ids,
+        diagnostics: typedlua_core::diagnostics::DiagnosticHandler::get_diagnostics(&*handler),
+    })
+}
+
 /// Compile the input files
 fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Result<()> {
     use rustc_hash::FxHashSet;
@@ -1048,13 +1086,58 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
     };
     let ordered_files = dep_result.ordered_files;
 
+    // --- Parallel parsing of stale files ---
+    let stale_file_paths: Vec<&PathBuf> = ordered_files
+        .iter()
+        .filter(|file_path| {
+            let canonical = file_path
+                .canonicalize()
+                .unwrap_or_else(|_| file_path.clone().to_path_buf());
+            stale_files.contains(&canonical)
+        })
+        .collect();
+
+    let parsed_modules: Vec<ParsedModule> = if stale_file_paths.is_empty() {
+        Vec::new()
+    } else {
+        info!(
+            "Parsing {} stale file(s) in parallel...",
+            stale_file_paths.len()
+        );
+        stale_file_paths
+            .par_iter()
+            .map(|file_path| {
+                parse_single_file(file_path, &file_system).map_err(|e| {
+                    eprintln!("Failed to parse {:?}: {}", file_path, e);
+                    e
+                })
+            })
+            .collect::<anyhow::Result<Vec<_>>>()
+            .map_err(|e| {
+                eprintln!("Parallel parsing failed: {}", e);
+                e
+            })?
+    };
+
+    // Create a map for fast lookup of parsed modules
+    let parsed_map: std::collections::HashMap<PathBuf, ParsedModule> = parsed_modules
+        .into_iter()
+        .map(|m| {
+            let canonical = m
+                .path
+                .canonicalize()
+                .unwrap_or_else(|_| m.path.clone().to_path_buf());
+            (canonical, m)
+        })
+        .collect();
+
     // --- Compile files ---
     let results: Vec<CompilationResult> = ordered_files
         .iter()
         .map(|file_path| {
             let canonical = file_path
                 .canonicalize()
-                .unwrap_or_else(|_| file_path.clone());
+                .unwrap_or_else(|_| file_path.clone().to_path_buf());
             let is_stale = stale_files.contains(&canonical);
 
             // --- Cache hit: use cached AST, skip parse + type check ---
@@ -1107,78 +1190,38 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
                 }
             }
 
-            // --- Cache miss: full compilation ---
-            debug!("Compiling {:?}...", file_path);
-
-            // Read input file using FileSystem abstraction from DI Container
-            let source = match file_system.read_file(file_path) {
-                Ok(s) => s,
-                Err(e) => {
+            // --- Prepared module from parallel parsing ---
+            let parsed = match parsed_map.get(&canonical) {
+                Some(parsed) => parsed,
+                None => {
+                    // This shouldn't happen since we already filtered for stale files
                     return CompilationResult {
                         file_path: file_path.clone(),
                         result: Err(CompilationError {
                             diagnostics: vec![],
-                            source: format!("Failed to read file: {}", e),
+                            source: format!(
+                                "Internal error: parsed module not found for {:?} (is_stale={})",
+                                file_path, is_stale
+                            ),
                         }),
                     };
                 }
             };
 
-            // Create diagnostic handler
-            let handler = Arc::new(CollectingDiagnosticHandler::new());
-
-            // Create string interner with common identifiers
-            let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-            let interner = std::rc::Rc::new(interner);
-
-            // Lex the source
-            let mut lexer = Lexer::new(&source, handler.clone(), &interner);
-            let tokens = match lexer.tokenize() {
-                Ok(tokens) => tokens,
-                Err(_) => {
-                    return CompilationResult {
-                        file_path: file_path.clone(),
-                        result: Err(CompilationError {
-                            diagnostics: handler.get_diagnostics(),
-                            source: source.to_string(),
-                        }),
-                    };
-                }
-            };
-
-            // Parse the tokens
-            let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
-            let mut program = match parser.parse() {
-                Ok(program) => program,
-                Err(_) => {
-                    return CompilationResult {
-                        file_path: file_path.clone(),
-                        result: Err(CompilationError {
-                            diagnostics: handler.get_diagnostics(),
-                            source: source.to_string(),
-                        }),
-                    };
-                }
-            };
-
-            // Check for any diagnostics after parsing
-            if handler.has_errors() {
-                return CompilationResult {
-                    file_path: file_path.clone(),
-                    result: Err(CompilationError {
-                        diagnostics: handler.get_diagnostics(),
-                        source: source.to_string(),
-                    }),
-                };
-            }
+            let mut program = parsed.ast.clone();
+            let common_ids = parsed.common_ids;
 
             // Type check the program (with module support for import resolution)
             use typedlua_core::TypeChecker;
 
+            let handler = Arc::new(CollectingDiagnosticHandler::new());
+
+            debug!("Type checking {:?}...", file_path);
+
             let module_id = ModuleId::new(canonical.clone());
             let mut type_checker = TypeChecker::new_with_module_support(
                 handler.clone(),
-                &interner,
+                &parsed.interner, // Use the interner from parsed module
                 &common_ids,
                 registry.clone(),
                 module_id.clone(),
@@ -1192,7 +1235,7 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
                     file_path: file_path.clone(),
                     result: Err(CompilationError {
                         diagnostics: handler.get_diagnostics(),
-                        source: source.to_string(),
+                        source: String::new(),
                     }),
                 };
             }
@@ -1203,7 +1246,7 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
                     file_path: file_path.clone(),
                     result: Err(CompilationError {
                         diagnostics: handler.get_diagnostics(),
-                        source: source.to_string(),
+                        source: String::new(),
                     }),
                 };
             }
@@ -1230,7 +1273,7 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
                         program.clone(),
                         exports,
                         type_checker.symbol_table().to_serializable(),
-                        interner.to_strings(),
+                        parsed.interner.to_strings(),
                     ),
                     dependencies,
                 ))
@@ -1253,7 +1296,8 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
 
             // Use CodeGeneratorBuilder for fluent configuration
             let output_format = parse_output_format(&cli.format);
-            let mut builder = CodeGeneratorBuilder::new(interner.clone())
+            let interner_rc = std::rc::Rc::new(parsed.interner.clone());
+            let mut builder = CodeGeneratorBuilder::new(interner_rc)
                 .target(target)
                 .output_format(output_format);
 
