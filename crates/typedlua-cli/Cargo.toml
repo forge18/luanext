@@ -13,6 +13,7 @@ path = "src/main.rs"
 [dependencies]
 typedlua-core = { path = "../typedlua-core" }
 typedlua-parser = { git = "https://github.com/forge18/typedlua-parser.git" }
+typedlua-typechecker = { path = "../typedlua-typechecker" }
 clap.workspace = true
 anyhow.workspace = true
 notify.workspace = true

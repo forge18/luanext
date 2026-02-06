@@ -1549,6 +1549,7 @@ dependencies = [
  "tracing-subscriber",
  "typedlua-core",
  "typedlua-parser",
+ "typedlua-typechecker 0.1.0",
  "walkdir",
 ]
 

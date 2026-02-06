@@ -12,19 +12,19 @@ use super::{
 /// Main interface for cache operations
 pub struct CacheManager {
     /// Base directory for the cache
-    cache_dir: PathBuf,
+    pub cache_dir: PathBuf,
 
     /// Modules subdirectory
-    modules_dir: PathBuf,
+    pub modules_dir: PathBuf,
 
     /// Path to manifest file
-    manifest_path: PathBuf,
+    pub manifest_path: PathBuf,
 
     /// Loaded cache manifest
-    manifest: Option<CacheManifest>,
+    pub manifest: Option<CacheManifest>,
 
     /// Hash of current compiler configuration
-    config_hash: String,
+    pub config_hash: String,
 }
 
 impl CacheManager {
@@ -196,6 +196,18 @@ impl CacheManager {
         module: &CachedModule,
         dependencies: Vec<PathBuf>,
     ) -> Result<()> {
+        self.save_module_with_declaration_hashes(path, module, dependencies, None, None)
+    }
+
+    /// Save a module to cache with declaration hashes for incremental type checking
+    pub fn save_module_with_declaration_hashes(
+        &mut self,
+        path: &Path,
+        module: &CachedModule,
+        dependencies: Vec<PathBuf>,
+        declaration_hashes: Option<rustc_hash::FxHashMap<String, u64>>,
+        declaration_dependencies: Option<rustc_hash::FxHashMap<String, Vec<(PathBuf, String)>>>,
+    ) -> Result<()> {
         self.ensure_cache_dirs()?;
 
         let canonical = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
@@ -208,11 +220,26 @@ impl CacheManager {
         std::fs::write(&module_file, &module_bytes)?;
 
         // Update manifest
-        let entry = CacheEntry::new(canonical.clone(), source_hash, cache_hash, dependencies);
+        let entry = CacheEntry::new(
+            canonical.clone(),
+            source_hash,
+            cache_hash,
+            dependencies.clone(),
+        );
 
         let manifest = self.manifest.as_mut().ok_or(CacheError::ManifestNotFound)?;
 
-        manifest.insert_entry(canonical, entry);
+        manifest.insert_entry(canonical.clone(), entry);
+
+        // Update declaration hashes if provided
+        if let Some(hashes) = declaration_hashes {
+            manifest.update_declaration_hashes(&canonical, hashes);
+        }
+
+        // Update declaration dependencies if provided
+        if let Some(deps) = declaration_dependencies {
+            manifest.update_declaration_dependencies(&canonical, deps);
+        }
 
         Ok(())
     }

@@ -1,10 +1,12 @@
 use clap::Parser;
 use glob::glob;
 use rayon::prelude::*;
+use rustc_hash::FxHashMap;
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, warn};
 use tracing_subscriber::EnvFilter;
 use typedlua_core::ParsedModule;
+use typedlua_typechecker::{CompilationCache, IncrementalChecker};
 
 /// TypedLua - A TypeScript-inspired type system for Lua
 #[derive(Parser, Debug, Clone)]
@@ -114,6 +116,10 @@ struct Cli {
     /// Disable parallel optimization (for benchmarking)
     #[arg(long)]
     no_parallel_optimization: bool,
+
+    /// Force full type check (disable incremental type checking)
+    #[arg(long)]
+    force_full_check: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -256,7 +262,10 @@ fn parse_lua_target(target: &str) -> anyhow::Result<typedlua_core::codegen::LuaT
 }
 
 /// Parse optimization level from CLI flags
-fn parse_optimization_level(optimize: bool, no_optimize: bool) -> anyhow::Result<typedlua_core::config::OptimizationLevel> {
+fn parse_optimization_level(
+    optimize: bool,
+    no_optimize: bool,
+) -> anyhow::Result<typedlua_core::config::OptimizationLevel> {
     use typedlua_core::config::OptimizationLevel;
 
     // Check for conflicting flags
@@ -268,11 +277,11 @@ fn parse_optimization_level(optimize: bool, no_optimize: bool) -> anyhow::Result
 
     // Map flags to optimization levels
     if no_optimize {
-        Ok(OptimizationLevel::O0)  // Raw transpilation, no optimizations
+        Ok(OptimizationLevel::O0) // Raw transpilation, no optimizations
     } else if optimize {
-        Ok(OptimizationLevel::O3)  // Aggressive with whole-program analysis
+        Ok(OptimizationLevel::O3) // Aggressive with whole-program analysis
     } else {
-        Ok(OptimizationLevel::O1)  // Default: basic optimizations
+        Ok(OptimizationLevel::O1) // Default: basic optimizations
     }
 }
 
@@ -967,8 +976,13 @@ struct CompilationOutput {
     source_map: Option<typedlua_core::codegen::SourceMap>,
     output_path: PathBuf,
     /// Module to save to cache after compilation (stale files only)
-    /// Tuple of (path, cached_module, dependencies)
-    cache_entry: Option<(PathBuf, typedlua_core::cache::CachedModule, Vec<PathBuf>)>,
+    /// Tuple of (path, cached_module, dependencies, declaration_hashes)
+    cache_entry: Option<(
+        PathBuf,
+        typedlua_core::cache::CachedModule,
+        Vec<PathBuf>,
+        FxHashMap<String, u64>,
+    )>,
 }
 
 struct CompilationError {
@@ -983,7 +997,12 @@ struct CheckedModule {
     interner: std::sync::Arc<typedlua_parser::string_interner::StringInterner>,
     output_path: PathBuf,
     enable_source_map: bool,
-    cache_entry: Option<(PathBuf, typedlua_core::cache::CachedModule, Vec<PathBuf>)>,
+    cache_entry: Option<(
+        PathBuf,
+        typedlua_core::cache::CachedModule,
+        Vec<PathBuf>,
+        FxHashMap<String, u64>,
+    )>,
 }
 
 // SAFETY: All fields are Send after StringInterner migration to ThreadedRodeo.
@@ -1039,7 +1058,6 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
 
     use typedlua_core::module_resolver::{ModuleConfig, ModuleId, ModuleRegistry, ModuleResolver};
 
-
     use typedlua_parser::string_interner::StringInterner;
 
     info!("Compiling {} file(s)...", cli.files.len());
@@ -1050,6 +1068,45 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
     let compiler_config = CompilerConfig::default();
     let mut container = typedlua_core::di::DiContainer::production(compiler_config);
     let use_cache = !cli.no_cache;
+    let use_incremental_check = !cli.force_full_check;
+
+    // --- Incremental type checking setup ---
+    let mut incremental_checker = IncrementalChecker::new();
+    let mut old_declaration_hashes: FxHashMap<typedlua_typechecker::DeclarationId, u64> =
+        FxHashMap::default();
+
+    if use_cache && use_incremental_check {
+        let config = CompilerOptions::default();
+        if let Ok(mut cache_manager) = CacheManager::new(&project_root, &config) {
+            if cache_manager.load_manifest().is_ok() {
+                if let Some(ref manifest) = cache_manager.manifest {
+                    // Load old declaration hashes from cache
+                    for (module_path, hashes) in &manifest.declaration_hashes {
+                        for (decl_name, hash) in hashes {
+                            let decl_id = typedlua_typechecker::DeclarationId::new(
+                                module_path.clone(),
+                                decl_name.clone(),
+                            );
+                            old_declaration_hashes.insert(decl_id, *hash);
+                        }
+                    }
+
+                    // Initialize incremental checker with cached state
+                    let cached_cache = CompilationCache {
+                        declaration_hashes: old_declaration_hashes.clone(),
+                        dependency_graph: typedlua_typechecker::DependencyGraph::new(),
+                        version: 0,
+                    };
+                    incremental_checker.set_cache(cached_cache);
+
+                    info!(
+                        "Loaded {} cached declaration hashes for incremental checking",
+                        old_declaration_hashes.len()
+                    );
+                }
+            }
+        }
+    }
 
     // Determine which files need recompilation
     let stale_files: FxHashSet<PathBuf>;
@@ -1175,10 +1232,12 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
             })?
     };
     if !stale_file_paths.is_empty() {
-        info!("⏱️  Parallel parsing: {:?} ({} files, {:?}/file avg)",
-              parse_start.elapsed(),
-              stale_file_paths.len(),
-              parse_start.elapsed() / stale_file_paths.len() as u32);
+        info!(
+            "⏱️  Parallel parsing: {:?} ({} files, {:?}/file avg)",
+            parse_start.elapsed(),
+            stale_file_paths.len(),
+            parse_start.elapsed() / stale_file_paths.len() as u32
+        );
     }
 
     // Create a map for fast lookup of parsed modules
@@ -1289,8 +1348,25 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
                 // Get dependencies for cache invalidation
                 let dependencies: Vec<PathBuf> = type_checker.get_module_dependencies().to_vec();
 
+                // Compute declaration hashes for incremental type checking
+                let declaration_hashes = type_checker.compute_declaration_hashes(
+                    &program,
+                    canonical.clone(),
+                    &parsed.interner,
+                );
+
+                // Update incremental checker with new hashes
+                if use_incremental_check {
+                    for (decl_id, hash) in &declaration_hashes {
+                        debug!(
+                            ?decl_id,
+                            hash, "Computing declaration hash for incremental tracking"
+                        );
+                    }
+                }
+
                 Some((
-                    canonical,
+                    canonical.clone(),
                     CachedModule::new(
                         file_path
                             .canonicalize()
@@ -1301,6 +1377,7 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
                         parsed.interner.to_strings(),
                     ),
                     dependencies,
+                    declaration_hashes,
                 ))
             } else {
                 None
@@ -1327,11 +1404,17 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
 
     let typecheck_elapsed = typecheck_start.elapsed();
     let typechecked_count = checked_modules.len() - cached_modules.len();
-    info!("Type checking complete. {} modules ready for codegen.", checked_modules.len());
+    info!(
+        "Type checking complete. {} modules ready for codegen.",
+        checked_modules.len()
+    );
     if typechecked_count > 0 {
-        info!("⏱️  Type checking: {:?} ({} modules, {:?}/module avg)",
-              typecheck_elapsed, typechecked_count,
-              typecheck_elapsed / typechecked_count.max(1) as u32);
+        info!(
+            "⏱️  Type checking: {:?} ({} modules, {:?}/module avg)",
+            typecheck_elapsed,
+            typechecked_count,
+            typecheck_elapsed / typechecked_count.max(1) as u32
+        );
     }
 
     // --- Phase 1.5: Whole-program analysis (for O3+ optimizations) ---
@@ -1339,16 +1422,18 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
     let optimization_level = parse_optimization_level(cli.optimize, cli.no_optimize)?;
     info!("Optimization level: {:?}", optimization_level);
     let wpa_start = Instant::now();
-    let whole_program_analysis = if optimization_level >= typedlua_core::config::OptimizationLevel::O3 {
-        info!("Building whole-program analysis for O3 optimizations...");
-        let ast_refs: Vec<&typedlua_parser::ast::Program> = checked_modules
-            .iter()
-            .map(|m| &m.ast)
-            .collect();
-        Some(typedlua_core::optimizer::WholeProgramAnalysis::build(&ast_refs, optimization_level))
-    } else {
-        None
-    };
+    let whole_program_analysis =
+        if optimization_level >= typedlua_core::config::OptimizationLevel::O3 {
+            info!("Building whole-program analysis for O3 optimizations...");
+            let ast_refs: Vec<&typedlua_parser::ast::Program> =
+                checked_modules.iter().map(|m| &m.ast).collect();
+            Some(typedlua_core::optimizer::WholeProgramAnalysis::build(
+                &ast_refs,
+                optimization_level,
+            ))
+        } else {
+            None
+        };
     if whole_program_analysis.is_some() {
         info!("⏱️  Whole-program analysis: {:?}", wpa_start.elapsed());
     }
@@ -1395,9 +1480,12 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
     let codegen_elapsed = codegen_start.elapsed();
     info!("Code generation complete for {} modules.", results.len());
     if module_count > 0 {
-        info!("⏱️  Parallel codegen: {:?} ({} modules, {:?}/module avg)",
-              codegen_elapsed, module_count,
-              codegen_elapsed / module_count as u32);
+        info!(
+            "⏱️  Parallel codegen: {:?} ({} modules, {:?}/module avg)",
+            codegen_elapsed,
+            module_count,
+            codegen_elapsed / module_count as u32
+        );
     }
 
     // --- Phase 3: Save cache entries (sequential — CacheManager needs &mut self) ---
@@ -1411,11 +1499,21 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
 
             for result in &results {
                 if let Ok(output) = &result.result {
-                    if let Some((ref path, ref cached_module, ref dependencies)) =
-                        output.cache_entry
+                    if let Some((
+                        ref path,
+                        ref cached_module,
+                        ref dependencies,
+                        ref declaration_hashes,
+                    )) = output.cache_entry
                     {
-                        let _ =
-                            cache_manager.save_module(path, cached_module, dependencies.clone());
+                        // Save module with declaration hashes for incremental type checking
+                        let _ = cache_manager.save_module_with_declaration_hashes(
+                            path,
+                            cached_module,
+                            dependencies.clone(),
+                            Some(declaration_hashes.clone()),
+                            None, // declaration_dependencies
+                        );
                     }
                 }
             }
