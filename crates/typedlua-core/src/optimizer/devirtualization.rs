@@ -637,6 +637,7 @@ impl ClassHierarchy {
 /// Analyzes method calls and marks safe ones for devirtualization by setting
 /// the `receiver_class` field. The actual transformation is performed by
 /// the O2 `MethodToFunctionConversionPass`.
+#[derive(Default)]
 pub struct DevirtualizationPass {
     /// Pre-built class hierarchy from whole-program analysis (optional)
     class_hierarchy: Option<Arc<ClassHierarchy>>,
@@ -982,14 +983,6 @@ impl WholeProgramPass for DevirtualizationPass {
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
-    }
-}
-
-impl Default for DevirtualizationPass {
-    fn default() -> Self {
-        Self {
-            class_hierarchy: None,
-        }
     }
 }
 

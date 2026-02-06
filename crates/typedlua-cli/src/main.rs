@@ -2,6 +2,7 @@ use clap::Parser;
 use glob::glob;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
+use std::cell::Cell;
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, warn};
 use tracing_subscriber::EnvFilter;
@@ -971,18 +972,20 @@ struct CompilationResult {
     result: Result<CompilationOutput, CompilationError>,
 }
 
+/// Cache entry data collected during type checking for later persistence
+type CacheEntryData = (
+    PathBuf,
+    typedlua_core::cache::CachedModule,
+    Vec<PathBuf>,
+    FxHashMap<String, u64>,
+);
+
 struct CompilationOutput {
     lua_code: String,
     source_map: Option<typedlua_core::codegen::SourceMap>,
     output_path: PathBuf,
     /// Module to save to cache after compilation (stale files only)
-    /// Tuple of (path, cached_module, dependencies, declaration_hashes)
-    cache_entry: Option<(
-        PathBuf,
-        typedlua_core::cache::CachedModule,
-        Vec<PathBuf>,
-        FxHashMap<String, u64>,
-    )>,
+    cache_entry: Option<CacheEntryData>,
 }
 
 struct CompilationError {
@@ -997,12 +1000,7 @@ struct CheckedModule {
     interner: std::sync::Arc<typedlua_parser::string_interner::StringInterner>,
     output_path: PathBuf,
     enable_source_map: bool,
-    cache_entry: Option<(
-        PathBuf,
-        typedlua_core::cache::CachedModule,
-        Vec<PathBuf>,
-        FxHashMap<String, u64>,
-    )>,
+    cache_entry: Option<CacheEntryData>,
 }
 
 // SAFETY: All fields are Send after StringInterner migration to ThreadedRodeo.
@@ -1256,6 +1254,7 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
     // --- Phase 1: Sequential type checking + cache building ---
     // This phase MUST be sequential to maintain dependency order
     let typecheck_start = Instant::now();
+    let typecheck_failures = Cell::new(false);
     let checked_modules: Vec<CheckedModule> = ordered_files
         .iter()
         .filter_map(|file_path| {
@@ -1327,10 +1326,21 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
             .expect("Failed to load standard library");
 
             if type_checker.check_program(&mut program).is_err() || handler.has_errors() {
+                typecheck_failures.set(true);
+                let diagnostics = handler.get_diagnostics();
                 warn!(
                     "Type check failed for {:?}: {} errors",
                     file_path,
-                    handler.get_diagnostics().len()
+                    diagnostics.len()
+                );
+                // Print diagnostics to stderr
+                let source = std::fs::read_to_string(file_path).unwrap_or_default();
+                print_diagnostics_from_vec(
+                    &diagnostics,
+                    &source,
+                    file_path,
+                    cli.pretty,
+                    cli.diagnostics,
                 );
                 return None; // Skip modules with type errors
             }
@@ -1602,7 +1612,7 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
         info!("Generated bundle: {:?}", out_file);
     }
 
-    if had_errors {
+    if had_errors || typecheck_failures.get() {
         std::process::exit(1);
     }
 

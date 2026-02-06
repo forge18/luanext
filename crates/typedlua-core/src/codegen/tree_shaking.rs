@@ -5,7 +5,7 @@ use typedlua_parser::ast::statement::{ExportKind, Statement};
 use typedlua_parser::ast::Program;
 use typedlua_parser::string_interner::{StringId, StringInterner};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ReachableSet {
     pub modules: HashSet<String>,
     pub exports: HashMap<String, HashSet<String>>,
@@ -13,10 +13,7 @@ pub struct ReachableSet {
 
 impl ReachableSet {
     pub fn new() -> Self {
-        ReachableSet {
-            modules: HashSet::default(),
-            exports: HashMap::default(),
-        }
+        Self::default()
     }
 
     pub fn is_module_reachable(&self, module_path: &str) -> bool {
@@ -274,7 +271,7 @@ impl<'a> ReachabilityAnalysis<'a> {
             .get(&entry_module)
             .cloned()
             .unwrap_or_default();
-        let mut entry_all_exports: HashSet<String> =
+        let entry_all_exports: HashSet<String> =
             entry_exports.iter().map(|(_, name)| name.clone()).collect();
 
         let mut used_exports: HashMap<String, HashSet<String>> = HashMap::default();

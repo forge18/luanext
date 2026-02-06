@@ -195,22 +195,32 @@ impl DeadStoreEliminationPass {
             let has_side_effects = self.statement_has_side_effects(stmt);
             let stmt_reads = self.collect_statement_reads(stmt);
 
-            let mut is_dead = names.is_empty();
-            for name in &names {
-                if captured.contains(name) || has_side_effects || current_live_vars.contains(name) {
-                    is_dead = false;
-                    break;
-                }
-            }
+            // A statement is dead if it declares variables that are never read
+            // It's NOT dead if:
+            // - It has no variable declarations (not a dead store candidate)
+            // - Any declared variable is captured by a closure
+            // - The statement has side effects
+            // - Any declared variable is live (used later)
+            let is_dead = if names.is_empty() {
+                // Not a variable declaration, can't be a dead store
+                false
+            } else if has_side_effects {
+                // Side effects must be preserved
+                false
+            } else {
+                // Check if ALL declared names are dead (not captured and not live)
+                names
+                    .iter()
+                    .all(|name| !captured.contains(name) && !current_live_vars.contains(name))
+            };
 
             if !is_dead {
                 let mut stmt_clone = stmt.clone();
                 changed |= self.eliminate_dead_stores_in_statement(&mut stmt_clone);
                 new_statements.push(stmt_clone);
-                for name in &names {
-                    if stmt_reads.contains(name) {
-                        current_live_vars.insert(*name);
-                    }
+                // Add variables read by this statement to the live set
+                for id in stmt_reads {
+                    current_live_vars.insert(id);
                 }
             } else {
                 changed = true;
@@ -799,10 +809,12 @@ impl Default for DeadStoreEliminationPass {
 }
 
 fn for_expr_has_side_effects(exprs: &[typedlua_parser::ast::expression::Expression]) -> bool {
-    exprs.iter().any(|e| match &e.kind {
-        ExpressionKind::Call(_, _, _) => true,
-        ExpressionKind::MethodCall(_, _, _, _) => true,
-        ExpressionKind::Assignment(_, _, _) => true,
-        _ => false,
+    exprs.iter().any(|e| {
+        matches!(
+            &e.kind,
+            ExpressionKind::Call(_, _, _)
+                | ExpressionKind::MethodCall(_, _, _, _)
+                | ExpressionKind::Assignment(_, _, _)
+        )
     })
 }

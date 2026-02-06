@@ -30,11 +30,17 @@ pub struct AstFeatureDetector {
     features: AstFeatures,
 }
 
-impl AstFeatureDetector {
-    pub fn new() -> Self {
+impl Default for AstFeatureDetector {
+    fn default() -> Self {
         Self {
             features: AstFeatures::EMPTY,
         }
+    }
+}
+
+impl AstFeatureDetector {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn detect(program: &Program) -> AstFeatures {
@@ -864,8 +870,12 @@ impl Optimizer {
             // Elimination group
             let mut elim_pass = StatementCompositePass::new("elimination-transforms");
             elim_pass.add_visitor(Box::new(DeadCodeEliminationPass::new()));
-            elim_pass.add_visitor(Box::new(DeadStoreEliminationPass::new()));
+            // Note: DeadStoreEliminationPass needs whole-block analysis, so it's a standalone pass
             self.elim_pass = Some(elim_pass);
+
+            // Dead store elimination requires whole-block analysis
+            self.standalone_passes
+                .push(Box::new(DeadStoreEliminationPass::new()));
 
             // Data structure group
             let mut data_pass = ExpressionCompositePass::new("data-structure-transforms");
@@ -1098,5 +1108,4 @@ impl Optimizer {
 
         Ok(())
     }
-
 }

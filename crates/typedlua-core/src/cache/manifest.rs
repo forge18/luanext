@@ -1,6 +1,6 @@
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use super::{CacheError, Result, CACHE_VERSION};
 
@@ -112,31 +112,32 @@ impl CacheManifest {
     /// Update declaration hashes for a module
     pub fn update_declaration_hashes(
         &mut self,
-        module_path: &PathBuf,
+        module_path: &Path,
         hashes: FxHashMap<String, u64>,
     ) {
-        self.declaration_hashes.insert(module_path.clone(), hashes);
+        self.declaration_hashes
+            .insert(module_path.to_path_buf(), hashes);
     }
 
     /// Get declaration hashes for a module
-    pub fn get_declaration_hashes(&self, module_path: &PathBuf) -> Option<&FxHashMap<String, u64>> {
+    pub fn get_declaration_hashes(&self, module_path: &Path) -> Option<&FxHashMap<String, u64>> {
         self.declaration_hashes.get(module_path)
     }
 
     /// Update declaration dependencies for a module
     pub fn update_declaration_dependencies(
         &mut self,
-        module_path: &PathBuf,
+        module_path: &Path,
         dependencies: FxHashMap<String, Vec<(PathBuf, String)>>,
     ) {
         self.declaration_dependencies
-            .insert(module_path.clone(), dependencies);
+            .insert(module_path.to_path_buf(), dependencies);
     }
 
     /// Get declaration dependencies for a module
     pub fn get_declaration_dependencies(
         &self,
-        module_path: &PathBuf,
+        module_path: &Path,
     ) -> Option<&FxHashMap<String, Vec<(PathBuf, String)>>> {
         self.declaration_dependencies.get(module_path)
     }

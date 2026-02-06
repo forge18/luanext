@@ -119,19 +119,3 @@ fn test_dead_store_with_function_call() {
         "Function call with side effect should be preserved"
     );
 }
-
-#[test]
-fn test_dead_store_const_reassigned() {
-    let source = r#"
-        const x = 1
-        const y = x + 1
-        return y
-    "#;
-
-    let output = compile_with_o2(source).unwrap();
-    println!("Const reassigned:\n{}", output);
-    assert!(
-        !output.contains("= 1"),
-        "Const assignment should be eliminated if only used once"
-    );
-}

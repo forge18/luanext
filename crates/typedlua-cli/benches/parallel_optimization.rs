@@ -69,7 +69,10 @@ fn generate_test_project(module_count: usize, statements_per_module: usize) -> T
     // Create a main module that imports all others
     let mut main_content = String::from("-- Main module\n\n");
     for i in 0..module_count {
-        main_content.push_str(&format!("import {{ Processor as P{} }} from \"./module_{}\"\n", i, i));
+        main_content.push_str(&format!(
+            "import {{ Processor as P{} }} from \"./module_{}\"\n",
+            i, i
+        ));
     }
     main_content.push_str("\nfunction main()\n");
     for i in 0..module_count {
