@@ -1,9 +1,13 @@
 // Keep core-specific modules
+pub mod arena;
 pub mod cache;
 pub mod codegen;
 pub mod di;
 pub mod optimizer;
 pub mod type_checker;
+
+// Re-export arena for convenience
+pub use arena::Arena;
 
 // Re-export shared utilities and types used by typedlua-core
 pub use typedlua_typechecker::{

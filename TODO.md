@@ -193,16 +193,57 @@ Is
 - **Bulk deallocation** - O(1) free entire compilation unit
 - **Scales to unknown use cases** - 500K line codebases, LSP, CI/CD
 
+**Critical Note:** The parser and AST definitions live in a **separate git repository** (`typedlua-parser`). Arena allocation changes will require coordinated updates across both repositories. Consider merging into monorepo or careful version coordination.
+
 **Action Items:**
 
 #### Phase 4.1: Arena Infrastructure (Days 1-2)
 
-- [ ] Add `bumpalo` crate dependency to `typedlua-core/Cargo.toml`
-- [ ] Create `crates/typedlua-core/src/arena.rs`
-- [ ] Define `Arena` wrapper around `bumpalo::Bump`
-- [ ] Add `alloc<T>(&self, value: T) -> &'arena T` helper
-- [ ] Add `alloc_slice<T>(&self, slice: &[T]) -> &'arena [T]` helper
-- [ ] Add unit tests for arena allocation/deallocation
+**Prerequisites:**
+
+- [x] `bumpalo` crate already in workspace dependencies (3.16)
+- [x] `bumpalo` already added to `typedlua-core/Cargo.toml`
+
+**Implementation:**
+
+- [x] Create `crates/typedlua-core/src/arena.rs` with `Arena` wrapper struct
+- [x] Implement `Arena::new()` and `Arena::with_capacity()`
+- [x] Implement `Arena::alloc<T>(&self, value: T) -> &T`
+- [x] Implement `Arena::alloc_slice_copy<T: Copy>(&self, slice: &[T]) -> &[T]`
+- [x] Implement `Arena::alloc_slice_clone<T: Clone>(&self, slice: &[T]) -> &[T]`
+- [x] Implement `Arena::alloc_slice_fill_iter<T, I>(&self, iter: I) -> &[T]`
+- [x] Implement `Arena::alloc_str(&self, s: &str) -> &str`
+- [x] Add allocation count tracking for metrics/debugging
+- [x] Add `Arena::allocated_bytes()` and `Arena::reset()` methods
+- [x] Export `Arena` from `crates/typedlua-core/src/lib.rs`
+
+**Testing:**
+
+- [x] Test single value allocation
+- [x] Test multiple allocations
+- [x] Test slice allocation (copy, clone, iterator)
+- [x] Test string allocation
+- [x] Test empty slice handling
+- [x] Test arena reset
+- [x] Test complex struct allocation
+- [x] Test nested allocation patterns (simulating AST)
+
+**Verification:**
+
+- [x] `cargo build -p typedlua-core` compiles
+- [x] `cargo test -p typedlua-core arena` passes (16 tests)
+- [x] `cargo clippy -p typedlua-core -- -D warnings` clean
+
+**Status:** **COMPLETE**
+
+**Documentation:** See `docs/phase-4.1-arena-infrastructure-plan.md` for full implementation details.
+
+**Current AST Allocation Stats (from exploration):**
+
+- Expression: 27 uses of `Box<T>`, 8+ uses of `Vec<T>`
+- Type: 16 uses of `Box<T>`, 3 uses of `Vec<T>`
+- Statement: 1 use of `Box<T>`, 15+ uses of `Vec<T>`
+- Total: 44+ Box allocations, 26+ Vec allocations to migrate
 
 #### Phase 4.2: AST Lifetime Migration (Days 3-7)
 
