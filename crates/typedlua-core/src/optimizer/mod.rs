@@ -299,6 +299,15 @@ impl ExpressionCompositePass {
         self.visitors.push(visitor);
     }
 
+    /// Get the combined AST features required by all visitors in this composite pass
+    pub fn required_features(&self) -> AstFeatures {
+        let mut combined = AstFeatures::EMPTY;
+        for visitor in &self.visitors {
+            combined |= visitor.required_features();
+        }
+        combined
+    }
+
     pub fn run(&mut self, program: &mut Program) -> Result<bool, String> {
         let mut changed = false;
         for stmt in &mut program.statements {
@@ -555,6 +564,15 @@ impl StatementCompositePass {
         self.visitors.push(visitor);
     }
 
+    /// Get the combined AST features required by all visitors in this composite pass
+    pub fn required_features(&self) -> AstFeatures {
+        let mut combined = AstFeatures::EMPTY;
+        for visitor in &self.visitors {
+            combined |= visitor.required_features();
+        }
+        combined
+    }
+
     pub fn run(&mut self, program: &mut Program) -> Result<bool, String> {
         let mut changed = false;
         for stmt in &mut program.statements {
@@ -658,6 +676,18 @@ impl AnalysisCompositePass {
 
     pub fn add_visitor(&mut self, visitor: Box<dyn StmtVisitor>) {
         self.visitors.push(visitor);
+    }
+
+    /// Get the combined AST features required by all visitors and pre-analyzers in this composite pass
+    pub fn required_features(&self) -> AstFeatures {
+        let mut combined = AstFeatures::EMPTY;
+        for analyzer in &self.pre_analyzers {
+            combined |= analyzer.required_features();
+        }
+        for visitor in &self.visitors {
+            combined |= visitor.required_features();
+        }
+        combined
     }
 
     pub fn run(&mut self, program: &mut Program) -> Result<bool, String> {
@@ -969,20 +999,97 @@ impl Optimizer {
             // Run composite expression pass
             if let Some(ref mut pass) = self.expr_pass {
                 if effective_level >= OptimizationLevel::O1 {
-                    let start = Instant::now();
-                    let pass_changed = pass.run(program)?;
-                    let elapsed = start.elapsed();
-                    debug!(
-                        "  [Iter {}] ExpressionCompositePass: {:?} (changed: {})",
-                        iteration, elapsed, pass_changed
-                    );
-                    changed |= pass_changed;
+                    let required = pass.required_features();
+                    if required.is_empty() || features.contains(required) {
+                        let start = Instant::now();
+                        let pass_changed = pass.run(program)?;
+                        let elapsed = start.elapsed();
+                        debug!(
+                            "  [Iter {}] ExpressionCompositePass: {:?} (changed: {})",
+                            iteration, elapsed, pass_changed
+                        );
+                        changed |= pass_changed;
+                    }
                 }
             }
 
             // Run elimination composite pass
             if let Some(ref mut pass) = self.elim_pass {
                 if effective_level >= OptimizationLevel::O2 {
+                    let required = pass.required_features();
+                    if required.is_empty() || features.contains(required) {
+                        let start = Instant::now();
+                        let pass_changed = pass.run(program)?;
+                        let elapsed = start.elapsed();
+                        debug!(
+                            "  [Iter {}] EliminationCompositePass: {:?} (changed: {})",
+                            iteration, elapsed, pass_changed
+                        );
+                        changed |= pass_changed;
+                    }
+                }
+            }
+
+            // Run function composite pass
+            if let Some(ref mut pass) = self.func_pass {
+                if effective_level >= OptimizationLevel::O2 {
+                    let required = pass.required_features();
+                    if required.is_empty() || features.contains(required) {
+                        let start = Instant::now();
+                        let pass_changed = pass.run(program)?;
+                        let elapsed = start.elapsed();
+                        debug!(
+                            "  [Iter {}] FunctionCompositePass: {:?} (changed: {})",
+                            iteration, elapsed, pass_changed
+                        );
+                        changed |= pass_changed;
+                    }
+                }
+            }
+
+            // Run data structure composite pass
+            if let Some(ref mut pass) = self.data_pass {
+                if effective_level >= OptimizationLevel::O2 {
+                    let required = pass.required_features();
+                    if required.is_empty() || features.contains(required) {
+                        let start = Instant::now();
+                        let pass_changed = pass.run(program)?;
+                        let elapsed = start.elapsed();
+                        debug!(
+                            "  [Iter {}] DataStructureCompositePass: {:?} (changed: {})",
+                            iteration, elapsed, pass_changed
+                        );
+                        changed |= pass_changed;
+                    }
+                }
+            }
+
+            // Run standalone passes
+            for pass in &mut self.standalone_passes {
+                if pass.min_level() <= effective_level {
+                    let required = pass.required_features();
+                    if required.is_empty() || features.contains(required) {
+                        let start = Instant::now();
+                        let pass_changed = pass.run(program)?;
+                        let elapsed = start.elapsed();
+                        debug!(
+                            "  [Iter {}] {}: {:?} (changed: {})",
+                            iteration,
+                            pass.name(),
+                            elapsed,
+                            pass_changed
+                        );
+                        changed |= pass_changed;
+                    }
+                }
+            }
+            }
+
+            // Run elimination composite pass
+            if let Some(ref mut pass) = self.elim_pass {
+                if effective_level >= OptimizationLevel::O2
+                    && self.should_run_pass(&pass.required_features(), features, "elimination")
+                {
                     let start = Instant::now();
                     let pass_changed = pass.run(program)?;
                     let elapsed = start.elapsed();
@@ -996,7 +1103,9 @@ impl Optimizer {
 
             // Run function composite pass
             if let Some(ref mut pass) = self.func_pass {
-                if effective_level >= OptimizationLevel::O2 {
+                if effective_level >= OptimizationLevel::O2
+                    && self.should_run_pass(&pass.required_features(), features, "function")
+                {
                     let start = Instant::now();
                     let pass_changed = pass.run(program)?;
                     let elapsed = start.elapsed();
@@ -1010,7 +1119,9 @@ impl Optimizer {
 
             // Run data structure composite pass
             if let Some(ref mut pass) = self.data_pass {
-                if effective_level >= OptimizationLevel::O2 {
+                if effective_level >= OptimizationLevel::O2
+                    && self.should_run_pass(&pass.required_features(), features, "data-structure")
+                {
                     let start = Instant::now();
                     let pass_changed = pass.run(program)?;
                     let elapsed = start.elapsed();
@@ -1025,17 +1136,20 @@ impl Optimizer {
             // Run standalone passes
             for pass in &mut self.standalone_passes {
                 if pass.min_level() <= effective_level {
-                    let start = Instant::now();
-                    let pass_changed = pass.run(program)?;
-                    let elapsed = start.elapsed();
-                    debug!(
-                        "  [Iter {}] {}: {:?} (changed: {})",
-                        iteration,
-                        pass.name(),
-                        elapsed,
-                        pass_changed
-                    );
-                    changed |= pass_changed;
+                    let required_features = pass.required_features();
+                    if self.should_run_pass(&required_features, features, pass.name()) {
+                        let start = Instant::now();
+                        let pass_changed = pass.run(program)?;
+                        let elapsed = start.elapsed();
+                        debug!(
+                            "  [Iter {}] {}: {:?} (changed: {})",
+                            iteration,
+                            pass.name(),
+                            elapsed,
+                            pass_changed
+                        );
+                        changed |= pass_changed;
+                    }
                 }
             }
 
