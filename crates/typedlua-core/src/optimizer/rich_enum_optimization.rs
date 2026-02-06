@@ -1,5 +1,5 @@
 use crate::config::OptimizationLevel;
-use crate::optimizer::WholeProgramPass;
+use crate::optimizer::{AstFeatures, WholeProgramPass};
 use typedlua_parser::ast::statement::{EnumDeclaration, Statement};
 use typedlua_parser::ast::Program;
 
@@ -18,6 +18,10 @@ impl WholeProgramPass for RichEnumOptimizationPass {
 
     fn min_level(&self) -> OptimizationLevel {
         OptimizationLevel::O2
+    }
+
+    fn required_features(&self) -> AstFeatures {
+        AstFeatures::HAS_ENUMS
     }
 
     fn run(&mut self, program: &mut Program) -> Result<bool, String> {

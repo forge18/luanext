@@ -34,6 +34,10 @@ impl WholeProgramPass for LoopOptimizationPass {
         OptimizationLevel::O2
     }
 
+    fn required_features(&self) -> crate::optimizer::AstFeatures {
+        crate::optimizer::AstFeatures::HAS_LOOPS
+    }
+
     fn run(&mut self, program: &mut Program) -> Result<bool, String> {
         let mut changed = false;
         let mut i = 0;

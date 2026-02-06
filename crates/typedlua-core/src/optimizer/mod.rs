@@ -3,10 +3,156 @@ use crate::diagnostics::DiagnosticHandler;
 
 use std::sync::Arc;
 use tracing::{debug, info};
-use typedlua_parser::ast::expression::Expression;
+use typedlua_parser::ast::expression::{Expression, ExpressionKind};
 use typedlua_parser::ast::statement::{Block, ForStatement, Statement};
 use typedlua_parser::ast::Program;
 use typedlua_parser::string_interner::StringInterner;
+
+use bitflags::bitflags;
+
+bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    pub struct AstFeatures: u32 {
+        const HAS_LOOPS = 0b00000001;
+        const HAS_CLASSES = 0b00000010;
+        const HAS_METHODS = 0b00000100;
+        const HAS_FUNCTIONS = 0b00001000;
+        const HAS_ARROWS = 0b00010000;
+        const HAS_INTERFACES = 0b00100000;
+        const HAS_ARRAYS = 0b01000000;
+        const HAS_OBJECTS = 0b10000000;
+        const HAS_ENUMS = 0b100000000;
+        const EMPTY = 0b00000000;
+    }
+}
+
+pub struct AstFeatureDetector {
+    features: AstFeatures,
+}
+
+impl AstFeatureDetector {
+    pub fn new() -> Self {
+        Self {
+            features: AstFeatures::EMPTY,
+        }
+    }
+
+    pub fn detect(program: &Program) -> AstFeatures {
+        let mut detector = Self::new();
+        for stmt in &program.statements {
+            detector.visit_statement(stmt);
+        }
+        detector.features
+    }
+
+    fn visit_statement(&mut self, stmt: &Statement) {
+        use typedlua_parser::ast::statement::ForStatement;
+
+        match stmt {
+            Statement::For(for_stmt) => {
+                self.features |= AstFeatures::HAS_LOOPS;
+                match for_stmt.as_ref() {
+                    ForStatement::Numeric(for_num) => {
+                        self.visit_expression(&for_num.start);
+                        self.visit_expression(&for_num.end);
+                        if let Some(step) = &for_num.step {
+                            self.visit_expression(step);
+                        }
+                        for stmt in &for_num.body.statements {
+                            self.visit_statement(stmt);
+                        }
+                    }
+                    ForStatement::Generic(for_gen) => {
+                        for expr in &for_gen.iterators {
+                            self.visit_expression(expr);
+                        }
+                        for stmt in &for_gen.body.statements {
+                            self.visit_statement(stmt);
+                        }
+                    }
+                }
+            }
+            Statement::While(while_stmt) => {
+                self.features |= AstFeatures::HAS_LOOPS;
+                self.visit_expression(&while_stmt.condition);
+                for stmt in &while_stmt.body.statements {
+                    self.visit_statement(stmt);
+                }
+            }
+            Statement::Repeat(repeat_stmt) => {
+                self.features |= AstFeatures::HAS_LOOPS;
+                self.visit_expression(&repeat_stmt.until);
+                for stmt in &repeat_stmt.body.statements {
+                    self.visit_statement(stmt);
+                }
+            }
+            Statement::Class(_) => {
+                self.features |= AstFeatures::HAS_CLASSES;
+            }
+            Statement::Interface(_) => {
+                self.features |= AstFeatures::HAS_INTERFACES;
+            }
+            Statement::Enum(_) => {
+                self.features |= AstFeatures::HAS_ENUMS;
+            }
+            Statement::Function(func) => {
+                self.features |= AstFeatures::HAS_FUNCTIONS;
+                for stmt in &func.body.statements {
+                    self.visit_statement(stmt);
+                }
+            }
+            Statement::Expression(expr) => {
+                self.visit_expression(expr);
+            }
+            Statement::Block(block) => {
+                for stmt in &block.statements {
+                    self.visit_statement(stmt);
+                }
+            }
+            Statement::If(if_stmt) => {
+                self.visit_expression(&if_stmt.condition);
+                for stmt in &if_stmt.then_block.statements {
+                    self.visit_statement(stmt);
+                }
+                for else_if in &if_stmt.else_ifs {
+                    self.visit_expression(&else_if.condition);
+                    for stmt in &else_if.block.statements {
+                        self.visit_statement(stmt);
+                    }
+                }
+                if let Some(else_block) = &if_stmt.else_block {
+                    for stmt in &else_block.statements {
+                        self.visit_statement(stmt);
+                    }
+                }
+            }
+            Statement::Return(ret) => {
+                for expr in &ret.values {
+                    self.visit_expression(expr);
+                }
+            }
+            Statement::Variable(var) => {
+                self.visit_expression(&var.initializer);
+            }
+            _ => {}
+        }
+    }
+
+    fn visit_expression(&mut self, expr: &Expression) {
+        match &expr.kind {
+            ExpressionKind::Arrow(_) => {
+                self.features |= AstFeatures::HAS_ARROWS;
+            }
+            ExpressionKind::Object(_) => {
+                self.features |= AstFeatures::HAS_OBJECTS;
+            }
+            ExpressionKind::Array(_) => {
+                self.features |= AstFeatures::HAS_ARRAYS;
+            }
+            _ => {}
+        }
+    }
+}
 
 // Pass modules
 mod passes;
@@ -19,8 +165,8 @@ mod method_to_function_conversion;
 use method_to_function_conversion::MethodToFunctionConversionPass;
 
 mod devirtualization;
-use devirtualization::DevirtualizationPass;
 pub use devirtualization::ClassHierarchy;
+use devirtualization::DevirtualizationPass;
 
 mod whole_program_analysis;
 pub use whole_program_analysis::WholeProgramAnalysis;
@@ -52,6 +198,11 @@ pub trait ExprVisitor {
     /// # Returns
     /// `true` if the expression was modified, `false` otherwise
     fn visit_expr(&mut self, expr: &mut Expression) -> bool;
+
+    /// Get the AST features required for this pass
+    fn required_features(&self) -> AstFeatures {
+        AstFeatures::EMPTY
+    }
 }
 
 /// Visitor for statement-level transformations
@@ -68,6 +219,11 @@ pub trait StmtVisitor {
     /// # Returns
     /// `true` if the statement was modified, `false` otherwise
     fn visit_stmt(&mut self, stmt: &mut Statement) -> bool;
+
+    /// Get the AST features required for this pass
+    fn required_features(&self) -> AstFeatures {
+        AstFeatures::EMPTY
+    }
 }
 
 /// Pass that requires pre-analysis before transformation
@@ -81,6 +237,11 @@ pub trait PreAnalysisPass {
     /// # Arguments
     /// * `program` - The program to analyze (read-only)
     fn analyze(&mut self, program: &Program);
+
+    /// Get the AST features required for this pass
+    fn required_features(&self) -> AstFeatures {
+        AstFeatures::EMPTY
+    }
 }
 
 /// Pass that operates on the whole program
@@ -94,6 +255,11 @@ pub trait WholeProgramPass {
     /// Get the minimum optimization level required
     fn min_level(&self) -> OptimizationLevel {
         OptimizationLevel::O1
+    }
+
+    /// Get the AST features required for this pass
+    fn required_features(&self) -> AstFeatures {
+        AstFeatures::EMPTY
     }
 
     /// Run the pass on the entire program
@@ -783,6 +949,10 @@ impl Optimizer {
 
         let start_total = Instant::now();
 
+        // Detect AST features for lazy pass evaluation
+        let features = AstFeatureDetector::detect(program);
+        debug!("Detected AST features: {:?}", features);
+
         // Run passes in a loop until no changes are made (fixed-point iteration)
         let mut iteration = 0;
         let max_iterations = 10; // Prevent infinite loops
@@ -882,5 +1052,29 @@ impl Optimizer {
         );
 
         Ok(())
+    }
+
+    /// Check if a pass should run based on detected AST features and pass requirements
+    fn should_run_pass(
+        &self,
+        required: &AstFeatures,
+        detected: AstFeatures,
+        pass_name: &str,
+    ) -> bool {
+        if required.is_empty() {
+            // Pass has no specific requirements, always run
+            return true;
+        }
+
+        let has_required = detected.contains(*required);
+
+        if !has_required {
+            debug!(
+                "Skipping {} pass - AST missing required features: {:?}",
+                pass_name, required
+            );
+        }
+
+        has_required
     }
 }

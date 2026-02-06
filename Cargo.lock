@@ -1466,6 +1466,7 @@ dependencies = [
  "anyhow",
  "base64",
  "bincode",
+ "bitflags 2.10.0",
  "blake3",
  "bumpalo",
  "criterion",
