@@ -7,3 +7,6 @@
 [submodule "crates/typedlua-lsp"]
 	path = crates/typedlua-lsp
 	url = https://github.com/forge18/typedlua-lsp.git
+[submodule "crates/typedlua-typechecker"]
+	path = crates/typedlua-typechecker
+	url = https://github.com/forge18/typedlua-typechecker.git

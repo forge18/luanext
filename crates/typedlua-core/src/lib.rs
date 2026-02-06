@@ -9,12 +9,8 @@ pub mod type_checker;
 pub use typedlua_typechecker::{
     // Generic specialization optimizer functions
     build_substitutions,
-    // Modules - shared utilities
-    config,
-    diagnostics,
-    errors,
-    fs,
     instantiate_function_declaration,
+    // Module resolver
     module_resolver,
     // Symbol table for caching
     SerializableSymbolTable,
@@ -24,8 +20,11 @@ pub use typedlua_typechecker::{
     TypeChecker,
 };
 
+// Re-export CLI modules - shared utilities
+pub use typedlua_typechecker::cli::{config, diagnostics, errors, fs};
+
 // Re-export common diagnostics for backward compatibility
-pub use typedlua_typechecker::diagnostics::{
+pub use typedlua_typechecker::cli::diagnostics::{
     CollectingDiagnosticHandler, Diagnostic, DiagnosticHandler, DiagnosticLevel,
 };
 

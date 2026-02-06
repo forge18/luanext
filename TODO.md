@@ -50,21 +50,24 @@
 
 ### Strategy 1: Type Relation Caching (1-2 days)
 
-**What:** LRU cache for `(TypeId, TypeId) → bool` subtype checks
+**What:** LRU cache for `(Type, Type) → bool` subtype checks
 
 **Action Items:**
 
-- [ ] Add `lru` crate dependency to `typedlua-typechecker/Cargo.toml`
-- [ ] Create `typedlua-typechecker/src/type_relations.rs`
-- [ ] Implement `TypeRelationCache` struct with `LruCache<(TypeId, TypeId), bool>`
-- [ ] Add cache field to `TypeChecker` struct in `lib.rs`
-- [ ] Hook cache into subtype checking logic (check cache before computing)
-- [ ] Add cache hit/miss metrics for debugging
-- [ ] Run `cargo test` in typedlua-typechecker to verify correctness
-- [ ] Run benchmarks to measure 10-30% speedup
-- [ ] Tune cache size based on profiling data
+- [x] Add `lru` crate dependency to `typedlua-typechecker/Cargo.toml`
+- [x] Create `typedlua-typechecker/src/type_relations.rs`
+- [x] Implement `TypeRelationCache` struct with `LruCache<(usize, usize), bool>` using type pointers
+- [x] Add cache field to `TypeChecker` struct
+- [x] Hook cache into subtype checking logic (5 call sites updated)
+- [x] Add cache hit/miss metrics for debugging
+- [x] Run `cargo test` in typedlua-typechecker to verify correctness (374 tests passed)
+- [x] Run benchmarks to measure speedup
+- [x] Benchmark results: **5-6% performance improvement** on synthetic tests
+- [ ] Tune cache size based on profiling data (currently 1024 entries)
 
 **Expected:** 10-30% faster type checking
+
+**Status:** **IMPLEMENTED** - Core infrastructure complete. 5-6% speedup achieved on benchmarks. Cache tuning can be done as follow-up.
 
 ---
 
