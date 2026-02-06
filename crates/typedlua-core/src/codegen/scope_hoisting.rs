@@ -73,14 +73,12 @@ impl<'a> EscapeAnalysis<'a> {
         analysis.collect_return_values_from_private_functions(program);
         let result = analysis.find_hoistable_declarations(program);
         // Debug: log what was found
-        if cfg!(test) {
-            if !analysis.module_locals.is_empty() {
-                eprintln!("DEBUG module_locals: {:?}", analysis.module_locals);
-                eprintln!("DEBUG exported_names: {:?}", analysis.exported_names);
-                eprintln!("DEBUG return_values: {:?}", analysis.return_values);
-                eprintln!("DEBUG hoistable result: funcs={:?}, vars={:?}, classes={:?}, enums={:?}",
-                    result.functions, result.variables, result.classes, result.enums);
-            }
+        if cfg!(test) && !analysis.module_locals.is_empty() {
+            eprintln!("DEBUG module_locals: {:?}", analysis.module_locals);
+            eprintln!("DEBUG exported_names: {:?}", analysis.exported_names);
+            eprintln!("DEBUG return_values: {:?}", analysis.return_values);
+            eprintln!("DEBUG hoistable result: funcs={:?}, vars={:?}, classes={:?}, enums={:?}",
+                result.functions, result.variables, result.classes, result.enums);
         }
         result
     }
@@ -106,8 +104,8 @@ impl<'a> EscapeAnalysis<'a> {
 
     fn collect_exports(&mut self, program: &Program) {
         for statement in &program.statements {
-            match statement {
-                Statement::Export(decl) => match &decl.kind {
+            if let Statement::Export(decl) = statement {
+                match &decl.kind {
                     ExportKind::Declaration(inner) => {
                         if let Some((_, name)) = self.get_declaration_name(inner) {
                             self.exported_names.insert(name);
@@ -123,8 +121,7 @@ impl<'a> EscapeAnalysis<'a> {
                     ExportKind::Default(_) => {
                         self.exported_names.insert("default".to_string());
                     }
-                },
-                _ => {}
+                }
             }
         }
     }
@@ -255,7 +252,7 @@ impl<'a> EscapeAnalysis<'a> {
     fn can_hoist_function(
         &self,
         decl: &typedlua_parser::ast::statement::FunctionDeclaration,
-        name: &str,
+        _name: &str,
     ) -> bool {
         // Only concern: can the function be relocated to a higher scope?
         // Can't hoist if the function itself returns other module-locals
@@ -577,6 +574,261 @@ impl<'a> EscapeAnalysis<'a> {
     }
 }
 
+// ============================================================
+// Name Mangling for Scope Hoisting
+// ============================================================
+
+/// Name mangler for scope hoisting.
+///
+/// When declarations are hoisted from module scope to top-level bundle scope,
+/// their names must be mangled to avoid collisions with declarations from other modules.
+///
+/// The mangling strategy converts `module/path/to/file.helper` → `module_path_to_file__helper`
+#[derive(Debug, Clone)]
+pub struct NameMangler {
+    /// Maps (module_id, original_name) -> mangled_name
+    mangled_names: std::collections::HashMap<(String, String), String>,
+    /// Tracks all mangled names to detect collisions
+    used_names: HashSet<String>,
+    /// Entry module ID (names from entry point are preserved)
+    entry_module_id: Option<String>,
+    /// Reserved names that cannot be used (Lua keywords, runtime names, etc.)
+    reserved_names: HashSet<String>,
+}
+
+impl Default for NameMangler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl NameMangler {
+    /// Create a new name mangler
+    pub fn new() -> Self {
+        let mut reserved = HashSet::default();
+        // Lua keywords
+        for keyword in &[
+            "and", "break", "do", "else", "elseif", "end", "false", "for", "function", "goto",
+            "if", "in", "local", "nil", "not", "or", "repeat", "return", "then", "true", "until",
+            "while",
+        ] {
+            reserved.insert((*keyword).to_string());
+        }
+        // TypedLua runtime names
+        for name in &[
+            "__modules",
+            "__loaded",
+            "__require",
+            "__TypeRegistry",
+            "__TypeIdToClass",
+            "Reflect",
+            "self",
+            "_G",
+            "_VERSION",
+        ] {
+            reserved.insert((*name).to_string());
+        }
+
+        Self {
+            mangled_names: Default::default(),
+            used_names: HashSet::default(),
+            entry_module_id: None,
+            reserved_names: reserved,
+        }
+    }
+
+    /// Set the entry module ID. Names exported from this module are preserved.
+    pub fn with_entry_module(mut self, entry_module_id: &str) -> Self {
+        self.entry_module_id = Some(entry_module_id.to_string());
+        self
+    }
+
+    /// Check if a name is reserved and cannot be used
+    fn is_reserved(&self, name: &str) -> bool {
+        self.reserved_names.contains(name)
+    }
+
+    /// Mangle a module path into a valid Lua identifier prefix.
+    ///
+    /// Converts path separators and dots to underscores, removes file extensions.
+    ///
+    /// # Examples
+    /// - `"module/path/to/file"` → `"module_path_to_file"`
+    /// - `"./src/utils.lua"` → `"src_utils"`
+    /// - `"@mylib/helpers"` → `"mylib_helpers"`
+    fn mangle_module_path(module_path: &str) -> String {
+        let mut result = String::new();
+
+        // Remove leading ./ or /
+        let path = module_path
+            .trim_start_matches("./")
+            .trim_start_matches('/');
+
+        // Remove file extension
+        let path = path
+            .trim_end_matches(".lua")
+            .trim_end_matches(".tl")
+            .trim_end_matches("/index");
+
+        for ch in path.chars() {
+            match ch {
+                // Replace path separators and dots with underscore
+                '/' | '.' | '-' => {
+                    // Avoid consecutive underscores
+                    if !result.ends_with('_') && !result.is_empty() {
+                        result.push('_');
+                    }
+                }
+                // Remove @ prefix (for scoped packages like @mylib/utils)
+                '@' => {}
+                // Keep alphanumeric and underscore
+                c if c.is_ascii_alphanumeric() || c == '_' => {
+                    result.push(c);
+                }
+                // Replace other characters with underscore
+                _ => {
+                    if !result.ends_with('_') && !result.is_empty() {
+                        result.push('_');
+                    }
+                }
+            }
+        }
+
+        // Remove trailing underscore
+        while result.ends_with('_') {
+            result.pop();
+        }
+
+        // Ensure it starts with a letter or underscore (valid Lua identifier)
+        if result.is_empty() || result.chars().next().unwrap().is_ascii_digit() {
+            result = format!("_{}", result);
+        }
+
+        result
+    }
+
+    /// Generate a mangled name for a declaration.
+    ///
+    /// # Arguments
+    /// * `module_path` - The module path (e.g., "src/utils/helpers")
+    /// * `name` - The original declaration name
+    ///
+    /// # Returns
+    /// A unique mangled name like `src_utils_helpers__foo`
+    pub fn mangle_name(&mut self, module_path: &str, name: &str) -> String {
+        // Check if already mangled
+        let key = (module_path.to_string(), name.to_string());
+        if let Some(mangled) = self.mangled_names.get(&key) {
+            return mangled.clone();
+        }
+
+        // Create the base mangled name
+        let module_prefix = Self::mangle_module_path(module_path);
+        let base_mangled = format!("{}__{}", module_prefix, name);
+
+        // Handle collisions by appending a numeric suffix
+        let mut mangled = base_mangled.clone();
+        let mut suffix = 0;
+
+        while self.used_names.contains(&mangled) || self.is_reserved(&mangled) {
+            suffix += 1;
+            mangled = format!("{}_{}", base_mangled, suffix);
+        }
+
+        // Register the mangled name
+        self.used_names.insert(mangled.clone());
+        self.mangled_names.insert(key, mangled.clone());
+
+        mangled
+    }
+
+    /// Get the mangled name for a declaration if it exists.
+    pub fn get_mangled_name(&self, module_path: &str, name: &str) -> Option<&String> {
+        let key = (module_path.to_string(), name.to_string());
+        self.mangled_names.get(&key)
+    }
+
+    /// Check if a declaration should preserve its original name.
+    ///
+    /// Entry point exports keep their original names since they're user-facing API.
+    pub fn should_preserve_name(&self, module_path: &str, is_exported: bool) -> bool {
+        if let Some(ref entry) = self.entry_module_id {
+            // Preserve exported names from entry module
+            module_path == entry && is_exported
+        } else {
+            false
+        }
+    }
+
+    /// Mangle all hoistable declarations from multiple modules.
+    ///
+    /// # Arguments
+    /// * `modules` - Iterator of (module_path, hoistable_declarations) pairs
+    ///
+    /// # Returns
+    /// A mapping of (module_path, original_name) -> mangled_name
+    pub fn mangle_all<'a>(
+        &mut self,
+        modules: impl Iterator<Item = (&'a str, &'a HoistableDeclarations)>,
+    ) -> &std::collections::HashMap<(String, String), String> {
+        for (module_path, hoistable) in modules {
+            // Mangle all hoistable names from this module
+            for name in hoistable.all_names() {
+                self.mangle_name(module_path, &name);
+            }
+        }
+        &self.mangled_names
+    }
+
+    /// Create a reverse mapping from mangled names back to (module, original_name).
+    ///
+    /// Useful for debugging and source maps.
+    pub fn create_reverse_map(&self) -> std::collections::HashMap<String, (String, String)> {
+        self.mangled_names
+            .iter()
+            .map(|((module, name), mangled)| (mangled.clone(), (module.clone(), name.clone())))
+            .collect()
+    }
+}
+
+/// Reference rewriter for updating identifier references after name mangling.
+///
+/// Used during the hoisting transform (Phase 5.6) to update all references
+/// to hoisted declarations to use their mangled names.
+#[derive(Debug)]
+pub struct ReferenceRewriter<'a> {
+    mangler: &'a NameMangler,
+    current_module: String,
+}
+
+impl<'a> ReferenceRewriter<'a> {
+    /// Create a new reference rewriter for a specific module.
+    pub fn new(mangler: &'a NameMangler, current_module: &str) -> Self {
+        Self {
+            mangler,
+            current_module: current_module.to_string(),
+        }
+    }
+
+    /// Get the rewritten name for an identifier reference.
+    ///
+    /// If the identifier was mangled, returns the mangled name.
+    /// Otherwise, returns the original name.
+    pub fn rewrite(&self, name: &str) -> String {
+        self.mangler
+            .get_mangled_name(&self.current_module, name)
+            .cloned()
+            .unwrap_or_else(|| name.to_string())
+    }
+
+    /// Check if a name was mangled for the current module.
+    pub fn is_mangled(&self, name: &str) -> bool {
+        self.mangler
+            .get_mangled_name(&self.current_module, name)
+            .is_some()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -875,5 +1127,268 @@ mod tests {
         let hoistable = EscapeAnalysis::analyze(&program, &interner);
 
         assert!(!hoistable.variables.contains("callback"));
+    }
+
+    // ============================================================
+    // Name Mangling Tests
+    // ============================================================
+
+    #[test]
+    fn test_mangle_simple_path() {
+        let mut mangler = NameMangler::new();
+        let mangled = mangler.mangle_name("src/utils", "helper");
+        assert_eq!(mangled, "src_utils__helper");
+    }
+
+    #[test]
+    fn test_mangle_nested_path() {
+        let mut mangler = NameMangler::new();
+        let mangled = mangler.mangle_name("src/lib/utils/helpers", "format");
+        assert_eq!(mangled, "src_lib_utils_helpers__format");
+    }
+
+    #[test]
+    fn test_mangle_removes_extension() {
+        let mut mangler = NameMangler::new();
+        let mangled = mangler.mangle_name("src/utils.lua", "helper");
+        assert_eq!(mangled, "src_utils__helper");
+
+        let mut mangler2 = NameMangler::new();
+        let mangled2 = mangler2.mangle_name("src/utils.tl", "helper");
+        assert_eq!(mangled2, "src_utils__helper");
+    }
+
+    #[test]
+    fn test_mangle_removes_index() {
+        let mut mangler = NameMangler::new();
+        let mangled = mangler.mangle_name("src/utils/index", "helper");
+        assert_eq!(mangled, "src_utils__helper");
+    }
+
+    #[test]
+    fn test_mangle_relative_path() {
+        let mut mangler = NameMangler::new();
+        let mangled = mangler.mangle_name("./src/utils", "helper");
+        assert_eq!(mangled, "src_utils__helper");
+    }
+
+    #[test]
+    fn test_mangle_absolute_path() {
+        let mut mangler = NameMangler::new();
+        let mangled = mangler.mangle_name("/src/utils", "helper");
+        assert_eq!(mangled, "src_utils__helper");
+    }
+
+    #[test]
+    fn test_mangle_scoped_package() {
+        let mut mangler = NameMangler::new();
+        let mangled = mangler.mangle_name("@mylib/utils", "helper");
+        assert_eq!(mangled, "mylib_utils__helper");
+    }
+
+    #[test]
+    fn test_mangle_handles_dashes() {
+        let mut mangler = NameMangler::new();
+        let mangled = mangler.mangle_name("my-lib/my-utils", "helper");
+        assert_eq!(mangled, "my_lib_my_utils__helper");
+    }
+
+    #[test]
+    fn test_mangle_collision_resolution() {
+        let mut mangler = NameMangler::new();
+
+        // First use creates the base name
+        let mangled1 = mangler.mangle_name("module_a", "foo");
+        assert_eq!(mangled1, "module_a__foo");
+
+        // Same module + name returns cached value
+        let mangled1_again = mangler.mangle_name("module_a", "foo");
+        assert_eq!(mangled1_again, "module_a__foo");
+
+        // Different module but same resulting mangled base triggers collision
+        let mangled2 = mangler.mangle_name("module/a", "foo");
+        assert_eq!(mangled2, "module_a__foo_1");
+
+        // Another collision
+        let mut mangler2 = NameMangler::new();
+        mangler2.mangle_name("a_b", "test");
+        let collision = mangler2.mangle_name("a/b", "test");
+        assert_eq!(collision, "a_b__test_1");
+    }
+
+    #[test]
+    fn test_mangle_reserved_names() {
+        let mut mangler = NameMangler::new();
+
+        // If a mangled name would be reserved, append suffix
+        // We need to construct a case where mangling produces a reserved word
+        // Since reserved words are like "and", "function", etc., and our format
+        // is always "prefix__name", it's unlikely to conflict, but let's test the logic
+
+        // Add a custom reserved name for testing
+        mangler.reserved_names.insert("test_mod__foo".to_string());
+
+        let mangled = mangler.mangle_name("test_mod", "foo");
+        assert_eq!(mangled, "test_mod__foo_1");
+    }
+
+    #[test]
+    fn test_mangle_numeric_start_path() {
+        let mut mangler = NameMangler::new();
+        let mangled = mangler.mangle_name("123module", "helper");
+        // Should prefix with underscore since Lua identifiers can't start with digit
+        assert_eq!(mangled, "_123module__helper");
+    }
+
+    #[test]
+    fn test_mangle_empty_path() {
+        let mut mangler = NameMangler::new();
+        let mangled = mangler.mangle_name("", "helper");
+        assert_eq!(mangled, "___helper");
+    }
+
+    #[test]
+    fn test_preserve_entry_point_names() {
+        let mangler = NameMangler::new().with_entry_module("src/main");
+
+        // Entry module exports should be preserved
+        assert!(mangler.should_preserve_name("src/main", true));
+
+        // Entry module non-exports should not be preserved
+        assert!(!mangler.should_preserve_name("src/main", false));
+
+        // Other module exports should not be preserved
+        assert!(!mangler.should_preserve_name("src/utils", true));
+    }
+
+    #[test]
+    fn test_get_mangled_name() {
+        let mut mangler = NameMangler::new();
+
+        // Before mangling, returns None
+        assert!(mangler.get_mangled_name("src/utils", "helper").is_none());
+
+        // After mangling, returns the mangled name
+        mangler.mangle_name("src/utils", "helper");
+        assert_eq!(
+            mangler.get_mangled_name("src/utils", "helper"),
+            Some(&"src_utils__helper".to_string())
+        );
+    }
+
+    #[test]
+    fn test_mangle_all_hoistable() {
+        let mut mangler = NameMangler::new();
+
+        let mut hoistable1 = HoistableDeclarations::new();
+        hoistable1.functions.insert("foo".to_string());
+        hoistable1.variables.insert("BAR".to_string());
+
+        let mut hoistable2 = HoistableDeclarations::new();
+        hoistable2.functions.insert("baz".to_string());
+        hoistable2.classes.insert("MyClass".to_string());
+
+        let modules = vec![
+            ("src/module_a", &hoistable1),
+            ("src/module_b", &hoistable2),
+        ];
+
+        mangler.mangle_all(modules.into_iter());
+
+        // All names should be mangled
+        assert!(mangler.get_mangled_name("src/module_a", "foo").is_some());
+        assert!(mangler.get_mangled_name("src/module_a", "BAR").is_some());
+        assert!(mangler.get_mangled_name("src/module_b", "baz").is_some());
+        assert!(mangler
+            .get_mangled_name("src/module_b", "MyClass")
+            .is_some());
+
+        // Check specific mangled names
+        assert_eq!(
+            mangler.get_mangled_name("src/module_a", "foo"),
+            Some(&"src_module_a__foo".to_string())
+        );
+        assert_eq!(
+            mangler.get_mangled_name("src/module_b", "MyClass"),
+            Some(&"src_module_b__MyClass".to_string())
+        );
+    }
+
+    #[test]
+    fn test_create_reverse_map() {
+        let mut mangler = NameMangler::new();
+
+        mangler.mangle_name("src/utils", "helper");
+        mangler.mangle_name("src/lib", "process");
+
+        let reverse = mangler.create_reverse_map();
+
+        assert_eq!(
+            reverse.get("src_utils__helper"),
+            Some(&("src/utils".to_string(), "helper".to_string()))
+        );
+        assert_eq!(
+            reverse.get("src_lib__process"),
+            Some(&("src/lib".to_string(), "process".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_reference_rewriter() {
+        let mut mangler = NameMangler::new();
+        mangler.mangle_name("src/utils", "helper");
+        mangler.mangle_name("src/utils", "CONSTANT");
+
+        let rewriter = ReferenceRewriter::new(&mangler, "src/utils");
+
+        // Mangled names should be rewritten
+        assert_eq!(rewriter.rewrite("helper"), "src_utils__helper");
+        assert_eq!(rewriter.rewrite("CONSTANT"), "src_utils__CONSTANT");
+
+        // Non-mangled names should be preserved
+        assert_eq!(rewriter.rewrite("unknown"), "unknown");
+
+        // Check is_mangled
+        assert!(rewriter.is_mangled("helper"));
+        assert!(!rewriter.is_mangled("unknown"));
+    }
+
+    #[test]
+    fn test_reference_rewriter_different_module() {
+        let mut mangler = NameMangler::new();
+        mangler.mangle_name("src/utils", "helper");
+        mangler.mangle_name("src/lib", "helper");
+
+        // Rewriter for src/utils
+        let rewriter_utils = ReferenceRewriter::new(&mangler, "src/utils");
+        assert_eq!(rewriter_utils.rewrite("helper"), "src_utils__helper");
+
+        // Rewriter for src/lib
+        let rewriter_lib = ReferenceRewriter::new(&mangler, "src/lib");
+        assert_eq!(rewriter_lib.rewrite("helper"), "src_lib__helper");
+    }
+
+    #[test]
+    fn test_module_path_special_characters() {
+        let mut mangler = NameMangler::new();
+
+        // Test various path formats
+        assert_eq!(
+            mangler.mangle_name("a.b.c", "foo"),
+            "a_b_c__foo"
+        );
+
+        let mut m2 = NameMangler::new();
+        assert_eq!(
+            m2.mangle_name("a/b/c", "foo"),
+            "a_b_c__foo"
+        );
+
+        // Consecutive separators should not create multiple underscores
+        let mut m3 = NameMangler::new();
+        assert_eq!(
+            m3.mangle_name("a//b", "foo"),
+            "a_b__foo"
+        );
     }
 }

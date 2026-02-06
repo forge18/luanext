@@ -397,7 +397,7 @@ impl CodeGenerator {
                 }
 
                 // If no reachable set provided, include all modules
-                if let Some(ref reachable) = reachable_set {
+                if let Some(reachable) = reachable_set {
                     reachable.is_module_reachable(module_id)
                 } else {
                     true
@@ -407,7 +407,7 @@ impl CodeGenerator {
         {
             let mut program = program;
             // Check if this module should be skipped (no reachable exports and not entry)
-            if let Some(ref reachable) = reachable_set {
+            if let Some(reachable) = reachable_set {
                 if module_id != entry_module_id {
                     if let Some(exports) = reachable.get_reachable_exports(&module_id) {
                         if exports.is_empty() {

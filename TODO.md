@@ -358,21 +358,40 @@ local result = module_a_foo()  -- Direct call
 
 #### Phase 5.4: Escape Analysis (Days 1-2)
 
-- [ ] Create `crates/typedlua-core/src/codegen/scope_hoisting.rs`
-- [ ] Implement `can_hoist(decl: &Declaration, module: &Module) -> bool`
-- [ ] Check: Does declaration escape module scope? (exported via `return`?)
-- [ ] Check: Does declaration reference module-local state?
-- [ ] Check: Safe to rename without conflicts?
-- [ ] Build hoistable declaration set per module
-- [ ] Add unit tests for escape analysis edge cases
+- [x] Create `crates/typedlua-core/src/codegen/scope_hoisting.rs`
+- [x] Implement `EscapeAnalysis` struct with full hoistability detection
+- [x] Check: Does declaration escape module scope? (exported or returned from private functions?)
+- [x] Check: Does declaration reference module-local state?
+- [x] Check: Safe to hoist based on initializer type?
+- [x] Build hoistable declaration set per module (functions, variables, classes, enums)
+- [x] Add comprehensive unit tests for escape analysis (17 tests, all passing)
+- [x] Fix parser enum/class syntax issues in tests
+- [x] Implement proper return value tracking from private functions only
+- [x] Handle complex initializers (objects, arrays, functions)
+
+**Status:** **COMPLETE** - All 17 escape analysis tests passing. Correctly identifies hoistable declarations with proper distinction between:
+
+- Exports (never hoistable)
+- Returns from private functions (variables/classes/enums not hoistable)
+- Function expressions and complex initializers (not hoistable)
+- Functions that return other module-locals (not hoistable)
 
 #### Phase 5.5: Name Mangling (Days 3-4)
 
-- [ ] Implement `mangle_name(module_path: &Path, name: &str) -> String`
-- [ ] Generate unique names: `module_a.foo` → `module_a_foo`
-- [ ] Handle name collisions across modules
-- [ ] Preserve entry point names (user-facing API)
-- [ ] Update all references to use mangled names
+- [x] Implement `mangle_name(module_path: &Path, name: &str) -> String`
+- [x] Generate unique names: `module_a.foo` → `module_a_foo`
+- [x] Handle name collisions across modules
+- [x] Preserve entry point names (user-facing API)
+- [x] Update all references to use mangled names
+
+**Status:** **COMPLETE** - Name mangling infrastructure implemented with:
+
+- `NameMangler` struct for generating unique mangled names
+- `ReferenceRewriter` for updating identifier references
+- Collision detection and resolution with numeric suffixes
+- Reserved name protection (Lua keywords, runtime names)
+- Entry point name preservation
+- 19 comprehensive unit tests covering all edge cases
 
 #### Phase 5.6: Hoisting Transform (Days 5-6)
 
