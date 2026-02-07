@@ -3,9 +3,7 @@
 // =============================================================================
 
 use bumpalo::Bump;
-use crate::config::OptimizationLevel;
-use crate::optimizer::{StmtVisitor, WholeProgramPass};
-use crate::MutableProgram;
+use crate::optimizer::BlockVisitor;
 use std::collections::HashSet;
 use typedlua_parser::ast::expression::{BinaryOp, Expression, ExpressionKind};
 use typedlua_parser::ast::pattern::Pattern;
@@ -22,32 +20,9 @@ impl DeadStoreEliminationPass {
     }
 }
 
-impl<'arena> StmtVisitor<'arena> for DeadStoreEliminationPass {
-    fn visit_stmt(&mut self, stmt: &mut Statement<'arena>, arena: &'arena Bump) -> bool {
-        self.eliminate_dead_stores_in_statement(stmt, arena)
-    }
-}
-
-impl<'arena> WholeProgramPass<'arena> for DeadStoreEliminationPass {
-    fn name(&self) -> &'static str {
-        "dead-store-elimination"
-    }
-
-    fn min_level(&self) -> OptimizationLevel {
-        OptimizationLevel::O2
-    }
-
-    fn run(
-        &mut self,
-        program: &mut MutableProgram<'arena>,
-        arena: &'arena Bump,
-    ) -> Result<bool, String> {
-        let changed = self.eliminate_dead_stores_in_vec(&mut program.statements, arena);
-        Ok(changed)
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
+impl<'arena> BlockVisitor<'arena> for DeadStoreEliminationPass {
+    fn visit_block_stmts(&mut self, stmts: &mut Vec<Statement<'arena>>, arena: &'arena Bump) -> bool {
+        self.eliminate_dead_stores_in_vec(stmts, arena)
     }
 }
 

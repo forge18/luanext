@@ -211,6 +211,17 @@ pub trait StmtVisitor<'arena> {
     }
 }
 
+/// Visitor for block-level transformations that need access to sibling statements.
+/// Used by passes like dead code elimination (truncate after return) and
+/// dead store elimination (reverse liveness analysis across statements).
+pub trait BlockVisitor<'arena> {
+    fn visit_block_stmts(&mut self, stmts: &mut Vec<Statement<'arena>>, arena: &'arena Bump) -> bool;
+
+    fn required_features(&self) -> AstFeatures {
+        AstFeatures::EMPTY
+    }
+}
+
 /// Pass that requires pre-analysis before transformation.
 pub trait PreAnalysisPass<'arena> {
     fn analyze(&mut self, program: &MutableProgram<'arena>);
@@ -409,31 +420,45 @@ impl<'arena> ExpressionCompositePass<'arena> {
     }
 }
 
-/// Composite pass that runs multiple statement visitors in one traversal.
+/// Composite pass that runs multiple statement and block visitors in one traversal.
+///
+/// Supports two visitor types:
+/// - `StmtVisitor`: operates on individual statements
+/// - `BlockVisitor`: operates on `Vec<Statement>` (for passes needing sibling context,
+///   like dead code elimination and dead store elimination)
 pub struct StatementCompositePass<'arena> {
-    visitors: Vec<Box<dyn StmtVisitor<'arena> + 'arena>>,
+    stmt_visitors: Vec<Box<dyn StmtVisitor<'arena> + 'arena>>,
+    block_visitors: Vec<Box<dyn BlockVisitor<'arena> + 'arena>>,
     _name: &'static str,
 }
 
 impl<'arena> StatementCompositePass<'arena> {
     pub fn new(name: &'static str) -> Self {
         Self {
-            visitors: Vec::new(),
+            stmt_visitors: Vec::new(),
+            block_visitors: Vec::new(),
             _name: name,
         }
     }
 
     pub fn add_visitor(&mut self, visitor: Box<dyn StmtVisitor<'arena> + 'arena>) {
-        self.visitors.push(visitor);
+        self.stmt_visitors.push(visitor);
+    }
+
+    pub fn add_block_visitor(&mut self, visitor: Box<dyn BlockVisitor<'arena> + 'arena>) {
+        self.block_visitors.push(visitor);
     }
 
     pub fn visitor_count(&self) -> usize {
-        self.visitors.len()
+        self.stmt_visitors.len() + self.block_visitors.len()
     }
 
     pub fn required_features(&self) -> AstFeatures {
         let mut combined = AstFeatures::EMPTY;
-        for visitor in &self.visitors {
+        for visitor in &self.stmt_visitors {
+            combined |= visitor.required_features();
+        }
+        for visitor in &self.block_visitors {
             combined |= visitor.required_features();
         }
         combined
@@ -445,9 +470,17 @@ impl<'arena> StatementCompositePass<'arena> {
         arena: &'arena Bump,
     ) -> Result<bool, String> {
         let mut changed = false;
+
+        // Run per-statement visitors
         for stmt in &mut program.statements {
             changed |= self.visit_stmt(stmt, arena);
         }
+
+        // Run block-level visitors on the top-level statement list
+        for visitor in &mut self.block_visitors {
+            changed |= visitor.visit_block_stmts(&mut program.statements, arena);
+        }
+
         Ok(changed)
     }
 
@@ -456,7 +489,7 @@ impl<'arena> StatementCompositePass<'arena> {
 
         changed |= self.visit_stmt_children(stmt, arena);
 
-        for visitor in &mut self.visitors {
+        for visitor in &mut self.stmt_visitors {
             changed |= visitor.visit_stmt(stmt, arena);
         }
 
@@ -523,9 +556,17 @@ impl<'arena> StatementCompositePass<'arena> {
     fn visit_block(&mut self, block: &mut Block<'arena>, arena: &'arena Bump) -> bool {
         let mut stmts: Vec<Statement<'arena>> = block.statements.to_vec();
         let mut changed = false;
+
+        // Per-statement visitors
         for stmt in &mut stmts {
             changed |= self.visit_stmt(stmt, arena);
         }
+
+        // Block-level visitors
+        for visitor in &mut self.block_visitors {
+            changed |= visitor.visit_block_stmts(&mut stmts, arena);
+        }
+
         if changed {
             block.statements = arena.alloc_slice_clone(&stmts);
         }
@@ -1040,15 +1081,19 @@ impl<'arena> Optimizer<'arena> {
             self.expr_pass = Some(expr_pass);
         }
 
+        // O1 passes - Dead code elimination (block-level: truncates after return)
+        if level >= OptimizationLevel::O1 {
+            let mut elim_pass = StatementCompositePass::new("elimination-transforms");
+            elim_pass.add_block_visitor(Box::new(DeadCodeEliminationPass::new()));
+            self.elim_pass = Some(elim_pass);
+        }
+
         // O2 passes - Elimination and data structure transforms
         if level >= OptimizationLevel::O2 {
-            let mut elim_pass = StatementCompositePass::new("elimination-transforms");
-            elim_pass.add_visitor(Box::new(DeadCodeEliminationPass::new()));
-            self.elim_pass = Some(elim_pass);
-
-            // Dead store elimination needs whole-program view (inter-statement liveness)
-            self.standalone_passes
-                .push(Box::new(DeadStoreEliminationPass::new()));
+            // Dead store elimination (block-level: reverse liveness analysis)
+            if let Some(ref mut elim_pass) = self.elim_pass {
+                elim_pass.add_block_visitor(Box::new(DeadStoreEliminationPass::new()));
+            }
 
             let mut data_pass = ExpressionCompositePass::new("data-structure-transforms");
             data_pass.add_visitor(Box::new(TablePreallocationPass::new()));
@@ -1130,9 +1175,10 @@ impl<'arena> Optimizer<'arena> {
             if ep.visitor_count() >= 3 { names.push("operator-inlining"); }
         }
 
-        // elim_pass contains: dead-code-elimination
+        // elim_pass contains: dead-code-elimination, dead-store-elimination (block visitors)
         if let Some(ref elp) = self.elim_pass {
             if elp.visitor_count() >= 1 { names.push("dead-code-elimination"); }
+            if elp.visitor_count() >= 2 { names.push("dead-store-elimination"); }
         }
 
         // data_pass contains: table-preallocation, string-concat-optimization
@@ -1206,7 +1252,7 @@ impl<'arena> Optimizer<'arena> {
             }
 
             if let Some(ref mut pass) = self.elim_pass {
-                if effective_level >= OptimizationLevel::O2 {
+                if effective_level >= OptimizationLevel::O1 {
                     let required = pass.required_features();
                     if required.is_empty() || features.contains(required) {
                         let start = Instant::now();

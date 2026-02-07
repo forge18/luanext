@@ -1,7 +1,5 @@
 use bumpalo::Bump;
-use crate::config::OptimizationLevel;
-use crate::optimizer::{StmtVisitor, WholeProgramPass};
-use crate::MutableProgram;
+use crate::optimizer::BlockVisitor;
 use typedlua_parser::ast::statement::{Block, ForStatement, Statement};
 
 pub struct DeadCodeEliminationPass;
@@ -12,31 +10,9 @@ impl DeadCodeEliminationPass {
     }
 }
 
-impl<'arena> StmtVisitor<'arena> for DeadCodeEliminationPass {
-    fn visit_stmt(&mut self, _stmt: &mut Statement<'arena>, _arena: &'arena Bump) -> bool {
-        // Dead code elimination happens at the block level, not individual statements
-        // The actual elimination is done in run() via eliminate_dead_code()
-        false
-    }
-}
-
-impl<'arena> WholeProgramPass<'arena> for DeadCodeEliminationPass {
-    fn name(&self) -> &'static str {
-        "dead-code-elimination"
-    }
-
-    fn min_level(&self) -> OptimizationLevel {
-        OptimizationLevel::O1
-    }
-
-    fn run(&mut self, program: &mut MutableProgram<'arena>, arena: &'arena Bump) -> Result<bool, String> {
-        let original_len = program.statements.len();
-        self.eliminate_dead_code_vec(&mut program.statements, arena);
-        Ok(program.statements.len() != original_len)
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
+impl<'arena> BlockVisitor<'arena> for DeadCodeEliminationPass {
+    fn visit_block_stmts(&mut self, stmts: &mut Vec<Statement<'arena>>, arena: &'arena Bump) -> bool {
+        self.eliminate_dead_code_vec(stmts, arena)
     }
 }
 
