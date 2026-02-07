@@ -1,6 +1,6 @@
 use super::super::config::OptimizationLevel;
 use super::CodeGenerator;
-use typedlua_parser::ast::pattern::{ArrayPattern, ArrayPatternElement, ObjectPattern, Pattern};
+use typedlua_parser::ast::pattern::{ArrayPattern, ArrayPatternElement, ObjectPattern, Pattern, PatternWithDefault};
 use typedlua_parser::ast::statement::*;
 use typedlua_parser::prelude::Block;
 
@@ -108,7 +108,7 @@ impl CodeGenerator {
 
         for elem in pattern.elements.iter() {
             match elem {
-                ArrayPatternElement::Pattern(pat) => {
+                ArrayPatternElement::Pattern(PatternWithDefault { pattern: pat, default }) => {
                     match pat {
                         Pattern::Identifier(ident) => {
                             self.write_indent();
@@ -116,6 +116,10 @@ impl CodeGenerator {
                             let resolved = self.resolve(ident.node);
                             self.write(&resolved);
                             self.write(&format!(" = {}[{}]", source, index));
+                            if let Some(default_expr) = default {
+                                self.write(" or ");
+                                self.generate_expression(default_expr);
+                            }
                             self.writeln("");
                         }
                         Pattern::Array(nested_array) => {
@@ -220,6 +224,51 @@ impl CodeGenerator {
                 self.write(&format!(" = {}.{}", source, key_str));
                 self.writeln("");
             }
+        }
+
+        // Handle rest pattern: { a, ...rest }
+        if let Some(rest_ident) = &pattern.rest {
+            let rest_name = self.resolve(rest_ident.node);
+            // Collect all non-destructured properties into a new table
+            self.write_indent();
+            self.writeln(&format!("local {} = {{}}", rest_name));
+            self.write_indent();
+            self.writeln(&format!("for __k, __v in pairs({}) do", source));
+            self.indent_level += 1;
+
+            // Skip properties that were explicitly destructured
+            let destructured_keys: Vec<String> = pattern
+                .properties
+                .iter()
+                .map(|p| self.resolve(p.key.node))
+                .collect();
+
+            for (i, key) in destructured_keys.iter().enumerate() {
+                self.write_indent();
+                if i == 0 {
+                    self.writeln(&format!("if __k ~= \"{}\"", key));
+                } else {
+                    self.writeln(&format!("and __k ~= \"{}\"", key));
+                }
+            }
+            if !destructured_keys.is_empty() {
+                self.write_indent();
+                self.writeln("then");
+                self.indent_level += 1;
+            }
+
+            self.write_indent();
+            self.writeln(&format!("{}[__k] = __v", rest_name));
+
+            if !destructured_keys.is_empty() {
+                self.indent_level -= 1;
+                self.write_indent();
+                self.writeln("end");
+            }
+
+            self.indent_level -= 1;
+            self.write_indent();
+            self.writeln("end");
         }
     }
 

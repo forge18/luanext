@@ -382,7 +382,7 @@ impl LoopOptimizationPass {
             Pattern::Array(array_pattern) => {
                 for elem in array_pattern.elements.iter() {
                     match elem {
-                        typedlua_parser::ast::pattern::ArrayPatternElement::Pattern(p) => {
+                        typedlua_parser::ast::pattern::ArrayPatternElement::Pattern(p, _) => {
                             self.collect_modified_in_pattern(p, modified);
                         }
                         typedlua_parser::ast::pattern::ArrayPatternElement::Rest(id) => {

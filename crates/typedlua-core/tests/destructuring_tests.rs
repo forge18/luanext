@@ -156,8 +156,8 @@ fn test_destructuring_in_for_loop() {
 #[test]
 fn test_destructuring_assignment() {
     let source = r#"
-        let obj = { x: 1, y: 2 }
-        let { x, y } = obj
+        local obj = { x: 1, y: 2 }
+        local { x, y } = obj
     "#;
 
     let output = compile_and_check(source).unwrap();

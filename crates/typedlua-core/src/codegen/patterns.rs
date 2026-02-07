@@ -42,7 +42,7 @@ impl CodeGenerator {
                 self.write(", ");
             }
             match elem {
-                ArrayPatternElement::Pattern(pat) => {
+                ArrayPatternElement::Pattern(pat, _) => {
                     self.generate_pattern(pat);
                 }
                 ArrayPatternElement::Rest(_) => {

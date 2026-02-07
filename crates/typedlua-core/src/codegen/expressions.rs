@@ -637,7 +637,7 @@ impl CodeGenerator {
 
                 for (i, elem) in array_pattern.elements.iter().enumerate() {
                     match elem {
-                        typedlua_parser::ast::pattern::ArrayPatternElement::Pattern(pat) => {
+                        typedlua_parser::ast::pattern::ArrayPatternElement::Pattern(pat, _) => {
                             self.write(" and ");
                             let index_expr = format!("{}[{}]", value_var, i + 1);
                             self.generate_pattern_match(pat, &index_expr);
@@ -679,7 +679,7 @@ impl CodeGenerator {
             Pattern::Array(array_pattern) => {
                 for (i, elem) in array_pattern.elements.iter().enumerate() {
                     match elem {
-                        typedlua_parser::ast::pattern::ArrayPatternElement::Pattern(pat) => {
+                        typedlua_parser::ast::pattern::ArrayPatternElement::Pattern(pat, _) => {
                             let index_expr = format!("{}[{}]", value_var, i + 1);
                             self.generate_pattern_bindings(pat, &index_expr);
                         }

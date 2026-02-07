@@ -490,7 +490,7 @@ impl DeadStoreEliminationPass {
             Pattern::Array(arr) => {
                 for elem in arr.elements {
                     match elem {
-                        typedlua_parser::ast::pattern::ArrayPatternElement::Pattern(p) => {
+                        typedlua_parser::ast::pattern::ArrayPatternElement::Pattern(p, _) => {
                             self.collect_names_from_pattern(p, names);
                         }
                         typedlua_parser::ast::pattern::ArrayPatternElement::Rest(ident) => {

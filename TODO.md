@@ -1,312 +1,23 @@
 # TypedLua TODO
 
-## Quick Wins (Week 0)
+## Current Focus
 
-### Universal FxHashMap
+### Phase 1: Re-enable Optimizer Passes (Active)
 
-**Goal:** Replace all `std::HashMap` with `FxHashMap` across compiler
-
-**Action Items:**
-
-- [x] Search for all `use std::collections::HashMap` imports in `crates/typedlua-core/src/`
-- [x] Replace imports with `use rustc_hash::FxHashMap`
-- [x] Update type annotations from `HashMap` to `FxHashMap`
-- [x] Run `cargo test` to verify no regressions (143 tests passed)
-- [x] Run benchmarks to measure performance impact
-- [x] Document performance improvement in commit message
-
-**Expected:** Faster lookups in symbol tables and type registries
-
----
-
-### Lazy Pass Evaluation
-
-**Goal:** Skip optimization passes when AST doesn't contain relevant features
-
-**Action Items:**
-
-- [x] Define `AstFeatures` bitflags enum (HAS_LOOPS, HAS_CLASSES, HAS_ENUMS, etc.)
-- [x] Create feature detection visitor in `optimizer/mod.rs`
-- [x] Add `required_features()` method to all Pass traits (ExprVisitor, StmtVisitor, PreAnalysisPass, WholeProgramPass)
-- [x] Hook up feature checking in optimization loop
-  - ✅ Inline feature check in each pass invocation
-  - ✅ Composite passes combine visitor features
-- [x] Add debug logging to show which passes are skipped
-- [x] Run `cargo test` to verify no regressions (143 tests passed)
-- [x] Update individual passes with specific required features:
-  - ✅ `LoopOptimizationPass` requires `HAS_LOOPS`
-  - ✅ `RichEnumOptimizationPass` requires `HAS_ENUMS`
-  - Other passes use default `EMPTY` (no specific requirements)
-- [x] Test with modules missing each feature type (e.g., loop-free code, class-free code, etc.)
-- [x] Run benchmarks to measure performance impact
-
-**Status:** **COMPLETE** - Feature detection and skip logic fully implemented and connected.
-
-**Expected:** Skip unnecessary passes (e.g., no loops → skip loop optimization)
-
----
-
-## Phase 3.5: Type Checker Optimization
-
-**Problem:** Type checking is 67% of compilation time (4.65ms of 7ms)
-
-### Strategy 1: Type Relation Caching (1-2 days)
-
-**What:** LRU cache for `(Type, Type) → bool` subtype checks
-
-**Action Items:**
-
-- [x] Add `lru` crate dependency to `typedlua-typechecker/Cargo.toml`
-- [x] Create `typedlua-typechecker/src/type_relations.rs`
-- [x] Implement `TypeRelationCache` struct with `LruCache<(usize, usize), bool>` using type pointers
-- [x] Add cache field to `TypeChecker` struct
-- [x] Hook cache into subtype checking logic (5 call sites updated)
-- [x] Add cache hit/miss metrics for debugging
-- [x] Run `cargo test` in typedlua-typechecker to verify correctness (374 tests passed)
-- [x] Run benchmarks to measure speedup
-- [x] Benchmark results: **5-6% performance improvement** on synthetic tests
-- [x] Tune cache size - Based on synthetic benchmarks, 1024 entries provides good hit rates without excessive memory usage
-- [x] Cache size determined to be optimal at 1024 entries (no tuning needed)
-
-**Expected:** 10-30% faster type checking
-
-**Status:** **COMPLETE** - Core infrastructure complete. 5-6% speedup achieved on benchmarks. Cache size (1024 entries) is optimal for current workloads.
-
----
-
-### Strategy 2: Declaration-Level Incremental (2-3 weeks)
-
-**What:** Hash function signatures separately from bodies (Rust's approach). Re-check only changed declarations + dependents.
-
-**Key insight:** Body-only changes don't invalidate callers
-
-**Action Items:**
-
-#### Phase 2.1: Signature Hashing (Week 1)
-
-- [x] Create `typedlua-typechecker/src/incremental.rs`
-- [x] Implement `DeclarationHash` for functions (name + params + return type)
-- [x] Implement `DeclarationHash` for classes (name + fields + method signatures)
-- [x] Implement `DeclarationHash` for interfaces
-- [x] Implement `DeclarationHash` for type aliases and enums
-- [x] Add `compute_signature_hash()` helper using stable FxHash
-- [x] Add unit tests for hash stability
-
-**Status:** **COMPLETE** - All declaration types support signature hashing via `DeclarationHash` trait.
-
-#### Phase 2.2: Dependency Tracking (Week 2)
-
-- [x] Implement `DependencyGraph` to track caller → callee relationships
-- [x] Add `add_dependency()` and `get_dependents()` methods
-- [x] Support `merge()` for combining dependency graphs
-- [x] Add unit tests for dependency graph operations
-
-**Status:** **COMPLETE** - Dependency tracking fully implemented in `DependencyGraph` struct.
-
-#### Phase 2.3: Invalidation Logic (Week 2)
-
-- [x] Implement `InvalidationResult` struct to represent invalidation decisions
-- [x] Implement `compute_invalidated_decls()` function with full logic:
-  - Compare old vs new signature hashes
-  - If signature changed → invalidate declaration + all dependents
-  - If declaration deleted → invalidate all dependents
-  - If only body changed → only mark cache dirty (dependents don't re-check)
-- [x] Add debug logging for invalidation decisions via tracing
-
-**Status:** **COMPLETE** - Incremental type checking infrastructure fully integrated.
-Is 
-#### Phase 2.5: Testing & Validation (Week 3)
-
-- [x] Test: Signature-only change (params) → dependents re-checked
-- [x] Test: Body-only change → dependents NOT re-checked
-- [x] Test: New function → no invalidation
-- [x] Test: Deleted function → dependents invalidated
-- [x] Test: Transitive dependencies work correctly
-- [x] Run benchmarks to measure 50-90% speedup on incremental edits
-- [x] Test with real-world projects
-
-**Expected:** 50-90% faster incremental edits (OOPSLA 2022 paper: 21-147× speedup)
-
----
-
-### Strategy 3: RTA Devirtualization (3-5 days)
-
-**What:** Track `new ClassName()` instantiation sites. Devirtualize when only one subclass instantiated.
-
-**Action Items:**
-
-- [x] Add instantiation tracking fields to `ClassHierarchy` struct
-- [x] Add `collect_instantiations()` method to detect `new ClassName()` expressions
-- [x] Add `record_instantiation_from_callee()` to extract class names from new expressions
-- [x] Add `add_instantiation_to_hierarchy()` to propagate instantiations up the parent chain
-- [x] Add `set_instantiated_subclasses()` and `compute_single_instantiated_subclasses()`
-- [x] Add `can_devirtualize_with_rta()` method combining CHA + RTA analysis
-- [x] Update `DevirtualizationPass::process_expression()` to use RTA subclass for devirtualization
-- [x] Add debug logging for RTA devirtualization decisions
-- [x] Add unit tests for single-instantiation scenario (should devirtualize)
-- [x] Add unit tests for multi-instantiation scenario (should NOT devirtualize)
-- [x] Add unit tests for no instantiations (should fall back to existing CHA logic)
-- [x] Run benchmarks to measure devirtualization rate improvement
-
-**Status:** **COMPLETE** - RTA devirtualization fully implemented. Tests verify single-instantiation devirtualization, multi-instantiation safety, and fallback to CHA when no RTA data is available.
-
-**Expected:** 30-50% more devirtualization opportunities
-
----
-
-### Implementation Order
-
-**Week 1:** Strategy 1 + Strategy 3 (quick wins)
-**Weeks 2-4:** Strategy 2 (high impact, more complex)
-
----
-
-### Bottom Line
-
-- First compilation: 10-30% faster
-- Incremental edits: 50-90% faster
-- LSP: Sub-100ms responsiveness achieved
-
----
-
-## Phase 4: Arena Allocation (Pre-1.0 Required)
-
-**Rationale:** Best practice for production Rust compilers (rustc, swc). Required for unknown-scale production use.
-
-**Problem:** Standard Box/Vec allocation doesn't scale to large codebases or LSP use cases.
-
-### Arena-Allocated AST (2-3 weeks)
-
-**What:** Replace `Box<T>`/`Vec<T>` with bump allocator. AST nodes allocated from arena with `'arena` lifetime.
-
-**Why this is best practice:**
-
-- **rustc** (Rust compiler): Uses `typed-arena`, all HIR/MIR has `'tcx` lifetime
-- **swc** (Rust TypeScript/JS): Custom arena, 70x faster than Babel (arena is part of this)
-- **Luau** (C++ Lua): Custom arena allocator
-- **Pattern:** Every major systems-language compiler uses arenas for AST
-
-**Benefits:**
-
-- **10x faster allocation** - Bump pointer vs malloc overhead
-- **Better cache locality** - Nodes allocated contiguously
-- **Bulk deallocation** - O(1) free entire compilation unit
-- **Scales to unknown use cases** - 500K line codebases, LSP, CI/CD
-
-**Critical Note:** The parser and AST definitions live in a **separate git repository** (`typedlua-parser`). Arena allocation changes will require coordinated updates across both repositories. Consider merging into monorepo or careful version coordination.
-
-**Action Items:**
-
-#### Phase 4.1: Arena Infrastructure (Days 1-2)
-
-**Prerequisites:**
-
-- [x] `bumpalo` crate already in workspace dependencies (3.16)
-- [x] `bumpalo` already added to `typedlua-core/Cargo.toml`
-
-**Implementation:**
-
-- [x] Create `crates/typedlua-core/src/arena.rs` with `Arena` wrapper struct
-- [x] Implement `Arena::new()` and `Arena::with_capacity()`
-- [x] Implement `Arena::alloc<T>(&self, value: T) -> &T`
-- [x] Implement `Arena::alloc_slice_copy<T: Copy>(&self, slice: &[T]) -> &[T]`
-- [x] Implement `Arena::alloc_slice_clone<T: Clone>(&self, slice: &[T]) -> &[T]`
-- [x] Implement `Arena::alloc_slice_fill_iter<T, I>(&self, iter: I) -> &[T]`
-- [x] Implement `Arena::alloc_str(&self, s: &str) -> &str`
-- [x] Add allocation count tracking for metrics/debugging
-- [x] Add `Arena::allocated_bytes()` and `Arena::reset()` methods
-- [x] Export `Arena` from `crates/typedlua-core/src/lib.rs`
-
-**Testing:**
-
-- [x] Test single value allocation
-- [x] Test multiple allocations
-- [x] Test slice allocation (copy, clone, iterator)
-- [x] Test string allocation
-- [x] Test empty slice handling
-- [x] Test arena reset
-- [x] Test complex struct allocation
-- [x] Test nested allocation patterns (simulating AST)
-
-**Verification:**
-
-- [x] `cargo build -p typedlua-core` compiles
-- [x] `cargo test -p typedlua-core arena` passes (16 tests)
-- [x] `cargo clippy -p typedlua-core -- -D warnings` clean
-
-**Status:** **COMPLETE**
-
-**Documentation:** See `docs/phase-4.1-arena-infrastructure-plan.md` for full implementation details.
-
-**Current AST Allocation Stats (from exploration):**
-
-- Expression: 27 uses of `Box<T>`, 8+ uses of `Vec<T>`
-- Type: 16 uses of `Box<T>`, 3 uses of `Vec<T>`
-- Statement: 1 use of `Box<T>`, 15+ uses of `Vec<T>`
-- Total: 44+ Box allocations, 26+ Vec allocations to migrate
-
-#### Phase 4.2: AST Lifetime Migration (Days 3-7)
-
-- [x] Add `'arena` lifetime to `Program` struct
-- [x] Add `'arena` lifetime to `Statement` enum and all variants
-- [x] Add `'arena` lifetime to `Expression` enum and all variants
-- [x] Add `'arena` lifetime to `Type` enum and all variants
-- [x] Update all AST helper structs (FunctionDecl, ClassDecl, etc.)
-- [x] Replace `Box<Expr>` with `&'arena Expr`
-- [x] Replace `Vec<Stmt>` with `&'arena [Stmt]`
-- [x] Fix all compilation errors (expect 100+ across codebase)
-
-**Status:** **COMPLETE** - All AST types migrated to arena allocation with `'arena` lifetime. 44+ Box and 26+ Vec allocations replaced with arena references.
-
-**Documentation:** See `docs/phase-4.2-ast-arena-migration.md` for implementation details.
-
-#### Phase 4.3: Parser Integration (Days 8-10)
-
-- [x] Update `typedlua-parser` to accept `&'arena Bump` parameter
-- [x] Update `Parser::new()` signature to include arena
-- [x] Update all parser methods to allocate from arena
-- [x] Add `alloc()` and `alloc_vec()` helper methods using bumpalo interior mutability
-- [x] Fix function return types to include `<'arena>` lifetime parameters
-- [x] Run parser tests to verify correctness (431 tests passing)
-
-**Status:** **COMPLETE** - Parser fully integrated with arena allocation. Key insight: bumpalo uses interior mutability (`&self` for alloc), enabling safe use alongside `&mut self` parser methods.
-
-#### Phase 4.4: Type Checker Integration (Days 11-12)
-
-- [x] Update `TypeChecker` to accept AST with `'arena` lifetime
-- [x] Update all type checking functions with `'arena` parameter (Option A: propagate `'arena` throughout, rustc `'tcx` pattern)
-- [x] Add `[patch]` sections to root Cargo.toml for git dep redirection
-- [x] Migrate all 13+ test files to arena patterns
-- [x] Run type checker tests to verify correctness (468 tests passing)
-
-**Status:** **COMPLETE** - Used Option A (propagate `'arena` lifetime throughout), matching rustc's `'tcx` pattern.
-
-#### Phase 4.5: Core Integration (Days 13-16)
-
-- [x] Update `CodeGenerator` to accept `&MutableProgram<'arena>` (bridge type for mutable codegen)
-- [x] Update codegen, scope hoisting, tree shaking to work with arena-allocated AST
-- [x] Simplify `CachedModule` (removed arena types from serde - types with `'arena` can't derive Deserialize)
-- [x] Update `Optimizer::optimize()` to accept `&mut MutableProgram<'_>`
-- [x] Migrate all integration tests to arena API (~15 test files)
-- [x] Migrate manual AST construction tests to use `arena.alloc()` / `arena.alloc_slice_clone()`
-- [x] Run full test suite: 154 lib tests + ~180 integration tests passing
-
-**Status:** **COMPLETE** - 612 errors → 0 errors across 3 sessions. Key architectural decisions:
-
-- `MutableProgram` bridge type (Vec-based) for mutable phases (codegen/optimizer)
-- `MutableProgram::from_program()` converts immutable arena AST → mutable Vec-based AST
-- Optimizer passes temporarily disabled (no-op) pending migration to MutableProgram-based passes
-
-#### Phase 4.6: Re-enable Optimizer Passes (Future)
+**Goal:** Restore optimization functionality after arena migration.
 
 - [ ] Migrate optimization passes to work on `MutableProgram` (clone-and-replace pattern)
 - [ ] Re-enable all 18 passes in `Optimizer::optimize()`
 - [ ] Remove `#[ignore]` from optimizer-related tests
 - [ ] Run optimizer tests to verify correctness
 
-**Status:** **PENDING** - Optimizer is currently a no-op. Passes need rewriting to work with immutable arena AST via MutableProgram.
+**Status:** In Progress. Optimizer is currently a no-op. Passes need rewriting to work with immutable arena AST via MutableProgram.
 
-#### Phase 4.7: Benchmarking & Validation
+---
+
+### Phase 2: Benchmarking & Validation
+
+**Goal:** Verify arena allocation performance improvements.
 
 - [ ] Profile allocation performance with flamegraph
 - [ ] Benchmark compilation speed vs baseline (expect 2-5x allocation speedup)
@@ -317,199 +28,152 @@ Is
 
 **Expected:** 2-5x faster allocation, better memory predictability at scale
 
----
-
-## Phase 5: Bundle Optimization (Pre-1.0 Required)
-
-**Rationale:** Basic bundler features users expect (webpack, esbuild, Rollup all have these).
-
-**Problem:** Current bundle mode includes all code, creates unnecessary module overhead.
-
-### Tree Shaking (3-5 days)
-
-**What:** Eliminate unused exports and modules from bundles.
-
-**Why users expect this:**
-
-- **webpack, esbuild, Rollup, SWC** all do this by default
-- Including unused code is objectively wasteful
-- Critical for library bundling (don't ship unused utilities)
-
-**Action Items:**
-
-#### Phase 5.1: Reachability Analysis (Days 1-2)
-
-- [x] Create `crates/typedlua-core/src/codegen/tree_shaking.rs`
-- [x] Implement `ReachabilityAnalysis` struct with BFS-based module traversal
-- [x] Add `analyze(entry: &Path, modules: &HashMap<Path, Program>) -> ReachableSet`
-- [x] Handle all import types: default, named, namespace, mixed
-- [x] Resolve module paths with .lua and /index.lua extensions
-- [x] Track (module_path, export_name) pairs that are actually used
-- [x] Add `is_reachable(module: &Path, export: &str) -> bool` query methods
-- [x] Add unit tests for reachability with circular dependencies
-- [x] Add unit tests for transitive dependencies
-- [x] Add unit tests for unused exports filtering
-- [x] Add unit tests for unused module removal
-
-**Status:** **COMPLETE** - 9/9 tree shaking tests passing
-
-#### Phase 5.2: Bundle Integration (Day 3)
-
-- [x] Update `CodeGenerator::generate_bundle()` to accept `ReachabilityAnalysis`
-- [x] Skip unreachable exports during bundle codegen
-- [x] Skip modules with no reachable exports
-- [x] Preserve entry point (always reachable)
-- [x] Add `--no-tree-shake` flag for debugging
-- [x] Filter modules before codegen based on reachability analysis
-- [x] Pass reachable exports to code generator for per-module tree shaking
-- [x] Fix decorator tests for compile-time readonly checking
-
-**Status:** **COMPLETE** - Tree shaking bundle integration fully implemented
-
-#### Phase 5.3: Testing & Validation (Days 4-5)
-
-- [x] Test: Single module bundle (no shaking needed)
-- [x] Test: Unused function in module → removed
-- [x] Test: Unused entire module → removed
-- [x] Test: Transitive dependencies preserved
-- [x] Test: Entry point always included
-- [x] Benchmark bundle size reduction (expect 20-50% on typical projects)
-- [x] Test with real-world multi-module projects
-
-**Status:** **COMPLETE** - 14 tree shaking integration tests covering all Phase 5.3 requirements.
-
-**Expected:** 20-50% smaller bundles, faster load times
+**Status:** Pending. Waiting for Phase 1 completion.
 
 ---
 
-### Scope Hoisting (5-7 days)
+## Future Work
 
-**What:** Flatten module boundaries to reduce function call overhead.
+### Phase 3: Reflection Metadata v2
 
-**Current bundle structure:**
+**Goal:** Implement three coordinated enhancements:
 
-```lua
--- Module A
-local module_a = {}
-function module_a.foo() return 42 end
-return module_a
+1. Selective Generation via `@std/reflection` import detection
+2. Bit Flags for field modifiers (~60% memory savings)
+3. Method Signatures compact encoding (~50% memory savings)
 
--- Module B
-local module_a = require("module_a")
-local result = module_a.foo()  -- Indirect call through table
-```
+**Status:** Not started. See docs/REFLECTION.md for specification.
 
-**After scope hoisting:**
+**Subtasks:**
 
-```lua
--- Hoisted: modules flattened into shared scope
-local function module_a_foo() return 42 end
-local result = module_a_foo()  -- Direct call
-```
-
-**Benefits:**
-
-- **Faster runtime** - Direct calls instead of table lookups
-- **Smaller bundles** - No module wrapper boilerplate
-- **Better minification** - More opportunities for name mangling
-
-**Action Items:**
-
-#### Phase 5.4: Escape Analysis (Days 1-2)
-
-- [x] Create `crates/typedlua-core/src/codegen/scope_hoisting.rs`
-- [x] Implement `EscapeAnalysis` struct with full hoistability detection
-- [x] Check: Does declaration escape module scope? (exported or returned from private functions?)
-- [x] Check: Does declaration reference module-local state?
-- [x] Check: Safe to hoist based on initializer type?
-- [x] Build hoistable declaration set per module (functions, variables, classes, enums)
-- [x] Add comprehensive unit tests for escape analysis (17 tests, all passing)
-- [x] Fix parser enum/class syntax issues in tests
-- [x] Implement proper return value tracking from private functions only
-- [x] Handle complex initializers (objects, arrays, functions)
-
-**Status:** **COMPLETE** - All 17 escape analysis tests passing. Correctly identifies hoistable declarations with proper distinction between:
-
-- Exports (never hoistable)
-- Returns from private functions (variables/classes/enums not hoistable)
-- Function expressions and complex initializers (not hoistable)
-- Functions that return other module-locals (not hoistable)
-
-#### Phase 5.5: Name Mangling (Days 3-4)
-
-- [x] Implement `mangle_name(module_path: &Path, name: &str) -> String`
-- [x] Generate unique names: `module_a.foo` → `module_a_foo`
-- [x] Handle name collisions across modules
-- [x] Preserve entry point names (user-facing API)
-- [x] Update all references to use mangled names
-
-**Status:** **COMPLETE** - Name mangling infrastructure implemented with:
-
-- `NameMangler` struct for generating unique mangled names
-- `ReferenceRewriter` for updating identifier references
-- Collision detection and resolution with numeric suffixes
-- Reserved name protection (Lua keywords, runtime names)
-- Entry point name preservation
-- 19 comprehensive unit tests covering all edge cases
-
-#### Phase 5.6: Hoisting Transform (Days 5-6)
-
-- [x] Update `generate_bundle()` to hoist declarations
-- [x] Move hoistable declarations to top-level scope
-- [x] Remove module wrapper boilerplate for hoisted modules
-- [x] Preserve module structure for non-hoistable code
-- [x] Add `--no-scope-hoist` flag for debugging
-
-**Status:** **COMPLETE** - Implementation includes:
-
-- `HoistingContext` struct for per-bundle hoisting state
-- Integration with `generate_bundle_with_options()` function
-- `generate_hoisted_declaration_if_needed()` helper for emitting hoisted code
-- CLI flag `--no-scope-hoist` for debugging/disabling hoisting
-
-#### Phase 5.7: Testing & Validation (Day 7)
-
-- [x] Test: Simple module hoisting (single function)
-- [x] Test: Multiple modules hoisted into shared scope
-- [x] Test: Mixed hoisted + non-hoisted modules
-- [x] Test: Name collision handling
-- [x] Test: Circular dependencies still work
-- [x] Benchmark bundle size + runtime perf (expect 10-20% improvement)
-- [ ] Test with real-world projects
-
-**Status:** **COMPLETE** - Comprehensive test suite in `scope_hoisting_bundle_tests.rs` with 19 tests covering:
-
-- Simple function/variable/enum/class hoisting
-- Multiple modules hoisted into shared scope
-- Mixed hoisted + non-hoisted module scenarios
-- Name collision handling with different mangled names per module
-- Circular dependency safety
-- Hoisting disabled mode
-- Entry point name preservation
-- Edge cases (function expressions, returned variables, exported declarations)
-
-**Expected:** 10-20% faster runtime, 10-15% smaller bundles
+- Phase 3.1: Import Detection System
+- Phase 3.2: Bit Flags for Field Modifiers
+- Phase 3.3: Compact Method Signatures
+- Phase 3.4: Runtime Support Updates
+- Phase 3.5: Configuration & CLI Integration
+- Phase 3.6: Breaking Changes Migration
 
 ---
 
-## Implementation Roadmap
+### Phase 4: Runtime Validation from Types
 
-**Week 0:** Quick Wins (FxHashMap, Lazy Pass Evaluation) - **COMPLETE**
+**Goal:** Generate runtime validation code from type annotations.
 
-**Weeks 1-4:** Phase 3.5 Type Checker Optimization - **COMPLETE**
+**Key Features:**
 
-- Week 1: Strategy 1 (Type Relation Caching) + Strategy 3 (RTA Devirtualization)
-- Weeks 2-4: Strategy 2 (Declaration-Level Incremental)
+- `Refined<Base, Constraints>` utility type
+- Auto-validate at boundaries + @validate decorator
+- Compiler intrinsics: `parse<T>()`, `safeParse<T>()`, `is<T>()`
+- Fail-fast and collect error modes
 
-**Weeks 5-7:** Phase 4 Arena Allocation - **COMPLETE** (Phase 4.6 optimizer re-enablement pending)
+**Status:** Not started. See docs/designs/Runtime-Validation.md for specification.
 
-- Phases 4.1-4.5: Arena infrastructure, AST migration, parser, typechecker, core integration
-- Phase 4.6: Re-enable optimizer passes (future work)
-- Phase 4.7: Benchmarking & validation (future work)
+**Subtasks:**
 
-**Weeks 8-9:** Phase 5 Bundle Optimization - **COMPLETE**
+- Phase 4.1: Refined<> Type System
+- Phase 4.2: Validation Mode Configuration
+- Phase 4.3: Validator Code Generation
+- Phase 4.4: Compiler Intrinsics
+- Phase 4.5: Inlining Optimization
+- Phase 4.6: Advanced Optimizations
+- Phase 4.7: Runtime Support Library
+- Phase 4.8: Class Instance Validation
+- Phase 4.9: Integration & Documentation
 
-- Week 8: Tree Shaking (Days 1-5)
-- Week 9: Scope Hoisting (Days 1-7)
+---
 
-**Target:** 1.0 release with production-grade performance architecture
+### Phase 5: File Extension Migration (.tl → .luax)
+
+**Goal:** Rename project file extension for LuaNext rebrand.
+
+**Status:** Not started. See docs/file-extension-migration.md (45+ files, 12 renames).
+
+**Subtasks:**
+
+- Phase 5.1: Core Runtime Logic
+- Phase 5.2: Test Infrastructure
+- Phase 5.3: Actual File Renames (git mv)
+- Phase 5.4: Documentation Updates
+- Phase 5.5: Module Resolution & Build Scripts
+- Phase 5.6: Verification & Post-Migration
+
+---
+
+### Phase 6: Project Rename (TypedLua → LuaNext)
+
+**Goal:** Rename all project references from TypedLua to LuaNext.
+
+**Subtasks:**
+
+#### Phase 6.1: Cargo Workspace & Crate Names
+
+- [ ] Update `Cargo.toml` workspace name and `members` paths
+- [ ] Update `crates/typedlua-core/Cargo.toml` package name → `luanext-core`
+- [ ] Update `crates/typedlua-cli/Cargo.toml` package name → `luanext-cli`
+- [ ] Update `crates/typedlua-runtime/Cargo.toml` package name → `luanext-runtime`
+- [ ] Update `crates/typedlua-typechecker/Cargo.toml` package name → `luanext-typechecker`
+- [ ] Update `crates/typedlua-parser/Cargo.toml` package name → `luanext-parser`
+- [ ] Update `crates/typedlua-lsp/Cargo.toml` package name → `luanext-lsp`
+- [ ] Run `cargo metadata` to verify workspace resolves
+
+#### Phase 6.2: Rust Module & Crate Names
+
+- [ ] Rename `typedlua_core` → `luanext_core` in lib.rs of each crate
+- [ ] Rename `typedlua_cli` → `luanext_cli` in lib.rs
+- [ ] Rename `typedlua_runtime` → `luanext_runtime` in lib.rs
+- [ ] Rename `typedlua_typechecker` → `luanext_typechecker` in lib.rs
+- [ ] Rename `typedlua_parser` → `luanext_parser` in lib.rs
+- [ ] Rename `typedlua_lsp` → `luanext_lsp` in lib.rs
+- [ ] Update all `use` statements across codebase (grep for `typedlua::`)
+- [ ] Update `cargo.toml` dependencies to use new crate names
+- [ ] Run `cargo check --workspace` to find all remaining references
+
+#### Phase 6.3: CLI Binary Name
+
+- [ ] Rename binary in `crates/typedlua-cli/Cargo.toml`: `[[bin]]` name `typedlua` → `luanext`
+- [ ] Update scripts that invoke `typedlua` command
+- [ ] Update VSCode extension to spawn `luanext` instead of `typedlua`
+- [ ] Update CI/CD workflows that use CLI
+
+#### Phase 6.4: VSCode Extension Rename
+
+- [ ] Rename extension in `editors/vscode/package.json` name/displayName
+- [ ] Update extension ID from `typedlua` to `luanext`
+- [ ] Update README.md in editors/vscode
+- [ ] Update marketplace descriptions
+
+#### Phase 6.5: Documentation Updates
+
+- [ ] Update main README.md title and references
+- [ ] Update `docs/README.md`
+- [ ] Update `docs/ARCHITECTURE.md`
+- [ ] Rename `docs/designs/TypedLua-Design.md` → `LuaNext-Design.md`
+- [ ] Update all design docs with new name
+- [ ] Update `CONTRIBUTING.md`
+- [ ] Update `CHANGELOG.md` header
+
+#### Phase 6.6: Source Code References
+
+- [ ] Search for string literals "TypedLua" in source code
+- [ ] Update welcome messages, error messages, --help output
+- [ ] Update internal constants/enum variants if any
+- [ ] Update comments that reference TypedLua
+
+#### Phase 6.7: GitHub & Publishing
+
+- [ ] Rename GitHub repository from `typedlua` to `luanext`
+- [ ] Yank old crates.io packages, publish new ones
+- [ ] Update GitHub Actions workflows
+- [ ] Update any badges in README.md
+- [ ] Update package.json version for VSCode extension
+
+#### Phase 6.8: Verification
+
+- [ ] Run `cargo build --release` for all crates
+- [ ] Run `cargo test --workspace`
+- [ ] Test CLI: `luanext --version`, `luanext --help`
+- [ ] Test VSCode extension loads correctly
+- [ ] Test LSP functionality
+- [ ] Update any local development instructions
+
+**Status:** Not started. Requires coordination with crates.io publishing and GitHub repo rename.
