@@ -2,16 +2,35 @@
 
 ## Current Focus
 
-### Phase 1: Re-enable Optimizer Passes (Active)
+### Phase 1: Test Suite Completion (Active)
 
-**Goal:** Restore optimization functionality after arena migration.
+**Goal:** Fix all failing tests across typedlua project.
 
-- [ ] Migrate optimization passes to work on `MutableProgram` (clone-and-replace pattern)
-- [ ] Re-enable all 18 passes in `Optimizer::optimize()`
-- [ ] Remove `#[ignore]` from optimizer-related tests
-- [ ] Run optimizer tests to verify correctness
+**Completed:**
 
-**Status:** In Progress. Optimizer is currently a no-op. Passes need rewriting to work with immutable arena AST via MutableProgram.
+- [x] Fixed 20 destructuring tests (computed property keys, typed patterns, rest destructuring)
+- [x] Fixed dead code/dead store elimination tests (created BlockVisitor trait for sibling-aware passes)
+- [x] Fixed 7 string concatenation optimization tests (now correctly uses table.concat)
+- [x] Fixed 3 access control tests (nonexistent member/class error reporting)
+- [x] Fixed recursive type alias stack overflow (added cycle detection to type resolution)
+- [x] Removed all `#[ignore]` attributes from typedlua-core (0 ignored tests)
+
+**Status:** Complete. All tests pass: 421 typechecker unit tests, 169+ typedlua-core tests, 0 failures, 0 ignored in core.
+
+---
+
+## Completed Phases
+
+### Phase 1.1: Arena Allocation Migration (Completed)
+
+**Goal:** Migrate TypedLua parser AST from heap (`Box`, `Vec`) to arena allocation (`bumpalo`).
+
+- [x] Added `Bump` arena to parser struct
+- [x] Migrated all AST types to use `&'arena` references
+- [x] Updated parser implementation (expression, statement, pattern, types)
+- [x] Migrated all 168 AST node construction sites from `Box::new()` → `arena.alloc()`
+- [x] Fixed arena lifetime propagation throughout codebase
+- [x] All tests passing (431 parser tests, 468 typechecker tests)
 
 ---
 

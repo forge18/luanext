@@ -1,5 +1,5 @@
+use bumpalo::Bump;
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::rc::Rc;
 use std::sync::Arc;
 use typedlua_core::codegen::CodeGenerator;
 use typedlua_core::config::CompilerOptions;
@@ -12,22 +12,25 @@ use typedlua_parser::string_interner::StringInterner;
 fn compile_and_generate(source: &str) -> String {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
-    let interner = Rc::new(interner);
+    let interner = Arc::new(interner);
+    let arena = Bump::new();
 
     let mut lexer = Lexer::new(source, handler.clone(), &interner);
     let tokens = lexer.tokenize().expect("Lexing failed");
 
-    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
-    let mut program = parser.parse().expect("Parsing failed");
+    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids, &arena);
+    let program = parser.parse().expect("Parsing failed");
 
-    let mut type_checker = TypeChecker::new_with_stdlib(handler, &interner, &common_ids)
+    let mut type_checker = TypeChecker::new_with_stdlib(handler, &interner, &common_ids, &arena)
+        .expect("Type checker creation failed")
         .with_options(CompilerOptions::default());
     type_checker
-        .check_program(&mut program)
+        .check_program(&program)
         .expect("Type checking failed");
 
+    let mutable_program = typedlua_core::MutableProgram::from_program(&program);
     let mut codegen = CodeGenerator::new(interner.clone());
-    codegen.generate(&mut program)
+    codegen.generate(&mutable_program)
 }
 
 fn reflection_codegen_benchmark(c: &mut Criterion) {

@@ -1,3 +1,4 @@
+use bumpalo::Bump;
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::sync::Arc;
 use typedlua_core::config::CompilerOptions;
@@ -18,14 +19,16 @@ fn bench_type_checker_simple(c: &mut Criterion) {
         b.iter(|| {
             let handler = Arc::new(CollectingDiagnosticHandler::new());
             let (interner, common_ids) = StringInterner::new_with_common_identifiers();
+            let arena = Bump::new();
 
             let mut lexer = Lexer::new(source, handler.clone(), &interner);
             let tokens = lexer.tokenize().ok()?;
 
-            let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
+            let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids, &arena);
             let mut program = parser.parse().ok()?;
 
-            let mut checker = TypeChecker::new_with_stdlib(handler, &interner, &common_ids)
+            let mut checker = TypeChecker::new_with_stdlib(handler, &interner, &common_ids, &arena)
+                .ok()?
                 .with_options(CompilerOptions::default());
             checker.check_program(black_box(&mut program)).ok()
         })
@@ -49,14 +52,16 @@ fn bench_type_checker_function(c: &mut Criterion) {
         b.iter(|| {
             let handler = Arc::new(CollectingDiagnosticHandler::new());
             let (interner, common_ids) = StringInterner::new_with_common_identifiers();
+            let arena = Bump::new();
 
             let mut lexer = Lexer::new(source, handler.clone(), &interner);
             let tokens = lexer.tokenize().ok()?;
 
-            let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
+            let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids, &arena);
             let mut program = parser.parse().ok()?;
 
-            let mut checker = TypeChecker::new_with_stdlib(handler, &interner, &common_ids)
+            let mut checker = TypeChecker::new_with_stdlib(handler, &interner, &common_ids, &arena)
+                .ok()?
                 .with_options(CompilerOptions::default());
             checker.check_program(black_box(&mut program)).ok()
         })
@@ -87,14 +92,16 @@ fn bench_type_checker_class(c: &mut Criterion) {
         b.iter(|| {
             let handler = Arc::new(CollectingDiagnosticHandler::new());
             let (interner, common_ids) = StringInterner::new_with_common_identifiers();
+            let arena = Bump::new();
 
             let mut lexer = Lexer::new(source, handler.clone(), &interner);
             let tokens = lexer.tokenize().ok()?;
 
-            let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
+            let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids, &arena);
             let mut program = parser.parse().ok()?;
 
-            let mut checker = TypeChecker::new_with_stdlib(handler, &interner, &common_ids)
+            let mut checker = TypeChecker::new_with_stdlib(handler, &interner, &common_ids, &arena)
+                .ok()?
                 .with_options(CompilerOptions::default());
             checker.check_program(black_box(&mut program)).ok()
         })
@@ -134,14 +141,16 @@ fn bench_type_checker_interface(c: &mut Criterion) {
         b.iter(|| {
             let handler = Arc::new(CollectingDiagnosticHandler::new());
             let (interner, common_ids) = StringInterner::new_with_common_identifiers();
+            let arena = Bump::new();
 
             let mut lexer = Lexer::new(source, handler.clone(), &interner);
             let tokens = lexer.tokenize().ok()?;
 
-            let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
+            let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids, &arena);
             let mut program = parser.parse().ok()?;
 
-            let mut checker = TypeChecker::new_with_stdlib(handler, &interner, &common_ids)
+            let mut checker = TypeChecker::new_with_stdlib(handler, &interner, &common_ids, &arena)
+                .ok()?
                 .with_options(CompilerOptions::default());
             checker.check_program(black_box(&mut program)).ok()
         })
@@ -166,14 +175,16 @@ fn bench_type_checker_scaling(c: &mut Criterion) {
             b.iter(|| {
                 let handler = Arc::new(CollectingDiagnosticHandler::new());
                 let (interner, common_ids) = StringInterner::new_with_common_identifiers();
+                let arena = Bump::new();
 
                 let mut lexer = Lexer::new(s, handler.clone(), &interner);
                 let tokens = lexer.tokenize().ok()?;
 
-                let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
+                let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids, &arena);
                 let mut program = parser.parse().ok()?;
 
-                let mut checker = TypeChecker::new_with_stdlib(handler, &interner, &common_ids)
+                let mut checker = TypeChecker::new_with_stdlib(handler, &interner, &common_ids, &arena)
+                    .ok()?
                     .with_options(CompilerOptions::default());
                 checker.check_program(black_box(&mut program)).ok()
             })
