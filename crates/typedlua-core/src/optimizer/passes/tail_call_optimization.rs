@@ -2,12 +2,13 @@
 // O2: Tail Call Optimization Pass
 // =============================================================================
 
+use bumpalo::Bump;
 use crate::config::OptimizationLevel;
 use crate::optimizer::{StmtVisitor, WholeProgramPass};
+use crate::MutableProgram;
 use typedlua_parser::ast::expression::Expression;
 use typedlua_parser::ast::expression::ExpressionKind;
 use typedlua_parser::ast::statement::{ForStatement, Statement};
-use typedlua_parser::ast::Program;
 
 /// Tail call optimization pass
 /// Analyzes tail call patterns and ensures other optimizations don't break TCO positions
@@ -20,14 +21,14 @@ impl TailCallOptimizationPass {
     }
 }
 
-impl StmtVisitor for TailCallOptimizationPass {
-    fn visit_stmt(&mut self, _stmt: &mut Statement) -> bool {
+impl<'arena> StmtVisitor<'arena> for TailCallOptimizationPass {
+    fn visit_stmt(&mut self, _stmt: &mut Statement<'arena>, _arena: &'arena Bump) -> bool {
         // This pass is analysis-only, no transformations
         false
     }
 }
 
-impl WholeProgramPass for TailCallOptimizationPass {
+impl<'arena> WholeProgramPass<'arena> for TailCallOptimizationPass {
     fn name(&self) -> &'static str {
         "tail-call-optimization"
     }
@@ -36,7 +37,7 @@ impl WholeProgramPass for TailCallOptimizationPass {
         OptimizationLevel::O2
     }
 
-    fn run(&mut self, program: &mut Program) -> Result<bool, String> {
+    fn run(&mut self, program: &mut MutableProgram<'arena>, _arena: &'arena Bump) -> Result<bool, String> {
         for stmt in &program.statements {
             self.analyze_statement_tail_calls(stmt);
         }
@@ -50,36 +51,36 @@ impl WholeProgramPass for TailCallOptimizationPass {
 }
 
 impl TailCallOptimizationPass {
-    fn analyze_statement_tail_calls(&self, stmt: &Statement) -> usize {
+    fn analyze_statement_tail_calls<'arena>(&self, stmt: &Statement<'arena>) -> usize {
         match stmt {
-            Statement::Function(func) => self.analyze_block_tail_calls(&func.body.statements),
-            Statement::Block(block) => self.analyze_block_tail_calls(&block.statements),
+            Statement::Function(func) => self.analyze_block_tail_calls(func.body.statements),
+            Statement::Block(block) => self.analyze_block_tail_calls(block.statements),
             Statement::If(if_stmt) => {
-                let mut count = self.analyze_block_tail_calls(&if_stmt.then_block.statements);
-                for else_if in &if_stmt.else_ifs {
-                    count += self.analyze_block_tail_calls(&else_if.block.statements);
+                let mut count = self.analyze_block_tail_calls(if_stmt.then_block.statements);
+                for else_if in if_stmt.else_ifs.iter() {
+                    count += self.analyze_block_tail_calls(else_if.block.statements);
                 }
                 if let Some(else_block) = &if_stmt.else_block {
-                    count += self.analyze_block_tail_calls(&else_block.statements);
+                    count += self.analyze_block_tail_calls(else_block.statements);
                 }
                 count
             }
             Statement::While(while_stmt) => {
-                self.analyze_block_tail_calls(&while_stmt.body.statements)
+                self.analyze_block_tail_calls(while_stmt.body.statements)
             }
             Statement::For(for_stmt) => match &**for_stmt {
                 ForStatement::Numeric(for_num) => {
-                    self.analyze_block_tail_calls(&for_num.body.statements)
+                    self.analyze_block_tail_calls(for_num.body.statements)
                 }
                 ForStatement::Generic(for_gen) => {
-                    self.analyze_block_tail_calls(&for_gen.body.statements)
+                    self.analyze_block_tail_calls(for_gen.body.statements)
                 }
             },
             Statement::Repeat(repeat_stmt) => {
-                self.analyze_block_tail_calls(&repeat_stmt.body.statements)
+                self.analyze_block_tail_calls(repeat_stmt.body.statements)
             }
             Statement::Return(ret) => {
-                if self.is_tail_call(&ret.values) {
+                if self.is_tail_call(ret.values) {
                     1
                 } else {
                     0
@@ -89,7 +90,7 @@ impl TailCallOptimizationPass {
         }
     }
 
-    fn analyze_block_tail_calls(&self, stmts: &[Statement]) -> usize {
+    fn analyze_block_tail_calls<'arena>(&self, stmts: &[Statement<'arena>]) -> usize {
         let mut count = 0;
         for stmt in stmts {
             count += self.analyze_statement_tail_calls(stmt);
@@ -97,7 +98,7 @@ impl TailCallOptimizationPass {
         count
     }
 
-    fn is_tail_call(&self, values: &[Expression]) -> bool {
+    fn is_tail_call<'arena>(&self, values: &[Expression<'arena>]) -> bool {
         if values.len() != 1 {
             return false;
         }

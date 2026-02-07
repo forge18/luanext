@@ -1,7 +1,8 @@
+use bumpalo::Bump;
 use crate::config::OptimizationLevel;
 use crate::optimizer::{AstFeatures, WholeProgramPass};
+use crate::MutableProgram;
 use typedlua_parser::ast::statement::{EnumDeclaration, Statement};
-use typedlua_parser::ast::Program;
 
 pub struct RichEnumOptimizationPass;
 
@@ -11,7 +12,7 @@ impl RichEnumOptimizationPass {
     }
 }
 
-impl WholeProgramPass for RichEnumOptimizationPass {
+impl<'arena> WholeProgramPass<'arena> for RichEnumOptimizationPass {
     fn name(&self) -> &'static str {
         "rich-enum-optimization"
     }
@@ -24,7 +25,7 @@ impl WholeProgramPass for RichEnumOptimizationPass {
         AstFeatures::HAS_ENUMS
     }
 
-    fn run(&mut self, program: &mut Program) -> Result<bool, String> {
+    fn run(&mut self, program: &mut MutableProgram<'arena>, _arena: &'arena Bump) -> Result<bool, String> {
         let mut rich_enum_count = 0;
 
         for stmt in &program.statements {
@@ -51,7 +52,7 @@ impl WholeProgramPass for RichEnumOptimizationPass {
 }
 
 impl RichEnumOptimizationPass {
-    fn is_rich_enum(&self, enum_decl: &EnumDeclaration) -> bool {
+    fn is_rich_enum<'arena>(&self, enum_decl: &EnumDeclaration<'arena>) -> bool {
         !enum_decl.fields.is_empty()
             || enum_decl.constructor.is_some()
             || !enum_decl.methods.is_empty()
@@ -77,107 +78,119 @@ mod tests {
     use typedlua_parser::span::Span;
     use typedlua_parser::string_interner::StringInterner;
 
-    fn number_type() -> Type {
+    fn number_type() -> Type<'static> {
         Type::new(TypeKind::Primitive(PrimitiveType::Number), Span::dummy())
     }
 
-    fn create_test_program_with_rich_enum() -> Program {
+    fn create_test_program_with_rich_enum<'arena>(arena: &'arena Bump) -> MutableProgram<'arena> {
         let interner = StringInterner::new();
 
         let mercury_name = Spanned::new(interner.get_or_intern("Mercury"), Span::dummy());
         let mass_field = Spanned::new(interner.get_or_intern("mass"), Span::dummy());
         let radius_field = Spanned::new(interner.get_or_intern("radius"), Span::dummy());
 
+        let member_args = arena.alloc_slice_clone(&[
+            Expression::new(
+                ExpressionKind::Literal(Literal::Number(3.303e23)),
+                Span::dummy(),
+            ),
+            Expression::new(
+                ExpressionKind::Literal(Literal::Number(2.4397e6)),
+                Span::dummy(),
+            ),
+        ]);
+
+        let members = arena.alloc_slice_clone(&[EnumMember {
+            name: mercury_name.clone(),
+            arguments: member_args,
+            value: None,
+            span: Span::dummy(),
+        }]);
+
+        let fields = arena.alloc_slice_clone(&[
+            EnumField {
+                name: mass_field,
+                type_annotation: number_type(),
+                span: Span::dummy(),
+            },
+            EnumField {
+                name: radius_field,
+                type_annotation: number_type(),
+                span: Span::dummy(),
+            },
+        ]);
+
+        let params = arena.alloc_slice_clone(&[
+            Parameter {
+                pattern: Pattern::Identifier(Spanned::new(
+                    interner.get_or_intern("mass"),
+                    Span::dummy(),
+                )),
+                type_annotation: Some(number_type()),
+                default: None,
+                is_rest: false,
+                is_optional: false,
+                span: Span::dummy(),
+            },
+            Parameter {
+                pattern: Pattern::Identifier(Spanned::new(
+                    interner.get_or_intern("radius"),
+                    Span::dummy(),
+                )),
+                type_annotation: Some(number_type()),
+                default: None,
+                is_rest: false,
+                is_optional: false,
+                span: Span::dummy(),
+            },
+        ]);
+
+        let empty_stmts: &[Statement<'arena>] = arena.alloc_slice_clone(&[]);
+
         let enum_decl = EnumDeclaration {
             name: Spanned::new(interner.get_or_intern("Planet"), Span::dummy()),
-            members: vec![EnumMember {
-                name: mercury_name.clone(),
-                arguments: vec![
-                    Expression::new(
-                        ExpressionKind::Literal(Literal::Number(3.303e23)),
-                        Span::dummy(),
-                    ),
-                    Expression::new(
-                        ExpressionKind::Literal(Literal::Number(2.4397e6)),
-                        Span::dummy(),
-                    ),
-                ],
-                value: None,
-                span: Span::dummy(),
-            }],
-            fields: vec![
-                EnumField {
-                    name: mass_field,
-                    type_annotation: number_type(),
-                    span: Span::dummy(),
-                },
-                EnumField {
-                    name: radius_field,
-                    type_annotation: number_type(),
-                    span: Span::dummy(),
-                },
-            ],
+            members,
+            fields,
             constructor: Some(EnumConstructor {
-                parameters: vec![
-                    Parameter {
-                        pattern: Pattern::Identifier(Spanned::new(
-                            interner.get_or_intern("mass"),
-                            Span::dummy(),
-                        )),
-                        type_annotation: Some(number_type()),
-                        default: None,
-                        is_rest: false,
-                        is_optional: false,
-                        span: Span::dummy(),
-                    },
-                    Parameter {
-                        pattern: Pattern::Identifier(Spanned::new(
-                            interner.get_or_intern("radius"),
-                            Span::dummy(),
-                        )),
-                        type_annotation: Some(number_type()),
-                        default: None,
-                        is_rest: false,
-                        is_optional: false,
-                        span: Span::dummy(),
-                    },
-                ],
+                parameters: params,
                 body: Block {
-                    statements: vec![],
+                    statements: empty_stmts,
                     span: Span::dummy(),
                 },
                 span: Span::dummy(),
             }),
-            methods: vec![],
-            implements: vec![],
+            methods: arena.alloc_slice_clone(&[]),
+            implements: arena.alloc_slice_clone(&[]),
             span: Span::dummy(),
         };
 
-        Program {
+        MutableProgram {
             statements: vec![Statement::Enum(enum_decl)],
             span: Span::dummy(),
         }
     }
 
-    fn create_test_program_with_simple_enum() -> Program {
+    fn create_test_program_with_simple_enum<'arena>(arena: &'arena Bump) -> MutableProgram<'arena> {
         let interner = StringInterner::new();
+
+        let members = arena.alloc_slice_clone(&[EnumMember {
+            name: Spanned::new(interner.get_or_intern("Red"), Span::dummy()),
+            arguments: arena.alloc_slice_clone(&[]),
+            value: Some(typedlua_parser::ast::statement::EnumValue::Number(1.0)),
+            span: Span::dummy(),
+        }]);
 
         let enum_decl = EnumDeclaration {
             name: Spanned::new(interner.get_or_intern("Color"), Span::dummy()),
-            members: vec![EnumMember {
-                name: Spanned::new(interner.get_or_intern("Red"), Span::dummy()),
-                arguments: vec![],
-                value: Some(typedlua_parser::ast::statement::EnumValue::Number(1.0)),
-                span: Span::dummy(),
-            }],
-            fields: vec![],
+            members,
+            fields: arena.alloc_slice_clone(&[]),
             constructor: None,
-            methods: vec![],
-            implements: vec![],
+            methods: arena.alloc_slice_clone(&[]),
+            implements: arena.alloc_slice_clone(&[]),
             span: Span::dummy(),
         };
 
-        Program {
+        MutableProgram {
             statements: vec![Statement::Enum(enum_decl)],
             span: Span::dummy(),
         }
@@ -185,25 +198,28 @@ mod tests {
 
     #[test]
     fn test_rich_enum_detection() {
+        let arena = Bump::new();
         let mut pass = RichEnumOptimizationPass::new();
-        let mut program = create_test_program_with_rich_enum();
-        let result = pass.run(&mut program);
+        let mut program = create_test_program_with_rich_enum(&arena);
+        let result = pass.run(&mut program, &arena);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_simple_enum_not_rich() {
+        let arena = Bump::new();
         let mut pass = RichEnumOptimizationPass::new();
-        let mut program = create_test_program_with_simple_enum();
-        let result = pass.run(&mut program);
+        let mut program = create_test_program_with_simple_enum(&arena);
+        let result = pass.run(&mut program, &arena);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_pass_returns_no_changes() {
+        let arena = Bump::new();
         let mut pass = RichEnumOptimizationPass::new();
-        let mut program = create_test_program_with_rich_enum();
-        let result = pass.run(&mut program);
+        let mut program = create_test_program_with_rich_enum(&arena);
+        let result = pass.run(&mut program, &arena);
         assert!(!result.unwrap());
     }
 }

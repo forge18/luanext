@@ -1,7 +1,8 @@
+use bumpalo::Bump;
 use crate::config::OptimizationLevel;
 use crate::optimizer::{StmtVisitor, WholeProgramPass};
-use typedlua_parser::ast::statement::{ForStatement, Statement};
-use typedlua_parser::ast::Program;
+use crate::MutableProgram;
+use typedlua_parser::ast::statement::{Block, ForStatement, Statement};
 
 pub struct DeadCodeEliminationPass;
 
@@ -11,15 +12,15 @@ impl DeadCodeEliminationPass {
     }
 }
 
-impl StmtVisitor for DeadCodeEliminationPass {
-    fn visit_stmt(&mut self, _stmt: &mut Statement) -> bool {
+impl<'arena> StmtVisitor<'arena> for DeadCodeEliminationPass {
+    fn visit_stmt(&mut self, _stmt: &mut Statement<'arena>, _arena: &'arena Bump) -> bool {
         // Dead code elimination happens at the block level, not individual statements
         // The actual elimination is done in run() via eliminate_dead_code()
         false
     }
 }
 
-impl WholeProgramPass for DeadCodeEliminationPass {
+impl<'arena> WholeProgramPass<'arena> for DeadCodeEliminationPass {
     fn name(&self) -> &'static str {
         "dead-code-elimination"
     }
@@ -28,9 +29,9 @@ impl WholeProgramPass for DeadCodeEliminationPass {
         OptimizationLevel::O1
     }
 
-    fn run(&mut self, program: &mut Program) -> Result<bool, String> {
+    fn run(&mut self, program: &mut MutableProgram<'arena>, arena: &'arena Bump) -> Result<bool, String> {
         let original_len = program.statements.len();
-        self.eliminate_dead_code(&mut program.statements);
+        self.eliminate_dead_code_vec(&mut program.statements, arena);
         Ok(program.statements.len() != original_len)
     }
 
@@ -40,19 +41,21 @@ impl WholeProgramPass for DeadCodeEliminationPass {
 }
 
 impl DeadCodeEliminationPass {
-    fn eliminate_dead_code(&mut self, stmts: &mut Vec<Statement>) -> bool {
+    fn eliminate_dead_code_vec<'arena>(
+        &mut self,
+        stmts: &mut Vec<Statement<'arena>>,
+        arena: &'arena Bump,
+    ) -> bool {
         let mut changed = false;
         let mut i = 0;
 
         while i < stmts.len() {
-            // Check if this is a return/break/continue statement
             let is_terminal = matches!(
                 stmts[i],
                 Statement::Return(_) | Statement::Break(_) | Statement::Continue(_)
             );
 
             if is_terminal {
-                // Remove all statements after this one
                 let new_len = i + 1;
                 if stmts.len() > new_len {
                     stmts.truncate(new_len);
@@ -61,37 +64,74 @@ impl DeadCodeEliminationPass {
                 break;
             }
 
-            // Recurse into blocks
-            changed |= match &mut stmts[i] {
-                Statement::If(if_stmt) => {
-                    let mut local_changed =
-                        self.eliminate_dead_code(&mut if_stmt.then_block.statements);
-                    for else_if in &mut if_stmt.else_ifs {
-                        local_changed |= self.eliminate_dead_code(&mut else_if.block.statements);
-                    }
-                    if let Some(else_block) = &mut if_stmt.else_block {
-                        local_changed |= self.eliminate_dead_code(&mut else_block.statements);
-                    }
-                    local_changed
-                }
-                Statement::While(while_stmt) => {
-                    self.eliminate_dead_code(&mut while_stmt.body.statements)
-                }
-                Statement::For(for_stmt) => match &mut **for_stmt {
-                    ForStatement::Numeric(for_num) => {
-                        self.eliminate_dead_code(&mut for_num.body.statements)
-                    }
-                    ForStatement::Generic(for_gen) => {
-                        self.eliminate_dead_code(&mut for_gen.body.statements)
-                    }
-                },
-                Statement::Function(func) => self.eliminate_dead_code(&mut func.body.statements),
-                _ => false,
-            };
+            changed |= self.eliminate_in_stmt(&mut stmts[i], arena);
 
             i += 1;
         }
 
+        changed
+    }
+
+    fn eliminate_in_stmt<'arena>(
+        &mut self,
+        stmt: &mut Statement<'arena>,
+        arena: &'arena Bump,
+    ) -> bool {
+        match stmt {
+            Statement::If(if_stmt) => {
+                let mut local_changed = self.eliminate_in_block(&mut if_stmt.then_block, arena);
+                let mut new_else_ifs: Vec<_> = if_stmt.else_ifs.to_vec();
+                let mut eic = false;
+                for else_if in &mut new_else_ifs {
+                    eic |= self.eliminate_in_block(&mut else_if.block, arena);
+                }
+                if eic {
+                    if_stmt.else_ifs = arena.alloc_slice_clone(&new_else_ifs);
+                    local_changed = true;
+                }
+                if let Some(else_block) = &mut if_stmt.else_block {
+                    local_changed |= self.eliminate_in_block(else_block, arena);
+                }
+                local_changed
+            }
+            Statement::While(while_stmt) => {
+                self.eliminate_in_block(&mut while_stmt.body, arena)
+            }
+            Statement::For(for_stmt) => {
+                match &**for_stmt {
+                    ForStatement::Numeric(for_num_ref) => {
+                        let mut new_num = (**for_num_ref).clone();
+                        let fc = self.eliminate_in_block(&mut new_num.body, arena);
+                        if fc {
+                            *stmt = Statement::For(arena.alloc(ForStatement::Numeric(arena.alloc(new_num))));
+                        }
+                        fc
+                    }
+                    ForStatement::Generic(for_gen_ref) => {
+                        let mut new_gen = for_gen_ref.clone();
+                        let fc = self.eliminate_in_block(&mut new_gen.body, arena);
+                        if fc {
+                            *stmt = Statement::For(arena.alloc(ForStatement::Generic(new_gen)));
+                        }
+                        fc
+                    }
+                }
+            }
+            Statement::Function(func) => self.eliminate_in_block(&mut func.body, arena),
+            _ => false,
+        }
+    }
+
+    fn eliminate_in_block<'arena>(
+        &mut self,
+        block: &mut Block<'arena>,
+        arena: &'arena Bump,
+    ) -> bool {
+        let mut stmts: Vec<_> = block.statements.to_vec();
+        let changed = self.eliminate_dead_code_vec(&mut stmts, arena);
+        if changed {
+            block.statements = arena.alloc_slice_clone(&stmts);
+        }
         changed
     }
 }

@@ -526,3 +526,65 @@ impl ClassHierarchy {
         (false, None)
     }
 }
+
+// =============================================================================
+// DevirtualizationPass — stub during arena migration
+// =============================================================================
+
+use crate::config::OptimizationLevel;
+use crate::MutableProgram;
+use bumpalo::Bump;
+use std::sync::Arc;
+use typedlua_parser::string_interner::StringInterner;
+
+use super::{AstFeatures, WholeProgramPass};
+
+/// Devirtualization optimization pass (O3).
+///
+/// Replaces virtual method calls with direct calls when the class hierarchy
+/// allows safe devirtualization. Currently a stub during arena migration.
+pub struct DevirtualizationPass {
+    #[allow(dead_code)]
+    interner: Arc<StringInterner>,
+    class_hierarchy: Option<ClassHierarchy>,
+}
+
+impl DevirtualizationPass {
+    pub fn new(interner: Arc<StringInterner>) -> Self {
+        Self {
+            interner,
+            class_hierarchy: None,
+        }
+    }
+
+    pub fn set_class_hierarchy(&mut self, hierarchy: ClassHierarchy) {
+        self.class_hierarchy = Some(hierarchy);
+    }
+}
+
+impl<'arena> WholeProgramPass<'arena> for DevirtualizationPass {
+    fn name(&self) -> &'static str {
+        "devirtualization"
+    }
+
+    fn min_level(&self) -> OptimizationLevel {
+        OptimizationLevel::O3
+    }
+
+    fn required_features(&self) -> AstFeatures {
+        AstFeatures::HAS_CLASSES
+    }
+
+    fn run(
+        &mut self,
+        _program: &mut MutableProgram<'arena>,
+        _arena: &'arena Bump,
+    ) -> Result<bool, String> {
+        // TODO: Re-implement devirtualization with arena-allocated AST
+        Ok(false)
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+}

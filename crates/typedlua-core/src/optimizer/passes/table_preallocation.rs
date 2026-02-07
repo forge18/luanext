@@ -1,8 +1,9 @@
+use bumpalo::Bump;
 use crate::config::OptimizationLevel;
 use crate::optimizer::{ExprVisitor, WholeProgramPass};
+use crate::MutableProgram;
 use typedlua_parser::ast::expression::Expression;
 use typedlua_parser::ast::statement::Statement;
-use typedlua_parser::ast::Program;
 
 pub struct TablePreallocationPass;
 
@@ -12,15 +13,15 @@ impl TablePreallocationPass {
     }
 }
 
-impl ExprVisitor for TablePreallocationPass {
-    fn visit_expr(&mut self, _expr: &mut Expression) -> bool {
+impl<'arena> ExprVisitor<'arena> for TablePreallocationPass {
+    fn visit_expr(&mut self, _expr: &mut Expression<'arena>, _arena: &'arena Bump) -> bool {
         // This pass is currently analysis-only, no transformations
         // Future: Could add metadata to table expressions for codegen hints
         false
     }
 }
 
-impl WholeProgramPass for TablePreallocationPass {
+impl<'arena> WholeProgramPass<'arena> for TablePreallocationPass {
     fn name(&self) -> &'static str {
         "table-preallocation"
     }
@@ -29,7 +30,7 @@ impl WholeProgramPass for TablePreallocationPass {
         OptimizationLevel::O1
     }
 
-    fn run(&mut self, program: &mut Program) -> Result<bool, String> {
+    fn run(&mut self, program: &mut MutableProgram<'arena>, _arena: &'arena Bump) -> Result<bool, String> {
         // Analyze table constructors and collect size information
         // This pass doesn't modify the AST directly, but could add metadata
         // for codegen to generate table.create() calls with size hints
@@ -49,24 +50,22 @@ impl WholeProgramPass for TablePreallocationPass {
 }
 
 impl TablePreallocationPass {
-    fn count_tables_in_statement(&self, stmt: &Statement) -> usize {
-        use typedlua_parser::ast::statement::Statement;
-
+    fn count_tables_in_statement<'arena>(&self, stmt: &Statement<'arena>) -> usize {
         match stmt {
             Statement::Variable(decl) => self.count_tables_in_expression(&decl.initializer),
             Statement::Expression(expr) => self.count_tables_in_expression(expr),
             Statement::If(if_stmt) => {
                 let mut count = 0;
-                for s in &if_stmt.then_block.statements {
+                for s in if_stmt.then_block.statements.iter() {
                     count += self.count_tables_in_statement(s);
                 }
-                for else_if in &if_stmt.else_ifs {
-                    for s in &else_if.block.statements {
+                for else_if in if_stmt.else_ifs.iter() {
+                    for s in else_if.block.statements.iter() {
                         count += self.count_tables_in_statement(s);
                     }
                 }
                 if let Some(else_block) = &if_stmt.else_block {
-                    for s in &else_block.statements {
+                    for s in else_block.statements.iter() {
                         count += self.count_tables_in_statement(s);
                     }
                 }
@@ -74,7 +73,7 @@ impl TablePreallocationPass {
             }
             Statement::Function(func) => {
                 let mut count = 0;
-                for s in &func.body.statements {
+                for s in func.body.statements.iter() {
                     count += self.count_tables_in_statement(s);
                 }
                 count
@@ -83,13 +82,13 @@ impl TablePreallocationPass {
         }
     }
 
-    fn count_tables_in_expression(&self, expr: &Expression) -> usize {
+    fn count_tables_in_expression<'arena>(&self, expr: &Expression<'arena>) -> usize {
         use typedlua_parser::ast::expression::ExpressionKind;
 
         match &expr.kind {
             ExpressionKind::Object(fields) => {
                 let mut count = 1; // Count this table
-                for field in fields {
+                for field in fields.iter() {
                     match field {
                         typedlua_parser::ast::expression::ObjectProperty::Property {
                             value,
@@ -114,7 +113,7 @@ impl TablePreallocationPass {
             }
             ExpressionKind::Array(elements) => {
                 let mut count = 1; // Count this array
-                for elem in elements {
+                for elem in elements.iter() {
                     match elem {
                         typedlua_parser::ast::expression::ArrayElement::Expression(expr) => {
                             count += self.count_tables_in_expression(expr);
@@ -132,7 +131,7 @@ impl TablePreallocationPass {
             ExpressionKind::Unary(_, operand) => self.count_tables_in_expression(operand),
             ExpressionKind::Call(func, args, _) => {
                 let mut count = self.count_tables_in_expression(func);
-                for arg in args {
+                for arg in args.iter() {
                     count += self.count_tables_in_expression(&arg.value);
                 }
                 count
