@@ -2,13 +2,14 @@
 // O2: Dead Store Elimination Pass
 // =============================================================================
 
+use bumpalo::Bump;
 use crate::config::OptimizationLevel;
 use crate::optimizer::{StmtVisitor, WholeProgramPass};
+use crate::MutableProgram;
 use std::collections::HashSet;
 use typedlua_parser::ast::expression::{BinaryOp, Expression, ExpressionKind};
 use typedlua_parser::ast::pattern::Pattern;
 use typedlua_parser::ast::statement::{Block, ForStatement, Statement};
-use typedlua_parser::ast::Program;
 use typedlua_parser::string_interner::StringId;
 
 /// Dead store elimination pass
@@ -21,13 +22,13 @@ impl DeadStoreEliminationPass {
     }
 }
 
-impl StmtVisitor for DeadStoreEliminationPass {
-    fn visit_stmt(&mut self, stmt: &mut Statement) -> bool {
-        self.eliminate_dead_stores_in_statement(stmt)
+impl<'arena> StmtVisitor<'arena> for DeadStoreEliminationPass {
+    fn visit_stmt(&mut self, stmt: &mut Statement<'arena>, arena: &'arena Bump) -> bool {
+        self.eliminate_dead_stores_in_statement(stmt, arena)
     }
 }
 
-impl WholeProgramPass for DeadStoreEliminationPass {
+impl<'arena> WholeProgramPass<'arena> for DeadStoreEliminationPass {
     fn name(&self) -> &'static str {
         "dead-store-elimination"
     }
@@ -36,15 +37,12 @@ impl WholeProgramPass for DeadStoreEliminationPass {
         OptimizationLevel::O2
     }
 
-    fn run(&mut self, program: &mut Program) -> Result<bool, String> {
-        let mut program_block = Block {
-            statements: std::mem::take(&mut program.statements),
-            span: program.span,
-        };
-        let changed = self.eliminate_dead_stores_in_block(&mut program_block);
-        program.statements = program_block.statements;
-        program.span = program_block.span;
-
+    fn run(
+        &mut self,
+        program: &mut MutableProgram<'arena>,
+        arena: &'arena Bump,
+    ) -> Result<bool, String> {
+        let changed = self.eliminate_dead_stores_in_vec(&mut program.statements, arena);
         Ok(changed)
     }
 
@@ -54,42 +52,77 @@ impl WholeProgramPass for DeadStoreEliminationPass {
 }
 
 impl DeadStoreEliminationPass {
-    fn eliminate_dead_stores_in_statement(&mut self, stmt: &mut Statement) -> bool {
+    fn eliminate_dead_stores_in_statement<'arena>(
+        &mut self,
+        stmt: &mut Statement<'arena>,
+        arena: &'arena Bump,
+    ) -> bool {
         match stmt {
-            Statement::Function(func) => self.eliminate_dead_stores_in_block(&mut func.body),
-            Statement::Block(block) => self.eliminate_dead_stores_in_block(block),
+            Statement::Function(func) => self.eliminate_dead_stores_in_block(&mut func.body, arena),
+            Statement::Block(block) => self.eliminate_dead_stores_in_block(block, arena),
             Statement::Variable(decl) => {
-                self.eliminate_dead_stores_in_expression(&mut decl.initializer)
+                self.eliminate_dead_stores_in_expression(&mut decl.initializer, arena)
             }
-            Statement::Expression(expr) => self.eliminate_dead_stores_in_expression(expr),
+            Statement::Expression(expr) => {
+                self.eliminate_dead_stores_in_expression(expr, arena)
+            }
             Statement::If(if_stmt) => {
-                let mut changed = self.eliminate_dead_stores_in_block(&mut if_stmt.then_block);
-                for else_if in &mut if_stmt.else_ifs {
-                    changed |= self.eliminate_dead_stores_in_block(&mut else_if.block);
+                let mut changed =
+                    self.eliminate_dead_stores_in_block(&mut if_stmt.then_block, arena);
+                let mut new_else_ifs: Vec<_> = if_stmt.else_ifs.to_vec();
+                let mut eic = false;
+                for else_if in &mut new_else_ifs {
+                    eic |= self.eliminate_dead_stores_in_block(&mut else_if.block, arena);
+                }
+                if eic {
+                    if_stmt.else_ifs = arena.alloc_slice_clone(&new_else_ifs);
+                    changed = true;
                 }
                 if let Some(else_block) = &mut if_stmt.else_block {
-                    changed |= self.eliminate_dead_stores_in_block(else_block);
+                    changed |= self.eliminate_dead_stores_in_block(else_block, arena);
                 }
                 changed
             }
             Statement::While(while_stmt) => {
-                self.eliminate_dead_stores_in_block(&mut while_stmt.body)
+                self.eliminate_dead_stores_in_block(&mut while_stmt.body, arena)
             }
-            Statement::For(for_stmt) => match &mut **for_stmt {
-                ForStatement::Numeric(for_num) => {
-                    self.eliminate_dead_stores_in_block(&mut for_num.body)
+            Statement::For(for_stmt) => {
+                match &**for_stmt {
+                    ForStatement::Numeric(for_num_ref) => {
+                        let mut new_num = (**for_num_ref).clone();
+                        let changed =
+                            self.eliminate_dead_stores_in_block(&mut new_num.body, arena);
+                        if changed {
+                            *stmt = Statement::For(
+                                arena.alloc(ForStatement::Numeric(arena.alloc(new_num))),
+                            );
+                        }
+                        changed
+                    }
+                    ForStatement::Generic(for_gen_ref) => {
+                        let mut new_gen = for_gen_ref.clone();
+                        let changed =
+                            self.eliminate_dead_stores_in_block(&mut new_gen.body, arena);
+                        if changed {
+                            *stmt = Statement::For(
+                                arena.alloc(ForStatement::Generic(new_gen)),
+                            );
+                        }
+                        changed
+                    }
                 }
-                ForStatement::Generic(for_gen) => {
-                    self.eliminate_dead_stores_in_block(&mut for_gen.body)
-                }
-            },
+            }
             Statement::Repeat(repeat_stmt) => {
-                self.eliminate_dead_stores_in_block(&mut repeat_stmt.body)
+                self.eliminate_dead_stores_in_block(&mut repeat_stmt.body, arena)
             }
             Statement::Return(ret) => {
+                let mut vals: Vec<_> = ret.values.to_vec();
                 let mut changed = false;
-                for expr in &mut ret.values {
-                    changed |= self.eliminate_dead_stores_in_expression(expr);
+                for expr in &mut vals {
+                    changed |= self.eliminate_dead_stores_in_expression(expr, arena);
+                }
+                if changed {
+                    ret.values = arena.alloc_slice_clone(&vals);
                 }
                 changed
             }
@@ -97,81 +130,193 @@ impl DeadStoreEliminationPass {
         }
     }
 
-    fn eliminate_dead_stores_in_expression(&mut self, expr: &mut Expression) -> bool {
-        match &mut expr.kind {
-            ExpressionKind::Function(func) => self.eliminate_dead_stores_in_block(&mut func.body),
-            ExpressionKind::Arrow(arrow) => match &mut arrow.body {
-                typedlua_parser::ast::expression::ArrowBody::Block(block) => {
-                    self.eliminate_dead_stores_in_block(block)
+    fn eliminate_dead_stores_in_expression<'arena>(
+        &mut self,
+        expr: &mut Expression<'arena>,
+        arena: &'arena Bump,
+    ) -> bool {
+        match &expr.kind {
+            ExpressionKind::Function(func) => {
+                let mut new_func = func.clone();
+                let changed = self.eliminate_dead_stores_in_block(&mut new_func.body, arena);
+                if changed {
+                    expr.kind = ExpressionKind::Function(new_func);
+                }
+                changed
+            }
+            ExpressionKind::Arrow(arrow) => match &arrow.body {
+                typedlua_parser::ast::expression::ArrowBody::Block(_) => {
+                    let mut new_arrow = arrow.clone();
+                    if let typedlua_parser::ast::expression::ArrowBody::Block(ref mut block) =
+                        new_arrow.body
+                    {
+                        let changed = self.eliminate_dead_stores_in_block(block, arena);
+                        if changed {
+                            expr.kind = ExpressionKind::Arrow(new_arrow);
+                        }
+                        changed
+                    } else {
+                        unreachable!()
+                    }
                 }
                 typedlua_parser::ast::expression::ArrowBody::Expression(inner) => {
-                    self.eliminate_dead_stores_in_expression(inner)
+                    let mut new_inner = (**inner).clone();
+                    let changed = self.eliminate_dead_stores_in_expression(&mut new_inner, arena);
+                    if changed {
+                        let mut new_arrow = arrow.clone();
+                        new_arrow.body = typedlua_parser::ast::expression::ArrowBody::Expression(
+                            arena.alloc(new_inner),
+                        );
+                        expr.kind = ExpressionKind::Arrow(new_arrow);
+                    }
+                    changed
                 }
             },
-            ExpressionKind::Call(func, args, _) => {
-                let mut changed = self.eliminate_dead_stores_in_expression(func);
-                for arg in args {
-                    changed |= self.eliminate_dead_stores_in_expression(&mut arg.value);
+            ExpressionKind::Call(func_expr, args, type_args) => {
+                let mut new_func = (**func_expr).clone();
+                let mut func_changed = self.eliminate_dead_stores_in_expression(&mut new_func, arena);
+                let mut new_args: Vec<_> = args.to_vec();
+                let mut args_changed = false;
+                for arg in &mut new_args {
+                    args_changed |= self.eliminate_dead_stores_in_expression(&mut arg.value, arena);
+                }
+                let type_args = *type_args;
+                if func_changed || args_changed {
+                    expr.kind = ExpressionKind::Call(
+                        arena.alloc(new_func),
+                        arena.alloc_slice_clone(&new_args),
+                        type_args,
+                    );
+                    func_changed = true;
+                }
+                func_changed
+            }
+            ExpressionKind::MethodCall(obj, method, args, type_args) => {
+                let method = method.clone();
+                let mut new_obj = (**obj).clone();
+                let mut obj_changed = self.eliminate_dead_stores_in_expression(&mut new_obj, arena);
+                let mut new_args: Vec<_> = args.to_vec();
+                let mut args_changed = false;
+                for arg in &mut new_args {
+                    args_changed |= self.eliminate_dead_stores_in_expression(&mut arg.value, arena);
+                }
+                let type_args = *type_args;
+                if obj_changed || args_changed {
+                    expr.kind = ExpressionKind::MethodCall(
+                        arena.alloc(new_obj),
+                        method,
+                        arena.alloc_slice_clone(&new_args),
+                        type_args,
+                    );
+                    obj_changed = true;
+                }
+                obj_changed
+            }
+            ExpressionKind::Binary(op, left, right) => {
+                let op = *op;
+                let mut new_left = (**left).clone();
+                let mut new_right = (**right).clone();
+                let left_changed = self.eliminate_dead_stores_in_expression(&mut new_left, arena);
+                let right_changed = self.eliminate_dead_stores_in_expression(&mut new_right, arena);
+                if left_changed || right_changed {
+                    expr.kind = ExpressionKind::Binary(
+                        op,
+                        arena.alloc(new_left),
+                        arena.alloc(new_right),
+                    );
+                }
+                left_changed || right_changed
+            }
+            ExpressionKind::Unary(op, operand) => {
+                let op = *op;
+                let mut new_operand = (**operand).clone();
+                let changed = self.eliminate_dead_stores_in_expression(&mut new_operand, arena);
+                if changed {
+                    expr.kind = ExpressionKind::Unary(op, arena.alloc(new_operand));
                 }
                 changed
             }
-            ExpressionKind::MethodCall(obj, _, args, _) => {
-                let mut changed = self.eliminate_dead_stores_in_expression(obj);
-                for arg in args {
-                    changed |= self.eliminate_dead_stores_in_expression(&mut arg.value);
-                }
-                changed
-            }
-            ExpressionKind::Binary(_, left, right) => {
-                let mut changed = self.eliminate_dead_stores_in_expression(left);
-                changed |= self.eliminate_dead_stores_in_expression(right);
-                changed
-            }
-            ExpressionKind::Unary(_, operand) => self.eliminate_dead_stores_in_expression(operand),
             ExpressionKind::Conditional(cond, then_expr, else_expr) => {
-                let mut changed = self.eliminate_dead_stores_in_expression(cond);
-                changed |= self.eliminate_dead_stores_in_expression(then_expr);
-                changed |= self.eliminate_dead_stores_in_expression(else_expr);
-                changed
+                let mut new_cond = (**cond).clone();
+                let mut new_then = (**then_expr).clone();
+                let mut new_else = (**else_expr).clone();
+                let c1 = self.eliminate_dead_stores_in_expression(&mut new_cond, arena);
+                let c2 = self.eliminate_dead_stores_in_expression(&mut new_then, arena);
+                let c3 = self.eliminate_dead_stores_in_expression(&mut new_else, arena);
+                if c1 || c2 || c3 {
+                    expr.kind = ExpressionKind::Conditional(
+                        arena.alloc(new_cond),
+                        arena.alloc(new_then),
+                        arena.alloc(new_else),
+                    );
+                }
+                c1 || c2 || c3
             }
             ExpressionKind::Array(elements) => {
+                let mut new_elements: Vec<_> = elements.to_vec();
                 let mut changed = false;
-                for elem in elements {
+                for elem in &mut new_elements {
                     match elem {
                         typedlua_parser::ast::expression::ArrayElement::Expression(e) => {
-                            changed |= self.eliminate_dead_stores_in_expression(e);
+                            changed |= self.eliminate_dead_stores_in_expression(e, arena);
                         }
                         typedlua_parser::ast::expression::ArrayElement::Spread(e) => {
-                            changed |= self.eliminate_dead_stores_in_expression(e);
+                            changed |= self.eliminate_dead_stores_in_expression(e, arena);
                         }
                     }
+                }
+                if changed {
+                    expr.kind =
+                        ExpressionKind::Array(arena.alloc_slice_clone(&new_elements));
                 }
                 changed
             }
             ExpressionKind::Object(properties) => {
+                use typedlua_parser::ast::expression::ObjectProperty;
+                let mut new_props: Vec<_> = properties.to_vec();
                 let mut changed = false;
-                for prop in properties {
+                for prop in &mut new_props {
                     match prop {
-                        typedlua_parser::ast::expression::ObjectProperty::Property {
-                            value,
-                            ..
-                        } => {
-                            changed |= self.eliminate_dead_stores_in_expression(value);
+                        ObjectProperty::Property { key, value, span } => {
+                            let mut new_val = (**value).clone();
+                            if self.eliminate_dead_stores_in_expression(&mut new_val, arena) {
+                                *prop = ObjectProperty::Property {
+                                    key: key.clone(),
+                                    value: arena.alloc(new_val),
+                                    span: *span,
+                                };
+                                changed = true;
+                            }
                         }
-                        typedlua_parser::ast::expression::ObjectProperty::Computed {
-                            key,
-                            value,
-                            ..
-                        } => {
-                            changed |= self.eliminate_dead_stores_in_expression(key);
-                            changed |= self.eliminate_dead_stores_in_expression(value);
+                        ObjectProperty::Computed { key, value, span } => {
+                            let mut new_key = (**key).clone();
+                            let mut new_val = (**value).clone();
+                            let kc = self.eliminate_dead_stores_in_expression(&mut new_key, arena);
+                            let vc = self.eliminate_dead_stores_in_expression(&mut new_val, arena);
+                            if kc || vc {
+                                *prop = ObjectProperty::Computed {
+                                    key: arena.alloc(new_key),
+                                    value: arena.alloc(new_val),
+                                    span: *span,
+                                };
+                                changed = true;
+                            }
                         }
-                        typedlua_parser::ast::expression::ObjectProperty::Spread {
-                            value, ..
-                        } => {
-                            changed |= self.eliminate_dead_stores_in_expression(value);
+                        ObjectProperty::Spread { value, span } => {
+                            let mut new_val = (**value).clone();
+                            if self.eliminate_dead_stores_in_expression(&mut new_val, arena) {
+                                *prop = ObjectProperty::Spread {
+                                    value: arena.alloc(new_val),
+                                    span: *span,
+                                };
+                                changed = true;
+                            }
                         }
                     }
+                }
+                if changed {
+                    expr.kind =
+                        ExpressionKind::Object(arena.alloc_slice_clone(&new_props));
                 }
                 changed
             }
@@ -179,18 +324,35 @@ impl DeadStoreEliminationPass {
         }
     }
 
-    fn eliminate_dead_stores_in_block(&mut self, block: &mut Block) -> bool {
-        if block.statements.is_empty() {
+    fn eliminate_dead_stores_in_block<'arena>(
+        &mut self,
+        block: &mut Block<'arena>,
+        arena: &'arena Bump,
+    ) -> bool {
+        let mut stmts: Vec<_> = block.statements.to_vec();
+        let changed = self.eliminate_dead_stores_in_vec(&mut stmts, arena);
+        if changed {
+            block.statements = arena.alloc_slice_clone(&stmts);
+        }
+        changed
+    }
+
+    fn eliminate_dead_stores_in_vec<'arena>(
+        &mut self,
+        stmts: &mut Vec<Statement<'arena>>,
+        arena: &'arena Bump,
+    ) -> bool {
+        if stmts.is_empty() {
             return false;
         }
 
-        let captured = self.collect_captured_variables(block);
+        let captured = self.collect_captured_variables_from_slice(stmts);
 
-        let mut new_statements: Vec<Statement> = Vec::new();
+        let mut new_statements: Vec<Statement<'arena>> = Vec::new();
         let mut changed = false;
         let mut current_live_vars: HashSet<StringId> = HashSet::new();
 
-        for stmt in block.statements.iter().rev() {
+        for stmt in stmts.iter().rev() {
             let names = self.names_from_pattern(stmt);
             let has_side_effects = self.statement_has_side_effects(stmt);
             let stmt_reads = self.collect_statement_reads(stmt);
@@ -216,7 +378,7 @@ impl DeadStoreEliminationPass {
 
             if !is_dead {
                 let mut stmt_clone = stmt.clone();
-                changed |= self.eliminate_dead_stores_in_statement(&mut stmt_clone);
+                changed |= self.eliminate_dead_stores_in_statement(&mut stmt_clone, arena);
                 new_statements.push(stmt_clone);
                 // Add variables read by this statement to the live set
                 for id in stmt_reads {
@@ -229,13 +391,13 @@ impl DeadStoreEliminationPass {
 
         if changed {
             new_statements.reverse();
-            block.statements = new_statements;
+            *stmts = new_statements;
         }
 
         changed
     }
 
-    fn statement_has_side_effects(&self, stmt: &Statement) -> bool {
+    fn statement_has_side_effects<'arena>(&self, stmt: &Statement<'arena>) -> bool {
         match stmt {
             Statement::Variable(decl) => self.expression_has_side_effects(&decl.initializer),
             Statement::Expression(expr) => {
@@ -272,7 +434,7 @@ impl DeadStoreEliminationPass {
                         || self.block_has_side_effects(&for_num.body)
                 }
                 ForStatement::Generic(for_gen) => {
-                    for_expr_has_side_effects(&for_gen.iterators)
+                    for_expr_has_side_effects(for_gen.iterators)
                         || self.block_has_side_effects(&for_gen.body)
                 }
             },
@@ -301,14 +463,14 @@ impl DeadStoreEliminationPass {
         }
     }
 
-    fn block_has_side_effects(&self, block: &Block) -> bool {
+    fn block_has_side_effects<'arena>(&self, block: &Block<'arena>) -> bool {
         block
             .statements
             .iter()
             .any(|s| self.statement_has_side_effects(s))
     }
 
-    fn names_from_pattern(&self, stmt: &Statement) -> Vec<StringId> {
+    fn names_from_pattern<'arena>(&self, stmt: &Statement<'arena>) -> Vec<StringId> {
         let mut names = Vec::new();
         if let Statement::Variable(decl) = stmt {
             self.collect_names_from_pattern(&decl.pattern, &mut names);
@@ -316,13 +478,17 @@ impl DeadStoreEliminationPass {
         names
     }
 
-    fn collect_names_from_pattern(&self, pattern: &Pattern, names: &mut Vec<StringId>) {
+    fn collect_names_from_pattern<'arena>(
+        &self,
+        pattern: &Pattern<'arena>,
+        names: &mut Vec<StringId>,
+    ) {
         match pattern {
             Pattern::Identifier(ident) => {
                 names.push(ident.node);
             }
             Pattern::Array(arr) => {
-                for elem in &arr.elements {
+                for elem in arr.elements {
                     match elem {
                         typedlua_parser::ast::pattern::ArrayPatternElement::Pattern(p) => {
                             self.collect_names_from_pattern(p, names);
@@ -335,7 +501,7 @@ impl DeadStoreEliminationPass {
                 }
             }
             Pattern::Object(obj) => {
-                for prop in &obj.properties {
+                for prop in obj.properties {
                     if let Some(value_pattern) = &prop.value {
                         self.collect_names_from_pattern(value_pattern, names);
                     } else {
@@ -352,7 +518,7 @@ impl DeadStoreEliminationPass {
         }
     }
 
-    fn expression_has_side_effects(&self, expr: &Expression) -> bool {
+    fn expression_has_side_effects<'arena>(&self, expr: &Expression<'arena>) -> bool {
         match &expr.kind {
             ExpressionKind::Call(_, _, _) => true,
             ExpressionKind::MethodCall(_, _, _, _) => true,
@@ -372,13 +538,17 @@ impl DeadStoreEliminationPass {
         }
     }
 
-    fn collect_statement_reads(&self, stmt: &Statement) -> HashSet<StringId> {
+    fn collect_statement_reads<'arena>(&self, stmt: &Statement<'arena>) -> HashSet<StringId> {
         let mut reads = HashSet::new();
         self.collect_statement_reads_into(stmt, &mut reads);
         reads
     }
 
-    fn collect_statement_reads_into(&self, stmt: &Statement, reads: &mut HashSet<StringId>) {
+    fn collect_statement_reads_into<'arena>(
+        &self,
+        stmt: &Statement<'arena>,
+        reads: &mut HashSet<StringId>,
+    ) {
         match stmt {
             Statement::Variable(decl) => {
                 self.collect_expression_reads_into(&decl.initializer, reads);
@@ -387,14 +557,14 @@ impl DeadStoreEliminationPass {
                 self.collect_expression_reads_into(expr, reads);
             }
             Statement::Return(ret) => {
-                for expr in &ret.values {
+                for expr in ret.values {
                     self.collect_expression_reads_into(expr, reads);
                 }
             }
             Statement::If(if_stmt) => {
                 self.collect_expression_reads_into(&if_stmt.condition, reads);
                 self.collect_block_reads_into(&if_stmt.then_block, reads);
-                for else_if in &if_stmt.else_ifs {
+                for else_if in if_stmt.else_ifs {
                     self.collect_expression_reads_into(&else_if.condition, reads);
                     self.collect_block_reads_into(&else_if.block, reads);
                 }
@@ -416,7 +586,9 @@ impl DeadStoreEliminationPass {
                     self.collect_block_reads_into(&for_num.body, reads);
                 }
                 ForStatement::Generic(for_gen) => {
-                    for_expr_has_side_effects(&for_gen.iterators);
+                    for iter_expr in for_gen.iterators {
+                        self.collect_expression_reads_into(iter_expr, reads);
+                    }
                     self.collect_block_reads_into(&for_gen.body, reads);
                 }
             },
@@ -432,7 +604,7 @@ impl DeadStoreEliminationPass {
             }
             Statement::Try(try_stmt) => {
                 self.collect_block_reads_into(&try_stmt.try_block, reads);
-                for catch in &try_stmt.catch_clauses {
+                for catch in try_stmt.catch_clauses {
                     self.collect_block_reads_into(&catch.body, reads);
                 }
                 if let Some(finally_block) = &try_stmt.finally_block {
@@ -443,13 +615,21 @@ impl DeadStoreEliminationPass {
         }
     }
 
-    fn collect_block_reads_into(&self, block: &Block, reads: &mut HashSet<StringId>) {
-        for stmt in &block.statements {
+    fn collect_block_reads_into<'arena>(
+        &self,
+        block: &Block<'arena>,
+        reads: &mut HashSet<StringId>,
+    ) {
+        for stmt in block.statements {
             self.collect_statement_reads_into(stmt, reads);
         }
     }
 
-    fn collect_expression_reads_into(&self, expr: &Expression, reads: &mut HashSet<StringId>) {
+    fn collect_expression_reads_into<'arena>(
+        &self,
+        expr: &Expression<'arena>,
+        reads: &mut HashSet<StringId>,
+    ) {
         match &expr.kind {
             ExpressionKind::Identifier(name) => {
                 reads.insert(*name);
@@ -463,13 +643,13 @@ impl DeadStoreEliminationPass {
             }
             ExpressionKind::Call(func, args, _) => {
                 self.collect_expression_reads_into(func, reads);
-                for arg in args {
+                for arg in *args {
                     self.collect_expression_reads_into(&arg.value, reads);
                 }
             }
             ExpressionKind::MethodCall(obj, _, args, _) => {
                 self.collect_expression_reads_into(obj, reads);
-                for arg in args {
+                for arg in *args {
                     self.collect_expression_reads_into(&arg.value, reads);
                 }
             }
@@ -485,7 +665,7 @@ impl DeadStoreEliminationPass {
                 self.collect_expression_reads_into(rhs, reads);
             }
             ExpressionKind::Array(elements) => {
-                for elem in elements {
+                for elem in *elements {
                     match elem {
                         typedlua_parser::ast::expression::ArrayElement::Expression(e) => {
                             self.collect_expression_reads_into(e, reads);
@@ -497,7 +677,7 @@ impl DeadStoreEliminationPass {
                 }
             }
             ExpressionKind::Object(properties) => {
-                for prop in properties {
+                for prop in *properties {
                     match prop {
                         typedlua_parser::ast::expression::ObjectProperty::Property {
                             value,
@@ -543,7 +723,7 @@ impl DeadStoreEliminationPass {
             }
             ExpressionKind::Match(match_expr) => {
                 self.collect_expression_reads_into(&match_expr.value, reads);
-                for arm in &match_expr.arms {
+                for arm in match_expr.arms {
                     match &arm.body {
                         typedlua_parser::ast::expression::MatchArmBody::Expression(expr) => {
                             self.collect_expression_reads_into(expr, reads);
@@ -555,7 +735,7 @@ impl DeadStoreEliminationPass {
                 }
             }
             ExpressionKind::Template(template) => {
-                for part in &template.parts {
+                for part in template.parts {
                     if let typedlua_parser::ast::expression::TemplatePart::Expression(expr) = part {
                         self.collect_expression_reads_into(expr, reads);
                     }
@@ -569,7 +749,7 @@ impl DeadStoreEliminationPass {
             }
             ExpressionKind::New(expr, args, _) => {
                 self.collect_expression_reads_into(expr, reads);
-                for arg in args {
+                for arg in *args {
                     self.collect_expression_reads_into(&arg.value, reads);
                 }
             }
@@ -582,13 +762,13 @@ impl DeadStoreEliminationPass {
             }
             ExpressionKind::OptionalCall(obj, args, _) => {
                 self.collect_expression_reads_into(obj, reads);
-                for arg in args {
+                for arg in *args {
                     self.collect_expression_reads_into(&arg.value, reads);
                 }
             }
             ExpressionKind::OptionalMethodCall(obj, _, args, _) => {
                 self.collect_expression_reads_into(obj, reads);
-                for arg in args {
+                for arg in *args {
                     self.collect_expression_reads_into(&arg.value, reads);
                 }
             }
@@ -606,19 +786,38 @@ impl DeadStoreEliminationPass {
         }
     }
 
-    fn collect_captured_variables(&self, block: &Block) -> HashSet<StringId> {
+    fn collect_captured_variables_from_slice<'arena>(
+        &self,
+        stmts: &[Statement<'arena>],
+    ) -> HashSet<StringId> {
+        let mut captured = HashSet::new();
+        for stmt in stmts {
+            self.collect_captures_in_statement(stmt, &mut captured);
+        }
+        captured
+    }
+
+    fn collect_captured_variables<'arena>(&self, block: &Block<'arena>) -> HashSet<StringId> {
         let mut captured = HashSet::new();
         self.collect_captures_in_block(block, &mut captured);
         captured
     }
 
-    fn collect_captures_in_block(&self, block: &Block, captured: &mut HashSet<StringId>) {
-        for stmt in &block.statements {
+    fn collect_captures_in_block<'arena>(
+        &self,
+        block: &Block<'arena>,
+        captured: &mut HashSet<StringId>,
+    ) {
+        for stmt in block.statements {
             self.collect_captures_in_statement(stmt, captured);
         }
     }
 
-    fn collect_captures_in_statement(&self, stmt: &Statement, captured: &mut HashSet<StringId>) {
+    fn collect_captures_in_statement<'arena>(
+        &self,
+        stmt: &Statement<'arena>,
+        captured: &mut HashSet<StringId>,
+    ) {
         match stmt {
             Statement::Variable(decl) => {
                 if self.expression_captures_variables(&decl.initializer) {
@@ -640,7 +839,7 @@ impl DeadStoreEliminationPass {
             }
             Statement::If(if_stmt) => {
                 self.collect_captures_in_block(&if_stmt.then_block, captured);
-                for else_if in &if_stmt.else_ifs {
+                for else_if in if_stmt.else_ifs {
                     self.collect_captures_in_block(&else_if.block, captured);
                 }
                 if let Some(else_block) = &if_stmt.else_block {
@@ -663,7 +862,7 @@ impl DeadStoreEliminationPass {
             }
             Statement::Try(try_stmt) => {
                 self.collect_captures_in_block(&try_stmt.try_block, captured);
-                for catch in &try_stmt.catch_clauses {
+                for catch in try_stmt.catch_clauses {
                     self.collect_captures_in_block(&catch.body, captured);
                 }
                 if let Some(finally_block) = &try_stmt.finally_block {
@@ -674,7 +873,7 @@ impl DeadStoreEliminationPass {
         }
     }
 
-    fn expression_captures_variables(&self, expr: &Expression) -> bool {
+    fn expression_captures_variables<'arena>(&self, expr: &Expression<'arena>) -> bool {
         match &expr.kind {
             ExpressionKind::Function(_) => true,
             ExpressionKind::Arrow(_) => true,
@@ -754,8 +953,8 @@ impl DeadStoreEliminationPass {
         }
     }
 
-    fn block_captures_variables(&self, block: &Block) -> bool {
-        for stmt in &block.statements {
+    fn block_captures_variables<'arena>(&self, block: &Block<'arena>) -> bool {
+        for stmt in block.statements {
             if self.statement_captures_variables(stmt) {
                 return true;
             }
@@ -763,7 +962,7 @@ impl DeadStoreEliminationPass {
         false
     }
 
-    fn statement_captures_variables(&self, stmt: &Statement) -> bool {
+    fn statement_captures_variables<'arena>(&self, stmt: &Statement<'arena>) -> bool {
         match stmt {
             Statement::Variable(decl) => self.expression_captures_variables(&decl.initializer),
             Statement::Expression(expr) => self.expression_captures_variables(expr),
@@ -808,7 +1007,9 @@ impl Default for DeadStoreEliminationPass {
     }
 }
 
-fn for_expr_has_side_effects(exprs: &[typedlua_parser::ast::expression::Expression]) -> bool {
+fn for_expr_has_side_effects<'arena>(
+    exprs: &[typedlua_parser::ast::expression::Expression<'arena>],
+) -> bool {
     exprs.iter().any(|e| {
         matches!(
             &e.kind,

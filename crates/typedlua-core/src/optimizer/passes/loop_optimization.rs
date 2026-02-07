@@ -2,15 +2,16 @@
 // O2: Loop Optimization Pass
 // =============================================================================
 
+use bumpalo::Bump;
 use crate::config::OptimizationLevel;
-use crate::optimizer::WholeProgramPass;
+use crate::optimizer::{AstFeatures, WholeProgramPass};
+use crate::MutableProgram;
 use std::collections::HashSet;
 use typedlua_parser::ast::expression::{
     ArrayElement, BinaryOp, Expression, ExpressionKind, Literal, UnaryOp,
 };
 use typedlua_parser::ast::pattern::Pattern;
 use typedlua_parser::ast::statement::{Block, ForNumeric, ForStatement, Statement};
-use typedlua_parser::ast::Program;
 use typedlua_parser::string_interner::StringId;
 
 /// Loop optimization pass
@@ -25,7 +26,7 @@ impl LoopOptimizationPass {
     }
 }
 
-impl WholeProgramPass for LoopOptimizationPass {
+impl<'arena> WholeProgramPass<'arena> for LoopOptimizationPass {
     fn name(&self) -> &'static str {
         "loop-optimization"
     }
@@ -34,20 +35,28 @@ impl WholeProgramPass for LoopOptimizationPass {
         OptimizationLevel::O2
     }
 
-    fn required_features(&self) -> crate::optimizer::AstFeatures {
-        crate::optimizer::AstFeatures::HAS_LOOPS
+    fn required_features(&self) -> AstFeatures {
+        AstFeatures::HAS_LOOPS
     }
 
-    fn run(&mut self, program: &mut Program) -> Result<bool, String> {
+    fn run(
+        &mut self,
+        program: &mut MutableProgram<'arena>,
+        arena: &'arena Bump,
+    ) -> Result<bool, String> {
         let mut changed = false;
         let mut i = 0;
 
         while i < program.statements.len() {
             let (hoisted, stmt_changed) =
-                self.optimize_loops_in_statement(&mut program.statements[i]);
+                self.optimize_loops_in_statement(&mut program.statements[i], arena);
             if !hoisted.is_empty() {
-                program.statements.splice(i..i, hoisted);
-                i += 1;
+                let hoisted_len = hoisted.len();
+                // Splice hoisted statements before position i
+                for (j, h) in hoisted.into_iter().enumerate() {
+                    program.statements.insert(i + j, h);
+                }
+                i += hoisted_len;
                 changed = true;
             }
             if stmt_changed {
@@ -65,18 +74,27 @@ impl WholeProgramPass for LoopOptimizationPass {
 }
 
 impl LoopOptimizationPass {
-    fn optimize_loops_in_statement(&mut self, stmt: &mut Statement) -> (Vec<Statement>, bool) {
+    fn optimize_loops_in_statement<'arena>(
+        &mut self,
+        stmt: &mut Statement<'arena>,
+        arena: &'arena Bump,
+    ) -> (Vec<Statement<'arena>>, bool) {
+        // Check if this is a For statement first. We read the for_stmt pointer
+        // before taking a mutable borrow on stmt to avoid borrow conflicts.
+        if matches!(stmt, Statement::For(_)) {
+            return self.optimize_for_loop(stmt, arena);
+        }
+
         match stmt {
-            Statement::For(for_stmt) => self.optimize_for_loop(for_stmt),
-            Statement::While(while_stmt) => self.optimize_while_loop(while_stmt),
-            Statement::Repeat(repeat_stmt) => self.optimize_repeat_loop(repeat_stmt),
+            Statement::While(while_stmt) => self.optimize_while_loop(while_stmt, arena),
+            Statement::Repeat(repeat_stmt) => self.optimize_repeat_loop(repeat_stmt, arena),
             Statement::Variable(_) | Statement::Expression(_) => (Vec::new(), false),
             Statement::Return(_)
             | Statement::Break(_)
             | Statement::Continue(_)
             | Statement::Rethrow(_)
             | Statement::Throw(_) => (Vec::new(), false),
-            Statement::Block(block) => (Vec::new(), self.optimize_block(&mut block.statements)),
+            Statement::Block(block) => (Vec::new(), self.optimize_block(block, arena)),
             Statement::Class(_)
             | Statement::Interface(_)
             | Statement::Enum(_)
@@ -91,89 +109,134 @@ impl LoopOptimizationPass {
             | Statement::Label(_)
             | Statement::Goto(_) => (Vec::new(), false),
             Statement::Function(func) => {
-                (Vec::new(), self.optimize_block(&mut func.body.statements))
+                (Vec::new(), self.optimize_block(&mut func.body, arena))
             }
             Statement::If(if_stmt) => {
-                let mut changed = self.optimize_block(&mut if_stmt.then_block.statements);
-                for else_if in &mut if_stmt.else_ifs {
-                    changed |= self.optimize_block(&mut else_if.block.statements);
+                let mut changed = self.optimize_block(&mut if_stmt.then_block, arena);
+                let mut new_else_ifs: Vec<_> = if_stmt.else_ifs.to_vec();
+                let mut eic = false;
+                for else_if in &mut new_else_ifs {
+                    eic |= self.optimize_block(&mut else_if.block, arena);
+                }
+                if eic {
+                    if_stmt.else_ifs = arena.alloc_slice_clone(&new_else_ifs);
+                    changed = true;
                 }
                 if let Some(else_block) = &mut if_stmt.else_block {
-                    changed |= self.optimize_block(&mut else_block.statements);
+                    changed |= self.optimize_block(else_block, arena);
                 }
                 (Vec::new(), changed)
             }
+            // For is handled above
+            Statement::For(_) => unreachable!(),
             _ => (Vec::new(), false),
         }
     }
 
-    fn optimize_for_loop(&mut self, for_stmt: &mut Box<ForStatement>) -> (Vec<Statement>, bool) {
-        match &mut **for_stmt {
-            ForStatement::Generic(for_gen) => {
-                let modified_vars = self.collect_modified_variables(&for_gen.body);
+    fn optimize_for_loop<'arena>(
+        &mut self,
+        stmt: &mut Statement<'arena>,
+        arena: &'arena Bump,
+    ) -> (Vec<Statement<'arena>>, bool) {
+        // Extract the ForStatement ref. We know stmt is Statement::For at this point.
+        let for_stmt_ref = match stmt {
+            Statement::For(fs) => *fs,
+            _ => unreachable!(),
+        };
+        match for_stmt_ref {
+            ForStatement::Generic(for_gen_ref) => {
+                let mut new_gen = for_gen_ref.clone();
+                let modified_vars = self.collect_modified_variables(&new_gen.body);
                 let (hoisted, new_body) =
-                    self.hoist_invariants_simple(&for_gen.body, &modified_vars);
-                for_gen.body = new_body;
-                let changed =
-                    !hoisted.is_empty() || self.optimize_block(&mut for_gen.body.statements);
+                    self.hoist_invariants_simple(&new_gen.body, &modified_vars, arena);
+                new_gen.body = new_body;
+                let block_changed = self.optimize_block(&mut new_gen.body, arena);
+                let changed = !hoisted.is_empty() || block_changed;
+                if changed {
+                    *stmt = Statement::For(arena.alloc(ForStatement::Generic(new_gen)));
+                }
                 (hoisted, changed)
             }
-            ForStatement::Numeric(for_num) => {
-                if let Some((start, end, step)) = self.evaluate_numeric_bounds(for_num) {
+            ForStatement::Numeric(for_num_ref) => {
+                let mut new_num = (**for_num_ref).clone();
+                if let Some((start, end, step)) = self.evaluate_numeric_bounds(&new_num) {
                     if self.has_zero_iterations(start, end, step) {
-                        for_num.body.statements.clear();
+                        new_num.body.statements = arena.alloc_slice_clone(&[]);
+                        *stmt = Statement::For(
+                            arena.alloc(ForStatement::Numeric(arena.alloc(new_num))),
+                        );
                         return (Vec::new(), true);
                     }
                 }
-                let modified_vars = self.collect_modified_variables(&for_num.body);
+                let modified_vars = self.collect_modified_variables(&new_num.body);
                 let (hoisted, new_body) =
-                    self.hoist_invariants_simple(&for_num.body, &modified_vars);
-                for_num.body = new_body;
-                let changed =
-                    !hoisted.is_empty() || self.optimize_block(&mut for_num.body.statements);
+                    self.hoist_invariants_simple(&new_num.body, &modified_vars, arena);
+                new_num.body = new_body;
+                let block_changed = self.optimize_block(&mut new_num.body, arena);
+                let changed = !hoisted.is_empty() || block_changed;
+                if changed {
+                    *stmt = Statement::For(
+                        arena.alloc(ForStatement::Numeric(arena.alloc(new_num))),
+                    );
+                }
                 (hoisted, changed)
             }
         }
     }
 
-    fn optimize_while_loop(
+    fn optimize_while_loop<'arena>(
         &mut self,
-        while_stmt: &mut typedlua_parser::ast::statement::WhileStatement,
-    ) -> (Vec<Statement>, bool) {
+        while_stmt: &mut typedlua_parser::ast::statement::WhileStatement<'arena>,
+        arena: &'arena Bump,
+    ) -> (Vec<Statement<'arena>>, bool) {
         if let ExpressionKind::Literal(Literal::Boolean(false)) = &while_stmt.condition.kind {
-            while_stmt.body.statements.clear();
+            while_stmt.body.statements = arena.alloc_slice_clone(&[]);
             return (Vec::new(), true);
         }
         let modified_vars = self.collect_modified_variables(&while_stmt.body);
-        let (hoisted, new_body) = self.hoist_invariants_simple(&while_stmt.body, &modified_vars);
+        let (hoisted, new_body) =
+            self.hoist_invariants_simple(&while_stmt.body, &modified_vars, arena);
         while_stmt.body = new_body;
-        let changed = !hoisted.is_empty() || self.optimize_block(&mut while_stmt.body.statements);
+        let block_changed = self.optimize_block(&mut while_stmt.body, arena);
+        let changed = !hoisted.is_empty() || block_changed;
         (hoisted, changed)
     }
 
-    fn optimize_repeat_loop(
+    fn optimize_repeat_loop<'arena>(
         &mut self,
-        repeat_stmt: &mut typedlua_parser::ast::statement::RepeatStatement,
-    ) -> (Vec<Statement>, bool) {
+        repeat_stmt: &mut typedlua_parser::ast::statement::RepeatStatement<'arena>,
+        arena: &'arena Bump,
+    ) -> (Vec<Statement<'arena>>, bool) {
         if let ExpressionKind::Literal(Literal::Boolean(true)) = &repeat_stmt.until.kind {
-            repeat_stmt.body.statements.clear();
+            repeat_stmt.body.statements = arena.alloc_slice_clone(&[]);
             return (Vec::new(), true);
         }
         let modified_vars = self.collect_modified_variables(&repeat_stmt.body);
-        let (hoisted, new_body) = self.hoist_invariants_simple(&repeat_stmt.body, &modified_vars);
+        let (hoisted, new_body) =
+            self.hoist_invariants_simple(&repeat_stmt.body, &modified_vars, arena);
         repeat_stmt.body = new_body;
-        let changed = !hoisted.is_empty() || self.optimize_block(&mut repeat_stmt.body.statements);
+        let block_changed = self.optimize_block(&mut repeat_stmt.body, arena);
+        let changed = !hoisted.is_empty() || block_changed;
         (hoisted, changed)
     }
 
-    fn optimize_block(&mut self, stmts: &mut Vec<Statement>) -> bool {
+    fn optimize_block<'arena>(
+        &mut self,
+        block: &mut Block<'arena>,
+        arena: &'arena Bump,
+    ) -> bool {
+        let mut stmts: Vec<Statement<'arena>> = block.statements.to_vec();
         let mut changed = false;
         let mut i = 0;
         while i < stmts.len() {
-            let (hoisted, stmt_changed) = self.optimize_loops_in_statement(&mut stmts[i]);
+            let (hoisted, stmt_changed) =
+                self.optimize_loops_in_statement(&mut stmts[i], arena);
             if !hoisted.is_empty() {
-                stmts.splice(i..i, hoisted);
-                i += 1;
+                let hoisted_len = hoisted.len();
+                for (j, h) in hoisted.into_iter().enumerate() {
+                    stmts.insert(i + j, h);
+                }
+                i += hoisted_len;
                 changed = true;
             }
             if stmt_changed {
@@ -181,22 +244,36 @@ impl LoopOptimizationPass {
             }
             i += 1;
         }
+        if changed {
+            block.statements = arena.alloc_slice_clone(&stmts);
+        }
         changed
     }
 
-    fn collect_modified_variables(&self, block: &Block) -> HashSet<StringId> {
+    fn collect_modified_variables<'arena>(
+        &self,
+        block: &Block<'arena>,
+    ) -> HashSet<StringId> {
         let mut modified = HashSet::new();
         self.collect_modified_in_block(block, &mut modified);
         modified
     }
 
-    fn collect_modified_in_block(&self, block: &Block, modified: &mut HashSet<StringId>) {
-        for stmt in &block.statements {
+    fn collect_modified_in_block<'arena>(
+        &self,
+        block: &Block<'arena>,
+        modified: &mut HashSet<StringId>,
+    ) {
+        for stmt in block.statements.iter() {
             self.collect_modified_in_statement(stmt, modified);
         }
     }
 
-    fn collect_modified_in_statement(&self, stmt: &Statement, modified: &mut HashSet<StringId>) {
+    fn collect_modified_in_statement<'arena>(
+        &self,
+        stmt: &Statement<'arena>,
+        modified: &mut HashSet<StringId>,
+    ) {
         match stmt {
             Statement::Variable(decl) => {
                 self.collect_modified_in_pattern(&decl.pattern, modified);
@@ -207,7 +284,7 @@ impl LoopOptimizationPass {
                     self.collect_modified_in_block(&for_num.body, modified);
                 }
                 ForStatement::Generic(for_gen) => {
-                    for var in &for_gen.variables {
+                    for var in for_gen.variables.iter() {
                         modified.insert(var.node);
                     }
                     self.collect_modified_in_block(&for_gen.body, modified);
@@ -227,7 +304,7 @@ impl LoopOptimizationPass {
             Statement::If(if_stmt) => {
                 self.collect_modified_in_expression(&if_stmt.condition, modified);
                 self.collect_modified_in_block(&if_stmt.then_block, modified);
-                for else_if in &if_stmt.else_ifs {
+                for else_if in if_stmt.else_ifs.iter() {
                     self.collect_modified_in_expression(&else_if.condition, modified);
                     self.collect_modified_in_block(&else_if.block, modified);
                 }
@@ -239,7 +316,7 @@ impl LoopOptimizationPass {
                 self.collect_modified_in_expression(expr, modified);
             }
             Statement::Return(ret_stmt) => {
-                for expr in &ret_stmt.values {
+                for expr in ret_stmt.values.iter() {
                     self.collect_modified_in_expression(expr, modified);
                 }
             }
@@ -257,7 +334,7 @@ impl LoopOptimizationPass {
             }
             Statement::Try(try_stmt) => {
                 self.collect_modified_in_block(&try_stmt.try_block, modified);
-                for catch in &try_stmt.catch_clauses {
+                for catch in try_stmt.catch_clauses.iter() {
                     match &catch.pattern {
                         typedlua_parser::ast::statement::CatchPattern::Typed {
                             variable, ..
@@ -293,13 +370,17 @@ impl LoopOptimizationPass {
         }
     }
 
-    fn collect_modified_in_pattern(&self, pattern: &Pattern, modified: &mut HashSet<StringId>) {
+    fn collect_modified_in_pattern<'arena>(
+        &self,
+        pattern: &Pattern<'arena>,
+        modified: &mut HashSet<StringId>,
+    ) {
         match pattern {
             Pattern::Identifier(ident) => {
                 modified.insert(ident.node);
             }
             Pattern::Array(array_pattern) => {
-                for elem in &array_pattern.elements {
+                for elem in array_pattern.elements.iter() {
                     match elem {
                         typedlua_parser::ast::pattern::ArrayPatternElement::Pattern(p) => {
                             self.collect_modified_in_pattern(p, modified);
@@ -312,7 +393,7 @@ impl LoopOptimizationPass {
                 }
             }
             Pattern::Object(obj_pattern) => {
-                for prop in &obj_pattern.properties {
+                for prop in obj_pattern.properties.iter() {
                     if let Some(p) = &prop.value {
                         self.collect_modified_in_pattern(p, modified);
                     }
@@ -329,7 +410,11 @@ impl LoopOptimizationPass {
         }
     }
 
-    fn collect_modified_in_expression(&self, expr: &Expression, modified: &mut HashSet<StringId>) {
+    fn collect_modified_in_expression<'arena>(
+        &self,
+        expr: &Expression<'arena>,
+        modified: &mut HashSet<StringId>,
+    ) {
         match &expr.kind {
             ExpressionKind::Identifier(id) => {
                 modified.insert(*id);
@@ -343,13 +428,13 @@ impl LoopOptimizationPass {
             }
             ExpressionKind::Call(func, args, _) => {
                 self.collect_modified_in_expression(func, modified);
-                for arg in args {
+                for arg in args.iter() {
                     self.collect_modified_in_expression(&arg.value, modified);
                 }
             }
             ExpressionKind::MethodCall(obj, _, args, _) => {
                 self.collect_modified_in_expression(obj, modified);
-                for arg in args {
+                for arg in args.iter() {
                     self.collect_modified_in_expression(&arg.value, modified);
                 }
             }
@@ -365,7 +450,7 @@ impl LoopOptimizationPass {
                 self.collect_modified_in_expression(rhs, modified);
             }
             ExpressionKind::Array(elements) => {
-                for elem in elements {
+                for elem in elements.iter() {
                     match elem {
                         ArrayElement::Expression(expr) => {
                             self.collect_modified_in_expression(expr, modified)
@@ -377,7 +462,7 @@ impl LoopOptimizationPass {
                 }
             }
             ExpressionKind::Object(properties) => {
-                for prop in properties {
+                for prop in properties.iter() {
                     match prop {
                         typedlua_parser::ast::expression::ObjectProperty::Property {
                             key: _,
@@ -407,7 +492,7 @@ impl LoopOptimizationPass {
                 self.collect_modified_in_block(&func.body, modified);
             }
             ExpressionKind::Arrow(arrow) => {
-                for param in &arrow.parameters {
+                for param in arrow.parameters.iter() {
                     self.collect_modified_in_pattern(&param.pattern, modified);
                 }
                 match &arrow.body {
@@ -430,7 +515,7 @@ impl LoopOptimizationPass {
             }
             ExpressionKind::Match(match_expr) => {
                 self.collect_modified_in_expression(&match_expr.value, modified);
-                for arm in &match_expr.arms {
+                for arm in match_expr.arms.iter() {
                     self.collect_modified_in_pattern(&arm.pattern, modified);
                     if let Some(guard) = &arm.guard {
                         self.collect_modified_in_expression(guard, modified);
@@ -446,7 +531,7 @@ impl LoopOptimizationPass {
                 }
             }
             ExpressionKind::Template(template) => {
-                for part in &template.parts {
+                for part in template.parts.iter() {
                     match part {
                         typedlua_parser::ast::expression::TemplatePart::String(_) => {}
                         typedlua_parser::ast::expression::TemplatePart::Expression(expr) => {
@@ -463,7 +548,7 @@ impl LoopOptimizationPass {
             }
             ExpressionKind::New(expr, args, _) => {
                 self.collect_modified_in_expression(expr, modified);
-                for arg in args {
+                for arg in args.iter() {
                     self.collect_modified_in_expression(&arg.value, modified);
                 }
             }
@@ -476,13 +561,13 @@ impl LoopOptimizationPass {
             }
             ExpressionKind::OptionalCall(obj, args, _) => {
                 self.collect_modified_in_expression(obj, modified);
-                for arg in args {
+                for arg in args.iter() {
                     self.collect_modified_in_expression(&arg.value, modified);
                 }
             }
             ExpressionKind::OptionalMethodCall(obj, _, args, _) => {
                 self.collect_modified_in_expression(obj, modified);
-                for arg in args {
+                for arg in args.iter() {
                     self.collect_modified_in_expression(&arg.value, modified);
                 }
             }
@@ -501,15 +586,16 @@ impl LoopOptimizationPass {
         }
     }
 
-    fn hoist_invariants_simple(
+    fn hoist_invariants_simple<'arena>(
         &self,
-        block: &Block,
+        block: &Block<'arena>,
         loop_vars: &HashSet<StringId>,
-    ) -> (Vec<Statement>, Block) {
+        arena: &'arena Bump,
+    ) -> (Vec<Statement<'arena>>, Block<'arena>) {
         let mut hoisted = Vec::new();
         let mut new_statements = Vec::new();
 
-        for stmt in &block.statements {
+        for stmt in block.statements.iter() {
             match stmt {
                 Statement::Variable(decl) => {
                     if self.is_invariant_expression(&decl.initializer, loop_vars) {
@@ -525,13 +611,17 @@ impl LoopOptimizationPass {
         (
             hoisted,
             Block {
-                statements: new_statements,
+                statements: arena.alloc_slice_clone(&new_statements),
                 span: block.span,
             },
         )
     }
 
-    fn is_invariant_expression(&self, expr: &Expression, loop_vars: &HashSet<StringId>) -> bool {
+    fn is_invariant_expression<'arena>(
+        &self,
+        expr: &Expression<'arena>,
+        loop_vars: &HashSet<StringId>,
+    ) -> bool {
         match &expr.kind {
             ExpressionKind::Literal(_) => true,
             ExpressionKind::Identifier(id) => !loop_vars.contains(id),
@@ -672,7 +762,10 @@ impl LoopOptimizationPass {
         }
     }
 
-    fn evaluate_numeric_bounds(&self, for_num: &ForNumeric) -> Option<(f64, f64, f64)> {
+    fn evaluate_numeric_bounds<'arena>(
+        &self,
+        for_num: &ForNumeric<'arena>,
+    ) -> Option<(f64, f64, f64)> {
         let start = self.evaluate_constant_f64(&for_num.start)?;
         let end = self.evaluate_constant_f64(&for_num.end)?;
         let step = for_num
@@ -683,7 +776,7 @@ impl LoopOptimizationPass {
         Some((start, end, step))
     }
 
-    fn evaluate_constant_f64(&self, expr: &Expression) -> Option<f64> {
+    fn evaluate_constant_f64<'arena>(&self, expr: &Expression<'arena>) -> Option<f64> {
         match &expr.kind {
             ExpressionKind::Literal(Literal::Number(n)) => Some(*n),
             ExpressionKind::Literal(Literal::Integer(n)) => Some(*n as f64),
