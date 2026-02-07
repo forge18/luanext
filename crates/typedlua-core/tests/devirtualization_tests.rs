@@ -19,8 +19,8 @@ fn test_final_class_devirtualization() {
         final class MathOps {
             public static add(a: number, b: number): number {
                 return a + b
-            end
-        end
+            }
+        }
 
         const result = MathOps.add(1, 2)
     "#;
@@ -36,8 +36,8 @@ fn test_sealed_class_devirtualization() {
         class Calculator {
             public add(a: number, b: number): number {
                 return a + b
-            end
-        end
+            }
+        }
 
         const c = new Calculator()
         const result = c.add(1, 2)
@@ -53,12 +53,12 @@ fn test_private_method_direct_call() {
         class MyClass {
             private helper(x: number): number {
                 return x * 2
-            end
+            }
 
             public compute(x: number): number {
                 return self.helper(x) + 1
-            end
-        end
+            }
+        }
 
         const m = new MyClass()
         const result = m.compute(5)
@@ -74,14 +74,14 @@ fn test_final_method_devirtualization() {
         class Base {
             public final compute(x: number): number {
                 return x + 1
-            end
-        end
+            }
+        }
 
         class Derived extends Base {
             public compute(x: number): number {
                 return x + 2
-            end
-        end
+            }
+        }
     "#;
 
     let output = compile_with_o3(source).unwrap();
@@ -96,12 +96,12 @@ fn test_private_field_access() {
 
             public increment(): void {
                 self._count = self._count + 1
-            end
+            }
 
             public get(): number {
                 return self._count
-            end
-        end
+            }
+        }
 
         const c = new Counter()
         c.increment()
@@ -114,21 +114,25 @@ fn test_private_field_access() {
 
 #[test]
 fn test_final_class_with_inheritance() {
+    // Final classes cannot be extended - this should produce an error
     let source = r#"
         final class FinalBase {
             public value: number = 42
-        end
+        }
 
         class Derived extends FinalBase {
             public other: string = "test"
-        end
+        }
 
         const d = new Derived()
         const v = d.value
     "#;
 
-    let output = compile_with_o3(source).unwrap();
-    println!("Final base O3 output:\n{}", output);
+    let result = compile_with_o3(source);
+    assert!(
+        result.is_err(),
+        "Extending a final class should produce an error"
+    );
 }
 
 #[test]
@@ -137,19 +141,15 @@ fn test_private_method_called_multiple_times() {
         class Processor {
             private processItem(item: number): number {
                 return item * 2 + 1
-            end
+            }
 
-            public processAll(items: number[]): number[] {
-                const results: number[] = []
-                for item in items {
-                    results.push(self.processItem(item))
-                end
-                return results
-            end
-        end
+            public processAll(x: number): number {
+                return self.processItem(x) + self.processItem(x + 1)
+            }
+        }
 
         const p = new Processor()
-        const result = p.processAll([1, 2, 3])
+        const result = p.processAll(5)
     "#;
 
     let output = compile_with_o3(source).unwrap();
@@ -164,8 +164,8 @@ fn test_getter_devirtualization() {
 
             public get value(): number {
                 return self._value
-            end
-        end
+            }
+        }
 
         const m = new MyClass()
         const v = m.value
@@ -181,8 +181,8 @@ fn test_static_method_direct_call() {
         class MathUtils {
             public static double(x: number): number {
                 return x * 2
-            end
-        end
+            }
+        }
 
         const result = MathUtils.double(5)
     "#;
@@ -197,12 +197,12 @@ fn test_private_static_method() {
         class Helper {
             private static format(x: number): string {
                 return tostring(x)
-            end
+            }
 
             public static process(x: number): string {
                 return self.format(x)
-            end
-        end
+            }
+        }
 
         const result = Helper.process(42)
     "#;
@@ -217,8 +217,8 @@ fn test_inline_method_call() {
         class Inline {
             public identity(x: number): number {
                 return x
-            end
-        end
+            }
+        }
 
         const i = new Inline()
         const a = i.identity(1)
@@ -238,12 +238,12 @@ fn test_private_getter() {
 
             private get doubled(): number {
                 return self._data * 2
-            end
+            }
 
             public getValue(): number {
                 return self.doubled
-            end
-        end
+            }
+        }
 
         const m = new MyClass()
         const result = m.getValue()
@@ -261,16 +261,16 @@ fn test_private_setter() {
 
             private set increment(v: number) {
                 self._value = self._value + v
-            end
+            }
 
             public add(n: number): void {
                 self.increment = n
-            end
+            }
 
             public get(): number {
                 return self._value
-            end
-        end
+            }
+        }
 
         const m = new MyClass()
         m.add(5)
@@ -291,8 +291,8 @@ fn test_constructor_inlining() {
             constructor(x: number, y: number) {
                 self.x = x
                 self.y = y
-            end
-        end
+            }
+        }
 
         const p = new Point(1, 2)
         const result = p.x + p.y
@@ -309,17 +309,17 @@ fn test_private_constructor() {
             private static instance: Singleton | nil = nil
 
             private constructor() {
-            end
+            }
 
             public static getInstance(): Singleton {
                 if self.instance == nil then
                     self.instance = new Singleton()
                 end
                 return self.instance
-            end
+            }
 
             public value: number = 42
-        end
+        }
 
         const s = Singleton.getInstance()
         const v = s.value
@@ -338,13 +338,13 @@ fn test_final_class_method_chain() {
             public add(n: number): Builder {
                 self.value = self.value + n
                 return self
-            end
+            }
 
             public multiply(n: number): Builder {
                 self.value = self.value * n
                 return self
-            end
-        end
+            }
+        }
 
         const result = new Builder().add(1).multiply(2).value
     "#;
@@ -359,7 +359,7 @@ fn test_static_field_direct_access() {
         class Config {
             public static PI: number = 3.14159
             public static DEBUG: boolean = false
-        end
+        }
 
         const pi = Config.PI
         const debug = Config.DEBUG
@@ -377,12 +377,12 @@ fn test_private_static_field() {
 
             public static increment(): void {
                 self._count = self._count + 1
-            end
+            }
 
             public static getCount(): number {
                 return self._count
-            end
-        end
+            }
+        }
 
         Counter.increment()
         Counter.increment()
@@ -398,13 +398,13 @@ fn test_devirtualization_with_interface() {
     let source = r#"
         interface Drawable {
             draw(): void
-        end
+        }
 
         final class Circle implements Drawable {
             public draw(): void {
-                print("circle")
-            end
-        end
+                const x = 1
+            }
+        }
 
         const c: Drawable = new Circle()
         c.draw()

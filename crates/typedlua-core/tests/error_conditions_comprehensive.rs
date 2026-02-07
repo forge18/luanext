@@ -659,16 +659,16 @@ fn test_operator_overload_wrong_return_type() {
         class Vector {
             x: number
             y: number
-            
+
             constructor(x: number, y: number) {
                 self.x = x
                 self.y = y
-            end
-            
+            }
+
             operator +(other: Vector): string {
                 return "invalid"
-            end
-        end
+            }
+        }
     "#;
 
     // Note: This might not be an error depending on design
