@@ -16,11 +16,13 @@ fn compile_with_optimization_level(
 
 #[test]
 fn test_simple_concat_chain_optimization() {
+    // return result so dead store elimination doesn't remove it
     let source = r#"
         const a = "hello"
         const b = " "
         const c = "world"
         const result = a .. b .. c
+        return result
     "#;
 
     let output = compile_with_optimization_level(source, OptimizationLevel::O2).unwrap();
@@ -35,6 +37,7 @@ fn test_simple_concat_chain_optimization() {
 fn test_four_part_concat_chain() {
     let source = r#"
         const result = "a" .. "b" .. "c" .. "d"
+        return result
     "#;
 
     let output = compile_with_optimization_level(source, OptimizationLevel::O2).unwrap();
@@ -68,6 +71,7 @@ fn test_no_optimization_for_two_parts() {
 fn test_no_optimization_at_o1() {
     let source = r#"
         const result = "a" .. "b" .. "c" .. "d"
+        return result
     "#;
 
     let output = compile_with_optimization_level(source, OptimizationLevel::O1).unwrap();
@@ -86,6 +90,7 @@ fn test_nested_concat_optimization() {
         local c = "c"
         local d = "d"
         local result = (a .. b) .. (c .. d)
+        return result
     "#;
 
     let output = compile_with_optimization_level(source, OptimizationLevel::O2).unwrap();
@@ -122,6 +127,7 @@ fn test_concat_in_variable_declaration() {
         const b = "y"
         const c = "z"
         const result = a .. b .. c
+        return result
     "#;
 
     let output = compile_with_optimization_level(source, OptimizationLevel::O2).unwrap();
@@ -136,6 +142,7 @@ fn test_concat_in_variable_declaration() {
 fn test_concat_in_expression_statement() {
     let source = r#"
         local result = "a" .. "b" .. "c"
+        return result
     "#;
 
     let output = compile_with_optimization_level(source, OptimizationLevel::O2).unwrap();
@@ -153,6 +160,7 @@ fn test_three_part_concat() {
         local b = "2"
         local c = "3"
         local result = a .. b .. c
+        return result
     "#;
 
     let output = compile_with_optimization_level(source, OptimizationLevel::O2).unwrap();
@@ -170,6 +178,7 @@ fn test_mixed_concat_optimization() {
         const content = "Test"
         const footer = " ==="
         const line = header .. content .. footer
+        return line
     "#;
 
     let output = compile_with_optimization_level(source, OptimizationLevel::O2).unwrap();
