@@ -358,8 +358,8 @@ impl<'a> ReachabilityAnalysis<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bumpalo::Bump;
     use crate::diagnostics::CollectingDiagnosticHandler;
+    use bumpalo::Bump;
     use std::sync::Arc;
     use typedlua_parser::lexer::Lexer;
     use typedlua_parser::parser::Parser;

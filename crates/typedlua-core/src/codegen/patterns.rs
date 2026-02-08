@@ -1,5 +1,7 @@
 use crate::codegen::CodeGenerator;
-use typedlua_parser::ast::pattern::{ArrayPattern, ArrayPatternElement, ObjectPattern, Pattern, PatternWithDefault};
+use typedlua_parser::ast::pattern::{
+    ArrayPattern, ArrayPatternElement, ObjectPattern, Pattern, PatternWithDefault,
+};
 
 impl CodeGenerator {
     pub fn generate_pattern(&mut self, pattern: &Pattern) {

@@ -28,9 +28,7 @@ fn type_check(source: &str) -> Result<(), String> {
 
     let mut checker = TypeChecker::new_with_stdlib(handler, &interner, &common_ids, &arena)
         .expect("Failed to load stdlib");
-    checker
-        .check_program(&program)
-        .map_err(|e| e.message)?;
+    checker.check_program(&program).map_err(|e| e.message)?;
 
     Ok(())
 }
@@ -86,10 +84,8 @@ fn test_simple_identity_specialization() {
     };
 
     // Create function: function id<T>(x: T): T return x end
-    let return_x = arena.alloc_slice_clone(&[Expression::new(
-        ExpressionKind::Identifier(x_name),
-        span,
-    )]);
+    let return_x =
+        arena.alloc_slice_clone(&[Expression::new(ExpressionKind::Identifier(x_name), span)]);
     let body_stmts = arena.alloc_slice_clone(&[Statement::Return(ReturnStatement {
         values: return_x,
         span,
@@ -124,10 +120,7 @@ fn test_simple_identity_specialization() {
     }]);
     let type_args = arena.alloc_slice_clone(&[number_type(span)]);
 
-    let id_call = Expression::new(
-        ExpressionKind::Call(callee, args, Some(type_args)),
-        span,
-    );
+    let id_call = Expression::new(ExpressionKind::Call(callee, args, Some(type_args)), span);
 
     // Create: local y = id(42)
     let var_y = VariableDeclaration {
@@ -139,10 +132,8 @@ fn test_simple_identity_specialization() {
     };
 
     // Return y so it's not removed by dead store elimination
-    let return_values = arena.alloc_slice_clone(&[Expression::new(
-        ExpressionKind::Identifier(y_name),
-        span,
-    )]);
+    let return_values =
+        arena.alloc_slice_clone(&[Expression::new(ExpressionKind::Identifier(y_name), span)]);
     let return_y = ReturnStatement {
         values: return_values,
         span,

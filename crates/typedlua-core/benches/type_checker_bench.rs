@@ -180,12 +180,14 @@ fn bench_type_checker_scaling(c: &mut Criterion) {
                 let mut lexer = Lexer::new(s, handler.clone(), &interner);
                 let tokens = lexer.tokenize().ok()?;
 
-                let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids, &arena);
+                let mut parser =
+                    Parser::new(tokens, handler.clone(), &interner, &common_ids, &arena);
                 let mut program = parser.parse().ok()?;
 
-                let mut checker = TypeChecker::new_with_stdlib(handler, &interner, &common_ids, &arena)
-                    .ok()?
-                    .with_options(CompilerOptions::default());
+                let mut checker =
+                    TypeChecker::new_with_stdlib(handler, &interner, &common_ids, &arena)
+                        .ok()?
+                        .with_options(CompilerOptions::default());
                 checker.check_program(black_box(&mut program)).ok()
             })
         });

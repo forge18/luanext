@@ -1076,13 +1076,7 @@ fn test_incremental_retypecheck_single_file_change() {
 
         // Save to cache
         let source_hash = format!("hash_{}", file_path.display());
-        let cached = CachedModule::new(
-            file_path.clone(),
-            source_hash,
-            vec![],
-            vec![],
-            false,
-        );
+        let cached = CachedModule::new(file_path.clone(), source_hash, vec![], vec![], false);
         let _ = cache_manager.save_module(file_path, &cached, vec![]);
     }
 
@@ -1114,13 +1108,23 @@ fn test_incremental_retypecheck_single_file_change() {
             let recompile_arena = Bump::new();
             let mut lexer = Lexer::new(&source, handler.clone(), &interner);
             let tokens = lexer.tokenize().expect("Lexing failed");
-            let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids, &recompile_arena);
+            let mut parser = Parser::new(
+                tokens,
+                handler.clone(),
+                &interner,
+                &common_ids,
+                &recompile_arena,
+            );
             let program = parser.parse().expect("Parsing failed");
 
-            let mut type_checker =
-                TypeChecker::new_with_stdlib(handler.clone(), &interner, &common_ids, &recompile_arena)
-                    .expect("Failed to load stdlib")
-                    .with_options(config.clone());
+            let mut type_checker = TypeChecker::new_with_stdlib(
+                handler.clone(),
+                &interner,
+                &common_ids,
+                &recompile_arena,
+            )
+            .expect("Failed to load stdlib")
+            .with_options(config.clone());
             type_checker
                 .check_program(&program)
                 .expect("Type checking failed");
@@ -1213,13 +1217,7 @@ fn test_cache_hit_rate_unchanged_modules() {
             .expect("Type checking failed");
 
         let source_hash = format!("hash_{}", file_path.display());
-        let cached = CachedModule::new(
-            file_path.clone(),
-            source_hash,
-            vec![],
-            vec![],
-            false,
-        );
+        let cached = CachedModule::new(file_path.clone(), source_hash, vec![], vec![], false);
         let _ = cache_manager.save_module(file_path, &cached, vec![]);
     }
 

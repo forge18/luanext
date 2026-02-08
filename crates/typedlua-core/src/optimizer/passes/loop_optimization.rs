@@ -2,10 +2,10 @@
 // O2: Loop Optimization Pass
 // =============================================================================
 
-use bumpalo::Bump;
 use crate::config::OptimizationLevel;
 use crate::optimizer::{AstFeatures, WholeProgramPass};
 use crate::MutableProgram;
+use bumpalo::Bump;
 use std::collections::HashSet;
 use typedlua_parser::ast::expression::{
     ArrayElement, BinaryOp, Expression, ExpressionKind, Literal, UnaryOp,
@@ -108,9 +108,7 @@ impl LoopOptimizationPass {
             | Statement::DeclareConst(_)
             | Statement::Label(_)
             | Statement::Goto(_) => (Vec::new(), false),
-            Statement::Function(func) => {
-                (Vec::new(), self.optimize_block(&mut func.body, arena))
-            }
+            Statement::Function(func) => (Vec::new(), self.optimize_block(&mut func.body, arena)),
             Statement::If(if_stmt) => {
                 let mut changed = self.optimize_block(&mut if_stmt.then_block, arena);
                 let mut new_else_ifs: Vec<_> = if_stmt.else_ifs.to_vec();
@@ -175,9 +173,8 @@ impl LoopOptimizationPass {
                 let block_changed = self.optimize_block(&mut new_num.body, arena);
                 let changed = !hoisted.is_empty() || block_changed;
                 if changed {
-                    *stmt = Statement::For(
-                        arena.alloc(ForStatement::Numeric(arena.alloc(new_num))),
-                    );
+                    *stmt =
+                        Statement::For(arena.alloc(ForStatement::Numeric(arena.alloc(new_num))));
                 }
                 (hoisted, changed)
             }
@@ -220,17 +217,12 @@ impl LoopOptimizationPass {
         (hoisted, changed)
     }
 
-    fn optimize_block<'arena>(
-        &mut self,
-        block: &mut Block<'arena>,
-        arena: &'arena Bump,
-    ) -> bool {
+    fn optimize_block<'arena>(&mut self, block: &mut Block<'arena>, arena: &'arena Bump) -> bool {
         let mut stmts: Vec<Statement<'arena>> = block.statements.to_vec();
         let mut changed = false;
         let mut i = 0;
         while i < stmts.len() {
-            let (hoisted, stmt_changed) =
-                self.optimize_loops_in_statement(&mut stmts[i], arena);
+            let (hoisted, stmt_changed) = self.optimize_loops_in_statement(&mut stmts[i], arena);
             if !hoisted.is_empty() {
                 let hoisted_len = hoisted.len();
                 for (j, h) in hoisted.into_iter().enumerate() {
@@ -250,10 +242,7 @@ impl LoopOptimizationPass {
         changed
     }
 
-    fn collect_modified_variables<'arena>(
-        &self,
-        block: &Block<'arena>,
-    ) -> HashSet<StringId> {
+    fn collect_modified_variables<'arena>(&self, block: &Block<'arena>) -> HashSet<StringId> {
         let mut modified = HashSet::new();
         self.collect_modified_in_block(block, &mut modified);
         modified
@@ -382,7 +371,11 @@ impl LoopOptimizationPass {
             Pattern::Array(array_pattern) => {
                 for elem in array_pattern.elements.iter() {
                     match elem {
-                        typedlua_parser::ast::pattern::ArrayPatternElement::Pattern(typedlua_parser::ast::pattern::PatternWithDefault { pattern: p, .. }) => {
+                        typedlua_parser::ast::pattern::ArrayPatternElement::Pattern(
+                            typedlua_parser::ast::pattern::PatternWithDefault {
+                                pattern: p, ..
+                            },
+                        ) => {
                             self.collect_modified_in_pattern(p, modified);
                         }
                         typedlua_parser::ast::pattern::ArrayPatternElement::Rest(id) => {

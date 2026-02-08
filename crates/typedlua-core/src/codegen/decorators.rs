@@ -85,7 +85,10 @@ impl CodeGenerator {
         self.detect_decorators_from_statements(program.statements);
     }
 
-    pub fn detect_decorators_from_statements(&mut self, statements: &[typedlua_parser::ast::statement::Statement]) {
+    pub fn detect_decorators_from_statements(
+        &mut self,
+        statements: &[typedlua_parser::ast::statement::Statement],
+    ) {
         for statement in statements {
             if self.statement_uses_built_in_decorators(statement) {
                 self.uses_built_in_decorators = true;

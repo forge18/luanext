@@ -99,7 +99,11 @@ fn test_decorator_with_parameters() {
     "#;
 
     let result = compile_and_check(source);
-    assert!(result.is_ok(), "decorator with parameters should compile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "decorator with parameters should compile: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -137,7 +141,8 @@ fn test_decorator_with_field_initializers() {
     let result = compile_and_check(source);
     assert!(
         result.is_ok(),
-        "decorator with field initializers should compile: {:?}", result.err()
+        "decorator with field initializers should compile: {:?}",
+        result.err()
     );
 }
 
@@ -204,7 +209,11 @@ fn test_decorator_on_setter() {
     "#;
 
     let result = compile_and_check(source);
-    assert!(result.is_ok(), "decorator on setter should compile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "decorator on setter should compile: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -241,7 +250,8 @@ fn test_class_decorator_replaces_constructor() {
     let result = compile_and_check(source);
     assert!(
         result.is_ok(),
-        "decorator replacing constructor should compile: {:?}", result.err()
+        "decorator replacing constructor should compile: {:?}",
+        result.err()
     );
 }
 
@@ -263,7 +273,8 @@ fn test_method_decorator_with_static() {
     let result = compile_and_check(source);
     assert!(
         result.is_ok(),
-        "method decorator on static method should compile: {:?}", result.err()
+        "method decorator on static method should compile: {:?}",
+        result.err()
     );
 }
 
@@ -286,7 +297,8 @@ fn test_readonly_with_constructor() {
     let result = compile_and_check(source);
     assert!(
         result.is_ok(),
-        "readonly class should allow constructor initialization: {:?}", result.err()
+        "readonly class should allow constructor initialization: {:?}",
+        result.err()
     );
 }
 
@@ -324,7 +336,11 @@ fn test_multiple_decorators_same_type() {
     "#;
 
     let result = compile_and_check(source);
-    assert!(result.is_ok(), "manual decorator application should work: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "manual decorator application should work: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -366,7 +382,8 @@ fn test_decorator_error_handling() {
     // Runtime decorator errors are not caught at compile time.
     assert!(
         result.is_ok(),
-        "decorator with error() should compile (runtime error, not compile-time): {:?}", result.err()
+        "decorator with error() should compile (runtime error, not compile-time): {:?}",
+        result.err()
     );
 }
 

@@ -1,7 +1,7 @@
-use bumpalo::Bump;
 use crate::config::OptimizationLevel;
 use crate::optimizer::{ExprVisitor, WholeProgramPass};
 use crate::MutableProgram;
+use bumpalo::Bump;
 use typedlua_parser::ast::expression::{BinaryOp, Expression, ExpressionKind, Literal, UnaryOp};
 
 pub struct AlgebraicSimplificationPass;
@@ -27,7 +27,11 @@ impl<'arena> WholeProgramPass<'arena> for AlgebraicSimplificationPass {
         OptimizationLevel::O1
     }
 
-    fn run(&mut self, program: &mut MutableProgram<'arena>, arena: &'arena Bump) -> Result<bool, String> {
+    fn run(
+        &mut self,
+        program: &mut MutableProgram<'arena>,
+        arena: &'arena Bump,
+    ) -> Result<bool, String> {
         let mut changed = false;
 
         for stmt in &mut program.statements {
@@ -76,39 +80,39 @@ impl AlgebraicSimplificationPass {
                 changed |= self.simplify_block(&mut while_stmt.body, arena);
                 changed
             }
-            Statement::For(for_stmt) => {
-                match &**for_stmt {
-                    ForStatement::Numeric(for_num_ref) => {
-                        let mut new_num = (**for_num_ref).clone();
-                        let mut changed = self.simplify_expression(&mut new_num.start, arena);
-                        changed |= self.simplify_expression(&mut new_num.end, arena);
-                        if let Some(step) = &mut new_num.step {
-                            changed |= self.simplify_expression(step, arena);
-                        }
-                        changed |= self.simplify_block(&mut new_num.body, arena);
-                        if changed {
-                            *stmt = Statement::For(arena.alloc(ForStatement::Numeric(arena.alloc(new_num))));
-                        }
-                        changed
+            Statement::For(for_stmt) => match &**for_stmt {
+                ForStatement::Numeric(for_num_ref) => {
+                    let mut new_num = (**for_num_ref).clone();
+                    let mut changed = self.simplify_expression(&mut new_num.start, arena);
+                    changed |= self.simplify_expression(&mut new_num.end, arena);
+                    if let Some(step) = &mut new_num.step {
+                        changed |= self.simplify_expression(step, arena);
                     }
-                    ForStatement::Generic(for_gen_ref) => {
-                        let mut new_gen = for_gen_ref.clone();
-                        let mut iters: Vec<_> = new_gen.iterators.to_vec();
-                        let mut changed = false;
-                        for expr in &mut iters {
-                            changed |= self.simplify_expression(expr, arena);
-                        }
-                        if changed {
-                            new_gen.iterators = arena.alloc_slice_clone(&iters);
-                        }
-                        changed |= self.simplify_block(&mut new_gen.body, arena);
-                        if changed {
-                            *stmt = Statement::For(arena.alloc(ForStatement::Generic(new_gen)));
-                        }
-                        changed
+                    changed |= self.simplify_block(&mut new_num.body, arena);
+                    if changed {
+                        *stmt = Statement::For(
+                            arena.alloc(ForStatement::Numeric(arena.alloc(new_num))),
+                        );
                     }
+                    changed
                 }
-            }
+                ForStatement::Generic(for_gen_ref) => {
+                    let mut new_gen = for_gen_ref.clone();
+                    let mut iters: Vec<_> = new_gen.iterators.to_vec();
+                    let mut changed = false;
+                    for expr in &mut iters {
+                        changed |= self.simplify_expression(expr, arena);
+                    }
+                    if changed {
+                        new_gen.iterators = arena.alloc_slice_clone(&iters);
+                    }
+                    changed |= self.simplify_block(&mut new_gen.body, arena);
+                    if changed {
+                        *stmt = Statement::For(arena.alloc(ForStatement::Generic(new_gen)));
+                    }
+                    changed
+                }
+            },
             Statement::Return(ret_stmt) => {
                 let mut vals: Vec<_> = ret_stmt.values.to_vec();
                 let mut changed = false;
@@ -238,11 +242,8 @@ impl AlgebraicSimplificationPass {
                 }
 
                 if changed {
-                    expr.kind = ExpressionKind::Binary(
-                        op,
-                        arena.alloc(new_left),
-                        arena.alloc(new_right),
-                    );
+                    expr.kind =
+                        ExpressionKind::Binary(op, arena.alloc(new_left), arena.alloc(new_right));
                 }
                 changed
             }

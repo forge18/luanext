@@ -1,5 +1,5 @@
-use bumpalo::Bump;
 use crate::optimizer::BlockVisitor;
+use bumpalo::Bump;
 use typedlua_parser::ast::statement::{Block, ForStatement, Statement};
 
 pub struct DeadCodeEliminationPass;
@@ -11,7 +11,11 @@ impl DeadCodeEliminationPass {
 }
 
 impl<'arena> BlockVisitor<'arena> for DeadCodeEliminationPass {
-    fn visit_block_stmts(&mut self, stmts: &mut Vec<Statement<'arena>>, arena: &'arena Bump) -> bool {
+    fn visit_block_stmts(
+        &mut self,
+        stmts: &mut Vec<Statement<'arena>>,
+        arena: &'arena Bump,
+    ) -> bool {
         self.eliminate_dead_code_vec(stmts, arena)
     }
 }
@@ -70,29 +74,27 @@ impl DeadCodeEliminationPass {
                 }
                 local_changed
             }
-            Statement::While(while_stmt) => {
-                self.eliminate_in_block(&mut while_stmt.body, arena)
-            }
-            Statement::For(for_stmt) => {
-                match &**for_stmt {
-                    ForStatement::Numeric(for_num_ref) => {
-                        let mut new_num = (**for_num_ref).clone();
-                        let fc = self.eliminate_in_block(&mut new_num.body, arena);
-                        if fc {
-                            *stmt = Statement::For(arena.alloc(ForStatement::Numeric(arena.alloc(new_num))));
-                        }
-                        fc
+            Statement::While(while_stmt) => self.eliminate_in_block(&mut while_stmt.body, arena),
+            Statement::For(for_stmt) => match &**for_stmt {
+                ForStatement::Numeric(for_num_ref) => {
+                    let mut new_num = (**for_num_ref).clone();
+                    let fc = self.eliminate_in_block(&mut new_num.body, arena);
+                    if fc {
+                        *stmt = Statement::For(
+                            arena.alloc(ForStatement::Numeric(arena.alloc(new_num))),
+                        );
                     }
-                    ForStatement::Generic(for_gen_ref) => {
-                        let mut new_gen = for_gen_ref.clone();
-                        let fc = self.eliminate_in_block(&mut new_gen.body, arena);
-                        if fc {
-                            *stmt = Statement::For(arena.alloc(ForStatement::Generic(new_gen)));
-                        }
-                        fc
-                    }
+                    fc
                 }
-            }
+                ForStatement::Generic(for_gen_ref) => {
+                    let mut new_gen = for_gen_ref.clone();
+                    let fc = self.eliminate_in_block(&mut new_gen.body, arena);
+                    if fc {
+                        *stmt = Statement::For(arena.alloc(ForStatement::Generic(new_gen)));
+                    }
+                    fc
+                }
+            },
             Statement::Function(func) => self.eliminate_in_block(&mut func.body, arena),
             _ => false,
         }

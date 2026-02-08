@@ -17,16 +17,18 @@
 //! 4. Inlining the method body, binding `self` to the receiver expression
 //! 5. Preserving original dispatch if multiple implementations exist
 
-use bumpalo::Bump;
 use crate::config::OptimizationLevel;
 use crate::MutableProgram;
+use bumpalo::Bump;
 
 use crate::optimizer::{StmtVisitor, WholeProgramPass};
 use rustc_hash::FxHashMap;
 use std::sync::Arc;
 use typedlua_parser::ast::expression::{AssignmentOp, Expression, ExpressionKind};
 use typedlua_parser::ast::pattern::Pattern;
-use typedlua_parser::ast::statement::{Block, ClassMember, ForStatement, InterfaceMember, Statement};
+use typedlua_parser::ast::statement::{
+    Block, ClassMember, ForStatement, InterfaceMember, Statement,
+};
 use typedlua_parser::ast::types::TypeKind;
 use typedlua_parser::ast::Spanned;
 use typedlua_parser::span::Span;
@@ -34,8 +36,7 @@ use typedlua_parser::string_interner::{StringId, StringInterner};
 
 const MAX_INLINABLE_STATEMENTS: usize = 10;
 
-#[derive(Debug)]
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct InterfaceImplementationMap<'arena> {
     interface_to_classes: FxHashMap<StringId, Vec<StringId>>,
     class_to_interfaces: FxHashMap<StringId, Vec<StringId>>,
@@ -45,7 +46,6 @@ struct InterfaceImplementationMap<'arena> {
     known_classes: FxHashMap<StringId, bool>,
     known_interfaces: FxHashMap<StringId, bool>,
 }
-
 
 impl<'arena> InterfaceImplementationMap<'arena> {
     pub fn build(program: &MutableProgram<'arena>) -> Self {
@@ -118,7 +118,11 @@ impl<'arena> InterfaceImplementationMap<'arena> {
         }
     }
 
-    pub fn get_method_body(&self, class_id: StringId, method_id: StringId) -> Option<&Block<'arena>> {
+    pub fn get_method_body(
+        &self,
+        class_id: StringId,
+        method_id: StringId,
+    ) -> Option<&Block<'arena>> {
         self.method_body.get(&(class_id, method_id))
     }
 
@@ -156,12 +160,8 @@ impl<'arena> InterfaceImplementationMap<'arena> {
             }
             Statement::For(for_stmt) => {
                 let body = match &**for_stmt {
-                    ForStatement::Numeric(for_num) => {
-                        &for_num.body
-                    }
-                    ForStatement::Generic(for_gen) => {
-                        &for_gen.body
-                    }
+                    ForStatement::Numeric(for_num) => &for_num.body,
+                    ForStatement::Generic(for_gen) => &for_gen.body,
                 };
                 self.block_mutates_self(body, class_id)
             }
@@ -340,33 +340,31 @@ impl InterfaceMethodInliningPass {
                 changed
             }
             Statement::While(while_stmt) => {
-                let mut changed = self.process_expression(&mut while_stmt.condition, impl_map, arena);
+                let mut changed =
+                    self.process_expression(&mut while_stmt.condition, impl_map, arena);
                 changed |= self.process_block(&mut while_stmt.body, impl_map, arena);
                 changed
             }
-            Statement::For(for_stmt) => {
-                match &**for_stmt {
-                    ForStatement::Numeric(for_num_ref) => {
-                        let mut new_num = (**for_num_ref).clone();
-                        let changed = self.process_block(&mut new_num.body, impl_map, arena);
-                        if changed {
-                            *stmt = Statement::For(
-                                arena.alloc(ForStatement::Numeric(arena.alloc(new_num))),
-                            );
-                        }
-                        changed
+            Statement::For(for_stmt) => match &**for_stmt {
+                ForStatement::Numeric(for_num_ref) => {
+                    let mut new_num = (**for_num_ref).clone();
+                    let changed = self.process_block(&mut new_num.body, impl_map, arena);
+                    if changed {
+                        *stmt = Statement::For(
+                            arena.alloc(ForStatement::Numeric(arena.alloc(new_num))),
+                        );
                     }
-                    ForStatement::Generic(for_gen_ref) => {
-                        let mut new_gen = for_gen_ref.clone();
-                        let changed = self.process_block(&mut new_gen.body, impl_map, arena);
-                        if changed {
-                            *stmt =
-                                Statement::For(arena.alloc(ForStatement::Generic(new_gen)));
-                        }
-                        changed
-                    }
+                    changed
                 }
-            }
+                ForStatement::Generic(for_gen_ref) => {
+                    let mut new_gen = for_gen_ref.clone();
+                    let changed = self.process_block(&mut new_gen.body, impl_map, arena);
+                    if changed {
+                        *stmt = Statement::For(arena.alloc(ForStatement::Generic(new_gen)));
+                    }
+                    changed
+                }
+            },
             Statement::Repeat(repeat_stmt) => {
                 let mut changed = self.process_expression(&mut repeat_stmt.until, impl_map, arena);
                 changed |= self.process_block(&mut repeat_stmt.body, impl_map, arena);
@@ -545,11 +543,8 @@ impl InterfaceMethodInliningPass {
                 let left_changed = self.process_expression(&mut new_left, impl_map, arena);
                 let right_changed = self.process_expression(&mut new_right, impl_map, arena);
                 if left_changed || right_changed {
-                    expr.kind = ExpressionKind::Binary(
-                        op,
-                        arena.alloc(new_left),
-                        arena.alloc(new_right),
-                    );
+                    expr.kind =
+                        ExpressionKind::Binary(op, arena.alloc(new_left), arena.alloc(new_right));
                 }
                 left_changed || right_changed
             }
@@ -599,10 +594,7 @@ impl InterfaceMethodInliningPass {
                 let lc = self.process_expression(&mut new_left, impl_map, arena);
                 let rc = self.process_expression(&mut new_right, impl_map, arena);
                 if lc || rc {
-                    expr.kind = ExpressionKind::Pipe(
-                        arena.alloc(new_left),
-                        arena.alloc(new_right),
-                    );
+                    expr.kind = ExpressionKind::Pipe(arena.alloc(new_left), arena.alloc(new_right));
                 }
                 lc || rc
             }
@@ -711,10 +703,8 @@ impl InterfaceMethodInliningPass {
                 let lc = self.process_expression(&mut new_left, impl_map, arena);
                 let rc = self.process_expression(&mut new_right, impl_map, arena);
                 if lc || rc {
-                    expr.kind = ExpressionKind::ErrorChain(
-                        arena.alloc(new_left),
-                        arena.alloc(new_right),
-                    );
+                    expr.kind =
+                        ExpressionKind::ErrorChain(arena.alloc(new_left), arena.alloc(new_right));
                 }
                 lc || rc
             }
@@ -733,10 +723,8 @@ impl InterfaceMethodInliningPass {
                 let oc = self.process_expression(&mut new_obj, impl_map, arena);
                 let ic = self.process_expression(&mut new_index, impl_map, arena);
                 if oc || ic {
-                    expr.kind = ExpressionKind::OptionalIndex(
-                        arena.alloc(new_obj),
-                        arena.alloc(new_index),
-                    );
+                    expr.kind =
+                        ExpressionKind::OptionalIndex(arena.alloc(new_obj), arena.alloc(new_index));
                 }
                 oc || ic
             }
@@ -802,10 +790,7 @@ impl InterfaceMethodInliningPass {
                 let oc = self.process_expression(&mut new_obj, impl_map, arena);
                 let ic = self.process_expression(&mut new_index, impl_map, arena);
                 if oc || ic {
-                    expr.kind = ExpressionKind::Index(
-                        arena.alloc(new_obj),
-                        arena.alloc(new_index),
-                    );
+                    expr.kind = ExpressionKind::Index(arena.alloc(new_obj), arena.alloc(new_index));
                 }
                 oc || ic
             }
@@ -907,7 +892,8 @@ impl InterfaceMethodInliningPass {
             match stmt {
                 Statement::Return(ret) => {
                     if let Some(first_value) = ret.values.first() {
-                        let transformed = self.transform_expression(first_value, receiver, span, arena);
+                        let transformed =
+                            self.transform_expression(first_value, receiver, span, arena);
                         return Some(transformed);
                     }
                     return Some(Expression::new(
@@ -925,7 +911,10 @@ impl InterfaceMethodInliningPass {
                     if let Some(ident) = self.get_pattern_name(&decl.pattern) {
                         last_expr = Some(Expression::new(
                             ExpressionKind::Assignment(
-                                arena.alloc(Expression::new(ExpressionKind::Identifier(ident), span)),
+                                arena.alloc(Expression::new(
+                                    ExpressionKind::Identifier(ident),
+                                    span,
+                                )),
                                 AssignmentOp::Assign,
                                 arena.alloc(transformed_initializer),
                             ),
@@ -1155,7 +1144,8 @@ mod tests {
                 kind: ExpressionKind::Assignment(
                     arena.alloc(Expression {
                         kind: ExpressionKind::Member(
-                            arena.alloc(Expression::new(ExpressionKind::SelfKeyword, Span::dummy())),
+                            arena
+                                .alloc(Expression::new(ExpressionKind::SelfKeyword, Span::dummy())),
                             typedlua_parser::ast::Spanned::new(
                                 StringId::from_u32(2),
                                 Span::dummy(),

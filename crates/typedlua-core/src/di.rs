@@ -197,7 +197,13 @@ impl DiContainer {
             .tokenize()
             .map_err(|e| format!("Lexing failed: {:?}", e))?;
 
-        let mut parser = Parser::new(tokens, parser_handler.clone(), &interner, &common_ids, &arena);
+        let mut parser = Parser::new(
+            tokens,
+            parser_handler.clone(),
+            &interner,
+            &common_ids,
+            &arena,
+        );
         let program = parser
             .parse()
             .map_err(|e| format!("Parsing failed: {:?}", e))?;
@@ -247,7 +253,13 @@ impl DiContainer {
             .tokenize()
             .map_err(|e| format!("Lexing failed: {:?}", e))?;
 
-        let mut parser = Parser::new(tokens, parser_handler.clone(), &interner, &common_ids, &arena);
+        let mut parser = Parser::new(
+            tokens,
+            parser_handler.clone(),
+            &interner,
+            &common_ids,
+            &arena,
+        );
         let program = parser
             .parse()
             .map_err(|e| format!("Parsing failed: {:?}", e))?;

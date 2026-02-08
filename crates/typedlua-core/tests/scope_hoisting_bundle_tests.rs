@@ -36,7 +36,10 @@ fn create_program<'arena>(
 fn create_modules_with_interner<'arena>(
     sources: &[(&str, &str)],
     arena: &'arena Bump,
-) -> (Vec<(String, Program<'arena>, FxHashMap<String, String>)>, Arc<StringInterner>) {
+) -> (
+    Vec<(String, Program<'arena>, FxHashMap<String, String>)>,
+    Arc<StringInterner>,
+) {
     let (interner, common) = StringInterner::new_with_common_identifiers();
     let interner = Arc::new(interner);
     let mut modules = Vec::new();
@@ -50,11 +53,7 @@ fn create_modules_with_interner<'arena>(
     (modules, interner)
 }
 
-fn generate_bundle(
-    sources: &[(&str, &str)],
-    entry: &str,
-    scope_hoisting_enabled: bool,
-) -> String {
+fn generate_bundle(sources: &[(&str, &str)], entry: &str, scope_hoisting_enabled: bool) -> String {
     let arena = Bump::new();
     let (modules, interner) = create_modules_with_interner(sources, &arena);
 
@@ -62,7 +61,8 @@ fn generate_bundle(
     let module_refs: Vec<(String, &Program, HashMap<String, String>)> = modules
         .iter()
         .map(|(id, prog, map)| {
-            let std_map: HashMap<String, String> = map.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+            let std_map: HashMap<String, String> =
+                map.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
             (id.clone(), prog, std_map)
         })
         .collect();
@@ -118,7 +118,8 @@ fn test_simple_function_hoisting() {
 
     // The function should be hoisted with mangled name
     assert!(
-        output_with_hoisting.contains("main__helper") || output_with_hoisting.contains("local function"),
+        output_with_hoisting.contains("main__helper")
+            || output_with_hoisting.contains("local function"),
         "Hoisted function should appear in output"
     );
 }
@@ -234,7 +235,8 @@ fn test_hoisting_context_multiple_modules() {
         .map(|(id, prog, _)| (id.clone(), prog))
         .collect();
 
-    let context = HoistingContext::analyze_modules(&modules_for_analysis, &interner, "app.lua", true);
+    let context =
+        HoistingContext::analyze_modules(&modules_for_analysis, &interner, "app.lua", true);
 
     // Both modules should have hoistable declarations
     assert!(context.has_hoistable_declarations("app.lua"));
@@ -245,7 +247,10 @@ fn test_hoisting_context_multiple_modules() {
     let utils_mangled = context.get_mangled_name("utils.lua", "privateUtilHelper");
 
     assert!(app_mangled.is_some(), "app helper should have mangled name");
-    assert!(utils_mangled.is_some(), "utils helper should have mangled name");
+    assert!(
+        utils_mangled.is_some(),
+        "utils helper should have mangled name"
+    );
     assert_ne!(
         app_mangled, utils_mangled,
         "Different modules should have different mangled names"
@@ -364,7 +369,8 @@ fn test_name_collision_same_function_name() {
         .map(|(id, prog, _)| (id.clone(), prog))
         .collect();
 
-    let context = HoistingContext::analyze_modules(&modules_for_analysis, &interner, "moduleA.lua", true);
+    let context =
+        HoistingContext::analyze_modules(&modules_for_analysis, &interner, "moduleA.lua", true);
 
     // Both should be hoistable
     assert!(context.is_hoistable(
@@ -541,7 +547,8 @@ fn test_hoisting_context_disabled() {
         .collect();
 
     // Create disabled context
-    let context = HoistingContext::analyze_modules(&modules_for_analysis, &interner, "main.lua", false);
+    let context =
+        HoistingContext::analyze_modules(&modules_for_analysis, &interner, "main.lua", false);
 
     // Should return false/None for all queries
     assert!(!context.has_hoistable_declarations("main.lua"));
@@ -579,7 +586,8 @@ fn test_entry_point_names_preserved() {
         .map(|(id, prog, _)| (id.clone(), prog))
         .collect();
 
-    let context = HoistingContext::analyze_modules(&modules_for_analysis, &interner, "entry.lua", true);
+    let context =
+        HoistingContext::analyze_modules(&modules_for_analysis, &interner, "entry.lua", true);
 
     // Both should be hoistable
     assert!(context.has_hoistable_declarations("entry.lua"));
@@ -782,10 +790,7 @@ fn test_bundle_size_with_hoisting() {
     assert!(output_without_hoisting.contains("__modules["));
 
     // Print sizes for manual inspection (not a hard assertion since structure differs)
-    println!(
-        "Bundle with hoisting: {} bytes",
-        output_with_hoisting.len()
-    );
+    println!("Bundle with hoisting: {} bytes", output_with_hoisting.len());
     println!(
         "Bundle without hoisting: {} bytes",
         output_without_hoisting.len()

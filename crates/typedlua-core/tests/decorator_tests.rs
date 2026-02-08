@@ -103,7 +103,11 @@ fn test_getter_decorator() {
     "#;
 
     let result = compile_and_check(source);
-    assert!(result.is_ok(), "Getter decorator should compile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Getter decorator should compile: {:?}",
+        result.err()
+    );
 }
 
 #[test]

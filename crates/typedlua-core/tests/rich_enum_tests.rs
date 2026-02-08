@@ -22,7 +22,11 @@ fn test_rich_enum_with_constructor_args() {
     "#;
 
     let result = compile_and_check(source);
-    assert!(result.is_ok(), "Enum with constructor args should compile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Enum with constructor args should compile: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -42,7 +46,11 @@ fn test_rich_enum_with_methods() {
     "#;
 
     let result = compile_and_check(source);
-    assert!(result.is_ok(), "Enum with methods should compile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Enum with methods should compile: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -64,7 +72,11 @@ fn test_rich_enum_with_fields_and_constructor() {
     "#;
 
     let result = compile_and_check(source);
-    assert!(result.is_ok(), "Enum with fields and constructor should compile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Enum with fields and constructor should compile: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -83,7 +95,11 @@ fn test_rich_enum_with_function_keyword() {
     "#;
 
     let result = compile_and_check(source);
-    assert!(result.is_ok(), "Enum with function keyword method should compile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Enum with function keyword method should compile: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -107,7 +123,11 @@ fn test_rich_enum_with_interface() {
     "#;
 
     let result = compile_and_check(source);
-    assert!(result.is_ok(), "Enum implementing interface should compile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Enum implementing interface should compile: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -129,7 +149,11 @@ fn test_rich_enum_simple_match() {
     "#;
 
     let result = compile_and_check(source);
-    assert!(result.is_ok(), "Simple enum match should compile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Simple enum match should compile: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -153,7 +177,11 @@ fn test_rich_enum_match_with_wildcard() {
     "#;
 
     let result = compile_and_check(source);
-    assert!(result.is_ok(), "Enum match with wildcard should compile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Enum match with wildcard should compile: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -170,7 +198,11 @@ fn test_rich_enum_qualified_access() {
     "#;
 
     let result = compile_and_check(source);
-    assert!(result.is_ok(), "Qualified enum access should compile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Qualified enum access should compile: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -186,7 +218,11 @@ fn test_rich_enum_simple() {
     "#;
 
     let result = compile_and_check(source);
-    assert!(result.is_ok(), "Simple enum should compile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Simple enum should compile: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -200,7 +236,11 @@ fn test_rich_enum_export() {
     "#;
 
     let result = compile_and_check(source);
-    assert!(result.is_ok(), "Exported enum should compile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Exported enum should compile: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -222,7 +262,11 @@ fn test_rich_enum_with_constructor() {
     "#;
 
     let result = compile_and_check(source);
-    assert!(result.is_ok(), "Enum with constructor should compile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Enum with constructor should compile: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -244,7 +288,11 @@ fn test_rich_enum_method_using_self() {
     "#;
 
     let result = compile_and_check(source);
-    assert!(result.is_ok(), "Enum method with self should compile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Enum method with self should compile: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -267,7 +315,11 @@ fn test_rich_enum_multiple_methods() {
     "#;
 
     let result = compile_and_check(source);
-    assert!(result.is_ok(), "Enum with multiple methods should compile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Enum with multiple methods should compile: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -281,7 +333,11 @@ fn test_rich_enum_generic_declaration() {
     "#;
 
     let result = compile_and_check(source);
-    assert!(result.is_ok(), "Simple enum should compile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Simple enum should compile: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -300,7 +356,11 @@ fn test_rich_enum_with_method_params() {
     "#;
 
     let result = compile_and_check(source);
-    assert!(result.is_ok(), "Enum method with params should compile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Enum method with params should compile: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -316,5 +376,9 @@ fn test_rich_enum_enum_values() {
     "#;
 
     let result = compile_and_check(source);
-    assert!(result.is_ok(), "Enum with string values should compile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Enum with string values should compile: {:?}",
+        result.err()
+    );
 }

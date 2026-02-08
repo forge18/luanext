@@ -2,10 +2,10 @@
 // O2: Tail Call Optimization Pass
 // =============================================================================
 
-use bumpalo::Bump;
 use crate::config::OptimizationLevel;
 use crate::optimizer::{StmtVisitor, WholeProgramPass};
 use crate::MutableProgram;
+use bumpalo::Bump;
 use typedlua_parser::ast::expression::Expression;
 use typedlua_parser::ast::expression::ExpressionKind;
 use typedlua_parser::ast::statement::{ForStatement, Statement};
@@ -37,7 +37,11 @@ impl<'arena> WholeProgramPass<'arena> for TailCallOptimizationPass {
         OptimizationLevel::O2
     }
 
-    fn run(&mut self, program: &mut MutableProgram<'arena>, _arena: &'arena Bump) -> Result<bool, String> {
+    fn run(
+        &mut self,
+        program: &mut MutableProgram<'arena>,
+        _arena: &'arena Bump,
+    ) -> Result<bool, String> {
         for stmt in &program.statements {
             self.analyze_statement_tail_calls(stmt);
         }

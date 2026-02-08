@@ -89,24 +89,22 @@ impl OperatorInliningPass {
                 self.catalog_expression(&while_stmt.condition);
                 self.catalog_block(&while_stmt.body);
             }
-            Statement::For(for_stmt) => {
-                match &**for_stmt {
-                    ForStatement::Numeric(for_num) => {
-                        self.catalog_expression(&for_num.start);
-                        self.catalog_expression(&for_num.end);
-                        if let Some(step) = &for_num.step {
-                            self.catalog_expression(step);
-                        }
-                        self.catalog_block(&for_num.body);
+            Statement::For(for_stmt) => match &**for_stmt {
+                ForStatement::Numeric(for_num) => {
+                    self.catalog_expression(&for_num.start);
+                    self.catalog_expression(&for_num.end);
+                    if let Some(step) = &for_num.step {
+                        self.catalog_expression(step);
                     }
-                    ForStatement::Generic(for_gen) => {
-                        for expr in for_gen.iterators.iter() {
-                            self.catalog_expression(expr);
-                        }
-                        self.catalog_block(&for_gen.body);
-                    }
+                    self.catalog_block(&for_num.body);
                 }
-            }
+                ForStatement::Generic(for_gen) => {
+                    for expr in for_gen.iterators.iter() {
+                        self.catalog_expression(expr);
+                    }
+                    self.catalog_block(&for_gen.body);
+                }
+            },
             Statement::Repeat(repeat_stmt) => {
                 self.catalog_expression(&repeat_stmt.until);
                 self.catalog_block(&repeat_stmt.body);
@@ -308,11 +306,7 @@ impl OperatorInliningPass {
         }
     }
 
-    fn count_unary_operator_call<'arena>(
-        &mut self,
-        op: &UnaryOp,
-        operand: &Expression<'arena>,
-    ) {
+    fn count_unary_operator_call<'arena>(&mut self, op: &UnaryOp, operand: &Expression<'arena>) {
         let operator_kind = unary_op_to_operator_kind(op);
         if operator_kind.is_none() {
             return;
@@ -480,44 +474,40 @@ impl OperatorInliningPass {
                 changed |= self.visit_expr(&mut while_stmt.condition, arena);
                 changed |= self.process_block(&mut while_stmt.body, arena);
             }
-            Statement::For(for_stmt) => {
-                match &**for_stmt {
-                    ForStatement::Numeric(for_num_ref) => {
-                        let mut new_num = (**for_num_ref).clone();
-                        let mut fc = false;
-                        fc |= self.visit_expr(&mut new_num.start, arena);
-                        fc |= self.visit_expr(&mut new_num.end, arena);
-                        if let Some(step) = &mut new_num.step {
-                            fc |= self.visit_expr(step, arena);
-                        }
-                        fc |= self.process_block(&mut new_num.body, arena);
-                        if fc {
-                            *stmt = Statement::For(
-                                arena.alloc(ForStatement::Numeric(arena.alloc(new_num))),
-                            );
-                            changed = true;
-                        }
+            Statement::For(for_stmt) => match &**for_stmt {
+                ForStatement::Numeric(for_num_ref) => {
+                    let mut new_num = (**for_num_ref).clone();
+                    let mut fc = false;
+                    fc |= self.visit_expr(&mut new_num.start, arena);
+                    fc |= self.visit_expr(&mut new_num.end, arena);
+                    if let Some(step) = &mut new_num.step {
+                        fc |= self.visit_expr(step, arena);
                     }
-                    ForStatement::Generic(for_gen_ref) => {
-                        let mut new_gen = for_gen_ref.clone();
-                        let mut fc = false;
-                        let mut new_iters: Vec<_> = new_gen.iterators.to_vec();
-                        for expr in &mut new_iters {
-                            fc |= self.process_expression(expr, arena);
-                        }
-                        if fc {
-                            new_gen.iterators = arena.alloc_slice_clone(&new_iters);
-                        }
-                        fc |= self.process_block(&mut new_gen.body, arena);
-                        if fc {
-                            *stmt = Statement::For(
-                                arena.alloc(ForStatement::Generic(new_gen)),
-                            );
-                            changed = true;
-                        }
+                    fc |= self.process_block(&mut new_num.body, arena);
+                    if fc {
+                        *stmt = Statement::For(
+                            arena.alloc(ForStatement::Numeric(arena.alloc(new_num))),
+                        );
+                        changed = true;
                     }
                 }
-            }
+                ForStatement::Generic(for_gen_ref) => {
+                    let mut new_gen = for_gen_ref.clone();
+                    let mut fc = false;
+                    let mut new_iters: Vec<_> = new_gen.iterators.to_vec();
+                    for expr in &mut new_iters {
+                        fc |= self.process_expression(expr, arena);
+                    }
+                    if fc {
+                        new_gen.iterators = arena.alloc_slice_clone(&new_iters);
+                    }
+                    fc |= self.process_block(&mut new_gen.body, arena);
+                    if fc {
+                        *stmt = Statement::For(arena.alloc(ForStatement::Generic(new_gen)));
+                        changed = true;
+                    }
+                }
+            },
             Statement::Repeat(repeat_stmt) => {
                 changed |= self.visit_expr(&mut repeat_stmt.until, arena);
                 changed |= self.process_block(&mut repeat_stmt.body, arena);
@@ -560,11 +550,7 @@ impl OperatorInliningPass {
         changed
     }
 
-    fn process_block<'arena>(
-        &mut self,
-        block: &mut Block<'arena>,
-        arena: &'arena Bump,
-    ) -> bool {
+    fn process_block<'arena>(&mut self, block: &mut Block<'arena>, arena: &'arena Bump) -> bool {
         let mut stmts: Vec<Statement<'arena>> = block.statements.to_vec();
         let mut changed = false;
         for stmt in &mut stmts {
@@ -665,8 +651,7 @@ impl OperatorInliningPass {
                 let lc = self.process_expression(&mut new_left, arena);
                 let rc = self.process_expression(&mut new_right, arena);
                 if lc || rc {
-                    expr.kind =
-                        ExpressionKind::Pipe(arena.alloc(new_left), arena.alloc(new_right));
+                    expr.kind = ExpressionKind::Pipe(arena.alloc(new_left), arena.alloc(new_right));
                     changed = true;
                 }
             }
@@ -684,14 +669,19 @@ impl OperatorInliningPass {
                         typedlua_parser::ast::expression::MatchArmBody::Expression(e) => {
                             let mut new_e = (**e).clone();
                             if self.process_expression(&mut new_e, arena) {
-                                arm.body = typedlua_parser::ast::expression::MatchArmBody::Expression(arena.alloc(new_e));
+                                arm.body =
+                                    typedlua_parser::ast::expression::MatchArmBody::Expression(
+                                        arena.alloc(new_e),
+                                    );
                                 ac = true;
                             }
                         }
                         typedlua_parser::ast::expression::MatchArmBody::Block(block) => {
                             let mut new_block = block.clone();
                             if self.process_block(&mut new_block, arena) {
-                                arm.body = typedlua_parser::ast::expression::MatchArmBody::Block(new_block);
+                                arm.body = typedlua_parser::ast::expression::MatchArmBody::Block(
+                                    new_block,
+                                );
                                 ac = true;
                             }
                         }
@@ -720,7 +710,10 @@ impl OperatorInliningPass {
                     typedlua_parser::ast::expression::ArrowBody::Expression(e) => {
                         let mut new_e = (**e).clone();
                         if self.process_expression(&mut new_e, arena) {
-                            new_arrow.body = typedlua_parser::ast::expression::ArrowBody::Expression(arena.alloc(new_e));
+                            new_arrow.body =
+                                typedlua_parser::ast::expression::ArrowBody::Expression(
+                                    arena.alloc(new_e),
+                                );
                             bc = true;
                         }
                     }
@@ -757,12 +750,13 @@ impl OperatorInliningPass {
                 let ec = self.process_expression(&mut new_expr, arena);
                 let cc = self.process_expression(&mut new_catch, arena);
                 if ec || cc {
-                    expr.kind = ExpressionKind::Try(typedlua_parser::ast::expression::TryExpression {
-                        expression: arena.alloc(new_expr),
-                        catch_variable: try_expr.catch_variable.clone(),
-                        catch_expression: arena.alloc(new_catch),
-                        span: try_expr.span,
-                    });
+                    expr.kind =
+                        ExpressionKind::Try(typedlua_parser::ast::expression::TryExpression {
+                            expression: arena.alloc(new_expr),
+                            catch_variable: try_expr.catch_variable.clone(),
+                            catch_expression: arena.alloc(new_catch),
+                            span: try_expr.span,
+                        });
                     changed = true;
                 }
             }
@@ -863,8 +857,7 @@ impl OperatorInliningPass {
                 let oc = self.process_expression(&mut new_obj, arena);
                 let ic = self.process_expression(&mut new_index, arena);
                 if oc || ic {
-                    expr.kind =
-                        ExpressionKind::Index(arena.alloc(new_obj), arena.alloc(new_index));
+                    expr.kind = ExpressionKind::Index(arena.alloc(new_obj), arena.alloc(new_index));
                     changed = true;
                 }
             }
@@ -898,11 +891,12 @@ impl OperatorInliningPass {
                         } => {
                             let mut new_val = (**value).clone();
                             if self.process_expression(&mut new_val, arena) {
-                                *prop = typedlua_parser::ast::expression::ObjectProperty::Property {
-                                    key: key.clone(),
-                                    value: arena.alloc(new_val),
-                                    span: *span,
-                                };
+                                *prop =
+                                    typedlua_parser::ast::expression::ObjectProperty::Property {
+                                        key: key.clone(),
+                                        value: arena.alloc(new_val),
+                                        span: *span,
+                                    };
                                 pc = true;
                             }
                         }
@@ -916,11 +910,12 @@ impl OperatorInliningPass {
                             let kc = self.process_expression(&mut new_key, arena);
                             let vc = self.process_expression(&mut new_val, arena);
                             if kc || vc {
-                                *prop = typedlua_parser::ast::expression::ObjectProperty::Computed {
-                                    key: arena.alloc(new_key),
-                                    value: arena.alloc(new_val),
-                                    span: *span,
-                                };
+                                *prop =
+                                    typedlua_parser::ast::expression::ObjectProperty::Computed {
+                                        key: arena.alloc(new_key),
+                                        value: arena.alloc(new_val),
+                                        span: *span,
+                                    };
                                 pc = true;
                             }
                         }

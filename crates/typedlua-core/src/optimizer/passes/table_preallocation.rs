@@ -1,7 +1,7 @@
-use bumpalo::Bump;
 use crate::config::OptimizationLevel;
 use crate::optimizer::{ExprVisitor, WholeProgramPass};
 use crate::MutableProgram;
+use bumpalo::Bump;
 use typedlua_parser::ast::expression::Expression;
 use typedlua_parser::ast::statement::Statement;
 
@@ -30,7 +30,11 @@ impl<'arena> WholeProgramPass<'arena> for TablePreallocationPass {
         OptimizationLevel::O1
     }
 
-    fn run(&mut self, program: &mut MutableProgram<'arena>, _arena: &'arena Bump) -> Result<bool, String> {
+    fn run(
+        &mut self,
+        program: &mut MutableProgram<'arena>,
+        _arena: &'arena Bump,
+    ) -> Result<bool, String> {
         // Analyze table constructors and collect size information
         // This pass doesn't modify the AST directly, but could add metadata
         // for codegen to generate table.create() calls with size hints

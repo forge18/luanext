@@ -1,9 +1,11 @@
 use super::super::config::OptimizationLevel;
 use super::CodeGenerator;
-use typedlua_parser::ast::pattern::{ArrayPattern, ArrayPatternElement, ObjectPattern, Pattern, PatternWithDefault};
-use typedlua_parser::prelude::Expression;
+use typedlua_parser::ast::pattern::{
+    ArrayPattern, ArrayPatternElement, ObjectPattern, Pattern, PatternWithDefault,
+};
 use typedlua_parser::ast::statement::*;
 use typedlua_parser::prelude::Block;
+use typedlua_parser::prelude::Expression;
 
 impl CodeGenerator {
     pub fn generate_statement(&mut self, stmt: &Statement) {
@@ -109,7 +111,10 @@ impl CodeGenerator {
 
         for elem in pattern.elements.iter() {
             match elem {
-                ArrayPatternElement::Pattern(PatternWithDefault { pattern: pat, default }) => {
+                ArrayPatternElement::Pattern(PatternWithDefault {
+                    pattern: pat,
+                    default,
+                }) => {
                     match pat {
                         Pattern::Identifier(ident) => {
                             self.write_indent();

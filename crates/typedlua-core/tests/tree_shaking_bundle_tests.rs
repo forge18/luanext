@@ -22,7 +22,10 @@ fn create_program<'arena>(
     parser.parse().expect("Parsing failed")
 }
 
-fn create_modules<'arena>(sources: &[(&str, &str)], arena: &'arena Bump) -> (HashMap<String, Program<'arena>>, StringInterner) {
+fn create_modules<'arena>(
+    sources: &[(&str, &str)],
+    arena: &'arena Bump,
+) -> (HashMap<String, Program<'arena>>, StringInterner) {
     let (interner, common) = StringInterner::new_with_common_identifiers();
     let mut modules = HashMap::default();
 

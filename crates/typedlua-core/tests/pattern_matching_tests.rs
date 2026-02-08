@@ -189,7 +189,11 @@ fn test_match_in_expression() {
     "#;
 
     let result = compile_and_check(source);
-    assert!(result.is_ok(), "Match in expression should compile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Match in expression should compile: {:?}",
+        result.err()
+    );
 }
 
 #[test]

@@ -204,10 +204,7 @@ fn test_global_localization_creates_local_references() {
         span,
     ));
     let empty_args1: &[_] = arena.alloc_slice_clone(&[]);
-    let sin_call = Expression::new(
-        ExpressionKind::Call(member_expr1, empty_args1, None),
-        span,
-    );
+    let sin_call = Expression::new(ExpressionKind::Call(member_expr1, empty_args1, None), span);
     let var_x = VariableDeclaration {
         kind: VariableKind::Local,
         pattern: Pattern::Identifier(Spanned::new(x_id, span)),
@@ -223,10 +220,7 @@ fn test_global_localization_creates_local_references() {
         span,
     ));
     let empty_args2: &[_] = arena.alloc_slice_clone(&[]);
-    let cos_call = Expression::new(
-        ExpressionKind::Call(member_expr2, empty_args2, None),
-        span,
-    );
+    let cos_call = Expression::new(ExpressionKind::Call(member_expr2, empty_args2, None), span);
     let var_y = VariableDeclaration {
         kind: VariableKind::Local,
         pattern: Pattern::Identifier(Spanned::new(y_id, span)),
@@ -235,10 +229,7 @@ fn test_global_localization_creates_local_references() {
         span,
     };
 
-    let stmts = arena.alloc_slice_clone(&[
-        Statement::Variable(var_x),
-        Statement::Variable(var_y),
-    ]);
+    let stmts = arena.alloc_slice_clone(&[Statement::Variable(var_x), Statement::Variable(var_y)]);
     let program = Program::new(stmts, span);
 
     let mut mutable = MutableProgram::from_program(&program);

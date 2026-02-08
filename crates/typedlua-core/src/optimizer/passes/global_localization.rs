@@ -1,14 +1,12 @@
-use bumpalo::Bump;
 use crate::config::OptimizationLevel;
 use crate::optimizer::WholeProgramPass;
 use crate::MutableProgram;
+use bumpalo::Bump;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use typedlua_parser::ast::expression::{Expression, ExpressionKind};
 use typedlua_parser::ast::pattern::Pattern;
-use typedlua_parser::ast::statement::{
-    ForStatement, Statement, VariableDeclaration, VariableKind,
-};
+use typedlua_parser::ast::statement::{ForStatement, Statement, VariableDeclaration, VariableKind};
 use typedlua_parser::ast::Spanned;
 use typedlua_parser::span::Span;
 use typedlua_parser::string_interner::StringInterner;
@@ -84,7 +82,11 @@ impl GlobalLocalizationPass {
             Pattern::Array(arr) => {
                 for elem in arr.elements {
                     match elem {
-                        typedlua_parser::ast::pattern::ArrayPatternElement::Pattern(typedlua_parser::ast::pattern::PatternWithDefault { pattern: p, .. }) => {
+                        typedlua_parser::ast::pattern::ArrayPatternElement::Pattern(
+                            typedlua_parser::ast::pattern::PatternWithDefault {
+                                pattern: p, ..
+                            },
+                        ) => {
                             self.collect_pattern_names(p, locals);
                         }
                         typedlua_parser::ast::pattern::ArrayPatternElement::Rest(ident) => {
@@ -345,11 +347,7 @@ impl GlobalLocalizationPass {
                 }
             }
             ExpressionKind::Try(try_expr) => {
-                self.collect_from_expression_optimized(
-                    try_expr.expression,
-                    usage,
-                    declared_locals,
-                );
+                self.collect_from_expression_optimized(try_expr.expression, usage, declared_locals);
                 self.collect_from_expression_optimized(
                     try_expr.catch_expression,
                     usage,
@@ -430,7 +428,12 @@ impl GlobalLocalizationPass {
     ) {
         match stmt {
             Statement::Variable(decl) => {
-                self.replace_in_expression(&mut decl.initializer, frequently_used, declared_locals, arena);
+                self.replace_in_expression(
+                    &mut decl.initializer,
+                    frequently_used,
+                    declared_locals,
+                    arena,
+                );
             }
             Statement::Expression(expr) => {
                 self.replace_in_expression(expr, frequently_used, declared_locals, arena);
@@ -518,9 +521,7 @@ impl GlobalLocalizationPass {
                             self.replace_global_usages(s, frequently_used, &new_locals, arena);
                         }
                         new_gen.body.statements = arena.alloc_slice_clone(&body_stmts);
-                        *stmt = Statement::For(
-                            arena.alloc(ForStatement::Generic(new_gen)),
-                        );
+                        *stmt = Statement::For(arena.alloc(ForStatement::Generic(new_gen)));
                     }
                 }
             }
@@ -569,16 +570,18 @@ impl GlobalLocalizationPass {
                 let mut new_right = (**right).clone();
                 self.replace_in_expression(&mut new_left, frequently_used, declared_locals, arena);
                 self.replace_in_expression(&mut new_right, frequently_used, declared_locals, arena);
-                expr.kind = ExpressionKind::Binary(
-                    op,
-                    arena.alloc(new_left),
-                    arena.alloc(new_right),
-                );
+                expr.kind =
+                    ExpressionKind::Binary(op, arena.alloc(new_left), arena.alloc(new_right));
             }
             ExpressionKind::Unary(op, operand) => {
                 let op = *op;
                 let mut new_operand = (**operand).clone();
-                self.replace_in_expression(&mut new_operand, frequently_used, declared_locals, arena);
+                self.replace_in_expression(
+                    &mut new_operand,
+                    frequently_used,
+                    declared_locals,
+                    arena,
+                );
                 expr.kind = ExpressionKind::Unary(op, arena.alloc(new_operand));
             }
             ExpressionKind::Call(func, args, type_args) => {
@@ -587,7 +590,12 @@ impl GlobalLocalizationPass {
                 self.replace_in_expression(&mut new_func, frequently_used, declared_locals, arena);
                 let mut new_args: Vec<_> = args.to_vec();
                 for arg in &mut new_args {
-                    self.replace_in_expression(&mut arg.value, frequently_used, declared_locals, arena);
+                    self.replace_in_expression(
+                        &mut arg.value,
+                        frequently_used,
+                        declared_locals,
+                        arena,
+                    );
                 }
                 expr.kind = ExpressionKind::Call(
                     arena.alloc(new_func),
@@ -608,7 +616,12 @@ impl GlobalLocalizationPass {
                 self.replace_in_expression(&mut new_obj, frequently_used, declared_locals, arena);
                 let mut new_args: Vec<_> = args.to_vec();
                 for arg in &mut new_args {
-                    self.replace_in_expression(&mut arg.value, frequently_used, declared_locals, arena);
+                    self.replace_in_expression(
+                        &mut arg.value,
+                        frequently_used,
+                        declared_locals,
+                        arena,
+                    );
                 }
                 expr.kind = ExpressionKind::MethodCall(
                     arena.alloc(new_obj),
@@ -622,10 +635,7 @@ impl GlobalLocalizationPass {
                 let mut new_index = (**index).clone();
                 self.replace_in_expression(&mut new_obj, frequently_used, declared_locals, arena);
                 self.replace_in_expression(&mut new_index, frequently_used, declared_locals, arena);
-                expr.kind = ExpressionKind::Index(
-                    arena.alloc(new_obj),
-                    arena.alloc(new_index),
-                );
+                expr.kind = ExpressionKind::Index(arena.alloc(new_obj), arena.alloc(new_index));
             }
             ExpressionKind::Conditional(cond, then_expr, else_expr) => {
                 let mut new_cond = (**cond).clone();
@@ -645,43 +655,66 @@ impl GlobalLocalizationPass {
                 let mut new_right = (**right).clone();
                 self.replace_in_expression(&mut new_left, frequently_used, declared_locals, arena);
                 self.replace_in_expression(&mut new_right, frequently_used, declared_locals, arena);
-                expr.kind = ExpressionKind::Pipe(
-                    arena.alloc(new_left),
-                    arena.alloc(new_right),
-                );
+                expr.kind = ExpressionKind::Pipe(arena.alloc(new_left), arena.alloc(new_right));
             }
             ExpressionKind::Match(match_expr) => {
                 let mut new_value = (*match_expr.value).clone();
                 self.replace_in_expression(&mut new_value, frequently_used, declared_locals, arena);
                 let mut new_arms: Vec<_> = match_expr.arms.to_vec();
                 for arm in &mut new_arms {
-                    self.replace_in_match_arm_body(&mut arm.body, frequently_used, declared_locals, arena);
+                    self.replace_in_match_arm_body(
+                        &mut arm.body,
+                        frequently_used,
+                        declared_locals,
+                        arena,
+                    );
                 }
-                expr.kind = ExpressionKind::Match(typedlua_parser::ast::expression::MatchExpression {
-                    value: arena.alloc(new_value),
-                    arms: arena.alloc_slice_clone(&new_arms),
-                    span: match_expr.span,
-                });
+                expr.kind =
+                    ExpressionKind::Match(typedlua_parser::ast::expression::MatchExpression {
+                        value: arena.alloc(new_value),
+                        arms: arena.alloc_slice_clone(&new_arms),
+                        span: match_expr.span,
+                    });
             }
             ExpressionKind::Arrow(arrow) => {
                 let mut new_arrow = arrow.clone();
                 let mut new_params: Vec<_> = new_arrow.parameters.to_vec();
                 for param in &mut new_params {
                     if let Some(default) = &mut param.default {
-                        self.replace_in_expression(default, frequently_used, declared_locals, arena);
+                        self.replace_in_expression(
+                            default,
+                            frequently_used,
+                            declared_locals,
+                            arena,
+                        );
                     }
                 }
                 new_arrow.parameters = arena.alloc_slice_clone(&new_params);
-                self.replace_in_arrow_body(&mut new_arrow.body, frequently_used, declared_locals, arena);
+                self.replace_in_arrow_body(
+                    &mut new_arrow.body,
+                    frequently_used,
+                    declared_locals,
+                    arena,
+                );
                 expr.kind = ExpressionKind::Arrow(new_arrow);
             }
             ExpressionKind::New(callee, args, type_args) => {
                 let type_args = *type_args;
                 let mut new_callee = (**callee).clone();
-                self.replace_in_expression(&mut new_callee, frequently_used, declared_locals, arena);
+                self.replace_in_expression(
+                    &mut new_callee,
+                    frequently_used,
+                    declared_locals,
+                    arena,
+                );
                 let mut new_args: Vec<_> = args.to_vec();
                 for arg in &mut new_args {
-                    self.replace_in_expression(&mut arg.value, frequently_used, declared_locals, arena);
+                    self.replace_in_expression(
+                        &mut arg.value,
+                        frequently_used,
+                        declared_locals,
+                        arena,
+                    );
                 }
                 expr.kind = ExpressionKind::New(
                     arena.alloc(new_callee),
@@ -698,12 +731,7 @@ impl GlobalLocalizationPass {
                     declared_locals,
                     arena,
                 );
-                self.replace_in_expression(
-                    &mut new_catch,
-                    frequently_used,
-                    declared_locals,
-                    arena,
-                );
+                self.replace_in_expression(&mut new_catch, frequently_used, declared_locals, arena);
                 expr.kind = ExpressionKind::Try(typedlua_parser::ast::expression::TryExpression {
                     expression: arena.alloc(new_expression),
                     catch_variable: try_expr.catch_variable.clone(),
@@ -715,11 +743,14 @@ impl GlobalLocalizationPass {
                 let mut new_error = (**error_expr).clone();
                 let mut new_handler = (**handler).clone();
                 self.replace_in_expression(&mut new_error, frequently_used, declared_locals, arena);
-                self.replace_in_expression(&mut new_handler, frequently_used, declared_locals, arena);
-                expr.kind = ExpressionKind::ErrorChain(
-                    arena.alloc(new_error),
-                    arena.alloc(new_handler),
+                self.replace_in_expression(
+                    &mut new_handler,
+                    frequently_used,
+                    declared_locals,
+                    arena,
                 );
+                expr.kind =
+                    ExpressionKind::ErrorChain(arena.alloc(new_error), arena.alloc(new_handler));
             }
             ExpressionKind::OptionalMember(obj, member) => {
                 let member = member.clone();
@@ -732,10 +763,8 @@ impl GlobalLocalizationPass {
                 let mut new_index = (**index).clone();
                 self.replace_in_expression(&mut new_obj, frequently_used, declared_locals, arena);
                 self.replace_in_expression(&mut new_index, frequently_used, declared_locals, arena);
-                expr.kind = ExpressionKind::OptionalIndex(
-                    arena.alloc(new_obj),
-                    arena.alloc(new_index),
-                );
+                expr.kind =
+                    ExpressionKind::OptionalIndex(arena.alloc(new_obj), arena.alloc(new_index));
             }
             ExpressionKind::OptionalCall(obj, args, type_args) => {
                 let type_args = *type_args;
@@ -743,7 +772,12 @@ impl GlobalLocalizationPass {
                 self.replace_in_expression(&mut new_obj, frequently_used, declared_locals, arena);
                 let mut new_args: Vec<_> = args.to_vec();
                 for arg in &mut new_args {
-                    self.replace_in_expression(&mut arg.value, frequently_used, declared_locals, arena);
+                    self.replace_in_expression(
+                        &mut arg.value,
+                        frequently_used,
+                        declared_locals,
+                        arena,
+                    );
                 }
                 expr.kind = ExpressionKind::OptionalCall(
                     arena.alloc(new_obj),
@@ -758,7 +792,12 @@ impl GlobalLocalizationPass {
                 self.replace_in_expression(&mut new_obj, frequently_used, declared_locals, arena);
                 let mut new_args: Vec<_> = args.to_vec();
                 for arg in &mut new_args {
-                    self.replace_in_expression(&mut arg.value, frequently_used, declared_locals, arena);
+                    self.replace_in_expression(
+                        &mut arg.value,
+                        frequently_used,
+                        declared_locals,
+                        arena,
+                    );
                 }
                 expr.kind = ExpressionKind::OptionalMethodCall(
                     arena.alloc(new_obj),

@@ -2,10 +2,10 @@
 // O2: String Concatenation Optimization Pass
 // =============================================================================
 
-use bumpalo::Bump;
 use crate::config::OptimizationLevel;
 use crate::optimizer::{ExprVisitor, WholeProgramPass};
 use crate::MutableProgram;
+use bumpalo::Bump;
 use std::sync::Arc;
 use typedlua_parser::ast::expression::{
     Argument, ArrayElement, AssignmentOp, BinaryOp, Expression, ExpressionKind, Literal,
@@ -128,8 +128,7 @@ impl StringConcatOptimizationPass {
             Statement::If(if_stmt) => {
                 let mut changed = false;
                 // then_block
-                let mut then_stmts: Vec<Statement<'arena>> =
-                    if_stmt.then_block.statements.to_vec();
+                let mut then_stmts: Vec<Statement<'arena>> = if_stmt.then_block.statements.to_vec();
                 let mut then_changed = false;
                 for s in &mut then_stmts {
                     if self.optimize_statement(s, arena) {
@@ -144,8 +143,7 @@ impl StringConcatOptimizationPass {
                 let mut new_else_ifs: Vec<_> = if_stmt.else_ifs.to_vec();
                 let mut eic = false;
                 for else_if in &mut new_else_ifs {
-                    let mut ei_stmts: Vec<Statement<'arena>> =
-                        else_if.block.statements.to_vec();
+                    let mut ei_stmts: Vec<Statement<'arena>> = else_if.block.statements.to_vec();
                     let mut ei_changed = false;
                     for s in &mut ei_stmts {
                         if self.optimize_statement(s, arena) {
@@ -163,8 +161,7 @@ impl StringConcatOptimizationPass {
                 }
                 // else_block
                 if let Some(else_block) = &mut if_stmt.else_block {
-                    let mut else_stmts: Vec<Statement<'arena>> =
-                        else_block.statements.to_vec();
+                    let mut else_stmts: Vec<Statement<'arena>> = else_block.statements.to_vec();
                     let mut else_changed = false;
                     for s in &mut else_stmts {
                         if self.optimize_statement(s, arena) {
@@ -327,11 +324,7 @@ impl StringConcatOptimizationPass {
     }
 
     /// Checks if a loop statement contains string concatenation on the given variable
-    fn loop_contains_string_concat<'arena>(
-        &self,
-        stmt: &Statement<'arena>,
-        var: StringId,
-    ) -> bool {
+    fn loop_contains_string_concat<'arena>(&self, stmt: &Statement<'arena>, var: StringId) -> bool {
         match stmt {
             Statement::For(for_stmt) => match &**for_stmt {
                 ForStatement::Generic(for_gen) => {
@@ -352,11 +345,7 @@ impl StringConcatOptimizationPass {
     }
 
     /// Checks if a block contains string concatenation on the given variable
-    fn block_contains_string_concat<'arena>(
-        &self,
-        block: &Block<'arena>,
-        var: StringId,
-    ) -> bool {
+    fn block_contains_string_concat<'arena>(&self, block: &Block<'arena>, var: StringId) -> bool {
         block
             .statements
             .iter()
@@ -504,9 +493,8 @@ impl StringConcatOptimizationPass {
                 ForStatement::Numeric(for_num_ref) => {
                     let mut new_num = (**for_num_ref).clone();
                     self.transform_block(&mut new_num.body, concat_var, table_var, arena);
-                    *stmt = Statement::For(
-                        arena.alloc(ForStatement::Numeric(arena.alloc(new_num))),
-                    );
+                    *stmt =
+                        Statement::For(arena.alloc(ForStatement::Numeric(arena.alloc(new_num))));
                 }
             },
             Statement::While(while_stmt) => {
@@ -568,8 +556,7 @@ impl StringConcatOptimizationPass {
                 let mut new_else_ifs: Vec<_> = if_stmt.else_ifs.to_vec();
                 let mut eic = false;
                 for else_if in &mut new_else_ifs {
-                    let mut ei_stmts: Vec<Statement<'arena>> =
-                        else_if.block.statements.to_vec();
+                    let mut ei_stmts: Vec<Statement<'arena>> = else_if.block.statements.to_vec();
                     let mut ei_changed = false;
                     for s in &mut ei_stmts {
                         if self.transform_statement(s, concat_var, table_var, arena) {

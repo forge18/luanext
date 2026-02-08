@@ -371,7 +371,11 @@ impl CodeGenerator {
     /// # Returns
     /// Returns a tuple of (generated_code, optional_source_map)
     pub fn generate_bundle<'arena>(
-        modules: &[(String, &Program<'arena>, std::collections::HashMap<String, String>)],
+        modules: &[(
+            String,
+            &Program<'arena>,
+            std::collections::HashMap<String, String>,
+        )],
         entry_module_id: &str,
         target: LuaTarget,
         with_source_map: bool,
@@ -407,7 +411,11 @@ impl CodeGenerator {
     /// Returns a tuple of (generated_code, optional_source_map)
     #[allow(clippy::too_many_arguments)]
     pub fn generate_bundle_with_options<'arena>(
-        modules: &[(String, &Program<'arena>, std::collections::HashMap<String, String>)],
+        modules: &[(
+            String,
+            &Program<'arena>,
+            std::collections::HashMap<String, String>,
+        )],
         entry_module_id: &str,
         target: LuaTarget,
         with_source_map: bool,
@@ -633,10 +641,11 @@ impl CodeGenerator {
                 let name = interner.resolve(func_decl.name.node).to_string();
                 if hoistable.functions.contains(&name) {
                     // Get the mangled name
-                    if let Some(mangled_name) = hoisting_context.get_mangled_name(module_id, &name) {
+                    if let Some(mangled_name) = hoisting_context.get_mangled_name(module_id, &name)
+                    {
                         // Generate the function with mangled name
-                        let mut temp_gen = CodeGenerator::new(Arc::new(interner.clone()))
-                            .with_target(target);
+                        let mut temp_gen =
+                            CodeGenerator::new(Arc::new(interner.clone())).with_target(target);
 
                         // Generate function signature with mangled name
                         temp_gen.write("local function ");
@@ -683,8 +692,8 @@ impl CodeGenerator {
                             hoisting_context.get_mangled_name(module_id, &name)
                         {
                             // Generate variable with mangled name
-                            let mut temp_gen = CodeGenerator::new(Arc::new(interner.clone()))
-                                .with_target(target);
+                            let mut temp_gen =
+                                CodeGenerator::new(Arc::new(interner.clone())).with_target(target);
                             temp_gen.write("local ");
                             temp_gen.write(mangled_name);
                             temp_gen.write(" = ");
@@ -700,12 +709,13 @@ impl CodeGenerator {
             Statement::Class(class_decl) => {
                 let name = interner.resolve(class_decl.name.node).to_string();
                 if hoistable.classes.contains(&name) {
-                    if let Some(mangled_name) = hoisting_context.get_mangled_name(module_id, &name) {
+                    if let Some(mangled_name) = hoisting_context.get_mangled_name(module_id, &name)
+                    {
                         // Generate class with mangled name
                         // For now, generate a simplified class stub
                         // Full class generation would need to handle methods, constructor, etc.
-                        let mut temp_gen = CodeGenerator::new(Arc::new(interner.clone()))
-                            .with_target(target);
+                        let mut temp_gen =
+                            CodeGenerator::new(Arc::new(interner.clone())).with_target(target);
 
                         // Generate class table
                         temp_gen.write("local ");
@@ -736,10 +746,11 @@ impl CodeGenerator {
             Statement::Enum(enum_decl) => {
                 let name = interner.resolve(enum_decl.name.node).to_string();
                 if hoistable.enums.contains(&name) {
-                    if let Some(mangled_name) = hoisting_context.get_mangled_name(module_id, &name) {
+                    if let Some(mangled_name) = hoisting_context.get_mangled_name(module_id, &name)
+                    {
                         // Generate enum with mangled name
-                        let mut temp_gen = CodeGenerator::new(Arc::new(interner.clone()))
-                            .with_target(target);
+                        let mut temp_gen =
+                            CodeGenerator::new(Arc::new(interner.clone())).with_target(target);
                         temp_gen.write("local ");
                         temp_gen.write(mangled_name);
                         temp_gen.writeln(" = {");
@@ -1700,8 +1711,7 @@ end
         let program = parser.parse().expect("Parsing failed");
         let mutable = MutableProgram::from_program(&program);
 
-        let mut generator = CodeGenerator::new(interner.clone())
-            .with_reflection_mode(mode);
+        let mut generator = CodeGenerator::new(interner.clone()).with_reflection_mode(mode);
         generator.generate(&mutable)
     }
 
@@ -1722,10 +1732,22 @@ end
         assert!(output.contains("__typeId"), "should have __typeId");
         assert!(output.contains("__ancestors"), "should have __ancestors");
         // Reflection metadata should NOT be present (no @std/reflection import)
-        assert!(!output.contains("__ownFields"), "should NOT have __ownFields");
-        assert!(!output.contains("__ownMethods"), "should NOT have __ownMethods");
-        assert!(!output.contains("_buildAllFields"), "should NOT have _buildAllFields");
-        assert!(!output.contains("__TypeRegistry"), "should NOT have __TypeRegistry");
+        assert!(
+            !output.contains("__ownFields"),
+            "should NOT have __ownFields"
+        );
+        assert!(
+            !output.contains("__ownMethods"),
+            "should NOT have __ownMethods"
+        );
+        assert!(
+            !output.contains("_buildAllFields"),
+            "should NOT have _buildAllFields"
+        );
+        assert!(
+            !output.contains("__TypeRegistry"),
+            "should NOT have __TypeRegistry"
+        );
     }
 
     #[test]
@@ -1745,7 +1767,10 @@ end
         assert!(output.contains("__typeId"), "should have __typeId");
         assert!(output.contains("__ownFields"), "should have __ownFields");
         assert!(output.contains("__ownMethods"), "should have __ownMethods");
-        assert!(output.contains("__TypeRegistry"), "should have __TypeRegistry");
+        assert!(
+            output.contains("__TypeRegistry"),
+            "should have __TypeRegistry"
+        );
     }
 
     #[test]
@@ -1764,9 +1789,18 @@ end
         assert!(output.contains("__typeName"), "should have __typeName");
         assert!(output.contains("__typeId"), "should have __typeId");
         // No reflection metadata
-        assert!(!output.contains("__ownFields"), "should NOT have __ownFields");
-        assert!(!output.contains("__ownMethods"), "should NOT have __ownMethods");
-        assert!(!output.contains("__TypeRegistry"), "should NOT have __TypeRegistry");
+        assert!(
+            !output.contains("__ownFields"),
+            "should NOT have __ownFields"
+        );
+        assert!(
+            !output.contains("__ownMethods"),
+            "should NOT have __ownMethods"
+        );
+        assert!(
+            !output.contains("__TypeRegistry"),
+            "should NOT have __TypeRegistry"
+        );
     }
 
     #[test]
@@ -1782,13 +1816,29 @@ end
         let output = generate_code_with_reflection(source, super::ReflectionMode::Full);
         println!("Output:\n{}", output);
         // public(1)
-        assert!(output.contains("_flags = 1"), "public field should have _flags = 1: {}", output);
+        assert!(
+            output.contains("_flags = 1"),
+            "public field should have _flags = 1: {}",
+            output
+        );
         // private(2)
-        assert!(output.contains("_flags = 2"), "private field should have _flags = 2: {}", output);
+        assert!(
+            output.contains("_flags = 2"),
+            "private field should have _flags = 2: {}",
+            output
+        );
         // protected(4) | readonly(8) = 12
-        assert!(output.contains("_flags = 12"), "protected readonly should have _flags = 12: {}", output);
+        assert!(
+            output.contains("_flags = 12"),
+            "protected readonly should have _flags = 12: {}",
+            output
+        );
         // public(1) | static(16) = 17
-        assert!(output.contains("_flags = 17"), "static field should have _flags = 17: {}", output);
+        assert!(
+            output.contains("_flags = 17"),
+            "static field should have _flags = 17: {}",
+            output
+        );
     }
 
     #[test]
@@ -1806,11 +1856,27 @@ end
         let output = generate_code_with_reflection(source, super::ReflectionMode::Full);
         println!("Output:\n{}", output);
         // add: params="nn", ret="n"
-        assert!(output.contains(r#"params = "nn""#), "add should have params nn: {}", output);
-        assert!(output.contains(r#"ret = "n""#), "add should have ret n: {}", output);
+        assert!(
+            output.contains(r#"params = "nn""#),
+            "add should have params nn: {}",
+            output
+        );
+        assert!(
+            output.contains(r#"ret = "n""#),
+            "add should have ret n: {}",
+            output
+        );
         // greet: params="s", ret="b"
-        assert!(output.contains(r#"params = "s""#), "greet should have params s: {}", output);
-        assert!(output.contains(r#"ret = "b""#), "greet should have ret b: {}", output);
+        assert!(
+            output.contains(r#"params = "s""#),
+            "greet should have params s: {}",
+            output
+        );
+        assert!(
+            output.contains(r#"ret = "b""#),
+            "greet should have ret b: {}",
+            output
+        );
     }
 
     #[test]
@@ -1824,7 +1890,15 @@ end
         let output = generate_code_with_reflection(source, super::ReflectionMode::Full);
         println!("Output:\n{}", output);
         // table -> "t", function -> "f"
-        assert!(output.contains(r#"type = "t""#), "table should encode as t: {}", output);
-        assert!(output.contains(r#"type = "f""#), "function should encode as f: {}", output);
+        assert!(
+            output.contains(r#"type = "t""#),
+            "table should encode as t: {}",
+            output
+        );
+        assert!(
+            output.contains(r#"type = "f""#),
+            "function should encode as f: {}",
+            output
+        );
     }
 }

@@ -2,8 +2,8 @@
 // O2: Dead Store Elimination Pass
 // =============================================================================
 
-use bumpalo::Bump;
 use crate::optimizer::BlockVisitor;
+use bumpalo::Bump;
 use std::collections::HashSet;
 use typedlua_parser::ast::expression::{BinaryOp, Expression, ExpressionKind};
 use typedlua_parser::ast::pattern::Pattern;
@@ -21,7 +21,11 @@ impl DeadStoreEliminationPass {
 }
 
 impl<'arena> BlockVisitor<'arena> for DeadStoreEliminationPass {
-    fn visit_block_stmts(&mut self, stmts: &mut Vec<Statement<'arena>>, arena: &'arena Bump) -> bool {
+    fn visit_block_stmts(
+        &mut self,
+        stmts: &mut Vec<Statement<'arena>>,
+        arena: &'arena Bump,
+    ) -> bool {
         self.eliminate_dead_stores_in_vec(stmts, arena)
     }
 }
@@ -38,9 +42,7 @@ impl DeadStoreEliminationPass {
             Statement::Variable(decl) => {
                 self.eliminate_dead_stores_in_expression(&mut decl.initializer, arena)
             }
-            Statement::Expression(expr) => {
-                self.eliminate_dead_stores_in_expression(expr, arena)
-            }
+            Statement::Expression(expr) => self.eliminate_dead_stores_in_expression(expr, arena),
             Statement::If(if_stmt) => {
                 let mut changed =
                     self.eliminate_dead_stores_in_block(&mut if_stmt.then_block, arena);
@@ -61,32 +63,26 @@ impl DeadStoreEliminationPass {
             Statement::While(while_stmt) => {
                 self.eliminate_dead_stores_in_block(&mut while_stmt.body, arena)
             }
-            Statement::For(for_stmt) => {
-                match &**for_stmt {
-                    ForStatement::Numeric(for_num_ref) => {
-                        let mut new_num = (**for_num_ref).clone();
-                        let changed =
-                            self.eliminate_dead_stores_in_block(&mut new_num.body, arena);
-                        if changed {
-                            *stmt = Statement::For(
-                                arena.alloc(ForStatement::Numeric(arena.alloc(new_num))),
-                            );
-                        }
-                        changed
+            Statement::For(for_stmt) => match &**for_stmt {
+                ForStatement::Numeric(for_num_ref) => {
+                    let mut new_num = (**for_num_ref).clone();
+                    let changed = self.eliminate_dead_stores_in_block(&mut new_num.body, arena);
+                    if changed {
+                        *stmt = Statement::For(
+                            arena.alloc(ForStatement::Numeric(arena.alloc(new_num))),
+                        );
                     }
-                    ForStatement::Generic(for_gen_ref) => {
-                        let mut new_gen = for_gen_ref.clone();
-                        let changed =
-                            self.eliminate_dead_stores_in_block(&mut new_gen.body, arena);
-                        if changed {
-                            *stmt = Statement::For(
-                                arena.alloc(ForStatement::Generic(new_gen)),
-                            );
-                        }
-                        changed
-                    }
+                    changed
                 }
-            }
+                ForStatement::Generic(for_gen_ref) => {
+                    let mut new_gen = for_gen_ref.clone();
+                    let changed = self.eliminate_dead_stores_in_block(&mut new_gen.body, arena);
+                    if changed {
+                        *stmt = Statement::For(arena.alloc(ForStatement::Generic(new_gen)));
+                    }
+                    changed
+                }
+            },
             Statement::Repeat(repeat_stmt) => {
                 self.eliminate_dead_stores_in_block(&mut repeat_stmt.body, arena)
             }
@@ -149,7 +145,8 @@ impl DeadStoreEliminationPass {
             },
             ExpressionKind::Call(func_expr, args, type_args) => {
                 let mut new_func = (**func_expr).clone();
-                let mut func_changed = self.eliminate_dead_stores_in_expression(&mut new_func, arena);
+                let mut func_changed =
+                    self.eliminate_dead_stores_in_expression(&mut new_func, arena);
                 let mut new_args: Vec<_> = args.to_vec();
                 let mut args_changed = false;
                 for arg in &mut new_args {
@@ -194,11 +191,8 @@ impl DeadStoreEliminationPass {
                 let left_changed = self.eliminate_dead_stores_in_expression(&mut new_left, arena);
                 let right_changed = self.eliminate_dead_stores_in_expression(&mut new_right, arena);
                 if left_changed || right_changed {
-                    expr.kind = ExpressionKind::Binary(
-                        op,
-                        arena.alloc(new_left),
-                        arena.alloc(new_right),
-                    );
+                    expr.kind =
+                        ExpressionKind::Binary(op, arena.alloc(new_left), arena.alloc(new_right));
                 }
                 left_changed || right_changed
             }
@@ -241,8 +235,7 @@ impl DeadStoreEliminationPass {
                     }
                 }
                 if changed {
-                    expr.kind =
-                        ExpressionKind::Array(arena.alloc_slice_clone(&new_elements));
+                    expr.kind = ExpressionKind::Array(arena.alloc_slice_clone(&new_elements));
                 }
                 changed
             }
@@ -290,8 +283,7 @@ impl DeadStoreEliminationPass {
                     }
                 }
                 if changed {
-                    expr.kind =
-                        ExpressionKind::Object(arena.alloc_slice_clone(&new_props));
+                    expr.kind = ExpressionKind::Object(arena.alloc_slice_clone(&new_props));
                 }
                 changed
             }
@@ -465,7 +457,11 @@ impl DeadStoreEliminationPass {
             Pattern::Array(arr) => {
                 for elem in arr.elements {
                     match elem {
-                        typedlua_parser::ast::pattern::ArrayPatternElement::Pattern(typedlua_parser::ast::pattern::PatternWithDefault { pattern: p, .. }) => {
+                        typedlua_parser::ast::pattern::ArrayPatternElement::Pattern(
+                            typedlua_parser::ast::pattern::PatternWithDefault {
+                                pattern: p, ..
+                            },
+                        ) => {
                             self.collect_names_from_pattern(p, names);
                         }
                         typedlua_parser::ast::pattern::ArrayPatternElement::Rest(ident) => {

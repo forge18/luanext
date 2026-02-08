@@ -221,7 +221,11 @@ pub trait StmtVisitor<'arena> {
 /// Used by passes like dead code elimination (truncate after return) and
 /// dead store elimination (reverse liveness analysis across statements).
 pub trait BlockVisitor<'arena> {
-    fn visit_block_stmts(&mut self, stmts: &mut Vec<Statement<'arena>>, arena: &'arena Bump) -> bool;
+    fn visit_block_stmts(
+        &mut self,
+        stmts: &mut Vec<Statement<'arena>>,
+        arena: &'arena Bump,
+    ) -> bool;
 
     fn required_features(&self) -> AstFeatures {
         AstFeatures::EMPTY
@@ -338,40 +342,40 @@ impl<'arena> ExpressionCompositePass<'arena> {
                 changed |= self.visit_expr(&mut while_stmt.condition, arena);
                 changed |= self.visit_block(&mut while_stmt.body, arena);
             }
-            Statement::For(for_stmt) => {
-                match &**for_stmt {
-                    ForStatement::Numeric(for_num_ref) => {
-                        let mut new_num = (**for_num_ref).clone();
-                        let mut fc = false;
-                        fc |= self.visit_expr(&mut new_num.start, arena);
-                        fc |= self.visit_expr(&mut new_num.end, arena);
-                        if let Some(step) = &mut new_num.step {
-                            fc |= self.visit_expr(step, arena);
-                        }
-                        fc |= self.visit_block(&mut new_num.body, arena);
-                        if fc {
-                            *stmt = Statement::For(arena.alloc(ForStatement::Numeric(arena.alloc(new_num))));
-                            changed = true;
-                        }
+            Statement::For(for_stmt) => match &**for_stmt {
+                ForStatement::Numeric(for_num_ref) => {
+                    let mut new_num = (**for_num_ref).clone();
+                    let mut fc = false;
+                    fc |= self.visit_expr(&mut new_num.start, arena);
+                    fc |= self.visit_expr(&mut new_num.end, arena);
+                    if let Some(step) = &mut new_num.step {
+                        fc |= self.visit_expr(step, arena);
                     }
-                    ForStatement::Generic(for_gen_ref) => {
-                        let mut new_gen = for_gen_ref.clone();
-                        let mut fc = false;
-                        let mut new_iters: Vec<_> = new_gen.iterators.to_vec();
-                        for expr in &mut new_iters {
-                            fc |= self.visit_expr(expr, arena);
-                        }
-                        if fc {
-                            new_gen.iterators = arena.alloc_slice_clone(&new_iters);
-                        }
-                        fc |= self.visit_block(&mut new_gen.body, arena);
-                        if fc {
-                            *stmt = Statement::For(arena.alloc(ForStatement::Generic(new_gen)));
-                            changed = true;
-                        }
+                    fc |= self.visit_block(&mut new_num.body, arena);
+                    if fc {
+                        *stmt = Statement::For(
+                            arena.alloc(ForStatement::Numeric(arena.alloc(new_num))),
+                        );
+                        changed = true;
                     }
                 }
-            }
+                ForStatement::Generic(for_gen_ref) => {
+                    let mut new_gen = for_gen_ref.clone();
+                    let mut fc = false;
+                    let mut new_iters: Vec<_> = new_gen.iterators.to_vec();
+                    for expr in &mut new_iters {
+                        fc |= self.visit_expr(expr, arena);
+                    }
+                    if fc {
+                        new_gen.iterators = arena.alloc_slice_clone(&new_iters);
+                    }
+                    fc |= self.visit_block(&mut new_gen.body, arena);
+                    if fc {
+                        *stmt = Statement::For(arena.alloc(ForStatement::Generic(new_gen)));
+                        changed = true;
+                    }
+                }
+            },
             Statement::Repeat(repeat_stmt) => {
                 changed |= self.visit_expr(&mut repeat_stmt.until, arena);
                 changed |= self.visit_block(&mut repeat_stmt.body, arena);
@@ -527,26 +531,26 @@ impl<'arena> StatementCompositePass<'arena> {
             Statement::While(while_stmt) => {
                 changed |= self.visit_block(&mut while_stmt.body, arena);
             }
-            Statement::For(for_stmt) => {
-                match &**for_stmt {
-                    ForStatement::Numeric(for_num_ref) => {
-                        let mut new_num = (**for_num_ref).clone();
-                        let fc = self.visit_block(&mut new_num.body, arena);
-                        if fc {
-                            *stmt = Statement::For(arena.alloc(ForStatement::Numeric(arena.alloc(new_num))));
-                            changed = true;
-                        }
-                    }
-                    ForStatement::Generic(for_gen_ref) => {
-                        let mut new_gen = for_gen_ref.clone();
-                        let fc = self.visit_block(&mut new_gen.body, arena);
-                        if fc {
-                            *stmt = Statement::For(arena.alloc(ForStatement::Generic(new_gen)));
-                            changed = true;
-                        }
+            Statement::For(for_stmt) => match &**for_stmt {
+                ForStatement::Numeric(for_num_ref) => {
+                    let mut new_num = (**for_num_ref).clone();
+                    let fc = self.visit_block(&mut new_num.body, arena);
+                    if fc {
+                        *stmt = Statement::For(
+                            arena.alloc(ForStatement::Numeric(arena.alloc(new_num))),
+                        );
+                        changed = true;
                     }
                 }
-            }
+                ForStatement::Generic(for_gen_ref) => {
+                    let mut new_gen = for_gen_ref.clone();
+                    let fc = self.visit_block(&mut new_gen.body, arena);
+                    if fc {
+                        *stmt = Statement::For(arena.alloc(ForStatement::Generic(new_gen)));
+                        changed = true;
+                    }
+                }
+            },
             Statement::Repeat(repeat_stmt) => {
                 changed |= self.visit_block(&mut repeat_stmt.body, arena);
             }
@@ -672,26 +676,26 @@ impl<'arena> AnalysisCompositePass<'arena> {
             Statement::While(while_stmt) => {
                 changed |= self.visit_block(&mut while_stmt.body, arena);
             }
-            Statement::For(for_stmt) => {
-                match &**for_stmt {
-                    ForStatement::Numeric(for_num_ref) => {
-                        let mut new_num = (**for_num_ref).clone();
-                        let fc = self.visit_block(&mut new_num.body, arena);
-                        if fc {
-                            *stmt = Statement::For(arena.alloc(ForStatement::Numeric(arena.alloc(new_num))));
-                            changed = true;
-                        }
-                    }
-                    ForStatement::Generic(for_gen_ref) => {
-                        let mut new_gen = for_gen_ref.clone();
-                        let fc = self.visit_block(&mut new_gen.body, arena);
-                        if fc {
-                            *stmt = Statement::For(arena.alloc(ForStatement::Generic(new_gen)));
-                            changed = true;
-                        }
+            Statement::For(for_stmt) => match &**for_stmt {
+                ForStatement::Numeric(for_num_ref) => {
+                    let mut new_num = (**for_num_ref).clone();
+                    let fc = self.visit_block(&mut new_num.body, arena);
+                    if fc {
+                        *stmt = Statement::For(
+                            arena.alloc(ForStatement::Numeric(arena.alloc(new_num))),
+                        );
+                        changed = true;
                     }
                 }
-            }
+                ForStatement::Generic(for_gen_ref) => {
+                    let mut new_gen = for_gen_ref.clone();
+                    let fc = self.visit_block(&mut new_gen.body, arena);
+                    if fc {
+                        *stmt = Statement::For(arena.alloc(ForStatement::Generic(new_gen)));
+                        changed = true;
+                    }
+                }
+            },
             Statement::Repeat(repeat_stmt) => {
                 changed |= self.visit_block(&mut repeat_stmt.body, arena);
             }
@@ -847,7 +851,11 @@ fn visit_expr_children<'arena>(
                     ObjectProperty::Property { key, value, span } => {
                         let mut new_val = (**value).clone();
                         if visit_fn(&mut new_val, arena) {
-                            *prop = ObjectProperty::Property { key: key.clone(), value: arena.alloc(new_val), span: *span };
+                            *prop = ObjectProperty::Property {
+                                key: key.clone(),
+                                value: arena.alloc(new_val),
+                                span: *span,
+                            };
                             pc = true;
                         }
                     }
@@ -868,7 +876,10 @@ fn visit_expr_children<'arena>(
                     ObjectProperty::Spread { value, span } => {
                         let mut new_val = (**value).clone();
                         if visit_fn(&mut new_val, arena) {
-                            *prop = ObjectProperty::Spread { value: arena.alloc(new_val), span: *span };
+                            *prop = ObjectProperty::Spread {
+                                value: arena.alloc(new_val),
+                                span: *span,
+                            };
                             pc = true;
                         }
                     }
@@ -885,8 +896,7 @@ fn visit_expr_children<'arena>(
             let lc = visit_fn(&mut new_left, arena);
             let rc = visit_fn(&mut new_right, arena);
             if lc || rc {
-                expr.kind =
-                    ExpressionKind::Pipe(arena.alloc(new_left), arena.alloc(new_right));
+                expr.kind = ExpressionKind::Pipe(arena.alloc(new_left), arena.alloc(new_right));
                 changed = true;
             }
         }
@@ -998,11 +1008,8 @@ fn visit_expr_children<'arena>(
             let tc = visit_fn(&mut new_target, arena);
             let vc = visit_fn(&mut new_value, arena);
             if tc || vc {
-                expr.kind = ExpressionKind::Assignment(
-                    arena.alloc(new_target),
-                    op,
-                    arena.alloc(new_value),
-                );
+                expr.kind =
+                    ExpressionKind::Assignment(arena.alloc(new_target), op, arena.alloc(new_value));
                 changed = true;
             }
         }
@@ -1131,8 +1138,7 @@ impl<'arena> Optimizer<'arena> {
 
             if let Some(ref mut func_pass) = self.func_pass {
                 func_pass.add_visitor(Box::new(AggressiveInliningPass::new(interner.clone())));
-                func_pass
-                    .add_visitor(Box::new(InterfaceMethodInliningPass::new(interner.clone())));
+                func_pass.add_visitor(Box::new(InterfaceMethodInliningPass::new(interner.clone())));
             }
 
             self.standalone_passes
@@ -1175,32 +1181,56 @@ impl<'arena> Optimizer<'arena> {
         // expr_pass contains: constant-folding, algebraic-simplification, [operator-inlining at O3]
         if let Some(ref ep) = self.expr_pass {
             // O1 base passes
-            if ep.visitor_count() >= 1 { names.push("constant-folding"); }
-            if ep.visitor_count() >= 2 { names.push("algebraic-simplification"); }
+            if ep.visitor_count() >= 1 {
+                names.push("constant-folding");
+            }
+            if ep.visitor_count() >= 2 {
+                names.push("algebraic-simplification");
+            }
             // O3 adds operator-inlining
-            if ep.visitor_count() >= 3 { names.push("operator-inlining"); }
+            if ep.visitor_count() >= 3 {
+                names.push("operator-inlining");
+            }
         }
 
         // elim_pass contains: dead-code-elimination, dead-store-elimination (block visitors)
         if let Some(ref elp) = self.elim_pass {
-            if elp.visitor_count() >= 1 { names.push("dead-code-elimination"); }
-            if elp.visitor_count() >= 2 { names.push("dead-store-elimination"); }
+            if elp.visitor_count() >= 1 {
+                names.push("dead-code-elimination");
+            }
+            if elp.visitor_count() >= 2 {
+                names.push("dead-store-elimination");
+            }
         }
 
         // data_pass contains: table-preallocation, string-concat-optimization
         if let Some(ref dp) = self.data_pass {
-            if dp.visitor_count() >= 1 { names.push("table-preallocation"); }
-            if dp.visitor_count() >= 2 { names.push("string-concat-optimization"); }
+            if dp.visitor_count() >= 1 {
+                names.push("table-preallocation");
+            }
+            if dp.visitor_count() >= 2 {
+                names.push("string-concat-optimization");
+            }
         }
 
         // func_pass contains: function-inlining, tail-call-optimization, method-to-function-conversion
         //   [O3 adds: aggressive-inlining, interface-method-inlining]
         if let Some(ref fp) = self.func_pass {
-            if fp.visitor_count() >= 1 { names.push("function-inlining"); }
-            if fp.visitor_count() >= 2 { names.push("tail-call-optimization"); }
-            if fp.visitor_count() >= 3 { names.push("method-to-function-conversion"); }
-            if fp.visitor_count() >= 4 { names.push("aggressive-inlining"); }
-            if fp.visitor_count() >= 5 { names.push("interface-method-inlining"); }
+            if fp.visitor_count() >= 1 {
+                names.push("function-inlining");
+            }
+            if fp.visitor_count() >= 2 {
+                names.push("tail-call-optimization");
+            }
+            if fp.visitor_count() >= 3 {
+                names.push("method-to-function-conversion");
+            }
+            if fp.visitor_count() >= 4 {
+                names.push("aggressive-inlining");
+            }
+            if fp.visitor_count() >= 5 {
+                names.push("interface-method-inlining");
+            }
         }
 
         for pass in &self.standalone_passes {

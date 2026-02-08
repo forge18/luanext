@@ -1,7 +1,7 @@
-use bumpalo::Bump;
 use crate::config::OptimizationLevel;
 use crate::optimizer::{AstFeatures, WholeProgramPass};
 use crate::MutableProgram;
+use bumpalo::Bump;
 use typedlua_parser::ast::statement::{EnumDeclaration, Statement};
 
 pub struct RichEnumOptimizationPass;
@@ -25,7 +25,11 @@ impl<'arena> WholeProgramPass<'arena> for RichEnumOptimizationPass {
         AstFeatures::HAS_ENUMS
     }
 
-    fn run(&mut self, program: &mut MutableProgram<'arena>, _arena: &'arena Bump) -> Result<bool, String> {
+    fn run(
+        &mut self,
+        program: &mut MutableProgram<'arena>,
+        _arena: &'arena Bump,
+    ) -> Result<bool, String> {
         let mut rich_enum_count = 0;
 
         for stmt in &program.statements {

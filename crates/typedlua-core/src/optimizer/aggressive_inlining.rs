@@ -1,6 +1,6 @@
-use bumpalo::Bump;
 use crate::config::OptimizationLevel;
 use crate::MutableProgram;
+use bumpalo::Bump;
 
 use crate::optimizer::{StmtVisitor, WholeProgramPass};
 use std::collections::{HashMap, HashSet};
@@ -371,45 +371,42 @@ impl AggressiveInliningPass {
                 changed |= self.inline_in_block(&mut while_stmt.body, arena, functions);
                 changed
             }
-            Statement::For(for_stmt) => {
-                match &**for_stmt {
-                    ForStatement::Numeric(for_num_ref) => {
-                        let mut new_num = (**for_num_ref).clone();
-                        let mut changed = self.inline_in_expression(&mut new_num.start, arena);
-                        changed |= self.inline_in_expression(&mut new_num.end, arena);
-                        if let Some(step) = &mut new_num.step {
-                            changed |= self.inline_in_expression(step, arena);
-                        }
-                        changed |= self.inline_in_block(&mut new_num.body, arena, functions);
-                        if changed {
-                            *stmt = Statement::For(
-                                arena.alloc(ForStatement::Numeric(arena.alloc(new_num))),
-                            );
-                        }
-                        changed
+            Statement::For(for_stmt) => match &**for_stmt {
+                ForStatement::Numeric(for_num_ref) => {
+                    let mut new_num = (**for_num_ref).clone();
+                    let mut changed = self.inline_in_expression(&mut new_num.start, arena);
+                    changed |= self.inline_in_expression(&mut new_num.end, arena);
+                    if let Some(step) = &mut new_num.step {
+                        changed |= self.inline_in_expression(step, arena);
                     }
-                    ForStatement::Generic(for_gen_ref) => {
-                        let mut new_gen = for_gen_ref.clone();
-                        let mut changed = false;
-                        let mut new_iters: Vec<_> = new_gen.iterators.to_vec();
-                        for expr in &mut new_iters {
-                            changed |= self.inline_in_expression(expr, arena);
-                        }
-                        if changed {
-                            new_gen.iterators = arena.alloc_slice_clone(&new_iters);
-                        }
-                        changed |= self.inline_in_block(&mut new_gen.body, arena, functions);
-                        if changed {
-                            *stmt = Statement::For(
-                                arena.alloc(ForStatement::Generic(new_gen)),
-                            );
-                        }
-                        changed
+                    changed |= self.inline_in_block(&mut new_num.body, arena, functions);
+                    if changed {
+                        *stmt = Statement::For(
+                            arena.alloc(ForStatement::Numeric(arena.alloc(new_num))),
+                        );
                     }
+                    changed
                 }
-            }
+                ForStatement::Generic(for_gen_ref) => {
+                    let mut new_gen = for_gen_ref.clone();
+                    let mut changed = false;
+                    let mut new_iters: Vec<_> = new_gen.iterators.to_vec();
+                    for expr in &mut new_iters {
+                        changed |= self.inline_in_expression(expr, arena);
+                    }
+                    if changed {
+                        new_gen.iterators = arena.alloc_slice_clone(&new_iters);
+                    }
+                    changed |= self.inline_in_block(&mut new_gen.body, arena, functions);
+                    if changed {
+                        *stmt = Statement::For(arena.alloc(ForStatement::Generic(new_gen)));
+                    }
+                    changed
+                }
+            },
             Statement::Variable(decl) => {
-                if let Some(result) = self.try_inline_call(&mut decl.initializer, arena, functions) {
+                if let Some(result) = self.try_inline_call(&mut decl.initializer, arena, functions)
+                {
                     match result {
                         InlineResult::Direct(_) => true,
                         InlineResult::Replaced { stmts, .. } => {
@@ -559,11 +556,8 @@ impl AggressiveInliningPass {
                 let lc = self.inline_in_expression(&mut new_left, arena);
                 let rc = self.inline_in_expression(&mut new_right, arena);
                 if lc || rc {
-                    expr.kind = ExpressionKind::Binary(
-                        op,
-                        arena.alloc(new_left),
-                        arena.alloc(new_right),
-                    );
+                    expr.kind =
+                        ExpressionKind::Binary(op, arena.alloc(new_left), arena.alloc(new_right));
                 }
                 lc || rc
             }
@@ -598,10 +592,7 @@ impl AggressiveInliningPass {
                 let lc = self.inline_in_expression(&mut new_left, arena);
                 let rc = self.inline_in_expression(&mut new_right, arena);
                 if lc || rc {
-                    expr.kind = ExpressionKind::Pipe(
-                        arena.alloc(new_left),
-                        arena.alloc(new_right),
-                    );
+                    expr.kind = ExpressionKind::Pipe(arena.alloc(new_left), arena.alloc(new_right));
                 }
                 lc || rc
             }
@@ -710,10 +701,8 @@ impl AggressiveInliningPass {
                 let lc = self.inline_in_expression(&mut new_left, arena);
                 let rc = self.inline_in_expression(&mut new_right, arena);
                 if lc || rc {
-                    expr.kind = ExpressionKind::ErrorChain(
-                        arena.alloc(new_left),
-                        arena.alloc(new_right),
-                    );
+                    expr.kind =
+                        ExpressionKind::ErrorChain(arena.alloc(new_left), arena.alloc(new_right));
                 }
                 lc || rc
             }
@@ -732,10 +721,8 @@ impl AggressiveInliningPass {
                 let oc = self.inline_in_expression(&mut new_obj, arena);
                 let ic = self.inline_in_expression(&mut new_index, arena);
                 if oc || ic {
-                    expr.kind = ExpressionKind::OptionalIndex(
-                        arena.alloc(new_obj),
-                        arena.alloc(new_index),
-                    );
+                    expr.kind =
+                        ExpressionKind::OptionalIndex(arena.alloc(new_obj), arena.alloc(new_index));
                 }
                 oc || ic
             }
@@ -801,10 +788,7 @@ impl AggressiveInliningPass {
                 let oc = self.inline_in_expression(&mut new_obj, arena);
                 let ic = self.inline_in_expression(&mut new_index, arena);
                 if oc || ic {
-                    expr.kind = ExpressionKind::Index(
-                        arena.alloc(new_obj),
-                        arena.alloc(new_index),
-                    );
+                    expr.kind = ExpressionKind::Index(arena.alloc(new_obj), arena.alloc(new_index));
                 }
                 oc || ic
             }
@@ -956,11 +940,7 @@ impl AggressiveInliningPass {
         }
     }
 
-    fn expr_contains_call_to<'arena>(
-        &self,
-        expr: &Expression<'arena>,
-        name: StringId,
-    ) -> bool {
+    fn expr_contains_call_to<'arena>(&self, expr: &Expression<'arena>, name: StringId) -> bool {
         match &expr.kind {
             ExpressionKind::Call(func, args, _) => {
                 if let ExpressionKind::Identifier(id) = &func.kind {
@@ -1266,8 +1246,13 @@ impl AggressiveInliningPass {
 
         let body_stmts: Vec<Statement<'arena>> = func.body.statements.to_vec();
         for stmt in &body_stmts {
-            let inlined_stmt =
-                Self::inline_statement_with_subst(stmt, &param_subst, &return_var, has_return, arena);
+            let inlined_stmt = Self::inline_statement_with_subst(
+                stmt,
+                &param_subst,
+                &return_var,
+                has_return,
+                arena,
+            );
             inlined_body.push(inlined_stmt);
         }
 
@@ -1351,12 +1336,14 @@ impl AggressiveInliningPass {
                     let initializer_kind = if values.len() == 1 {
                         values[0].kind.clone()
                     } else {
-                        ExpressionKind::Array(arena.alloc_slice_clone(
-                            &values
-                                .iter()
-                                .map(|e| ArrayElement::Expression(e.clone()))
-                                .collect::<Vec<_>>(),
-                        ))
+                        ExpressionKind::Array(
+                            arena.alloc_slice_clone(
+                                &values
+                                    .iter()
+                                    .map(|e| ArrayElement::Expression(e.clone()))
+                                    .collect::<Vec<_>>(),
+                            ),
+                        )
                     };
                     Statement::Variable(VariableDeclaration {
                         kind: VariableKind::Local,
@@ -1423,11 +1410,8 @@ impl AggressiveInliningPass {
                 let mut new_right = (**right).clone();
                 Self::substitute_expression(&mut new_left, param_subst, arena);
                 Self::substitute_expression(&mut new_right, param_subst, arena);
-                expr.kind = ExpressionKind::Binary(
-                    op,
-                    arena.alloc(new_left),
-                    arena.alloc(new_right),
-                );
+                expr.kind =
+                    ExpressionKind::Binary(op, arena.alloc(new_left), arena.alloc(new_right));
             }
             ExpressionKind::Unary(op, operand) => {
                 let op = *op;
@@ -1515,10 +1499,8 @@ impl AggressiveInliningPass {
                 let mut new_right = (**right).clone();
                 Self::substitute_expression(&mut new_left, param_subst, arena);
                 Self::substitute_expression(&mut new_right, param_subst, arena);
-                expr.kind = ExpressionKind::ErrorChain(
-                    arena.alloc(new_left),
-                    arena.alloc(new_right),
-                );
+                expr.kind =
+                    ExpressionKind::ErrorChain(arena.alloc(new_left), arena.alloc(new_right));
             }
             ExpressionKind::OptionalMember(obj, member) => {
                 let member = member.clone();
@@ -1531,10 +1513,8 @@ impl AggressiveInliningPass {
                 let mut new_index = (**index).clone();
                 Self::substitute_expression(&mut new_obj, param_subst, arena);
                 Self::substitute_expression(&mut new_index, param_subst, arena);
-                expr.kind = ExpressionKind::OptionalIndex(
-                    arena.alloc(new_obj),
-                    arena.alloc(new_index),
-                );
+                expr.kind =
+                    ExpressionKind::OptionalIndex(arena.alloc(new_obj), arena.alloc(new_index));
             }
             ExpressionKind::OptionalCall(obj, args, type_args) => {
                 let type_args = *type_args;
@@ -1583,10 +1563,7 @@ impl AggressiveInliningPass {
                 let mut new_index = (**index).clone();
                 Self::substitute_expression(&mut new_obj, param_subst, arena);
                 Self::substitute_expression(&mut new_index, param_subst, arena);
-                expr.kind = ExpressionKind::Index(
-                    arena.alloc(new_obj),
-                    arena.alloc(new_index),
-                );
+                expr.kind = ExpressionKind::Index(arena.alloc(new_obj), arena.alloc(new_index));
             }
             _ => {}
         }

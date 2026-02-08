@@ -4,8 +4,8 @@
 
 use crate::config::OptimizationLevel;
 use crate::optimizer::WholeProgramPass;
-use crate::{build_substitutions, instantiate_function_declaration};
 use crate::MutableProgram;
+use crate::{build_substitutions, instantiate_function_declaration};
 use bumpalo::Bump;
 use rustc_hash::FxHashMap;
 use std::collections::hash_map::DefaultHasher;
@@ -113,7 +113,9 @@ impl<'arena, 'pass> SpecializationContext<'arena, 'pass> {
             typedlua_parser::ast::Spanned::new(specialized_name, func.name.span);
 
         // Add to cache and to list of new functions
-        self.pass.specializations.insert(cache_key, specialized_name);
+        self.pass
+            .specializations
+            .insert(cache_key, specialized_name);
         self.new_functions
             .push(Statement::Function(specialized_func));
 
@@ -159,8 +161,7 @@ impl<'arena, 'pass> SpecializationContext<'arena, 'pass> {
                 }
                 // then_block
                 {
-                    let mut stmts: Vec<Statement<'arena>> =
-                        if_stmt.then_block.statements.to_vec();
+                    let mut stmts: Vec<Statement<'arena>> = if_stmt.then_block.statements.to_vec();
                     let mut bc = false;
                     for s in &mut stmts {
                         if self.specialize_calls_in_statement(s, arena) {
@@ -228,75 +229,70 @@ impl<'arena, 'pass> SpecializationContext<'arena, 'pass> {
                     changed = true;
                 }
             }
-            Statement::For(for_stmt) => {
-                match &**for_stmt {
-                    ForStatement::Numeric(num_ref) => {
-                        let mut new_num = (**num_ref).clone();
-                        let mut fc = false;
-                        if self.specialize_calls_in_expression(&mut new_num.start, arena) {
+            Statement::For(for_stmt) => match &**for_stmt {
+                ForStatement::Numeric(num_ref) => {
+                    let mut new_num = (**num_ref).clone();
+                    let mut fc = false;
+                    if self.specialize_calls_in_expression(&mut new_num.start, arena) {
+                        fc = true;
+                    }
+                    if self.specialize_calls_in_expression(&mut new_num.end, arena) {
+                        fc = true;
+                    }
+                    if let Some(step) = &mut new_num.step {
+                        if self.specialize_calls_in_expression(step, arena) {
                             fc = true;
-                        }
-                        if self.specialize_calls_in_expression(&mut new_num.end, arena) {
-                            fc = true;
-                        }
-                        if let Some(step) = &mut new_num.step {
-                            if self.specialize_calls_in_expression(step, arena) {
-                                fc = true;
-                            }
-                        }
-                        let mut stmts: Vec<Statement<'arena>> = new_num.body.statements.to_vec();
-                        let mut bc = false;
-                        for s in &mut stmts {
-                            if self.specialize_calls_in_statement(s, arena) {
-                                bc = true;
-                            }
-                        }
-                        if bc {
-                            new_num.body.statements = arena.alloc_slice_clone(&stmts);
-                            fc = true;
-                        }
-                        if fc {
-                            *stmt = Statement::For(
-                                arena.alloc(ForStatement::Numeric(arena.alloc(new_num))),
-                            );
-                            changed = true;
                         }
                     }
-                    ForStatement::Generic(gen_ref) => {
-                        let mut new_gen = gen_ref.clone();
-                        let mut fc = false;
-                        let mut new_iters: Vec<Expression<'arena>> =
-                            new_gen.iterators.to_vec();
-                        let mut ic = false;
-                        for iter in &mut new_iters {
-                            if self.specialize_calls_in_expression(iter, arena) {
-                                ic = true;
-                            }
+                    let mut stmts: Vec<Statement<'arena>> = new_num.body.statements.to_vec();
+                    let mut bc = false;
+                    for s in &mut stmts {
+                        if self.specialize_calls_in_statement(s, arena) {
+                            bc = true;
                         }
-                        if ic {
-                            new_gen.iterators = arena.alloc_slice_clone(&new_iters);
-                            fc = true;
-                        }
-                        let mut stmts: Vec<Statement<'arena>> = new_gen.body.statements.to_vec();
-                        let mut bc = false;
-                        for s in &mut stmts {
-                            if self.specialize_calls_in_statement(s, arena) {
-                                bc = true;
-                            }
-                        }
-                        if bc {
-                            new_gen.body.statements = arena.alloc_slice_clone(&stmts);
-                            fc = true;
-                        }
-                        if fc {
-                            *stmt = Statement::For(
-                                arena.alloc(ForStatement::Generic(new_gen)),
-                            );
-                            changed = true;
-                        }
+                    }
+                    if bc {
+                        new_num.body.statements = arena.alloc_slice_clone(&stmts);
+                        fc = true;
+                    }
+                    if fc {
+                        *stmt = Statement::For(
+                            arena.alloc(ForStatement::Numeric(arena.alloc(new_num))),
+                        );
+                        changed = true;
                     }
                 }
-            }
+                ForStatement::Generic(gen_ref) => {
+                    let mut new_gen = gen_ref.clone();
+                    let mut fc = false;
+                    let mut new_iters: Vec<Expression<'arena>> = new_gen.iterators.to_vec();
+                    let mut ic = false;
+                    for iter in &mut new_iters {
+                        if self.specialize_calls_in_expression(iter, arena) {
+                            ic = true;
+                        }
+                    }
+                    if ic {
+                        new_gen.iterators = arena.alloc_slice_clone(&new_iters);
+                        fc = true;
+                    }
+                    let mut stmts: Vec<Statement<'arena>> = new_gen.body.statements.to_vec();
+                    let mut bc = false;
+                    for s in &mut stmts {
+                        if self.specialize_calls_in_statement(s, arena) {
+                            bc = true;
+                        }
+                    }
+                    if bc {
+                        new_gen.body.statements = arena.alloc_slice_clone(&stmts);
+                        fc = true;
+                    }
+                    if fc {
+                        *stmt = Statement::For(arena.alloc(ForStatement::Generic(new_gen)));
+                        changed = true;
+                    }
+                }
+            },
             Statement::Function(func) => {
                 let mut stmts: Vec<Statement<'arena>> = func.body.statements.to_vec();
                 let mut bc = false;
@@ -389,8 +385,7 @@ impl<'arena, 'pass> SpecializationContext<'arena, 'pass> {
                                     self.specialize_function(arena, &func, ta)
                                 {
                                     // Replace callee with specialized function name
-                                    new_callee.kind =
-                                        ExpressionKind::Identifier(specialized_name);
+                                    new_callee.kind = ExpressionKind::Identifier(specialized_name);
                                     // Clear type arguments since the function is now monomorphic
                                     type_args_val = None;
                                     sub_changed = true;
@@ -417,11 +412,8 @@ impl<'arena, 'pass> SpecializationContext<'arena, 'pass> {
                 let lc = self.specialize_calls_in_expression(&mut new_left, arena);
                 let rc = self.specialize_calls_in_expression(&mut new_right, arena);
                 if lc || rc {
-                    expr.kind = ExpressionKind::Binary(
-                        op,
-                        arena.alloc(new_left),
-                        arena.alloc(new_right),
-                    );
+                    expr.kind =
+                        ExpressionKind::Binary(op, arena.alloc(new_left), arena.alloc(new_right));
                     changed = true;
                 }
             }
@@ -492,8 +484,7 @@ impl<'arena, 'pass> SpecializationContext<'arena, 'pass> {
                 let oc = self.specialize_calls_in_expression(&mut new_obj, arena);
                 let ic = self.specialize_calls_in_expression(&mut new_index, arena);
                 if oc || ic {
-                    expr.kind =
-                        ExpressionKind::Index(arena.alloc(new_obj), arena.alloc(new_index));
+                    expr.kind = ExpressionKind::Index(arena.alloc(new_obj), arena.alloc(new_index));
                     changed = true;
                 }
             }
@@ -587,8 +578,7 @@ impl<'arena, 'pass> SpecializationContext<'arena, 'pass> {
                 let lc = self.specialize_calls_in_expression(&mut new_left, arena);
                 let rc = self.specialize_calls_in_expression(&mut new_right, arena);
                 if lc || rc {
-                    expr.kind =
-                        ExpressionKind::Pipe(arena.alloc(new_left), arena.alloc(new_right));
+                    expr.kind = ExpressionKind::Pipe(arena.alloc(new_left), arena.alloc(new_right));
                     changed = true;
                 }
             }
@@ -613,8 +603,7 @@ impl<'arena, 'pass> SpecializationContext<'arena, 'pass> {
             ExpressionKind::OptionalCall(callee, args, type_args)
             | ExpressionKind::OptionalMethodCall(callee, _, args, type_args) => {
                 // Capture discriminant info before borrow
-                let is_method_call =
-                    matches!(&expr.kind, ExpressionKind::OptionalMethodCall(..));
+                let is_method_call = matches!(&expr.kind, ExpressionKind::OptionalMethodCall(..));
                 let method = if let ExpressionKind::OptionalMethodCall(_, m, _, _) = &expr.kind {
                     Some(m.clone())
                 } else {
@@ -666,10 +655,8 @@ impl<'arena, 'pass> SpecializationContext<'arena, 'pass> {
                 let oc = self.specialize_calls_in_expression(&mut new_obj, arena);
                 let ic = self.specialize_calls_in_expression(&mut new_index, arena);
                 if oc || ic {
-                    expr.kind = ExpressionKind::OptionalIndex(
-                        arena.alloc(new_obj),
-                        arena.alloc(new_index),
-                    );
+                    expr.kind =
+                        ExpressionKind::OptionalIndex(arena.alloc(new_obj), arena.alloc(new_index));
                     changed = true;
                 }
             }
@@ -703,10 +690,8 @@ impl<'arena, 'pass> SpecializationContext<'arena, 'pass> {
                 let lc = self.specialize_calls_in_expression(&mut new_left, arena);
                 let rc = self.specialize_calls_in_expression(&mut new_right, arena);
                 if lc || rc {
-                    expr.kind = ExpressionKind::ErrorChain(
-                        arena.alloc(new_left),
-                        arena.alloc(new_right),
-                    );
+                    expr.kind =
+                        ExpressionKind::ErrorChain(arena.alloc(new_left), arena.alloc(new_right));
                     changed = true;
                 }
             }

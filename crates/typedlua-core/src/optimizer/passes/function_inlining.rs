@@ -1,9 +1,9 @@
 // O2: Function Inlining Pass
 // =============================================================================
 
-use bumpalo::Bump;
 use crate::optimizer::{PreAnalysisPass, StmtVisitor};
 use crate::MutableProgram;
+use bumpalo::Bump;
 use rustc_hash::FxHashMap as HashMap;
 use std::sync::Arc;
 use typedlua_parser::ast::expression::{ArrowBody, Expression, ExpressionKind};
@@ -120,11 +120,7 @@ impl<'arena> FunctionInliningPass<'arena> {
 }
 
 impl<'arena> FunctionInliningPass<'arena> {
-    fn inline_in_statement(
-        &mut self,
-        stmt: &mut Statement<'arena>,
-        arena: &'arena Bump,
-    ) -> bool {
+    fn inline_in_statement(&mut self, stmt: &mut Statement<'arena>, arena: &'arena Bump) -> bool {
         match stmt {
             Statement::Function(func) => {
                 let mut changed = false;
@@ -162,44 +158,40 @@ impl<'arena> FunctionInliningPass<'arena> {
                 changed |= self.inline_in_block(&mut while_stmt.body, arena);
                 changed
             }
-            Statement::For(for_stmt) => {
-                match &**for_stmt {
-                    ForStatement::Numeric(for_num_ref) => {
-                        let mut new_num = (**for_num_ref).clone();
-                        let mut fc = false;
-                        fc |= self.inline_in_expression(&mut new_num.start, arena);
-                        fc |= self.inline_in_expression(&mut new_num.end, arena);
-                        if let Some(step) = &mut new_num.step {
-                            fc |= self.inline_in_expression(step, arena);
-                        }
-                        fc |= self.inline_in_block(&mut new_num.body, arena);
-                        if fc {
-                            *stmt = Statement::For(
-                                arena.alloc(ForStatement::Numeric(arena.alloc(new_num))),
-                            );
-                        }
-                        fc
+            Statement::For(for_stmt) => match &**for_stmt {
+                ForStatement::Numeric(for_num_ref) => {
+                    let mut new_num = (**for_num_ref).clone();
+                    let mut fc = false;
+                    fc |= self.inline_in_expression(&mut new_num.start, arena);
+                    fc |= self.inline_in_expression(&mut new_num.end, arena);
+                    if let Some(step) = &mut new_num.step {
+                        fc |= self.inline_in_expression(step, arena);
                     }
-                    ForStatement::Generic(for_gen_ref) => {
-                        let mut new_gen = for_gen_ref.clone();
-                        let mut fc = false;
-                        let mut new_iters: Vec<_> = new_gen.iterators.to_vec();
-                        for expr in &mut new_iters {
-                            fc |= self.inline_in_expression(expr, arena);
-                        }
-                        if fc {
-                            new_gen.iterators = arena.alloc_slice_clone(&new_iters);
-                        }
-                        fc |= self.inline_in_block(&mut new_gen.body, arena);
-                        if fc {
-                            *stmt = Statement::For(
-                                arena.alloc(ForStatement::Generic(new_gen)),
-                            );
-                        }
-                        fc
+                    fc |= self.inline_in_block(&mut new_num.body, arena);
+                    if fc {
+                        *stmt = Statement::For(
+                            arena.alloc(ForStatement::Numeric(arena.alloc(new_num))),
+                        );
                     }
+                    fc
                 }
-            }
+                ForStatement::Generic(for_gen_ref) => {
+                    let mut new_gen = for_gen_ref.clone();
+                    let mut fc = false;
+                    let mut new_iters: Vec<_> = new_gen.iterators.to_vec();
+                    for expr in &mut new_iters {
+                        fc |= self.inline_in_expression(expr, arena);
+                    }
+                    if fc {
+                        new_gen.iterators = arena.alloc_slice_clone(&new_iters);
+                    }
+                    fc |= self.inline_in_block(&mut new_gen.body, arena);
+                    if fc {
+                        *stmt = Statement::For(arena.alloc(ForStatement::Generic(new_gen)));
+                    }
+                    fc
+                }
+            },
             Statement::Variable(decl) => {
                 if let Some(result) = self.try_inline_call(&mut decl.initializer, arena) {
                     match result {
@@ -291,11 +283,7 @@ impl<'arena> FunctionInliningPass<'arena> {
         }
     }
 
-    fn inline_in_block(
-        &mut self,
-        block: &mut Block<'arena>,
-        arena: &'arena Bump,
-    ) -> bool {
+    fn inline_in_block(&mut self, block: &mut Block<'arena>, arena: &'arena Bump) -> bool {
         let mut stmts: Vec<Statement<'arena>> = block.statements.to_vec();
         let mut changed = false;
         let mut i = 0;
@@ -309,11 +297,7 @@ impl<'arena> FunctionInliningPass<'arena> {
         changed
     }
 
-    fn inline_in_expression(
-        &mut self,
-        expr: &mut Expression<'arena>,
-        arena: &'arena Bump,
-    ) -> bool {
+    fn inline_in_expression(&mut self, expr: &mut Expression<'arena>, arena: &'arena Bump) -> bool {
         match &expr.kind {
             ExpressionKind::Call(func_ref, args_ref, type_args) => {
                 let type_args = *type_args;
@@ -365,11 +349,8 @@ impl<'arena> FunctionInliningPass<'arena> {
                 let lc = self.inline_in_expression(&mut new_left, arena);
                 let rc = self.inline_in_expression(&mut new_right, arena);
                 if lc || rc {
-                    expr.kind = ExpressionKind::Binary(
-                        op,
-                        arena.alloc(new_left),
-                        arena.alloc(new_right),
-                    );
+                    expr.kind =
+                        ExpressionKind::Binary(op, arena.alloc(new_left), arena.alloc(new_right));
                 }
                 lc || rc
             }
@@ -404,10 +385,7 @@ impl<'arena> FunctionInliningPass<'arena> {
                 let lc = self.inline_in_expression(&mut new_left, arena);
                 let rc = self.inline_in_expression(&mut new_right, arena);
                 if lc || rc {
-                    expr.kind = ExpressionKind::Pipe(
-                        arena.alloc(new_left),
-                        arena.alloc(new_right),
-                    );
+                    expr.kind = ExpressionKind::Pipe(arena.alloc(new_left), arena.alloc(new_right));
                 }
                 lc || rc
             }
@@ -431,11 +409,12 @@ impl<'arena> FunctionInliningPass<'arena> {
                     }
                 }
                 if vc || ac {
-                    expr.kind = ExpressionKind::Match(typedlua_parser::ast::expression::MatchExpression {
-                        value: arena.alloc(new_value),
-                        arms: arena.alloc_slice_clone(&new_arms),
-                        span: match_expr.span,
-                    });
+                    expr.kind =
+                        ExpressionKind::Match(typedlua_parser::ast::expression::MatchExpression {
+                            value: arena.alloc(new_value),
+                            arms: arena.alloc_slice_clone(&new_arms),
+                            span: match_expr.span,
+                        });
                 }
                 vc || ac
             }
@@ -494,12 +473,13 @@ impl<'arena> FunctionInliningPass<'arena> {
                 let ec = self.inline_in_expression(&mut new_expression, arena);
                 let cc = self.inline_in_expression(&mut new_catch, arena);
                 if ec || cc {
-                    expr.kind = ExpressionKind::Try(typedlua_parser::ast::expression::TryExpression {
-                        expression: arena.alloc(new_expression),
-                        catch_variable: try_expr.catch_variable.clone(),
-                        catch_expression: arena.alloc(new_catch),
-                        span: try_expr.span,
-                    });
+                    expr.kind =
+                        ExpressionKind::Try(typedlua_parser::ast::expression::TryExpression {
+                            expression: arena.alloc(new_expression),
+                            catch_variable: try_expr.catch_variable.clone(),
+                            catch_expression: arena.alloc(new_catch),
+                            span: try_expr.span,
+                        });
                 }
                 ec || cc
             }
@@ -509,10 +489,8 @@ impl<'arena> FunctionInliningPass<'arena> {
                 let lc = self.inline_in_expression(&mut new_left, arena);
                 let rc = self.inline_in_expression(&mut new_right, arena);
                 if lc || rc {
-                    expr.kind = ExpressionKind::ErrorChain(
-                        arena.alloc(new_left),
-                        arena.alloc(new_right),
-                    );
+                    expr.kind =
+                        ExpressionKind::ErrorChain(arena.alloc(new_left), arena.alloc(new_right));
                 }
                 lc || rc
             }
@@ -531,10 +509,8 @@ impl<'arena> FunctionInliningPass<'arena> {
                 let oc = self.inline_in_expression(&mut new_obj, arena);
                 let ic = self.inline_in_expression(&mut new_index, arena);
                 if oc || ic {
-                    expr.kind = ExpressionKind::OptionalIndex(
-                        arena.alloc(new_obj),
-                        arena.alloc(new_index),
-                    );
+                    expr.kind =
+                        ExpressionKind::OptionalIndex(arena.alloc(new_obj), arena.alloc(new_index));
                 }
                 oc || ic
             }
@@ -600,10 +576,7 @@ impl<'arena> FunctionInliningPass<'arena> {
                 let oc = self.inline_in_expression(&mut new_obj, arena);
                 let ic = self.inline_in_expression(&mut new_index, arena);
                 if oc || ic {
-                    expr.kind = ExpressionKind::Index(
-                        arena.alloc(new_obj),
-                        arena.alloc(new_index),
-                    );
+                    expr.kind = ExpressionKind::Index(arena.alloc(new_obj), arena.alloc(new_index));
                 }
                 oc || ic
             }
@@ -1162,11 +1135,8 @@ impl<'arena> FunctionInliningPass<'arena> {
                 let mut new_right = (**right_ref).clone();
                 self.inline_expression(&mut new_left, param_subst, arena);
                 self.inline_expression(&mut new_right, param_subst, arena);
-                expr.kind = ExpressionKind::Binary(
-                    op,
-                    arena.alloc(new_left),
-                    arena.alloc(new_right),
-                );
+                expr.kind =
+                    ExpressionKind::Binary(op, arena.alloc(new_left), arena.alloc(new_right));
             }
             ExpressionKind::Unary(op, operand_ref) => {
                 let op = *op;
@@ -1220,11 +1190,12 @@ impl<'arena> FunctionInliningPass<'arena> {
                         MatchArmBody::Block(_) => {}
                     }
                 }
-                expr.kind = ExpressionKind::Match(typedlua_parser::ast::expression::MatchExpression {
-                    value: arena.alloc(new_value),
-                    arms: arena.alloc_slice_clone(&new_arms),
-                    span: match_expr.span,
-                });
+                expr.kind =
+                    ExpressionKind::Match(typedlua_parser::ast::expression::MatchExpression {
+                        value: arena.alloc(new_value),
+                        arms: arena.alloc_slice_clone(&new_arms),
+                        span: match_expr.span,
+                    });
             }
             ExpressionKind::New(callee_ref, args_ref, type_args) => {
                 let type_args = *type_args;
@@ -1257,10 +1228,8 @@ impl<'arena> FunctionInliningPass<'arena> {
                 let mut new_right = (**right_ref).clone();
                 self.inline_expression(&mut new_left, param_subst, arena);
                 self.inline_expression(&mut new_right, param_subst, arena);
-                expr.kind = ExpressionKind::ErrorChain(
-                    arena.alloc(new_left),
-                    arena.alloc(new_right),
-                );
+                expr.kind =
+                    ExpressionKind::ErrorChain(arena.alloc(new_left), arena.alloc(new_right));
             }
             ExpressionKind::OptionalMember(obj_ref, member) => {
                 let member = member.clone();
@@ -1273,10 +1242,8 @@ impl<'arena> FunctionInliningPass<'arena> {
                 let mut new_index = (**index_ref).clone();
                 self.inline_expression(&mut new_obj, param_subst, arena);
                 self.inline_expression(&mut new_index, param_subst, arena);
-                expr.kind = ExpressionKind::OptionalIndex(
-                    arena.alloc(new_obj),
-                    arena.alloc(new_index),
-                );
+                expr.kind =
+                    ExpressionKind::OptionalIndex(arena.alloc(new_obj), arena.alloc(new_index));
             }
             ExpressionKind::OptionalCall(obj_ref, args_ref, type_args) => {
                 let type_args = *type_args;
@@ -1325,10 +1292,7 @@ impl<'arena> FunctionInliningPass<'arena> {
                 let mut new_index = (**index_ref).clone();
                 self.inline_expression(&mut new_obj, param_subst, arena);
                 self.inline_expression(&mut new_index, param_subst, arena);
-                expr.kind = ExpressionKind::Index(
-                    arena.alloc(new_obj),
-                    arena.alloc(new_index),
-                );
+                expr.kind = ExpressionKind::Index(arena.alloc(new_obj), arena.alloc(new_index));
             }
             _ => {}
         }

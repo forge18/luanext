@@ -1,6 +1,6 @@
-use bumpalo::Bump;
 use crate::config::OptimizationLevel;
 use crate::MutableProgram;
+use bumpalo::Bump;
 
 use crate::optimizer::{StmtVisitor, WholeProgramPass};
 use std::sync::Arc;
@@ -75,8 +75,7 @@ impl MethodToFunctionConversionPass {
                         let mut new_gen = for_gen_ref.clone();
                         let changed = self.convert_in_block(&mut new_gen.body, arena);
                         if changed {
-                            *stmt =
-                                Statement::For(arena.alloc(ForStatement::Generic(new_gen)));
+                            *stmt = Statement::For(arena.alloc(ForStatement::Generic(new_gen)));
                         }
                         changed
                     }
@@ -206,11 +205,8 @@ impl MethodToFunctionConversionPass {
                 let left_changed = self.convert_in_expression(&mut new_left, arena);
                 let right_changed = self.convert_in_expression(&mut new_right, arena);
                 if left_changed || right_changed {
-                    expr.kind = ExpressionKind::Binary(
-                        op,
-                        arena.alloc(new_left),
-                        arena.alloc(new_right),
-                    );
+                    expr.kind =
+                        ExpressionKind::Binary(op, arena.alloc(new_left), arena.alloc(new_right));
                 }
                 left_changed || right_changed
             }
@@ -260,10 +256,7 @@ impl MethodToFunctionConversionPass {
                 let left_changed = self.convert_in_expression(&mut new_left, arena);
                 let right_changed = self.convert_in_expression(&mut new_right, arena);
                 if left_changed || right_changed {
-                    expr.kind = ExpressionKind::Pipe(
-                        arena.alloc(new_left),
-                        arena.alloc(new_right),
-                    );
+                    expr.kind = ExpressionKind::Pipe(arena.alloc(new_left), arena.alloc(new_right));
                 }
                 left_changed || right_changed
             }
@@ -277,9 +270,10 @@ impl MethodToFunctionConversionPass {
                         typedlua_parser::ast::expression::MatchArmBody::Expression(arm_expr) => {
                             let mut new_arm_expr = (**arm_expr).clone();
                             if self.convert_in_expression(&mut new_arm_expr, arena) {
-                                arm.body = typedlua_parser::ast::expression::MatchArmBody::Expression(
-                                    arena.alloc(new_arm_expr),
-                                );
+                                arm.body =
+                                    typedlua_parser::ast::expression::MatchArmBody::Expression(
+                                        arena.alloc(new_arm_expr),
+                                    );
                                 arms_changed = true;
                             }
                         }
@@ -289,11 +283,12 @@ impl MethodToFunctionConversionPass {
                     }
                 }
                 if changed || arms_changed {
-                    expr.kind = ExpressionKind::Match(typedlua_parser::ast::expression::MatchExpression {
-                        value: arena.alloc(new_value),
-                        arms: arena.alloc_slice_clone(&new_arms),
-                        span: match_expr.span,
-                    });
+                    expr.kind =
+                        ExpressionKind::Match(typedlua_parser::ast::expression::MatchExpression {
+                            value: arena.alloc(new_value),
+                            arms: arena.alloc_slice_clone(&new_arms),
+                            span: match_expr.span,
+                        });
                     changed = true;
                 }
                 changed
@@ -316,9 +311,10 @@ impl MethodToFunctionConversionPass {
                     typedlua_parser::ast::expression::ArrowBody::Expression(body_expr) => {
                         let mut new_body = (**body_expr).clone();
                         if self.convert_in_expression(&mut new_body, arena) {
-                            new_arrow.body = typedlua_parser::ast::expression::ArrowBody::Expression(
-                                arena.alloc(new_body),
-                            );
+                            new_arrow.body =
+                                typedlua_parser::ast::expression::ArrowBody::Expression(
+                                    arena.alloc(new_body),
+                                );
                             changed = true;
                         }
                     }
@@ -356,12 +352,13 @@ impl MethodToFunctionConversionPass {
                 let c1 = self.convert_in_expression(&mut new_expression, arena);
                 let c2 = self.convert_in_expression(&mut new_catch, arena);
                 if c1 || c2 {
-                    expr.kind = ExpressionKind::Try(typedlua_parser::ast::expression::TryExpression {
-                        expression: arena.alloc(new_expression),
-                        catch_variable: try_expr.catch_variable.clone(),
-                        catch_expression: arena.alloc(new_catch),
-                        span: try_expr.span,
-                    });
+                    expr.kind =
+                        ExpressionKind::Try(typedlua_parser::ast::expression::TryExpression {
+                            expression: arena.alloc(new_expression),
+                            catch_variable: try_expr.catch_variable.clone(),
+                            catch_expression: arena.alloc(new_catch),
+                            span: try_expr.span,
+                        });
                 }
                 c1 || c2
             }
@@ -371,10 +368,8 @@ impl MethodToFunctionConversionPass {
                 let left_changed = self.convert_in_expression(&mut new_left, arena);
                 let right_changed = self.convert_in_expression(&mut new_right, arena);
                 if left_changed || right_changed {
-                    expr.kind = ExpressionKind::ErrorChain(
-                        arena.alloc(new_left),
-                        arena.alloc(new_right),
-                    );
+                    expr.kind =
+                        ExpressionKind::ErrorChain(arena.alloc(new_left), arena.alloc(new_right));
                 }
                 left_changed || right_changed
             }
@@ -393,10 +388,8 @@ impl MethodToFunctionConversionPass {
                 let c1 = self.convert_in_expression(&mut new_obj, arena);
                 let c2 = self.convert_in_expression(&mut new_index, arena);
                 if c1 || c2 {
-                    expr.kind = ExpressionKind::OptionalIndex(
-                        arena.alloc(new_obj),
-                        arena.alloc(new_index),
-                    );
+                    expr.kind =
+                        ExpressionKind::OptionalIndex(arena.alloc(new_obj), arena.alloc(new_index));
                 }
                 c1 || c2
             }

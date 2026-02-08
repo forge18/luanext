@@ -77,8 +77,10 @@ impl<'a> EscapeAnalysis<'a> {
             eprintln!("DEBUG module_locals: {:?}", analysis.module_locals);
             eprintln!("DEBUG exported_names: {:?}", analysis.exported_names);
             eprintln!("DEBUG return_values: {:?}", analysis.return_values);
-            eprintln!("DEBUG hoistable result: funcs={:?}, vars={:?}, classes={:?}, enums={:?}",
-                result.functions, result.variables, result.classes, result.enums);
+            eprintln!(
+                "DEBUG hoistable result: funcs={:?}, vars={:?}, classes={:?}, enums={:?}",
+                result.functions, result.variables, result.classes, result.enums
+            );
         }
         result
     }
@@ -342,7 +344,10 @@ impl<'a> EscapeAnalysis<'a> {
 
                 // Rule 4: Can't hoist if initializer is a complex type (object or array)
                 // These are typically returned or have external dependencies
-                if matches!(decl.initializer.kind, ExpressionKind::Object(_) | ExpressionKind::Array(_)) {
+                if matches!(
+                    decl.initializer.kind,
+                    ExpressionKind::Object(_) | ExpressionKind::Array(_)
+                ) {
                     return false;
                 }
 
@@ -460,7 +465,11 @@ impl<'a> EscapeAnalysis<'a> {
         }
     }
 
-    fn walk_statements_checking_any_local(&self, statements: &[Statement], self_name: &str) -> bool {
+    fn walk_statements_checking_any_local(
+        &self,
+        statements: &[Statement],
+        self_name: &str,
+    ) -> bool {
         for statement in statements {
             match statement {
                 Statement::Return(ret) => {
@@ -471,23 +480,30 @@ impl<'a> EscapeAnalysis<'a> {
                     }
                 }
                 Statement::If(if_stmt) => {
-                    if self.walk_statements_checking_any_local(if_stmt.then_block.statements, self_name)
-                    {
+                    if self.walk_statements_checking_any_local(
+                        if_stmt.then_block.statements,
+                        self_name,
+                    ) {
                         return true;
                     }
                     for elseif in if_stmt.else_ifs.iter() {
-                        if self.walk_statements_checking_any_local(elseif.block.statements, self_name) {
+                        if self
+                            .walk_statements_checking_any_local(elseif.block.statements, self_name)
+                        {
                             return true;
                         }
                     }
                     if let Some(else_block) = &if_stmt.else_block {
-                        if self.walk_statements_checking_any_local(else_block.statements, self_name) {
+                        if self.walk_statements_checking_any_local(else_block.statements, self_name)
+                        {
                             return true;
                         }
                     }
                 }
                 Statement::While(while_stmt) => {
-                    if self.walk_statements_checking_any_local(while_stmt.body.statements, self_name) {
+                    if self
+                        .walk_statements_checking_any_local(while_stmt.body.statements, self_name)
+                    {
                         return true;
                     }
                 }
@@ -519,7 +535,6 @@ impl<'a> EscapeAnalysis<'a> {
         // Can't hoist if the enum is returned directly from a private function
         !self.returns_local_by_name(name)
     }
-
 
     fn get_declaration_name(&self, stmt: &Statement) -> Option<(StringId, String)> {
         match stmt {
@@ -660,9 +675,7 @@ impl NameMangler {
         let mut result = String::new();
 
         // Remove leading ./ or /
-        let path = module_path
-            .trim_start_matches("./")
-            .trim_start_matches('/');
+        let path = module_path.trim_start_matches("./").trim_start_matches('/');
 
         // Remove file extension
         let path = path
@@ -861,7 +874,9 @@ impl HoistingContext {
         for (module_id, program) in modules {
             let hoistable = EscapeAnalysis::analyze(program, interner);
             if !hoistable.all_names().is_empty() {
-                context.hoistable_by_module.insert(module_id.clone(), hoistable);
+                context
+                    .hoistable_by_module
+                    .insert(module_id.clone(), hoistable);
             }
         }
 
@@ -965,8 +980,8 @@ impl<'a> ReferenceRewriter<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bumpalo::Bump;
     use crate::diagnostics::CollectingDiagnosticHandler;
+    use bumpalo::Bump;
     use std::sync::Arc;
     use typedlua_parser::lexer::Lexer;
     use typedlua_parser::parser::Parser;
@@ -1440,10 +1455,7 @@ mod tests {
         hoistable2.functions.insert("baz".to_string());
         hoistable2.classes.insert("MyClass".to_string());
 
-        let modules = vec![
-            ("src/module_a", &hoistable1),
-            ("src/module_b", &hoistable2),
-        ];
+        let modules = vec![("src/module_a", &hoistable1), ("src/module_b", &hoistable2)];
 
         mangler.mangle_all(modules.into_iter());
 
@@ -1525,22 +1537,13 @@ mod tests {
         let mut mangler = NameMangler::new();
 
         // Test various path formats
-        assert_eq!(
-            mangler.mangle_name("a.b.c", "foo"),
-            "a_b_c__foo"
-        );
+        assert_eq!(mangler.mangle_name("a.b.c", "foo"), "a_b_c__foo");
 
         let mut m2 = NameMangler::new();
-        assert_eq!(
-            m2.mangle_name("a/b/c", "foo"),
-            "a_b_c__foo"
-        );
+        assert_eq!(m2.mangle_name("a/b/c", "foo"), "a_b_c__foo");
 
         // Consecutive separators should not create multiple underscores
         let mut m3 = NameMangler::new();
-        assert_eq!(
-            m3.mangle_name("a//b", "foo"),
-            "a_b__foo"
-        );
+        assert_eq!(m3.mangle_name("a//b", "foo"), "a_b__foo");
     }
 }
