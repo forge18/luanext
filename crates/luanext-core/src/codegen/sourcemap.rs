@@ -186,7 +186,9 @@ impl SourceMapBuilder {
                 .unwrap_or(0);
 
             // Remap the name index using our mapping
-            let name_index = mapping.name_index.and_then(|idx| name_index_map.get(&idx).copied());
+            let name_index = mapping
+                .name_index
+                .and_then(|idx| name_index_map.get(&idx).copied());
 
             self.mappings.push(Mapping {
                 generated_line: mapping.generated_line + line_offset,

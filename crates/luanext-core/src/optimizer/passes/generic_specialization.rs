@@ -48,11 +48,27 @@ impl GenericSpecializationPass {
 }
 
 /// Temporary run-time context holding arena-lifetime data for a single pass execution.
+///
+/// ## Lifetime Management Pattern
+///
+/// This struct uses two lifetimes to separate concerns:
+/// - `'arena`: Tied to the AST arena allocator - data with this lifetime is arena-allocated
+/// - `'pass`: Tied to the mutable borrow of the pass - much shorter than 'arena
+///
+/// The separation allows us to:
+/// 1. Store arena-allocated AST nodes (`FunctionDeclaration<'arena>`, `Statement<'arena>`)
+/// 2. Access pass-level state (specializations map, interner) via `&'pass mut`
+/// 3. Keep all arena data localized to this temporary context, not in the pass itself
+///
+/// This pattern is necessary because:
+/// - Arena data can't outlive the arena (which is reset between compilations)
+/// - Pass state needs to persist across multiple runs for caching
+/// - Rust's lifetime system prevents accidentally storing arena data in the pass
 struct SpecializationContext<'arena, 'pass> {
     pass: &'pass mut GenericSpecializationPass,
-    /// Collected generic function declarations
+    /// Collected generic function declarations (arena-allocated AST nodes)
     generic_functions: FxHashMap<StringId, FunctionDeclaration<'arena>>,
-    /// New specialized function declarations to add to program
+    /// New specialized function declarations to add to program (arena-allocated)
     new_functions: Vec<Statement<'arena>>,
 }
 
@@ -721,7 +737,9 @@ impl<'arena> WholeProgramPass<'arena> for GenericSpecializationPass {
         self.specializations.clear();
         self.next_spec_id = 0;
 
-        // Create a temporary context that holds arena-lifetime data
+        // Create a temporary context that holds arena-lifetime data.
+        // This pattern keeps arena-allocated AST nodes out of `self`, allowing
+        // the pass to persist across compilations while AST data is safely scoped.
         let mut ctx = SpecializationContext::new(self);
 
         // Phase 1: Collect all generic function declarations
