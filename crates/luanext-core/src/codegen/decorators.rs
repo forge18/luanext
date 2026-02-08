@@ -152,7 +152,7 @@ impl CodeGenerator {
                 if let DecoratorExpression::Identifier(obj_name) = object {
                     let obj_str = self.resolve(obj_name.node);
                     let prop_str = self.resolve(property.node);
-                    obj_str == "TypedLua" && self.is_built_in_decorator(&prop_str)
+                    obj_str == "LuaNext" && self.is_built_in_decorator(&prop_str)
                 } else {
                     false
                 }

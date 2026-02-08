@@ -1,9 +1,9 @@
-# TypedLua Implementation Plan
+# LuaNext Implementation Plan
 
 **Document Version:** 0.1  
 **Last Updated:** 2024-12-31
 
-Complete implementation roadmap for TypedLua compiler and tooling.
+Complete implementation roadmap for LuaNext compiler and tooling.
 
 ---
 
@@ -17,7 +17,7 @@ Complete implementation roadmap for TypedLua compiler and tooling.
 - Cargo workspace with 3 crates: core, cli, lsp
 - Core types: Span, Diagnostic, Error types
 - DI Container implementation
-- Configuration system (typedlua.json parsing)
+- Configuration system (luanext.json parsing)
 - CI/CD pipeline (GitHub Actions)
 
 **Deliverables:**
@@ -31,7 +31,7 @@ Complete implementation roadmap for TypedLua compiler and tooling.
 ## Phase 1: Lexer & Parser (3-4 weeks)
 
 **Lexer (Week 1-2):**
-- Tokenize all TypedLua syntax
+- Tokenize all LuaNext syntax
 - Handle keywords, operators, literals, identifiers
 - Span tracking for error reporting
 - Test all token types

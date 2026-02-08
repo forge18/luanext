@@ -31,7 +31,7 @@ impl CacheManager {
     /// Create a new cache manager
     ///
     /// # Arguments
-    /// * `base_dir` - Project root directory (cache will be at base_dir/.typed-lua-cache)
+    /// * `base_dir` - Project root directory (cache will be at base_dir/.luanext-cache)
     /// * `config` - Compiler options (used to detect config changes)
     pub fn new(base_dir: &Path, config: &CompilerOptions) -> Result<Self> {
         let cache_dir = base_dir.join(CACHE_DIR_NAME);

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The TypedLua compiler uses a string interner to deduplicate string storage and enable efficient identifier comparison. This document describes the correct architecture and usage patterns.
+The LuaNext compiler uses a string interner to deduplicate string storage and enable efficient identifier comparison. This document describes the correct architecture and usage patterns.
 
 ## The Problem
 

@@ -1,4 +1,4 @@
-//! Performance Benchmarks for TypedLua Compilation
+//! Performance Benchmarks for LuaNext Compilation
 //!
 //! These benchmarks measure compilation performance at different scales:
 //! - Type checking: 1K, 10K, 100K lines of code
@@ -23,7 +23,7 @@ const MAX_FULL_COMPILE_1K_MS: u64 = 100;
 const MAX_FULL_COMPILE_10K_MS: u64 = 500;
 const MAX_FULL_COMPILE_100K_MS: u64 = 5000;
 
-/// Generates TypedLua source code with approximately target_lines lines
+/// Generates LuaNext source code with approximately target_lines lines
 fn generate_test_code(target_lines: usize) -> String {
     let mut code = String::new();
     let mut line_count = 0;
@@ -1008,7 +1008,7 @@ use luanext_core::config::CompilerOptions;
 #[test]
 fn test_incremental_retypecheck_single_file_change() {
     // Create a multi-file project simulation
-    let project_root = std::env::temp_dir().join("typedlua_incremental_test");
+    let project_root = std::env::temp_dir().join("luanext_incremental_test");
     let _ = std::fs::remove_dir_all(&project_root);
     std::fs::create_dir_all(&project_root).unwrap();
 
@@ -1159,7 +1159,7 @@ fn test_incremental_retypecheck_single_file_change() {
 #[test]
 fn test_cache_hit_rate_unchanged_modules() {
     // Create a multi-file project
-    let project_root = std::env::temp_dir().join("typedlua_cache_hit_test");
+    let project_root = std::env::temp_dir().join("luanext_cache_hit_test");
     let _ = std::fs::remove_dir_all(&project_root);
     std::fs::create_dir_all(&project_root).unwrap();
 

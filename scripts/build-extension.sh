@@ -1,10 +1,10 @@
 #!/bin/bash
-# Build TypedLua VS Code extension without installing
+# Build LuaNext VS Code extension without installing
 # Creates the .vsix package for distribution or manual installation
 
 set -e
 
-echo "🚀 TypedLua: Build Extension Package"
+echo "🚀 LuaNext: Build Extension Package"
 echo "====================================="
 echo ""
 
@@ -13,8 +13,8 @@ cd "$PROJECT_ROOT"
 
 # Step 1: Build the LSP server
 echo "📦 Step 1/3: Building LSP server..."
-cargo build --release --package typedlua-lsp
-echo "✅ LSP server built: target/release/typedlua-lsp"
+cargo build --release --package luanext-lsp
+echo "✅ LSP server built: target/release/luanext-lsp"
 echo ""
 
 # Step 2: Compile the extension
@@ -26,9 +26,9 @@ echo ""
 
 # Step 3: Package the extension
 echo "📦 Step 3/3: Packaging extension as VSIX..."
-rm -f typedlua-*.vsix
+rm -f luanext-*.vsix
 npx vsce package --allow-missing-repository --no-dependencies 2>&1 | grep -v "DeprecationWarning" || true
-VSIX_FILE=$(ls typedlua-*.vsix 2>/dev/null | head -1)
+VSIX_FILE=$(ls luanext-*.vsix 2>/dev/null | head -1)
 
 if [ -z "$VSIX_FILE" ]; then
     echo "❌ Error: Failed to create .vsix file"

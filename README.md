@@ -1,14 +1,14 @@
-# TypedLua
+# LuaNext
 
-[![Alpha](https://img.shields.io/badge/status-alpha-orange.svg)](https://github.com/forge18/typed-lua)
-[![codecov](https://codecov.io/gh/forge18/typed-lua/branch/main/graph/badge.svg)](https://codecov.io/gh/forge18/typed-lua)
-[![CI](https://github.com/forge18/typed-lua/actions/workflows/ci.yml/badge.svg)](https://github.com/forge18/typed-lua/actions/workflows/ci.yml)
+[![Alpha](https://img.shields.io/badge/status-alpha-orange.svg)](https://github.com/forge18/luanext)
+[![codecov](https://codecov.io/gh/forge18/luanext/branch/main/graph/badge.svg)](https://codecov.io/gh/forge18/luanext)
+[![CI](https://github.com/forge18/luanext/actions/workflows/ci.yml/badge.svg)](https://github.com/forge18/luanext/actions/workflows/ci.yml)
 
 A typed superset of Lua with gradual typing, inspired by TypeScript's approach to JavaScript.
 
 ## Overview
 
-TypedLua brings static type checking to Lua while maintaining its simplicity and allowing gradual adoption. Write type-safe Lua code that compiles to plain Lua, with zero runtime overhead.
+LuaNext brings static type checking to Lua while maintaining its simplicity and allowing gradual adoption. Write type-safe Lua code that compiles to plain Lua, with zero runtime overhead.
 
 ## Features
 
@@ -43,16 +43,16 @@ The compiler is feature-complete and ready for testing:
 
 ```bash
 # Build from source
-git clone https://github.com/forge18/typed-lua
-cd typed-lua
+git clone https://github.com/forge18/luanext
+cd luanext
 cargo build --release
 
-# The binary will be at target/release/typedlua
+# The binary will be at target/release/luanext
 ```
 
 ## Quick Start
 
-### Example TypedLua Code
+### Example LuaNext Code
 
 ```lua
 -- Variable declarations with types
@@ -93,25 +93,25 @@ print("Area:", area)
 
 ## Multi-File Compilation
 
-TypedLua supports compiling entire projects with automatic dependency ordering:
+LuaNext supports compiling entire projects with automatic dependency ordering:
 
 ### Compiling Multiple Files
 
 ```bash
 # Compile individual files (order determined by imports)
-typedlua file1.luax file2.luax file3.luax
+luanext file1.luax file2.luax file3.luax
 
 # Compile with glob patterns
-typedlua "src/**/*.luax"
-typedlua "src/*.luax" "tests/*.luax"
+luanext "src/**/*.luax"
+luanext "src/*.luax" "tests/*.luax"
 
 # Bundle all files into single output
-typedlua "src/**/*.luax" --out-file bundle.lua
+luanext "src/**/*.luax" --out-file bundle.lua
 ```
 
 ### How It Works
 
-1. **File Discovery** - TypedLua expands glob patterns and discovers all `.luax` files
+1. **File Discovery** - LuaNext expands glob patterns and discovers all `.luax` files
 2. **Import Analysis** - Parses imports to build a dependency graph
 3. **Topological Sort** - Determines compilation order (dependencies first)
 4. **Sequential Compilation** - Files compile one-by-one, exporting types for dependents
@@ -156,14 +156,14 @@ exclude:
 
 ## Architecture
 
-TypedLua is built in Rust with a focus on modularity and testability:
+LuaNext is built in Rust with a focus on modularity and testability:
 
 ```
-typedlua/
+luanext/
 ├── crates/
-│   ├── typedlua-core/    # Compiler core (lexer, parser, type checker, codegen)
-│   ├── typedlua-cli/     # Command-line interface
-│   └── typedlua-lsp/     # Language Server Protocol implementation
+│   ├── luanext-core/    # Compiler core (lexer, parser, type checker, codegen)
+│   ├── luanext-cli/     # Command-line interface
+│   └── luanext-lsp/     # Language Server Protocol implementation
 ```
 
 **Design Principles:**
@@ -202,7 +202,7 @@ cargo fmt
 cargo test --all
 
 # Run tests for specific crate
-cargo test -p typedlua-core
+cargo test -p luanext-core
 
 # Run with coverage
 cargo tarpaulin --all-features --workspace
@@ -210,7 +210,7 @@ cargo tarpaulin --all-features --workspace
 
 ## Type System
 
-TypedLua provides a rich type system inspired by TypeScript:
+LuaNext provides a rich type system inspired by TypeScript:
 
 ### Primitive Types
 - `nil`, `boolean`, `number`, `integer`, `string`
@@ -226,11 +226,11 @@ TypedLua provides a rich type system inspired by TypeScript:
 - Interfaces: table shapes only
 - Type aliases: everything except table shapes
 
-See [docs/designs/TypedLua-Design.md](docs/designs/TypedLua-Design.md) for complete type system documentation.
+See [docs/designs/LuaNext-Design.md](docs/designs/LuaNext-Design.md) for complete type system documentation.
 
 ## Language Features
 
-TypedLua includes powerful OOP features for building robust applications:
+LuaNext includes powerful OOP features for building robust applications:
 
 - **`override` keyword** - Explicit method overriding with compile-time validation
 - **`final` keyword** - Prevent inheritance and method overriding
@@ -266,7 +266,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed implementation sta
 
 ## Contributing
 
-TypedLua is under active development. Contributions are welcome!
+LuaNext is under active development. Contributions are welcome!
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -293,4 +293,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 **Status:** 🚀 Beta - Core Features Complete, Polishing for v1.0
 
-Built with ❤️ by the TypedLua team
+Built with ❤️ by the LuaNext team

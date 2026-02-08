@@ -1,6 +1,6 @@
-# Contributing to TypedLua
+# Contributing to LuaNext
 
-Thank you for your interest in contributing to TypedLua!
+Thank you for your interest in contributing to LuaNext!
 
 ## Code of Conduct
 
@@ -24,8 +24,8 @@ Thank you for your interest in contributing to TypedLua!
 
 1. Fork and clone:
    ```bash
-   git clone https://github.com/yourusername/typed-lua.git
-   cd typed-lua
+   git clone https://github.com/yourusername/luanext.git
+   cd luanext
    ```
 
 2. Build the project:
@@ -48,7 +48,7 @@ Thank you for your interest in contributing to TypedLua!
 
 **Lexer, Parser, Type Checker, Code Generator:**
 
-1. Make changes in `crates/typedlua-core/`
+1. Make changes in `crates/luanext-core/`
 2. Run checks:
    ```bash
    cargo fmt
@@ -59,7 +59,7 @@ Thank you for your interest in contributing to TypedLua!
 
 ### Working on LSP Server
 
-1. Make changes in `crates/typedlua-lsp/`
+1. Make changes in `crates/luanext-lsp/`
 2. Run checks (same as above)
 3. For integration testing with VS Code:
    ```bash
@@ -114,7 +114,7 @@ git push origin feature/your-feature-name
 - Unit: `#[cfg(test)]` in same file
 - Integration: `tests/` directory
 - Target: 70%+ coverage (`cargo tarpaulin`)
-- Use DI pattern (see [message_handler.rs](crates/typedlua-lsp/src/message_handler.rs))
+- Use DI pattern (see [message_handler.rs](crates/luanext-lsp/src/message_handler.rs))
 
 ### Code Philosophy
 
@@ -135,10 +135,10 @@ git push origin feature/your-feature-name
 cargo test
 
 # Specific crate
-cargo test --package typedlua-lsp
+cargo test --package luanext-lsp
 
 # With coverage
-cargo tarpaulin --package typedlua-core --out Stdout
+cargo tarpaulin --package luanext-core --out Stdout
 
 # Specific test
 cargo test test_name
@@ -149,7 +149,7 @@ cargo test test_name
 ```bash
 # Debug logging
 RUST_LOG=debug cargo run
-RUST_LOG=typedlua_core=debug cargo run
+RUST_LOG=luanext_core=debug cargo run
 
 # With backtrace
 RUST_BACKTRACE=1 cargo test
@@ -159,8 +159,8 @@ RUST_BACKTRACE=1 cargo test
 
 **Check LSP server logs:**
 1. View > Output
-2. Select "TypedLua Language Server"
-3. Enable verbose: Settings > "typedlua trace" > "verbose"
+2. Select "LuaNext Language Server"
+3. Enable verbose: Settings > "luanext trace" > "verbose"
 
 **Debug extension:**
 1. Open `editors/vscode/` in VS Code
@@ -170,7 +170,7 @@ RUST_BACKTRACE=1 cargo test
 
 **Common issues:**
 - Extension not activating? Check file extension is `.luax`
-- LSP not starting? Check `target/release/typedlua-lsp` exists
+- LSP not starting? Check `target/release/luanext-lsp` exists
 - Features not working? Run full rebuild script
 
 ---
@@ -178,11 +178,11 @@ RUST_BACKTRACE=1 cargo test
 ## Project Structure
 
 ```
-typed-lua/
+luanext/
 ├── crates/
-│   ├── typedlua-cli/        # CLI tool
-│   ├── typedlua-core/       # Lexer, parser, type checker, codegen
-│   └── typedlua-lsp/        # Language server
+│   ├── luanext-cli/        # CLI tool
+│   ├── luanext-core/       # Lexer, parser, type checker, codegen
+│   └── luanext-lsp/        # Language server
 ├── editors/vscode/          # VS Code extension
 │   ├── src/extension.ts     # Extension entry point
 │   ├── syntaxes/            # TextMate grammar
@@ -199,9 +199,9 @@ typed-lua/
 
 ### Adding a Feature
 
-1. Update parser (if syntax changes) - `crates/typedlua-core/src/parser/`
-2. Update type checker (if types change) - `crates/typedlua-core/src/typechecker/`
-3. Update codegen (if output changes) - `crates/typedlua-core/src/codegen/`
+1. Update parser (if syntax changes) - `crates/luanext-core/src/parser/`
+2. Update type checker (if types change) - `crates/luanext-core/src/typechecker/`
+3. Update codegen (if output changes) - `crates/luanext-core/src/codegen/`
 4. Add tests
 5. Update docs
 
@@ -214,7 +214,7 @@ typed-lua/
 
 ### Adding LSP Feature
 
-1. Create provider in `crates/typedlua-lsp/src/providers/`
+1. Create provider in `crates/luanext-lsp/src/providers/`
 2. Register in `message_handler.rs`
 3. Add tests in `tests/message_handler_tests.rs`
 4. Update capabilities in `main.rs`
@@ -223,7 +223,7 @@ typed-lua/
 
 ```bash
 # Build LSP server only
-cargo build --release --package typedlua-lsp
+cargo build --release --package luanext-lsp
 
 # Check code
 cargo check
@@ -234,13 +234,13 @@ cd editors/vscode
 npm run compile
 
 # Package extension
-npm run package  # Creates typedlua-0.1.0.vsix
+npm run package  # Creates luanext-0.1.0.vsix
 
 # Install extension manually
-code --install-extension editors/vscode/typedlua-0.1.0.vsix
+code --install-extension editors/vscode/luanext-0.1.0.vsix
 
 # Uninstall
-code --uninstall-extension typedlua.typedlua
+code --uninstall-extension luanext.luanext
 ```
 
 ---
@@ -303,4 +303,4 @@ Contributors recognized in:
 - Release notes
 - Future CONTRIBUTORS.md
 
-Thank you for contributing to TypedLua! 🚀
+Thank you for contributing to LuaNext! 🚀

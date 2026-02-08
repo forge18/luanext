@@ -1,6 +1,6 @@
 # Development Scripts
 
-Quick reference for TypedLua development scripts. All scripts should be run from the project root.
+Quick reference for LuaNext development scripts. All scripts should be run from the project root.
 
 ## Scripts Overview
 
@@ -54,11 +54,11 @@ scripts/build-extension.sh
 - You're testing the build process
 
 **Output:**
-- `editors/vscode/dist/typedlua-0.1.0.vsix`
+- `editors/vscode/dist/luanext-0.1.0.vsix`
 
 **Manual install:**
 ```bash
-code --install-extension editors/vscode/dist/typedlua-0.1.0.vsix
+code --install-extension editors/vscode/dist/luanext-0.1.0.vsix
 ```
 
 **Time:** 30-60 seconds
@@ -107,15 +107,15 @@ code editors/vscode/test-files/test-basic.luax
 
 Check logs:
 1. View > Output
-2. Select "TypedLua Language Server" from dropdown
+2. Select "LuaNext Language Server" from dropdown
 
 ## Workflow Examples
 
 ### Scenario 1: Working on Parser
 
 ```bash
-# 1. Edit code in crates/typedlua-core/src/parser/
-vim crates/typedlua-core/src/parser/expression.rs
+# 1. Edit code in crates/luanext-core/src/parser/
+vim crates/luanext-core/src/parser/expression.rs
 
 # 2. Rebuild everything
 scripts/rebuild-and-install-extension.sh
@@ -150,17 +150,17 @@ scripts/reload-extension.sh
 scripts/build-extension.sh
 
 # 2. Test the VSIX
-code --install-extension editors/vscode/dist/typedlua-0.1.0.vsix
+code --install-extension editors/vscode/dist/luanext-0.1.0.vsix
 
 # 3. Distribute
-# Upload editors/vscode/dist/typedlua-0.1.0.vsix to GitHub releases
+# Upload editors/vscode/dist/luanext-0.1.0.vsix to GitHub releases
 # Or publish to VS Code Marketplace
 ```
 
 ## File Locations
 
 ```
-typed-lua/
+luanext/
 ├── scripts/
 │   ├── rebuild-and-install-extension.sh   (full rebuild + install)
 │   ├── build-extension.sh                 (build without install)
@@ -168,12 +168,12 @@ typed-lua/
 │
 ├── target/
 │   └── release/
-│       └── typedlua-lsp                   (LSP server binary)
+│       └── luanext-lsp                   (LSP server binary)
 │
 └── editors/
     └── vscode/
         ├── dist/
-        │   └── typedlua-0.1.0.vsix        (generated VSIX package)
+        │   └── luanext-0.1.0.vsix        (generated VSIX package)
         ├── out/
         │   └── extension.js               (compiled TypeScript)
         └── src/

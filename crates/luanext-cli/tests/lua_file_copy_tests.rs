@@ -9,13 +9,13 @@ fn test_copy_lua_to_output_feature() {
     let temp_dir = TempDir::new().unwrap();
     let base_path = temp_dir.path();
 
-    // Create a simple TypedLua file
+    // Create a simple LuaNext file
     let tl_file = base_path.join("main.luax");
     fs::write(
         &tl_file,
         r#"
 function main()
-    print("Hello from TypedLua")
+    print("Hello from LuaNext")
 end
 "#,
     )
@@ -44,9 +44,9 @@ return M
     assert!(lua_file.exists());
 
     // Note: To fully test this feature, we would need to:
-    // 1. Create a TypedLua file that imports the .lua file
+    // 1. Create a LuaNext file that imports the .lua file
     // 2. Create a .d.luax declaration file for the .lua file
-    // 3. Run the compiler with --allow-non-typed-lua and --copy-lua-to-output
+    // 3. Run the compiler with --allow-non-luanext and --copy-lua-to-output
     // 4. Verify that the .lua file was copied to the output directory
     //
     // However, this requires the full compiler pipeline and proper import

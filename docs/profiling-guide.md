@@ -1,6 +1,6 @@
-# TypedLua Optimizer Profiling Guide
+# LuaNext Optimizer Profiling Guide
 
-This guide explains how to profile and benchmark the TypedLua optimizer to measure performance and determine optimal parallelization strategies.
+This guide explains how to profile and benchmark the LuaNext optimizer to measure performance and determine optimal parallelization strategies.
 
 ## Quick Start
 
@@ -10,11 +10,11 @@ To profile a single compilation with detailed pass-by-pass timing:
 
 ```bash
 # Build the release binary first
-cargo build --release -p typedlua-cli
+cargo build --release -p luanext-cli
 
 # Profile with debug logging
-RUST_LOG=typedlua_core::optimizer=debug \
-  cargo run --release -p typedlua-cli -- compile <your-project-path> \
+RUST_LOG=luanext_core::optimizer=debug \
+  cargo run --release -p luanext-cli -- compile <your-project-path> \
   --optimize \
   --no-cache \
   --no-emit
@@ -41,12 +41,12 @@ For rigorous statistical benchmarking with multiple runs:
 
 ```bash
 # Run all benchmark groups
-cargo bench -p typedlua-cli
+cargo bench -p luanext-cli
 
 # Run specific benchmark group
-cargo bench -p typedlua-cli module_parallelism
-cargo bench -p typedlua-cli visitor_parallelism
-cargo bench -p typedlua-cli optimization_levels
+cargo bench -p luanext-cli module_parallelism
+cargo bench -p luanext-cli visitor_parallelism
+cargo bench -p luanext-cli optimization_levels
 ```
 
 ### 3. Compare Performance Changes
@@ -56,11 +56,11 @@ To measure the impact of code changes:
 ```bash
 # Establish baseline before making changes
 git checkout main
-cargo bench -p typedlua-cli -- --save-baseline before
+cargo bench -p luanext-cli -- --save-baseline before
 
 # Make your changes, then compare
 git checkout your-feature-branch
-cargo bench -p typedlua-cli -- --baseline before
+cargo bench -p luanext-cli -- --baseline before
 ```
 
 ## Benchmark Suites
@@ -155,7 +155,7 @@ open target/criterion/report/index.html
 
 ## CLI Flags for Profiling
 
-TypedLua CLI provides flags specifically for profiling and benchmarking:
+LuaNext CLI provides flags specifically for profiling and benchmarking:
 
 ### `--optimize` / `--no-optimize`
 
@@ -163,10 +163,10 @@ Enable/disable optimization (default: enabled at O1 level).
 
 ```bash
 # Enable O3 optimizations
-cargo run --release -p typedlua-cli -- compile project/ --optimize
+cargo run --release -p luanext-cli -- compile project/ --optimize
 
 # Disable all optimizations
-cargo run --release -p typedlua-cli -- compile project/ --no-optimize
+cargo run --release -p luanext-cli -- compile project/ --no-optimize
 ```
 
 ### `--no-parallel-optimization`
@@ -175,7 +175,7 @@ Disable parallel optimization for benchmarking sequential performance.
 
 ```bash
 # Sequential optimization (for baseline comparison)
-cargo run --release -p typedlua-cli -- compile project/ \
+cargo run --release -p luanext-cli -- compile project/ \
   --optimize \
   --no-parallel-optimization
 ```
@@ -186,7 +186,7 @@ Disable compilation cache to force fresh compilation.
 
 ```bash
 # Always useful for profiling to avoid cache hits
-cargo run --release -p typedlua-cli -- compile project/ \
+cargo run --release -p luanext-cli -- compile project/ \
   --optimize \
   --no-cache
 ```
@@ -197,7 +197,7 @@ Skip writing output files (speeds up profiling by isolating compilation phases).
 
 ```bash
 # Profile just parsing + type checking + optimization
-cargo run --release -p typedlua-cli -- compile project/ \
+cargo run --release -p luanext-cli -- compile project/ \
   --optimize \
   --no-cache \
   --no-emit
@@ -209,13 +209,13 @@ cargo run --release -p typedlua-cli -- compile project/ \
 
 ```bash
 # Profile current implementation
-RUST_LOG=typedlua_core::optimizer=debug \
-  cargo run --release -p typedlua-cli -- compile test-project/ \
+RUST_LOG=luanext_core::optimizer=debug \
+  cargo run --release -p luanext-cli -- compile test-project/ \
   --optimize --no-cache --no-emit \
   2>&1 | tee baseline-profile.log
 
 # Run statistical benchmarks
-cargo bench -p typedlua-cli -- --save-baseline baseline
+cargo bench -p luanext-cli -- --save-baseline baseline
 ```
 
 ### Step 2: Identify Bottlenecks
@@ -238,13 +238,13 @@ Implement optimizations or parallelization based on bottlenecks.
 
 ```bash
 # Profile after changes
-RUST_LOG=typedlua_core::optimizer=debug \
-  cargo run --release -p typedlua-cli -- compile test-project/ \
+RUST_LOG=luanext_core::optimizer=debug \
+  cargo run --release -p luanext-cli -- compile test-project/ \
   --optimize --no-cache --no-emit \
   2>&1 | tee optimized-profile.log
 
 # Compare benchmarks
-cargo bench -p typedlua-cli -- --baseline baseline
+cargo bench -p luanext-cli -- --baseline baseline
 
 # Look for:
 # - Reduced iteration count?
@@ -259,7 +259,7 @@ cargo bench -p typedlua-cli -- --baseline baseline
 cargo test
 
 # Compile real projects and verify output matches
-cargo run --release -p typedlua-cli -- compile project/ -o output/
+cargo run --release -p luanext-cli -- compile project/ -o output/
 diff output/ expected-output/
 ```
 
@@ -270,8 +270,8 @@ diff output/ expected-output/
 Always profile with `--release` builds:
 
 ```bash
-cargo build --release -p typedlua-cli
-cargo bench -p typedlua-cli  # automatically uses release
+cargo build --release -p luanext-cli
+cargo bench -p luanext-cli  # automatically uses release
 ```
 
 Debug builds are 10-100× slower and have different performance characteristics.
@@ -283,11 +283,11 @@ Run a few iterations before measuring:
 ```bash
 # Warm up caches and JIT
 for i in {1..3}; do
-  cargo run --release -p typedlua-cli -- compile project/ --no-emit
+  cargo run --release -p luanext-cli -- compile project/ --no-emit
 done
 
 # Now measure
-RUST_LOG=debug cargo run --release -p typedlua-cli -- compile project/ --no-emit
+RUST_LOG=debug cargo run --release -p luanext-cli -- compile project/ --no-emit
 ```
 
 Criterion handles this automatically with warmup iterations.
@@ -302,7 +302,7 @@ For consistent results:
 # Plug in laptop (don't run on battery)
 
 # Consider using `nice` for priority
-nice -n -20 cargo bench -p typedlua-cli
+nice -n -20 cargo bench -p luanext-cli
 ```
 
 ### 4. Use Representative Test Cases
@@ -323,13 +323,13 @@ Use flags to measure just optimization, not I/O:
 
 ```bash
 # Measure everything
-cargo run --release -p typedlua-cli -- compile project/
+cargo run --release -p luanext-cli -- compile project/
 
 # Measure just compilation (no output writing)
-cargo run --release -p typedlua-cli -- compile project/ --no-emit
+cargo run --release -p luanext-cli -- compile project/ --no-emit
 
 # Measure just optimization (skip cache, output)
-cargo run --release -p typedlua-cli -- compile project/ --no-cache --no-emit
+cargo run --release -p luanext-cli -- compile project/ --no-cache --no-emit
 ```
 
 ## Troubleshooting
@@ -340,8 +340,8 @@ The benchmark generates temporary test projects. If you see errors:
 
 ```bash
 # Clean and rebuild
-cargo clean -p typedlua-cli
-cargo bench -p typedlua-cli
+cargo clean -p luanext-cli
+cargo bench -p luanext-cli
 ```
 
 ### No profiling output
@@ -353,10 +353,10 @@ Ensure `RUST_LOG` is set correctly:
 RUST_LOG=debug cargo run ...
 
 # Just optimizer (recommended)
-RUST_LOG=typedlua_core::optimizer=debug cargo run ...
+RUST_LOG=luanext_core::optimizer=debug cargo run ...
 
 # Multiple modules
-RUST_LOG=typedlua_core::optimizer=debug,typedlua_cli=info cargo run ...
+RUST_LOG=luanext_core::optimizer=debug,luanext_cli=info cargo run ...
 ```
 
 ### Benchmarks take too long
@@ -374,7 +374,7 @@ Or run specific benchmarks:
 
 ```bash
 # Just one benchmark function
-cargo bench -p typedlua-cli benchmark_module_count
+cargo bench -p luanext-cli benchmark_module_count
 ```
 
 ### Results show high variance

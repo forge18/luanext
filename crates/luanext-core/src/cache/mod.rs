@@ -1,4 +1,4 @@
-//! Incremental compilation cache for TypedLua
+//! Incremental compilation cache for LuaNext
 //!
 //! This module provides functionality to cache type-checked modules to disk,
 //! enabling faster incremental compilation by only recompiling changed files
@@ -22,7 +22,7 @@ pub use module::CachedModule;
 pub const CACHE_VERSION: u32 = 1;
 
 /// Default cache directory name
-pub const CACHE_DIR_NAME: &str = ".typed-lua-cache";
+pub const CACHE_DIR_NAME: &str = ".luanext-cache";
 
 /// Cache manifest file name
 pub const MANIFEST_FILE_NAME: &str = "manifest.bin";

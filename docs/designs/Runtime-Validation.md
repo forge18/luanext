@@ -2,7 +2,7 @@
 
 ## Overview
 
-TypedLua generates runtime validation code directly from type annotations. Types are the single source of truth - no separate schema definitions, no validation libraries. The compiler knows the types at compile time and emits specialized validator code in the output Lua.
+LuaNext generates runtime validation code directly from type annotations. Types are the single source of truth - no separate schema definitions, no validation libraries. The compiler knows the types at compile time and emits specialized validator code in the output Lua.
 
 ## Constraint Syntax: `Refined<>`
 
@@ -346,6 +346,6 @@ class_mode = "structural"  # "structural" | "identity" | "both"
 Per-file override:
 
 ```typescript
-// @typedlua validation-mode: explicit
-// @typedlua validation-errors: collect
+// @luanext validation-mode: explicit
+// @luanext validation-errors: collect
 ```

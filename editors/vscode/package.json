@@ -1,14 +1,14 @@
 {
-  "name": "typedlua",
-  "displayName": "TypedLua",
-  "description": "Language support for TypedLua - a statically typed dialect of Lua",
+  "name": "luanext",
+  "displayName": "LuaNext",
+  "description": "Language support for LuaNext - a statically typed dialect of Lua",
   "version": "0.1.0",
-  "publisher": "typedlua",
+  "publisher": "luanext",
   "license": "MIT",
-  "icon": "assets/typedlua-icon-128.png",
+  "icon": "assets/luanext-icon-128.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/typed-lua"
+    "url": "https://github.com/yourusername/luanext"
   },
   "engines": {
     "vscode": "^1.75.0"
@@ -18,7 +18,7 @@
   ],
   "keywords": [
     "lua",
-    "typedlua",
+    "luanext",
     "type checking",
     "language server"
   ],
@@ -26,10 +26,10 @@
   "contributes": {
     "languages": [
       {
-        "id": "typedlua",
+        "id": "luanext",
         "aliases": [
-          "TypedLua",
-          "typedlua"
+          "LuaNext",
+          "luanext"
         ],
         "extensions": [
           ".luax"
@@ -39,15 +39,15 @@
     ],
     "grammars": [
       {
-        "language": "typedlua",
-        "scopeName": "source.typedlua",
-        "path": "./syntaxes/typedlua.tmLanguage.json"
+        "language": "luanext",
+        "scopeName": "source.luanext",
+        "path": "./syntaxes/luanext.tmLanguage.json"
       }
     ],
     "configuration": {
-      "title": "TypedLua",
+      "title": "LuaNext",
       "properties": {
-        "typedlua.trace.server": {
+        "luanext.trace.server": {
           "type": "string",
           "enum": [
             "off",
@@ -55,39 +55,39 @@
             "verbose"
           ],
           "default": "off",
-          "description": "Traces the communication between VS Code and the TypedLua language server."
+          "description": "Traces the communication between VS Code and the LuaNext language server."
         },
-        "typedlua.server.path": {
+        "luanext.server.path": {
           "type": "string",
-          "default": "typedlua-lsp",
-          "description": "Path to the TypedLua language server executable. If not set, will try to find 'typedlua-lsp' in PATH."
+          "default": "luanext-lsp",
+          "description": "Path to the LuaNext language server executable. If not set, will try to find 'luanext-lsp' in PATH."
         },
-        "typedlua.compiler.checkOnSave": {
+        "luanext.compiler.checkOnSave": {
           "type": "boolean",
           "default": true,
           "description": "Run type checking when saving files."
         },
-        "typedlua.compiler.strictNullChecks": {
+        "luanext.compiler.strictNullChecks": {
           "type": "boolean",
           "default": true,
           "description": "Enable strict null checking."
         },
-        "typedlua.format.enable": {
+        "luanext.format.enable": {
           "type": "boolean",
           "default": true,
           "description": "Enable/disable code formatting."
         },
-        "typedlua.format.indentSize": {
+        "luanext.format.indentSize": {
           "type": "number",
           "default": 4,
           "description": "Number of spaces for indentation."
         },
-        "typedlua.inlayHints.typeHints": {
+        "luanext.inlayHints.typeHints": {
           "type": "boolean",
           "default": true,
           "description": "Show inlay hints for inferred types."
         },
-        "typedlua.inlayHints.parameterHints": {
+        "luanext.inlayHints.parameterHints": {
           "type": "boolean",
           "default": true,
           "description": "Show inlay hints for parameter names."
@@ -96,12 +96,12 @@
     },
     "commands": [
       {
-        "command": "typedlua.restartServer",
-        "title": "TypedLua: Restart Language Server"
+        "command": "luanext.restartServer",
+        "title": "LuaNext: Restart Language Server"
       },
       {
-        "command": "typedlua.showOutputChannel",
-        "title": "TypedLua: Show Output Channel"
+        "command": "luanext.showOutputChannel",
+        "title": "LuaNext: Show Output Channel"
       }
     ]
   },

@@ -4,7 +4,7 @@
 
 set -e
 
-echo "⚡ TypedLua: Quick Extension Reload"
+echo "⚡ LuaNext: Quick Extension Reload"
 echo "===================================="
 echo ""
 
@@ -17,9 +17,9 @@ echo ""
 
 echo "📦 Packaging..."
 mkdir -p dist
-rm -f dist/typedlua-*.vsix
+rm -f dist/luanext-*.vsix
 npx vsce package --allow-missing-repository --no-dependencies --out dist/ 2>&1 | grep -v "DeprecationWarning" || true
-VSIX_FILE=$(ls dist/typedlua-*.vsix 2>/dev/null | head -1)
+VSIX_FILE=$(ls dist/luanext-*.vsix 2>/dev/null | head -1)
 
 if [ -z "$VSIX_FILE" ]; then
     echo "❌ Error: Failed to create .vsix file"

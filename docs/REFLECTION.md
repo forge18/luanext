@@ -1,6 +1,6 @@
-# TypedLua Reflection System
+# LuaNext Reflection System
 
-TypedLua includes a pure Lua reflection system that provides runtime introspection capabilities for classes. The reflection metadata is automatically generated during compilation and can be used for serialization, dependency injection, debugging, and more.
+LuaNext includes a pure Lua reflection system that provides runtime introspection capabilities for classes. The reflection metadata is automatically generated during compilation and can be used for serialization, dependency injection, debugging, and more.
 
 ## Overview
 
@@ -177,7 +177,7 @@ Complex.__ownFields = {
 
 ## Generated Code Example
 
-Given this TypedLua class:
+Given this LuaNext class:
 
 ```typescript
 import '@std/reflection'
@@ -196,7 +196,7 @@ class Dog extends Animal {
 }
 ```
 
-TypedLua generates the following reflection metadata:
+LuaNext generates the following reflection metadata:
 
 ```lua
 -- Animal class

@@ -1,4 +1,4 @@
-//! Rich enum runtime support for TypedLua.
+//! Rich enum runtime support for LuaNext.
 //! Uses `{}` placeholder for enum name - replace before use.
 
 pub const ENUM_NAME: &str = r#"function {}:name()

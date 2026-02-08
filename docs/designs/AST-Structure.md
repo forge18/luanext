@@ -1,9 +1,9 @@
-# TypedLua AST Structure
+# LuaNext AST Structure
 
 **Document Version:** 0.1  
 **Last Updated:** 2024-12-31
 
-This document defines the Abstract Syntax Tree (AST) structure for TypedLua using Rust types.
+This document defines the Abstract Syntax Tree (AST) structure for LuaNext using Rust types.
 
 ---
 
@@ -810,7 +810,7 @@ impl fmt::Display for Statement {
 ## Usage Example
 
 ```rust
-use typedlua_ast::*;
+use luanext_ast::*;
 
 fn example() {
     let var_decl = Statement::Variable(VariableDeclaration {

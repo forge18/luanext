@@ -1,6 +1,6 @@
-# TypedLua Language Features
+# LuaNext Language Features
 
-This document describes the language features available in TypedLua.
+This document describes the language features available in LuaNext.
 
 ## Table of Contents
 
@@ -116,7 +116,7 @@ class Dog extends Animal {
 
 ### Design Rationale
 
-TypedLua requires explicit `override` keywords to:
+LuaNext requires explicit `override` keywords to:
 
 1. **Prevent Accidental Shadowing**: If you rename a parent method, child methods with `override` will immediately error, alerting you to update them
 2. **Improve Code Readability**: Readers can instantly see which methods are inherited and which are new
@@ -263,7 +263,7 @@ This is useful for utility classes that only contain static methods.
 
 ### Design Rationale
 
-TypedLua includes `final` to:
+LuaNext includes `final` to:
 
 1. **Enable Better APIs**: Library authors can explicitly close inheritance hierarchies
 2. **Improve Safety**: Prevent subclasses from breaking invariants by overriding critical methods
@@ -323,7 +323,7 @@ final override speak(): void {}
 Both `override` and `final` keywords are type-checking features only. They are **erased during compilation** and produce no runtime overhead. The generated Lua code is identical whether you use these keywords or not.
 
 ```typescript
-// TypedLua source:
+// LuaNext source:
 class Dog extends Animal {
     override speak(): void {
         print("Woof!")
@@ -568,7 +568,7 @@ class Dog(public name: string, public breed: string) extends Mammal(name, "brown
 
 ### Design Rationale
 
-TypedLua includes primary constructors to:
+LuaNext includes primary constructors to:
 
 1. **Reduce Code Size**: Typical class declarations reduced by 40-50%
 2. **Improve Maintainability**: Fewer lines of code to maintain
@@ -581,7 +581,7 @@ TypedLua includes primary constructors to:
 Primary constructors generate standard Lua OOP patterns:
 
 ```typescript
-// TypedLua source:
+// LuaNext source:
 class Point(public x: number, public y: number) {}
 
 // Compiled Lua output:
@@ -622,6 +622,6 @@ The type checker validates:
 
 ## Related Documentation
 
-- [Type System](./designs/TypedLua-Design.md)
-- [OOP Features](./designs/TypedLua-Design.md#classes)
+- [Type System](./designs/LuaNext-Design.md)
+- [OOP Features](./designs/LuaNext-Design.md#classes)
 - [Additional Features](./designs/Additional-Features-Design.md)

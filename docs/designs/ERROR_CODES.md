@@ -1,6 +1,6 @@
-# TypedLua Error Codes Reference
+# LuaNext Error Codes Reference
 
-This document provides a comprehensive reference for all TypedLua compiler error codes.
+This document provides a comprehensive reference for all LuaNext compiler error codes.
 
 ## Error Code Format
 
@@ -71,7 +71,7 @@ const x = 123.456
 ---
 
 ### E1004: Unexpected Character
-**Cause**: Character not valid in TypedLua syntax.
+**Cause**: Character not valid in LuaNext syntax.
 
 **Example**:
 ```lua
@@ -545,10 +545,10 @@ end
 ## Getting More Help
 
 For detailed explanations of any error code, visit:
-- Online Documentation: https://typedlua.dev/errors/[CODE]
-- CLI Help: `typedlua --explain E3001`
+- Online Documentation: https://luanext.dev/errors/[CODE]
+- CLI Help: `luanext --explain E3001`
 
 ## Contributing
 
 If you encounter an error without a code or believe an error message could be improved, please file an issue at:
-https://github.com/yourusername/typedlua/issues
+https://github.com/yourusername/luanext/issues

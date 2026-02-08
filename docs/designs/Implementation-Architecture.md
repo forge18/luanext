@@ -1,9 +1,9 @@
-# TypedLua Implementation Architecture
+# LuaNext Implementation Architecture
 
 **Document Version:** 0.1  
 **Last Updated:** 2024-12-31
 
-This document outlines the architectural design for implementing the TypedLua compiler in Rust, with a focus on dependency injection, modularity, and testability.
+This document outlines the architectural design for implementing the LuaNext compiler in Rust, with a focus on dependency injection, modularity, and testability.
 
 ---
 
@@ -267,7 +267,7 @@ pub struct DefaultModuleResolver {
 impl ModuleResolver for DefaultModuleResolver {
     fn resolve(&self, from: &Path, import_path: &str) -> Result<ResolvedModule, ResolutionError> {
         // 1. Try .luax file
-        // 2. Try .lua file (if allowNonTypedLua)
+        // 2. Try .lua file (if allowNonLuaNext)
         // 3. Check for .d.luax definition file
         // 4. Apply path aliases from config
         // ...
@@ -650,7 +650,7 @@ impl CompilerConfig {
 ## Module Structure
 
 ```
-typedlua/
+luanext/
 ├── src/
 │   ├── main.rs                 # CLI entry point
 │   ├── lib.rs                  # Library entry point

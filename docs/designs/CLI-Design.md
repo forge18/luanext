@@ -1,15 +1,15 @@
-# TypedLua CLI Design
+# LuaNext CLI Design
 
 **Document Version:** 0.1  
 **Last Updated:** 2024-12-31
 
-This document defines the command-line interface for the TypedLua compiler, following TypeScript's `tsc` design for familiarity.
+This document defines the command-line interface for the LuaNext compiler, following TypeScript's `tsc` design for familiarity.
 
 ---
 
 ## Overview
 
-The TypedLua compiler provides a single command `tl` (short for TypedLua) that mirrors TypeScript's `tsc` command structure.
+The LuaNext compiler provides a single command `tl` (short for LuaNext) that mirrors TypeScript's `tsc` command structure.
 
 **Binary name:** `tl`
 
@@ -22,15 +22,15 @@ The TypedLua compiler provides a single command `tl` (short for TypedLua) that m
 ### Compile Project
 
 ```bash
-# Compile using typedlua.json in current directory
+# Compile using luanext.json in current directory
 tl
 
 # Same as above (explicit)
 tl --project .
 
 # Use specific config file
-tl --project path/to/typedlua.json
-tl -p ./config/typedlua.json
+tl --project path/to/luanext.json
+tl -p ./config/luanext.json
 
 # Also accepts tsconfig.json for familiarity
 tl -p tsconfig.json
@@ -52,7 +52,7 @@ tl src/**/*.luax
 ### Initialize Project
 
 ```bash
-# Create typedlua.json with defaults
+# Create luanext.json with defaults
 tl --init
 
 # Creates:
@@ -65,7 +65,7 @@ tl --init
 #     "enableOOP": true,
 #     "enableFP": true,
 #     "enableDecorators": true,
-#     "allowNonTypedLua": true
+#     "allowNonLuaNext": true
 #   },
 #   "include": ["src/**/*"],
 #   "exclude": ["node_modules", "dist"]

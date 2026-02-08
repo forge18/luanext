@@ -1,8 +1,8 @@
-# TypedLua TODO
+# LuaNext TODO
 
 **Last Updated:** 2026-01-15 (Primary Constructors completed)
 
-This file tracks implementation tasks for TypedLua. Tasks are organized by priority based on the [Additional Features Design](docs/designs/Additional-Features-Design.md) document.
+This file tracks implementation tasks for LuaNext. Tasks are organized by priority based on the [Additional Features Design](docs/designs/Additional-Features-Design.md) document.
 
 ---
 
@@ -24,12 +24,12 @@ This file tracks implementation tasks for TypedLua. Tasks are organized by prior
 **Dependencies:** None
 
 **Implementation Notes:**
-- Lexer: Added `Override` token at [token.rs:48](crates/typedlua-core/src/lexer/token.rs#L48)
-- AST: Added `is_override` field at [statement.rs:104](crates/typedlua-core/src/ast/statement.rs#L104)
-- Parser: Parses override keyword at [statement.rs:977](crates/typedlua-core/src/parser/statement.rs#L977)
-- Type Checker: Validates override semantics at [type_checker.rs:1489-1619](crates/typedlua-core/src/typechecker/type_checker.rs#L1489-L1619)
-- Type Checker: Emits warning for missing `override` keyword at [type_checker.rs:1395-1411](crates/typedlua-core/src/typechecker/type_checker.rs#L1395-L1411)
-- Tests: Comprehensive tests at [override_tests.rs](crates/typedlua-core/tests/override_tests.rs) (5 passing tests including warning test)
+- Lexer: Added `Override` token at [token.rs:48](crates/luanext-core/src/lexer/token.rs#L48)
+- AST: Added `is_override` field at [statement.rs:104](crates/luanext-core/src/ast/statement.rs#L104)
+- Parser: Parses override keyword at [statement.rs:977](crates/luanext-core/src/parser/statement.rs#L977)
+- Type Checker: Validates override semantics at [type_checker.rs:1489-1619](crates/luanext-core/src/typechecker/type_checker.rs#L1489-L1619)
+- Type Checker: Emits warning for missing `override` keyword at [type_checker.rs:1395-1411](crates/luanext-core/src/typechecker/type_checker.rs#L1395-L1411)
+- Tests: Comprehensive tests at [override_tests.rs](crates/luanext-core/tests/override_tests.rs) (5 passing tests including warning test)
 - Documentation: Complete feature documentation at [docs/LANGUAGE_FEATURES.md](docs/LANGUAGE_FEATURES.md)
 - Fixed `extract_exports` function that was broken during implementation
 
@@ -51,12 +51,12 @@ This file tracks implementation tasks for TypedLua. Tasks are organized by prior
 **Dependencies:** None
 
 **Implementation Notes:**
-- Lexer: Added `Final` token at [token.rs:49](crates/typedlua-core/src/lexer/token.rs#L49) (length-5 keyword mapping)
-- AST: Added `is_final` field to [ClassDeclaration](crates/typedlua-core/src/ast/statement.rs#L61) and [MethodDeclaration](crates/typedlua-core/src/ast/statement.rs#L105)
+- Lexer: Added `Final` token at [token.rs:49](crates/luanext-core/src/lexer/token.rs#L49) (length-5 keyword mapping)
+- AST: Added `is_final` field to [ClassDeclaration](crates/luanext-core/src/ast/statement.rs#L61) and [MethodDeclaration](crates/luanext-core/src/ast/statement.rs#L105)
 - Parser: Parses `final` and `abstract` modifiers in any order using loop
-- Type Checker: Validates final class extension at [type_checker.rs:964-976](crates/typedlua-core/src/typechecker/type_checker.rs#L964-L976)
-- Type Checker: Validates final method override at [type_checker.rs:1570-1579](crates/typedlua-core/src/typechecker/type_checker.rs#L1570-L1579)
-- Tests: Comprehensive tests at [final_tests.rs](crates/typedlua-core/tests/final_tests.rs) (8 passing tests)
+- Type Checker: Validates final class extension at [type_checker.rs:964-976](crates/luanext-core/src/typechecker/type_checker.rs#L964-L976)
+- Type Checker: Validates final method override at [type_checker.rs:1570-1579](crates/luanext-core/src/typechecker/type_checker.rs#L1570-L1579)
+- Tests: Comprehensive tests at [final_tests.rs](crates/luanext-core/tests/final_tests.rs) (8 passing tests)
 - Documentation: Complete feature documentation at [docs/LANGUAGE_FEATURES.md](docs/LANGUAGE_FEATURES.md)
 - Note: Currently only checks immediate parent for final methods (not full inheritance chain - can be enhanced later)
 
@@ -90,8 +90,8 @@ This file tracks implementation tasks for TypedLua. Tasks are organized by prior
 - [x] Support optional constructor body for validation
 
 **Implementation Notes:**
-- Modified `generate_class_declaration` at [mod.rs:771-805](crates/typedlua-core/src/codegen/mod.rs#L771-L805) to detect primary constructors
-- Created `generate_primary_constructor` function at [mod.rs:953-1062](crates/typedlua-core/src/codegen/mod.rs#L953-L1062)
+- Modified `generate_class_declaration` at [mod.rs:771-805](crates/luanext-core/src/codegen/mod.rs#L771-L805) to detect primary constructors
+- Created `generate_primary_constructor` function at [mod.rs:953-1062](crates/luanext-core/src/codegen/mod.rs#L953-L1062)
 - Generates both `._init(self, params)` for initialization and `.new(params)` for instance creation
 - Private properties prefixed with `_`, public/protected use normal naming
 - Parent constructor forwarding calls `ParentClass._init(self, args)` before property initialization
@@ -107,7 +107,7 @@ This file tracks implementation tasks for TypedLua. Tasks are organized by prior
 - [x] Test error cases (mixing patterns)
 
 **Implementation Notes:**
-- Comprehensive test suite at [primary_constructor_tests.rs](crates/typedlua-core/tests/primary_constructor_tests.rs) (22 passing tests)
+- Comprehensive test suite at [primary_constructor_tests.rs](crates/luanext-core/tests/primary_constructor_tests.rs) (22 passing tests)
 - Parser tests: Basic syntax, access modifiers, readonly, inheritance, error cases
 - Type checker tests: Property creation, duplicate detection, parent constructor validation
 - Codegen tests: Verify generated Lua code for constructors, access modifiers, inheritance, metatable setup
@@ -502,7 +502,7 @@ This file tracks implementation tasks for TypedLua. Tasks are organized by prior
 ### 2.6 Reflection System
 **Effort:** 2-3 weeks | **Priority:** P2 | **Status:** Not Started
 
-**Rust Native Module (`crates/typedlua-reflect-native/`):**
+**Rust Native Module (`crates/luanext-reflect-native/`):**
 - [ ] Set up cargo project with mlua dependency
 - [ ] Implement type registry with compile-time metadata
 - [ ] Implement `is_instance()` with O(1) ancestor bitmask checks
@@ -740,8 +740,8 @@ None.
 - Only 5-10% slower than FxHashMap (acceptable for UI-facing structures)
 
 **Implementation:**
-- [ ] Replace symbol tables in LSP with `IndexMap` at [symbol_index.rs](crates/typedlua-lsp/src/symbol_index.rs)
-- [ ] Use `IndexMap` for diagnostic collection in [diagnostics.rs](crates/typedlua-core/src/diagnostics.rs)
+- [ ] Replace symbol tables in LSP with `IndexMap` at [symbol_index.rs](crates/luanext-lsp/src/symbol_index.rs)
+- [ ] Use `IndexMap` for diagnostic collection in [diagnostics.rs](crates/luanext-core/src/diagnostics.rs)
 - [ ] Use `IndexMap` for export tables in module system
 - [ ] Keep `FxHashMap` for internal type checker structures
 
@@ -816,7 +816,7 @@ let source = indoc! {"
 // fuzz/fuzz_targets/lexer.rs
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use typedlua_core::Lexer;
+use luanext_core::Lexer;
 
 fuzz_target!(|data: &[u8]| {
     if let Ok(s) = std::str::from_utf8(data) {
@@ -894,7 +894,7 @@ proptest! {
 
 **Implementation:**
 - [x] `criterion = "0.5"` already in workspace dependencies
-- [x] Create `crates/typedlua-core/benches/` directory (DONE)
+- [x] Create `crates/luanext-core/benches/` directory (DONE)
 - [x] Create `lexer_bench.rs` for lexer baseline (DONE)
 - [x] Create `parser_bench.rs` for parser baseline (DONE)
 - [x] Create `type_checker_bench.rs` for type checker baseline (DONE)
@@ -927,7 +927,7 @@ proptest! {
 
 **Implementation:**
 - [x] Add `dhat = "0.3"` to workspace dependencies (DONE)
-- [ ] Create profiling harness at `crates/typedlua-core/benches/profile_allocations.rs`
+- [ ] Create profiling harness at `crates/luanext-core/benches/profile_allocations.rs`
 - [ ] Profile current baseline allocations (before optimization)
 - [ ] Document baseline allocation patterns
 - [ ] Re-profile after arena integration to measure improvement
@@ -1006,13 +1006,13 @@ fn test_class_parsing() {
 #### String Interning Integration
 **Effort:** 1-2 days | **Priority:** P0 | **Impact:** 30-50% memory reduction, faster equality checks
 
-Infrastructure already exists at [string_interner.rs](crates/typedlua-core/src/string_interner.rs) but is unused in production code. Integration will deduplicate repeated strings (identifiers, keywords, type names) and replace string comparisons with u32 comparisons.
+Infrastructure already exists at [string_interner.rs](crates/luanext-core/src/string_interner.rs) but is unused in production code. Integration will deduplicate repeated strings (identifiers, keywords, type names) and replace string comparisons with u32 comparisons.
 
 **Implementation Tasks:**
 - [ ] Thread `&mut StringInterner` from compilation entry point through lexer/parser/type checker
-- [ ] Change `Token::Identifier(String)` → `Token::Identifier(StringId)` in [lexer/mod.rs](crates/typedlua-core/src/lexer/mod.rs)
-- [ ] Change `TypeKind::Named(String)` → `TypeKind::Named(StringId)` in [ast/types.rs](crates/typedlua-core/src/ast/types.rs)
-- [ ] Change `Symbol.name: String` → `Symbol.name: StringId` in [typechecker/symbol_table.rs](crates/typedlua-core/src/typechecker/symbol_table.rs)
+- [ ] Change `Token::Identifier(String)` → `Token::Identifier(StringId)` in [lexer/mod.rs](crates/luanext-core/src/lexer/mod.rs)
+- [ ] Change `TypeKind::Named(String)` → `TypeKind::Named(StringId)` in [ast/types.rs](crates/luanext-core/src/ast/types.rs)
+- [ ] Change `Symbol.name: String` → `Symbol.name: StringId` in [typechecker/symbol_table.rs](crates/luanext-core/src/typechecker/symbol_table.rs)
 - [ ] Intern common keywords and builtin type names at startup
 - [ ] Add resolver methods where string display is needed (diagnostics, codegen)
 - [ ] Update all Symbol/Type-related code to work with StringId
@@ -1030,7 +1030,7 @@ Infrastructure already exists at [string_interner.rs](crates/typedlua-core/src/s
 #### Arena Allocation Integration
 **Effort:** 2-3 days | **Priority:** P0 | **Impact:** 15-20% parsing speedup, better cache locality
 
-Infrastructure already exists at [arena.rs](crates/typedlua-core/src/arena.rs) with bumpalo but is only used in tests. Integration will replace individual `Box<T>` allocations with bulk arena allocation for AST nodes.
+Infrastructure already exists at [arena.rs](crates/luanext-core/src/arena.rs) with bumpalo but is only used in tests. Integration will replace individual `Box<T>` allocations with bulk arena allocation for AST nodes.
 
 **Implementation Tasks:**
 - [ ] Thread `&'arena Arena` lifetime parameter through parser
@@ -1060,8 +1060,8 @@ Infrastructure already exists at [arena.rs](crates/typedlua-core/src/arena.rs) w
 Add `#[inline]` annotations to small, frequently-called functions that cross crate boundaries. Compiler can still choose to ignore hints, but enables cross-crate inlining with LTO.
 
 **Implementation Tasks:**
-- [ ] Add `#[inline]` to [span.rs](crates/typedlua-core/src/span.rs) methods: `len()`, `is_empty()`, `merge()`, `combine()`
-- [ ] Add `#[inline]` to [lexer/token.rs](crates/typedlua-core/src/lexer/token.rs) predicates (if any exist)
+- [ ] Add `#[inline]` to [span.rs](crates/luanext-core/src/span.rs) methods: `len()`, `is_empty()`, `merge()`, `combine()`
+- [ ] Add `#[inline]` to [lexer/token.rs](crates/luanext-core/src/lexer/token.rs) predicates (if any exist)
 - [ ] Add `#[inline]` to parser helper methods: `check()`, `match_token()`, `is_at_end()`, `peek()`
 - [ ] Add `#[inline]` to small type comparison helpers in type checker
 - [ ] Add `#[inline]` to frequently-called accessor methods (≤5 lines, hot path)
@@ -1167,7 +1167,7 @@ Replace PathBuf-based `ModuleId` with numeric indices stored in a central `Vec<M
 #### salsa Framework Integration
 **Effort:** 2-3 weeks | **Priority:** P1 | **Impact:** Fine-grained incremental compilation for CLI + LSP
 
-**Decision:** APPROVED - TypedLua LSP is sophisticated enough (10+ IDE features) to benefit from fine-grained incremental recomputation. Manual file-level caching helps CLI but not LSP keystroke responsiveness.
+**Decision:** APPROVED - LuaNext LSP is sophisticated enough (10+ IDE features) to benefit from fine-grained incremental recomputation. Manual file-level caching helps CLI but not LSP keystroke responsiveness.
 
 **Why salsa:**
 - ✅ LSP has hover, completion, diagnostics, rename, references, etc. (IDE-first toolchain)
@@ -1180,9 +1180,9 @@ Replace PathBuf-based `ModuleId` with numeric indices stored in a central `Vec<M
 
 **Phase 1: Add salsa Dependency & Core Database (Week 1)**
 - [ ] Add `salsa = "0.17"` to `Cargo.toml`
-- [ ] Create `crates/typedlua-core/src/db/mod.rs` - Database trait
-- [ ] Create `crates/typedlua-core/src/db/inputs.rs` - Input queries (source text)
-- [ ] Create `crates/typedlua-core/src/db/queries.rs` - Query group definitions
+- [ ] Create `crates/luanext-core/src/db/mod.rs` - Database trait
+- [ ] Create `crates/luanext-core/src/db/inputs.rs` - Input queries (source text)
+- [ ] Create `crates/luanext-core/src/db/queries.rs` - Query group definitions
 - [ ] Define `#[salsa::input]` for source files: `source_text(FileId) -> Arc<String>`
 - [ ] Define `#[salsa::tracked]` for parsing: `parse(FileId) -> Arc<Program>`
 - [ ] Define `#[salsa::tracked]` for type checking: `type_check(FileId) -> Arc<TypeCheckResult>`

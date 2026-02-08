@@ -11,7 +11,7 @@ fn get_binary_path() -> PathBuf {
     let mut path = env::current_exe().unwrap();
     path.pop(); // Remove test binary name
     path.pop(); // Remove 'deps'
-    path.push("typedlua");
+    path.push("luanext");
     path
 }
 

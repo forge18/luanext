@@ -1,4 +1,4 @@
-//! AST optimizer for TypedLua
+//! AST optimizer for LuaNext
 //!
 //! Optimization passes work on `MutableProgram<'arena>` which provides a mutable
 //! `Vec<Statement<'arena>>` at the top level. Sub-expressions within statements use

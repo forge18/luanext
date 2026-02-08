@@ -27,14 +27,14 @@
 
 ---
 
-## 📁 Project: TypedLua
+## 📁 Project: LuaNext
 
 Rust-based compiler with TypeScript-inspired type system for Lua
 
 ```
-crates/typedlua-core/    # Lexer, parser, type checker, codegen
-crates/typedlua-lsp/     # Language Server Protocol
-crates/typedlua-cli/     # CLI
+crates/luanext-core/    # Lexer, parser, type checker, codegen
+crates/luanext-lsp/     # Language Server Protocol
+crates/luanext-cli/     # CLI
 ```
 
 ---
@@ -80,7 +80,7 @@ See `.claude/subagents/` for complete docs
 - Unit: `#[cfg(test)]` in same file
 - Integration: `tests/` directory
 - Target: 70%+ coverage via `cargo tarpaulin`
-- Use DI pattern for testability (see [message_handler.rs](crates/typedlua-lsp/src/message_handler.rs))
+- Use DI pattern for testability (see [message_handler.rs](crates/luanext-lsp/src/message_handler.rs))
 
 ---
 
