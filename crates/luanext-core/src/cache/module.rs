@@ -70,7 +70,7 @@ mod tests {
 
     fn make_test_module() -> CachedModule {
         CachedModule::new(
-            PathBuf::from("/test/module.tl"),
+            PathBuf::from("/test/module.luax"),
             "abc123".to_string(),
             vec![],
             vec![],

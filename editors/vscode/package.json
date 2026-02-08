@@ -32,7 +32,7 @@
           "typedlua"
         ],
         "extensions": [
-          ".tl"
+          ".luax"
         ],
         "configuration": "./language-configuration.json"
       }

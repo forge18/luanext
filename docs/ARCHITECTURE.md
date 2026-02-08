@@ -47,7 +47,7 @@ TypedLua is a typed superset of Lua implemented in Rust, providing static type c
 | Operator Overloading   | ❌ Tokens only  | Token exists, no implementation                     |
 | Rich Enums             | ❌ Not started  | Basic enums only (name + value)                     |
 | Interface Defaults     | ❌ Not started  | No DefaultMethod in InterfaceMember                 |
-| File Namespaces        | ❌ Tokens only  | Only DeclareNamespace for .d.tl files               |
+| File Namespaces        | ❌ Tokens only  | Only DeclareNamespace for .d.luax files               |
 
 ### Core Design Principles
 
@@ -841,7 +841,7 @@ These features have lexer tokens but no AST, parser, type checker, or codegen su
 | Operator Overloading      | ❌         | ❌      | ❌           | ❌       | `operator` token only                         |
 | Rich Enums                | ❌         | ❌      | ❌           | ❌       | Enum has name+value only, no methods          |
 | Interface Default Methods | ❌         | ❌      | ❌           | ❌       | No DefaultMethod in InterfaceMember           |
-| File Namespaces           | ❌         | ❌      | ❌           | ❌       | Only DeclareNamespace for .d.tl               |
+| File Namespaces           | ❌         | ❌      | ❌           | ❌       | Only DeclareNamespace for .d.luax               |
 
 ### Optimizer Limitations
 

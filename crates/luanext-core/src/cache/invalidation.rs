@@ -76,64 +76,64 @@ mod tests {
     fn test_simple_invalidation() {
         let mut manifest = CacheManifest::new("test".to_string());
 
-        // Create A.tl (no dependencies)
+        // Create A.luax (no dependencies)
         let entry_a = CacheEntry::new(
-            PathBuf::from("/test/A.tl"),
+            PathBuf::from("/test/A.luax"),
             "hash_a".to_string(),
             "cache_a".to_string(),
             vec![],
         );
-        manifest.insert_entry(PathBuf::from("/test/A.tl"), entry_a);
+        manifest.insert_entry(PathBuf::from("/test/A.luax"), entry_a);
 
         let engine = InvalidationEngine::new(&manifest);
-        let changed = vec![PathBuf::from("/test/A.tl")];
+        let changed = vec![PathBuf::from("/test/A.luax")];
         let stale = engine.compute_stale_modules(&changed);
 
         assert_eq!(stale.len(), 1);
-        assert!(stale.contains(&PathBuf::from("/test/A.tl")));
+        assert!(stale.contains(&PathBuf::from("/test/A.luax")));
     }
 
     #[test]
     fn test_transitive_invalidation() {
         let mut manifest = CacheManifest::new("test".to_string());
 
-        // Create C.tl (no dependencies)
+        // Create C.luax (no dependencies)
         let entry_c = CacheEntry::new(
-            PathBuf::from("/test/C.tl"),
+            PathBuf::from("/test/C.luax"),
             "hash_c".to_string(),
             "cache_c".to_string(),
             vec![],
         );
-        manifest.insert_entry(PathBuf::from("/test/C.tl"), entry_c);
+        manifest.insert_entry(PathBuf::from("/test/C.luax"), entry_c);
 
-        // Create B.tl (depends on C)
+        // Create B.luax (depends on C)
         let entry_b = CacheEntry::new(
-            PathBuf::from("/test/B.tl"),
+            PathBuf::from("/test/B.luax"),
             "hash_b".to_string(),
             "cache_b".to_string(),
-            vec![PathBuf::from("/test/C.tl")],
+            vec![PathBuf::from("/test/C.luax")],
         );
-        manifest.insert_entry(PathBuf::from("/test/B.tl"), entry_b);
+        manifest.insert_entry(PathBuf::from("/test/B.luax"), entry_b);
 
-        // Create A.tl (depends on B)
+        // Create A.luax (depends on B)
         let entry_a = CacheEntry::new(
-            PathBuf::from("/test/A.tl"),
+            PathBuf::from("/test/A.luax"),
             "hash_a".to_string(),
             "cache_a".to_string(),
-            vec![PathBuf::from("/test/B.tl")],
+            vec![PathBuf::from("/test/B.luax")],
         );
-        manifest.insert_entry(PathBuf::from("/test/A.tl"), entry_a);
+        manifest.insert_entry(PathBuf::from("/test/A.luax"), entry_a);
 
         let engine = InvalidationEngine::new(&manifest);
 
-        // Change C.tl -> should invalidate B and A as well
-        let changed = vec![PathBuf::from("/test/C.tl")];
+        // Change C.luax -> should invalidate B and A as well
+        let changed = vec![PathBuf::from("/test/C.luax")];
         let stale = engine.compute_stale_modules(&changed);
 
         assert_eq!(stale.len(), 3, "All three modules should be stale");
-        assert!(stale.contains(&PathBuf::from("/test/C.tl")));
-        assert!(stale.contains(&PathBuf::from("/test/B.tl")));
-        assert!(stale.contains(&PathBuf::from("/test/A.tl")));
+        assert!(stale.contains(&PathBuf::from("/test/C.luax")));
+        assert!(stale.contains(&PathBuf::from("/test/B.luax")));
+        assert!(stale.contains(&PathBuf::from("/test/A.luax")));
     }
 
     #[test]
@@ -142,29 +142,29 @@ mod tests {
 
         // Create independent modules
         let entry_a = CacheEntry::new(
-            PathBuf::from("/test/A.tl"),
+            PathBuf::from("/test/A.luax"),
             "hash_a".to_string(),
             "cache_a".to_string(),
             vec![],
         );
-        manifest.insert_entry(PathBuf::from("/test/A.tl"), entry_a);
+        manifest.insert_entry(PathBuf::from("/test/A.luax"), entry_a);
 
         let entry_b = CacheEntry::new(
-            PathBuf::from("/test/B.tl"),
+            PathBuf::from("/test/B.luax"),
             "hash_b".to_string(),
             "cache_b".to_string(),
             vec![],
         );
-        manifest.insert_entry(PathBuf::from("/test/B.tl"), entry_b);
+        manifest.insert_entry(PathBuf::from("/test/B.luax"), entry_b);
 
         let engine = InvalidationEngine::new(&manifest);
 
         // Change only A -> B should remain valid
-        let changed = vec![PathBuf::from("/test/A.tl")];
+        let changed = vec![PathBuf::from("/test/A.luax")];
         let stale = engine.compute_stale_modules(&changed);
 
         assert_eq!(stale.len(), 1);
-        assert!(stale.contains(&PathBuf::from("/test/A.tl")));
-        assert!(!stale.contains(&PathBuf::from("/test/B.tl")));
+        assert!(stale.contains(&PathBuf::from("/test/A.luax")));
+        assert!(!stale.contains(&PathBuf::from("/test/B.luax")));
     }
 }

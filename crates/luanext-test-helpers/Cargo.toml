@@ -1,0 +1,20 @@
+[package]
+name = "luanext-test-helpers"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Test utilities and fixtures for LuaNext"
+
+[features]
+lsp = ["luanext-lsp", "lsp-types"]
+
+[dependencies]
+luanext-core = { path = "../luanext-core" }
+luanext-parser = { git = "https://github.com/forge18/luanext-parser.git" }
+luanext-lsp = { path = "../luanext-lsp", optional = true }
+lsp-types = { version = "0.97", optional = true }
+bumpalo.workspace = true
+
+[dev-dependencies]

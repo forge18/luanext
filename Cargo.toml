@@ -1,18 +1,18 @@
 [workspace]
 members = [
-    "crates/typedlua-core",
-    "crates/typedlua-cli",
-    "crates/typedlua-lsp",
-    "crates/typedlua-test-helpers",
+    "crates/luanext-core",
+    "crates/luanext-cli",
+    "crates/luanext-lsp",
+    "crates/luanext-test-helpers",
 ]
 resolver = "2"
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-authors = ["TypedLua Contributors"]
+authors = ["LuaNext Contributors"]
 license = "MIT"
-repository = "https://github.com/forge18/typed-lua"
+repository = "https://github.com/forge18/luanext"
 
 [workspace.dependencies]
 # Error handling
@@ -67,11 +67,11 @@ dhat = "0.3"
 # Development tools (not used in production code)
 cargo-fuzz = "0.12"
 
-[patch."https://github.com/forge18/typedlua-parser.git"]
-typedlua-parser = { path = "crates/typedlua-parser" }
+[patch."https://github.com/forge18/luanext-parser.git"]
+luanext-parser = { path = "crates/luanext-parser" }
 
-[patch."https://github.com/forge18/typedlua-typechecker.git"]
-typedlua-typechecker = { path = "crates/typedlua-typechecker" }
+[patch."https://github.com/forge18/luanext-typechecker.git"]
+luanext-typechecker = { path = "crates/luanext-typechecker" }
 
 [profile.release]
 # Enable Link-Time Optimization for smaller, faster binaries

@@ -12,7 +12,7 @@
 //! let interner = Arc::new(StringInterner::new());
 //! let generator = CodeGeneratorBuilder::new(interner)
 //!     .target(LuaTarget::Lua54)
-//!     .source_map("main.tl".to_string())
+//!     .source_map("main.luax".to_string())
 //!     .optimization_level(typedlua_core::config::OptimizationLevel::O2)
 //!     .build();
 //! ```
@@ -81,7 +81,7 @@ impl CodeGeneratorBuilder {
     /// let interner = Arc::new(StringInterner::new());
     /// let generator = CodeGeneratorBuilder::new(interner)
     ///     .target(LuaTarget::Lua53)
-    ///     .source_map("input.tl".to_string())
+    ///     .source_map("input.luax".to_string())
     ///     .bundle_mode("main".to_string())
     ///     .optimization_level(OptimizationLevel::O2)
     ///     .build();
@@ -116,7 +116,7 @@ impl CodeGeneratorBuilder {
     /// let interner = Arc::new(StringInterner::new());
     /// let generator = CodeGeneratorBuilder::new(interner)
     ///     .target(LuaTarget::Lua54)
-    ///     .source_map("main.tl".to_string())
+    ///     .source_map("main.luax".to_string())
     ///     .build();
     /// ```
     pub fn target(mut self, target: LuaTarget) -> Self {
@@ -139,7 +139,7 @@ impl CodeGeneratorBuilder {
     ///
     /// let interner = Arc::new(StringInterner::new());
     /// let generator = CodeGeneratorBuilder::new(interner)
-    ///     .source_map("main.tl".to_string())
+    ///     .source_map("main.luax".to_string())
     ///     .build();
     /// ```
     pub fn source_map(mut self, source_file: String) -> Self {

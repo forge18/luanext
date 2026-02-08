@@ -102,7 +102,7 @@ OR just close and reopen VS Code.
 After installing, test with:
 
 ```bash
-code editors/vscode/test-files/test-basic.tl
+code editors/vscode/test-files/test-basic.luax
 ```
 
 Check logs:
@@ -124,7 +124,7 @@ scripts/rebuild-and-install-extension.sh
 # Ctrl+Shift+P > "Reload Window"
 
 # 4. Test
-code editors/vscode/test-files/test-basic.tl
+code editors/vscode/test-files/test-basic.luax
 ```
 
 ### Scenario 2: Working on Extension UI
@@ -198,7 +198,7 @@ Install Rust toolchain: https://rustup.rs/
 
 ### Extension not working after install
 1. Check you reloaded VS Code window
-2. Check file extension is `.tl`
+2. Check file extension is `.luax`
 3. Check Output panel for errors
 4. Try full rebuild: `scripts/rebuild-and-install-extension.sh`
 

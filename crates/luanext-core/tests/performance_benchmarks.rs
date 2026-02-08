@@ -1015,7 +1015,7 @@ fn test_incremental_retypecheck_single_file_change() {
     // Create 10 module files
     let mut file_paths = Vec::new();
     for i in 0..10 {
-        let file_path = project_root.join(format!("module_{}.tl", i));
+        let file_path = project_root.join(format!("module_{}.luax", i));
         let mut content = String::new();
 
         // Each module exports a class and some functions
@@ -1166,7 +1166,7 @@ fn test_cache_hit_rate_unchanged_modules() {
     // Create 20 module files
     let mut file_paths = Vec::new();
     for i in 0..20 {
-        let file_path = project_root.join(format!("cache_module_{}.tl", i));
+        let file_path = project_root.join(format!("cache_module_{}.luax", i));
         let mut content = String::new();
 
         content.push_str(&format!("export class CacheModule{} {{\n", i));

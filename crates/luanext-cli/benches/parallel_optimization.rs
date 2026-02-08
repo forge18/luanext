@@ -62,7 +62,7 @@ fn generate_test_project(module_count: usize, statements_per_module: usize) -> T
     for i in 0..module_count {
         let module_name = format!("module_{}", i);
         let module_content = generate_module(&module_name, statements_per_module);
-        let module_path = temp_dir.path().join(format!("{}.tl", module_name));
+        let module_path = temp_dir.path().join(format!("{}.luax", module_name));
         fs::write(module_path, module_content).expect("Failed to write module");
     }
 
@@ -80,7 +80,7 @@ fn generate_test_project(module_count: usize, statements_per_module: usize) -> T
     }
     main_content.push_str("end\n");
 
-    let main_path = temp_dir.path().join("main.tl");
+    let main_path = temp_dir.path().join("main.luax");
     fs::write(main_path, main_content).expect("Failed to write main module");
 
     temp_dir

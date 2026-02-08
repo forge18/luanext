@@ -241,18 +241,18 @@ mod tests {
         let mut manifest = CacheManifest::new("test_hash".to_string());
 
         let entry = CacheEntry::new(
-            PathBuf::from("/test/file.tl"),
+            PathBuf::from("/test/file.luax"),
             "source_hash".to_string(),
             "cache_hash".to_string(),
-            vec![PathBuf::from("/test/dep.tl")],
+            vec![PathBuf::from("/test/dep.luax")],
         );
 
-        manifest.insert_entry(PathBuf::from("/test/file.tl"), entry);
+        manifest.insert_entry(PathBuf::from("/test/file.luax"), entry);
 
         // Add declaration hashes
         let mut hashes = FxHashMap::default();
         hashes.insert("testFunc".to_string(), 12345);
-        manifest.update_declaration_hashes(&PathBuf::from("/test/file.tl"), hashes);
+        manifest.update_declaration_hashes(&PathBuf::from("/test/file.luax"), hashes);
 
         let bytes = manifest.to_bytes().unwrap();
         let deserialized = CacheManifest::from_bytes(&bytes).unwrap();
@@ -277,47 +277,47 @@ mod tests {
         let mut manifest = CacheManifest::new("test".to_string());
 
         let entry1 = CacheEntry::new(
-            PathBuf::from("/test/file1.tl"),
+            PathBuf::from("/test/file1.luax"),
             "hash1".to_string(),
             "cache1".to_string(),
             vec![],
         );
 
         let entry2 = CacheEntry::new(
-            PathBuf::from("/test/file2.tl"),
+            PathBuf::from("/test/file2.luax"),
             "hash2".to_string(),
             "cache2".to_string(),
             vec![],
         );
 
-        manifest.insert_entry(PathBuf::from("/test/file1.tl"), entry1);
-        manifest.insert_entry(PathBuf::from("/test/file2.tl"), entry2);
+        manifest.insert_entry(PathBuf::from("/test/file1.luax"), entry1);
+        manifest.insert_entry(PathBuf::from("/test/file2.luax"), entry2);
 
         // Add declaration hashes for both files
         let mut hashes1 = FxHashMap::default();
         hashes1.insert("func1".to_string(), 111);
-        manifest.update_declaration_hashes(&PathBuf::from("/test/file1.tl"), hashes1);
+        manifest.update_declaration_hashes(&PathBuf::from("/test/file1.luax"), hashes1);
 
         let mut hashes2 = FxHashMap::default();
         hashes2.insert("func2".to_string(), 222);
-        manifest.update_declaration_hashes(&PathBuf::from("/test/file2.tl"), hashes2);
+        manifest.update_declaration_hashes(&PathBuf::from("/test/file2.luax"), hashes2);
 
         // Only keep file1
-        manifest.cleanup_stale_entries(&[PathBuf::from("/test/file1.tl")]);
+        manifest.cleanup_stale_entries(&[PathBuf::from("/test/file1.luax")]);
 
         assert_eq!(manifest.modules.len(), 1);
         assert!(manifest
             .modules
-            .contains_key(&PathBuf::from("/test/file1.tl")));
+            .contains_key(&PathBuf::from("/test/file1.luax")));
         assert!(!manifest
             .modules
-            .contains_key(&PathBuf::from("/test/file2.tl")));
+            .contains_key(&PathBuf::from("/test/file2.luax")));
 
         // Declaration hashes should also be cleaned up
         assert_eq!(manifest.declaration_hashes.len(), 1);
         assert!(manifest
             .declaration_hashes
-            .contains_key(&PathBuf::from("/test/file1.tl")));
+            .contains_key(&PathBuf::from("/test/file1.luax")));
     }
 
     #[test]
@@ -326,9 +326,9 @@ mod tests {
 
         let mut hashes = FxHashMap::default();
         hashes.insert("testFunc".to_string(), 12345);
-        manifest.update_declaration_hashes(&PathBuf::from("/test/file.tl"), hashes.clone());
+        manifest.update_declaration_hashes(&PathBuf::from("/test/file.luax"), hashes.clone());
 
-        let retrieved = manifest.get_declaration_hashes(&PathBuf::from("/test/file.tl"));
+        let retrieved = manifest.get_declaration_hashes(&PathBuf::from("/test/file.luax"));
         assert!(retrieved.is_some());
         assert_eq!(retrieved.unwrap().get("testFunc"), Some(&12345));
     }
@@ -341,7 +341,7 @@ mod tests {
         let mut old_hashes = FxHashMap::default();
         old_hashes.insert("func1".to_string(), 100);
         old_hashes.insert("func2".to_string(), 200);
-        manifest.update_declaration_hashes(&PathBuf::from("/test/file.tl"), old_hashes);
+        manifest.update_declaration_hashes(&PathBuf::from("/test/file.luax"), old_hashes);
 
         // New hashes - func1 changed, func2 same, func3 new
         let mut new_hashes = FxHashMap::default();
@@ -350,7 +350,7 @@ mod tests {
         new_hashes.insert("func3".to_string(), 300); // New
 
         let changed =
-            manifest.get_changed_declarations(&PathBuf::from("/test/file.tl"), &new_hashes);
+            manifest.get_changed_declarations(&PathBuf::from("/test/file.luax"), &new_hashes);
 
         assert_eq!(changed.len(), 2);
         assert!(changed.contains(&"func1".to_string()));

@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Source maps for both require() mode and bundle mode
 - Type-only imports that are erased during code generation
 - Circular dependency detection with full cycle path reporting
-- `.d.tl` declaration file support
+- `.d.luax` declaration file support
 - Hybrid module resolution (Node-style `./relative` + Lua-style `package.module`)
 - `new` keyword for class instantiation
 - Generic type inference for function calls

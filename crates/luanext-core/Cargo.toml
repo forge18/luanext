@@ -1,5 +1,5 @@
 [package]
-name = "typedlua-core"
+name = "luanext-core"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -22,10 +22,10 @@ indexmap = { workspace = true, features = ["serde"] }
 parking_lot.workspace = true
 once_cell.workspace = true
 tracing.workspace = true
-typedlua-runtime = { path = "../typedlua-runtime" }
-lua-sourcemap = { path = "../typedlua-sourcemap" }
-typedlua-parser = { git = "https://github.com/forge18/typedlua-parser.git" }
-typedlua-typechecker = { path = "../typedlua-typechecker" }
+luanext-runtime = { path = "../luanext-runtime" }
+luanext-sourcemap = { path = "../luanext-sourcemap" }
+luanext-parser = { git = "https://github.com/forge18/luanext-parser.git" }
+luanext-typechecker = { path = "../luanext-typechecker" }
 
 [dev-dependencies]
 insta.workspace = true

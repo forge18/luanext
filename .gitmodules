@@ -1,12 +1,12 @@
-[submodule "crates/typedlua-sourcemap"]
-	path = crates/typedlua-sourcemap
-	url = https://github.com/forge18/typedlua-sourcemap.git
-[submodule "crates/typedlua-parser"]
-	path = crates/typedlua-parser
-	url = https://github.com/forge18/typedlua-parser.git
-[submodule "crates/typedlua-lsp"]
-	path = crates/typedlua-lsp
-	url = https://github.com/forge18/typedlua-lsp.git
-[submodule "crates/typedlua-typechecker"]
-	path = crates/typedlua-typechecker
-	url = https://github.com/forge18/typedlua-typechecker.git
+[submodule "crates/luanext-sourcemap"]
+	path = crates/luanext-sourcemap
+	url = https://github.com/forge18/luanext-sourcemap.git
+[submodule "crates/luanext-parser"]
+	path = crates/luanext-parser
+	url = https://github.com/forge18/luanext-parser.git
+[submodule "crates/luanext-lsp"]
+	path = crates/luanext-lsp
+	url = https://github.com/forge18/luanext-lsp.git
+[submodule "crates/luanext-typechecker"]
+	path = crates/luanext-typechecker
+	url = https://github.com/forge18/luanext-typechecker.git

@@ -451,7 +451,7 @@ This file tracks implementation tasks for TypedLua. Tasks are organized by prior
 - [ ] Test basic namespace declaration
 - [ ] Test namespace imports (full path, aliasing, specific exports)
 - [ ] Test namespace path enforcement
-- [ ] Test with declaration files (.d.tl)
+- [ ] Test with declaration files (.d.luax)
 - [ ] Test Godot example from design doc
 
 **Documentation:**
@@ -944,7 +944,7 @@ fn main() {
     let _profiler = dhat::Profiler::new_heap();
 
     // Run compiler on large file
-    let source = include_str!("large_test.tl");
+    let source = include_str!("large_test.luax");
     let mut parser = Parser::new(source);
     parser.parse().unwrap();
 }

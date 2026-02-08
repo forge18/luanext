@@ -15,7 +15,7 @@ fn typedlua_cmd() -> Command {
 #[test]
 fn test_lua52_target() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("test.tl");
+    let input_file = temp_dir.path().join("test.luax");
     fs::write(&input_file, "const x: number = 42").unwrap();
 
     typedlua_cmd()
@@ -29,7 +29,7 @@ fn test_lua52_target() {
 #[test]
 fn test_lua53_target() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("test.tl");
+    let input_file = temp_dir.path().join("test.luax");
     fs::write(&input_file, "const x: number = 42").unwrap();
 
     typedlua_cmd()
@@ -43,7 +43,7 @@ fn test_lua53_target() {
 #[test]
 fn test_lua_target_shorthand() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("test.tl");
+    let input_file = temp_dir.path().join("test.luax");
     fs::write(&input_file, "const x: number = 42").unwrap();
 
     // Test shorthand "51" instead of "5.1"
@@ -63,7 +63,7 @@ fn test_lua_target_shorthand() {
 #[test]
 fn test_out_file_single_file() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("test.tl");
+    let input_file = temp_dir.path().join("test.luax");
     let out_file = temp_dir.path().join("output.lua");
 
     fs::write(&input_file, "const x: number = 42").unwrap();
@@ -85,7 +85,7 @@ fn test_out_dir_preserves_structure() {
     let temp_dir = TempDir::new().unwrap();
     fs::create_dir_all(temp_dir.path().join("src/lib")).unwrap();
 
-    let input_file = temp_dir.path().join("src/lib/test.tl");
+    let input_file = temp_dir.path().join("src/lib/test.luax");
     let out_dir = temp_dir.path().join("dist");
 
     fs::write(&input_file, "const x: number = 42").unwrap();
@@ -109,7 +109,7 @@ fn test_out_dir_preserves_structure() {
 #[test]
 fn test_source_map_external() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("test.tl");
+    let input_file = temp_dir.path().join("test.luax");
     let map_file = temp_dir.path().join("test.lua.map");
 
     fs::write(&input_file, "const x: number = 42").unwrap();
@@ -127,7 +127,7 @@ fn test_source_map_external() {
 #[test]
 fn test_inline_and_external_source_map() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("test.tl");
+    let input_file = temp_dir.path().join("test.luax");
 
     fs::write(&input_file, "const x: number = 42").unwrap();
 
@@ -147,7 +147,7 @@ fn test_inline_and_external_source_map() {
 #[test]
 fn test_no_pretty_flag() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("error.tl");
+    let input_file = temp_dir.path().join("error.luax");
 
     fs::write(&input_file, "const x: number = \"wrong\"").unwrap();
 
@@ -162,7 +162,7 @@ fn test_no_pretty_flag() {
 #[test]
 fn test_diagnostics_with_pretty() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("error.tl");
+    let input_file = temp_dir.path().join("error.luax");
 
     fs::write(&input_file, "const x: number = \"wrong\"").unwrap();
 
@@ -194,7 +194,7 @@ fn test_directory_as_input() {
 #[test]
 fn test_empty_file() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("empty.tl");
+    let input_file = temp_dir.path().join("empty.luax");
 
     fs::write(&input_file, "").unwrap();
 
@@ -205,7 +205,7 @@ fn test_empty_file() {
 #[test]
 fn test_very_large_file() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("large.tl");
+    let input_file = temp_dir.path().join("large.luax");
 
     // Generate a large file with many statements
     let mut content = String::new();
@@ -229,7 +229,7 @@ fn test_very_large_file() {
 #[test]
 fn test_unicode_in_filename() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("测试文件.tl");
+    let input_file = temp_dir.path().join("测试文件.luax");
 
     fs::write(&input_file, "const x: number = 42").unwrap();
 
@@ -239,7 +239,7 @@ fn test_unicode_in_filename() {
 #[test]
 fn test_special_chars_in_filename() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("test-file_v2.0.tl");
+    let input_file = temp_dir.path().join("test-file_v2.0.luax");
 
     fs::write(&input_file, "const x: number = 42").unwrap();
 
@@ -252,7 +252,7 @@ fn test_deeply_nested_path() {
     let deep_path = temp_dir.path().join("a/b/c/d/e/f/g");
     fs::create_dir_all(&deep_path).unwrap();
 
-    let input_file = deep_path.join("deep.tl");
+    let input_file = deep_path.join("deep.luax");
     fs::write(&input_file, "const x: number = 42").unwrap();
 
     typedlua_cmd().arg(&input_file).assert().success();
@@ -270,7 +270,7 @@ fn test_parallel_compilation_stress() {
 
     // Create 50 files to stress test parallel compilation
     for i in 0..50 {
-        let file = temp_dir.path().join(format!("module{}.tl", i));
+        let file = temp_dir.path().join(format!("module{}.luax", i));
         fs::write(
             &file,
             format!(
@@ -299,7 +299,7 @@ fn test_parallel_compilation_stress() {
 #[test]
 fn test_all_flags_combined() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("test.tl");
+    let input_file = temp_dir.path().join("test.luax");
     let out_dir = temp_dir.path().join("output");
 
     fs::write(&input_file, "const x: number = 42").unwrap();

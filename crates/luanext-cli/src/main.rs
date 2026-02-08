@@ -1,17 +1,17 @@
 use clap::Parser;
 use glob::glob;
+use luanext_core::ParsedModule;
+use luanext_typechecker::{CompilationCache, IncrementalChecker};
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 use std::cell::Cell;
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, warn};
 use tracing_subscriber::EnvFilter;
-use typedlua_core::ParsedModule;
-use typedlua_typechecker::{CompilationCache, IncrementalChecker};
 
-/// TypedLua - A TypeScript-inspired type system for Lua
+/// LuaNext - A TypeScript-inspired type system for Lua
 #[derive(Parser, Debug, Clone)]
-#[command(name = "typedlua")]
+#[command(name = "luanext")]
 #[command(author, version, about, long_about = None)]
 struct Cli {
     /// Input files to compile
@@ -249,11 +249,11 @@ const user: Person = {
 print(greet(user))
 "#;
 
-    std::fs::write("src/main.tl", sample)?;
-    println!("Created src/main.tl");
+    std::fs::write("src/main.luax", sample)?;
+    println!("Created src/main.luax");
 
     println!("\nProject initialized successfully!");
-    println!("Run 'typedlua src/main.tl' to compile your first file.");
+    println!("Run 'typedlua src/main.luax' to compile your first file.");
 
     Ok(())
 }
@@ -432,13 +432,13 @@ fn expand_glob_patterns(
         if path_str.contains('*') {
             // Glob pattern - expand
             for path in (glob(&path_str)?).flatten() {
-                if path.extension().is_some_and(|e| e == "tl") {
+                if path.extension().is_some_and(|e| e == "luax") {
                     files.insert(path);
                 }
             }
         } else {
-            // Explicit file - add if exists and is .tl
-            if file.exists() && file.extension().is_some_and(|e| e == "tl") {
+            // Explicit file - add if exists and is .luax
+            if file.exists() && file.extension().is_some_and(|e| e == "luax") {
                 files.insert(file.clone());
             }
         }
@@ -455,7 +455,7 @@ fn expand_glob_patterns(
         };
 
         for path in (glob(&pattern_to_use)?).flatten() {
-            if path.extension().is_some_and(|e| e == "tl") {
+            if path.extension().is_some_and(|e| e == "luax") {
                 // Skip excluded patterns
                 if !is_excluded(&path, &config.exclude, &base_dir) {
                     files.insert(path);
@@ -1277,141 +1277,142 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
         .filter_map(|file_path| {
             // Use pooled arena for type checking
             typedlua_core::arena::with_pooled_arena(|arena| {
-            let canonical = file_path
-                .canonicalize()
-                .unwrap_or_else(|_| file_path.to_path_buf());
-            let is_stale = stale_files.contains(&canonical);
+                let canonical = file_path
+                    .canonicalize()
+                    .unwrap_or_else(|_| file_path.to_path_buf());
+                let is_stale = stale_files.contains(&canonical);
 
-            // --- Cache hit: with arena allocation, can't use cached AST ---
-            // TODO: Implement owned-type serialization or accept recompilation on cache hit
-            // For now, treat all files as stale (recompile everything)
-            let _is_stale = stale_files.contains(&canonical) || true; // Force recompilation
+                // --- Cache hit: with arena allocation, can't use cached AST ---
+                // TODO: Implement owned-type serialization or accept recompilation on cache hit
+                // For now, treat all files as stale (recompile everything)
+                let _is_stale = stale_files.contains(&canonical) || true; // Force recompilation
 
-            // --- Prepared module from parallel parsing ---
-            let parsed = match parsed_map.get(&canonical) {
-                Some(parsed) => parsed,
-                None => {
-                    // This shouldn't happen since we already filtered for stale files
-                    warn!(
-                        "Internal error: parsed module not found for {:?} (is_stale={})",
-                        file_path, is_stale
-                    );
-                    return None;
-                }
-            };
-
-            let mut program = parsed.ast.clone();
-            let common_ids = parsed.common_ids;
-
-            // Type check the program (with module support for import resolution)
-            use typedlua_core::TypeChecker;
-
-            let handler = Arc::new(CollectingDiagnosticHandler::new());
-
-            debug!("Type checking {:?}...", file_path);
-
-            let module_id = ModuleId::new(canonical.clone());
-            let mut type_checker = TypeChecker::new_with_module_support(
-                handler.clone(),
-                &parsed.interner, // Use the interner from parsed module
-                &common_ids,
-                arena,
-                registry.clone(),
-                module_id.clone(),
-                resolver.clone(),
-            )
-            .with_stdlib()
-            .expect("Failed to load standard library");
-
-            if type_checker.check_program(&mut program).is_err() || handler.has_errors() {
-                typecheck_failures.set(true);
-                let diagnostics = handler.get_diagnostics();
-                warn!(
-                    "Type check failed for {:?}: {} errors",
-                    file_path,
-                    diagnostics.len()
-                );
-                // Print diagnostics to stderr
-                let source = std::fs::read_to_string(file_path).unwrap_or_default();
-                print_diagnostics_from_vec(
-                    &diagnostics,
-                    &source,
-                    file_path,
-                    cli.pretty,
-                    cli.diagnostics,
-                );
-                return None; // Skip modules with type errors
-            }
-
-            // Register exports in shared registry for other files
-            let exports = type_checker.extract_exports(&program);
-            // Note: We can't cache SymbolTable (arena-allocated), so we only register exports
-            // The registry will use default/empty symbol table for imported modules
-            if let Err(e) = registry.register_exports(&module_id, exports.clone()) {
-                warn!("Failed to register exports for {:?}: {}", module_id, e);
-            }
-
-            // Build cache entry to save after parallel section
-            let cache_entry = if use_cache {
-                // Get dependencies for cache invalidation
-                let dependencies: Vec<PathBuf> = type_checker.get_module_dependencies().to_vec();
-
-                // Compute declaration hashes for incremental type checking
-                let declaration_hashes = type_checker.compute_declaration_hashes(
-                    &program,
-                    canonical.clone(),
-                    &parsed.interner,
-                );
-
-                // Update incremental checker with new hashes
-                if use_incremental_check {
-                    for (decl_id, hash) in &declaration_hashes {
-                        debug!(
-                            ?decl_id,
-                            hash, "Computing declaration hash for incremental tracking"
+                // --- Prepared module from parallel parsing ---
+                let parsed = match parsed_map.get(&canonical) {
+                    Some(parsed) => parsed,
+                    None => {
+                        // This shouldn't happen since we already filtered for stale files
+                        warn!(
+                            "Internal error: parsed module not found for {:?} (is_stale={})",
+                            file_path, is_stale
                         );
+                        return None;
                     }
+                };
+
+                let mut program = parsed.ast.clone();
+                let common_ids = parsed.common_ids;
+
+                // Type check the program (with module support for import resolution)
+                use typedlua_core::TypeChecker;
+
+                let handler = Arc::new(CollectingDiagnosticHandler::new());
+
+                debug!("Type checking {:?}...", file_path);
+
+                let module_id = ModuleId::new(canonical.clone());
+                let mut type_checker = TypeChecker::new_with_module_support(
+                    handler.clone(),
+                    &parsed.interner, // Use the interner from parsed module
+                    &common_ids,
+                    arena,
+                    registry.clone(),
+                    module_id.clone(),
+                    resolver.clone(),
+                )
+                .with_stdlib()
+                .expect("Failed to load standard library");
+
+                if type_checker.check_program(&mut program).is_err() || handler.has_errors() {
+                    typecheck_failures.set(true);
+                    let diagnostics = handler.get_diagnostics();
+                    warn!(
+                        "Type check failed for {:?}: {} errors",
+                        file_path,
+                        diagnostics.len()
+                    );
+                    // Print diagnostics to stderr
+                    let source = std::fs::read_to_string(file_path).unwrap_or_default();
+                    print_diagnostics_from_vec(
+                        &diagnostics,
+                        &source,
+                        file_path,
+                        cli.pretty,
+                        cli.diagnostics,
+                    );
+                    return None; // Skip modules with type errors
                 }
 
-                Some((
-                    canonical.clone(),
-                    CachedModule::new(
-                        file_path
-                            .canonicalize()
-                            .unwrap_or_else(|_| file_path.clone()),
-                        // Compute source hash for cache invalidation
-                        typedlua_core::cache::hash_file(file_path)
-                            .unwrap_or_else(|_| String::from("unknown")),
-                        // Store interner strings for reconstructing StringInterner
-                        parsed.interner.to_strings(),
-                        // Extract export names from ModuleExports (only names, not full types)
-                        exports.named.keys().cloned().collect(),
-                        // Check if default export exists
-                        exports.default.is_some(),
-                    ),
-                    dependencies,
-                    declaration_hashes,
-                ))
-            } else {
-                None
-            };
+                // Register exports in shared registry for other files
+                let exports = type_checker.extract_exports(&program);
+                // Note: We can't cache SymbolTable (arena-allocated), so we only register exports
+                // The registry will use default/empty symbol table for imported modules
+                if let Err(e) = registry.register_exports(&module_id, exports.clone()) {
+                    warn!("Failed to register exports for {:?}: {}", module_id, e);
+                }
 
-            // Return CheckedModule ready for parallel codegen
-            if cli.no_emit {
-                return None; // Skip codegen for no-emit mode
-            }
+                // Build cache entry to save after parallel section
+                let cache_entry = if use_cache {
+                    // Get dependencies for cache invalidation
+                    let dependencies: Vec<PathBuf> =
+                        type_checker.get_module_dependencies().to_vec();
 
-            let output_path = determine_output_path(file_path, &cli);
-            let interner_arc = Arc::new(parsed.interner.clone());
+                    // Compute declaration hashes for incremental type checking
+                    let declaration_hashes = type_checker.compute_declaration_hashes(
+                        &program,
+                        canonical.clone(),
+                        &parsed.interner,
+                    );
 
-            Some(CheckedModule {
-                file_path: file_path.clone(),
-                ast: program,
-                interner: interner_arc,
-                output_path,
-                enable_source_map: cli.source_map || cli.inline_source_map,
-                cache_entry,
-            })
+                    // Update incremental checker with new hashes
+                    if use_incremental_check {
+                        for (decl_id, hash) in &declaration_hashes {
+                            debug!(
+                                ?decl_id,
+                                hash, "Computing declaration hash for incremental tracking"
+                            );
+                        }
+                    }
+
+                    Some((
+                        canonical.clone(),
+                        CachedModule::new(
+                            file_path
+                                .canonicalize()
+                                .unwrap_or_else(|_| file_path.clone()),
+                            // Compute source hash for cache invalidation
+                            typedlua_core::cache::hash_file(file_path)
+                                .unwrap_or_else(|_| String::from("unknown")),
+                            // Store interner strings for reconstructing StringInterner
+                            parsed.interner.to_strings(),
+                            // Extract export names from ModuleExports (only names, not full types)
+                            exports.named.keys().cloned().collect(),
+                            // Check if default export exists
+                            exports.default.is_some(),
+                        ),
+                        dependencies,
+                        declaration_hashes,
+                    ))
+                } else {
+                    None
+                };
+
+                // Return CheckedModule ready for parallel codegen
+                if cli.no_emit {
+                    return None; // Skip codegen for no-emit mode
+                }
+
+                let output_path = determine_output_path(file_path, &cli);
+                let interner_arc = Arc::new(parsed.interner.clone());
+
+                Some(CheckedModule {
+                    file_path: file_path.clone(),
+                    ast: program,
+                    interner: interner_arc,
+                    output_path,
+                    enable_source_map: cli.source_map || cli.inline_source_map,
+                    cache_entry,
+                })
             }) // End of with_pooled_arena
         })
         .collect();

@@ -21,7 +21,7 @@ TypedLua brings static type checking to Lua while maintaining its simplicity and
 - **LSP Support** - Full language server with autocomplete, diagnostics, and more
 - **Multi-File Compilation** - Compile entire projects with automatic dependency ordering
 - **Circular Dependency Detection** - Catch import cycles before compilation
-- **Glob Pattern Support** - Use wildcards like `src/**/*.tl` to select files
+- **Glob Pattern Support** - Use wildcards like `src/**/*.luax` to select files
 
 ## Project Status
 
@@ -99,19 +99,19 @@ TypedLua supports compiling entire projects with automatic dependency ordering:
 
 ```bash
 # Compile individual files (order determined by imports)
-typedlua file1.tl file2.tl file3.tl
+typedlua file1.luax file2.luax file3.luax
 
 # Compile with glob patterns
-typedlua "src/**/*.tl"
-typedlua "src/*.tl" "tests/*.tl"
+typedlua "src/**/*.luax"
+typedlua "src/*.luax" "tests/*.luax"
 
 # Bundle all files into single output
-typedlua "src/**/*.tl" --out-file bundle.lua
+typedlua "src/**/*.luax" --out-file bundle.lua
 ```
 
 ### How It Works
 
-1. **File Discovery** - TypedLua expands glob patterns and discovers all `.tl` files
+1. **File Discovery** - TypedLua expands glob patterns and discovers all `.luax` files
 2. **Import Analysis** - Parses imports to build a dependency graph
 3. **Topological Sort** - Determines compilation order (dependencies first)
 4. **Sequential Compilation** - Files compile one-by-one, exporting types for dependents
@@ -123,9 +123,9 @@ typedlua "src/**/*.tl" --out-file bundle.lua
 project/
 ├── tlconfig.yaml
 ├── src/
-│   ├── utils.tl      # base utilities
-│   ├── models.tl     # imports utils
-│   └── main.tl       # imports models & utils
+│   ├── utils.luax      # base utilities
+│   ├── models.luax     # imports utils
+│   └── main.luax       # imports models & utils
 └── dist/
     └── (compiled Lua files)
 ```
@@ -147,7 +147,7 @@ compilerOptions:
   sourceMap: true         # Generate source maps
 
 include:
-  - "src/**/*.tl"
+  - "src/**/*.luax"
 
 exclude:
   - "**/node_modules/**"

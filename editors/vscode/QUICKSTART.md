@@ -43,7 +43,7 @@ npm run compile
    File > Open Folder > editors/vscode/test-files
    ```
 
-5. Open `test-basic.tl` - the extension should activate!
+5. Open `test-basic.luax` - the extension should activate!
 
 ### Option B: Install as VSIX
 
@@ -58,13 +58,13 @@ npm run compile
    code --install-extension typedlua-0.1.0.vsix
    ```
 
-3. Open any `.tl` file to activate the extension
+3. Open any `.luax` file to activate the extension
 
 ## Step 4: Verify It's Working
 
 ### Check Extension Activation
 
-1. Open `test-basic.tl`
+1. Open `test-basic.luax`
 2. Open Output panel: View > Output
 3. Select "TypedLua Language Server" from dropdown
 4. You should see initialization messages
@@ -107,7 +107,7 @@ The extension can't find the LSP server binary.
 ### Extension doesn't activate
 
 **Check:**
-- File extension is `.tl`
+- File extension is `.luax`
 - Open Developer Tools: Help > Toggle Developer Tools
 - Look for JavaScript errors in Console tab
 - Try reloading: Ctrl+Shift+P > "Developer: Reload Window"
@@ -143,27 +143,27 @@ The extension can't find the LSP server binary.
 
 ### Test Completion
 
-1. Open `test-basic.tl`
+1. Open `test-basic.luax`
 2. Type `function` and press Space
 3. Type `my` then Ctrl+Space
 4. Should see keyword/identifier suggestions
 
 ### Test Hover
 
-1. Open `test-basic.tl`
+1. Open `test-basic.luax`
 2. Hover over the `function` keyword
 3. Should see documentation popup
 
 ### Test Go to Definition
 
-1. Open `test-basic.tl`
+1. Open `test-basic.luax`
 2. Find the line: `local message = greet("World")`
 3. Ctrl+Click on `greet` (or press F12)
 4. Should jump to the function definition
 
 ### Test Diagnostics
 
-1. Open `test-errors.tl`
+1. Open `test-errors.luax`
 2. Should see red squiggles on type errors
 3. Hover over them to see error messages
 4. Check Problems panel (View > Problems)

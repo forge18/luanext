@@ -12,7 +12,7 @@ fn typedlua_cmd() -> Command {
 #[test]
 fn test_compile_simple_file() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("test.tl");
+    let input_file = temp_dir.path().join("test.luax");
 
     fs::write(
         &input_file,
@@ -33,7 +33,7 @@ fn test_compile_simple_file() {
 #[test]
 fn test_compile_with_type_error() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("error.tl");
+    let input_file = temp_dir.path().join("error.luax");
 
     fs::write(
         &input_file,
@@ -69,7 +69,7 @@ fn test_compile_with_type_error() {
 #[test]
 fn test_output_directory() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("test.tl");
+    let input_file = temp_dir.path().join("test.luax");
     let output_dir = temp_dir.path().join("out");
 
     fs::write(
@@ -96,8 +96,8 @@ fn test_output_directory() {
 #[test]
 fn test_multiple_files() {
     let temp_dir = TempDir::new().unwrap();
-    let file1 = temp_dir.path().join("file1.tl");
-    let file2 = temp_dir.path().join("file2.tl");
+    let file1 = temp_dir.path().join("file1.luax");
+    let file2 = temp_dir.path().join("file2.luax");
 
     fs::write(&file1, "const a: number = 1").unwrap();
     fs::write(&file2, "const b: string = \"test\"").unwrap();
@@ -113,7 +113,7 @@ fn test_multiple_files() {
 #[test]
 fn test_no_emit_flag() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("test.tl");
+    let input_file = temp_dir.path().join("test.luax");
     let output_file = temp_dir.path().join("test.lua");
 
     fs::write(
@@ -138,7 +138,7 @@ fn test_no_emit_flag() {
 #[test]
 fn test_lua51_target() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("test.tl");
+    let input_file = temp_dir.path().join("test.luax");
 
     fs::write(
         &input_file,
@@ -161,7 +161,7 @@ fn test_lua51_target() {
 #[test]
 fn test_function_compilation() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("func.tl");
+    let input_file = temp_dir.path().join("func.luax");
     let output_file = temp_dir.path().join("func.lua");
 
     fs::write(
@@ -212,7 +212,7 @@ fn test_function_compilation() {
 #[test]
 fn test_class_compilation() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("class.tl");
+    let input_file = temp_dir.path().join("class.luax");
     let output_file = temp_dir.path().join("class.lua");
 
     fs::write(
@@ -263,7 +263,7 @@ fn test_class_compilation() {
 #[test]
 fn test_interface_type_checking() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("interface.tl");
+    let input_file = temp_dir.path().join("interface.luax");
 
     fs::write(
         &input_file,
@@ -287,7 +287,7 @@ fn test_interface_type_checking() {
 #[test]
 fn test_invalid_interface() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("bad_interface.tl");
+    let input_file = temp_dir.path().join("bad_interface.luax");
 
     fs::write(
         &input_file,
@@ -352,14 +352,14 @@ fn test_help_flag() {
 /// Test nonexistent file error
 #[test]
 fn test_nonexistent_file() {
-    typedlua_cmd().arg("nonexistent.tl").assert().failure();
+    typedlua_cmd().arg("nonexistent.luax").assert().failure();
 }
 
 /// Test source map generation
 #[test]
 fn test_source_map_generation() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("test.tl");
+    let input_file = temp_dir.path().join("test.luax");
     let source_map_file = temp_dir.path().join("test.lua.map");
 
     fs::write(
@@ -384,7 +384,7 @@ fn test_source_map_generation() {
 #[test]
 fn test_pretty_output() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("test.tl");
+    let input_file = temp_dir.path().join("test.luax");
 
     fs::write(
         &input_file,

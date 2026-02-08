@@ -40,13 +40,13 @@ tl -p tsconfig.json
 
 ```bash
 # Compile single file
-tl main.tl
+tl main.luax
 
 # Compile multiple files
-tl src/main.tl src/utils.tl lib/helper.tl
+tl src/main.luax src/utils.luax lib/helper.luax
 
 # Compile with glob patterns
-tl src/**/*.tl
+tl src/**/*.luax
 ```
 
 ### Initialize Project

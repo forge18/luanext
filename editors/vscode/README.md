@@ -94,8 +94,8 @@ This extension requires the TypedLua language server (`typedlua-lsp`) to be inst
 ## Quick Start
 
 1. **Create a new TypedLua file:**
-   - Create a file with `.tl` extension
-   - Example: `hello.tl`
+   - Create a file with `.luax` extension
+   - Example: `hello.luax`
 
 2. **Write TypedLua code:**
    ```lua
@@ -263,7 +263,7 @@ end
 ## Troubleshooting
 
 ### Extension doesn't activate
-- Check that the file extension is `.tl`
+- Check that the file extension is `.luax`
 - Look for errors in Developer Tools (Help > Toggle Developer Tools)
 - Try reloading the window (Ctrl+Shift+P > "Developer: Reload Window")
 

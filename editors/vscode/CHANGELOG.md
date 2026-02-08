@@ -55,7 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Language Support
 - Syntax highlighting via TextMate grammar
-- Support for `.tl` file extension
+- Support for `.luax` file extension
 - Language configuration:
   - Auto-closing pairs for brackets, quotes, and blocks
   - Comment toggling (line and block comments)

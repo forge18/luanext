@@ -43,7 +43,7 @@ Complete implementation roadmap for TypedLua compiler and tooling.
 - Error recovery
 - Snapshot tests
 
-**Milestone:** `tl parse file.tl --print-ast`
+**Milestone:** `tl parse file.luax --print-ast`
 
 ---
 
@@ -60,7 +60,7 @@ Complete implementation roadmap for TypedLua compiler and tooling.
 - Type inference (const = literal, local = widened)
 - Structural compatibility checking
 
-**Milestone:** `tl check file.tl` reports errors
+**Milestone:** `tl check file.luax` reports errors
 
 ---
 
@@ -76,7 +76,7 @@ Complete implementation roadmap for TypedLua compiler and tooling.
 - Source map support
 - Target-specific output
 
-**Milestone:** `tl compile file.tl && lua file.lua`
+**Milestone:** `tl compile file.luax && lua file.lua`
 
 ---
 
@@ -89,7 +89,7 @@ Complete implementation roadmap for TypedLua compiler and tooling.
 - Pretty error messages with colors
 - Config file loading
 
-**Milestone:** `tl --watch src/**/*.tl`
+**Milestone:** `tl --watch src/**/*.luax`
 
 ---
 
@@ -164,7 +164,7 @@ Complete implementation roadmap for TypedLua compiler and tooling.
 **Week 1:** Core libraries (string, table, math, globals)
 **Week 2:** I/O, OS, coroutine + version differences
 
-**Format:** `.d.tl` type definition files with TypeScript-style overloads
+**Format:** `.d.luax` type definition files with TypeScript-style overloads
 
 ---
 
@@ -196,9 +196,9 @@ cargo fmt && cargo clippy     # Format + lint
 cargo tarpaulin              # Coverage
 
 # Milestones
-tl parse file.tl             # Phase 1
-tl check file.tl             # Phase 2
-tl compile file.tl           # Phase 3
+tl parse file.luax             # Phase 1
+tl check file.luax             # Phase 2
+tl compile file.luax           # Phase 3
 tl --watch src/              # Phase 4
 code .                       # Phase 9 (IDE support)
 ```

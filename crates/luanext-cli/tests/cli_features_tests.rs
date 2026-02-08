@@ -26,7 +26,7 @@ fn test_init_creates_config_file() {
 
     assert!(temp_dir.path().join("tlconfig.yaml").exists());
     assert!(temp_dir.path().join("src").exists());
-    assert!(temp_dir.path().join("src/main.tl").exists());
+    assert!(temp_dir.path().join("src/main.luax").exists());
 }
 
 /// Test --init creates valid config
@@ -68,13 +68,13 @@ compilerOptions:
 
     // Create source file
     let source = "const x: number = 42";
-    fs::write(temp_dir.path().join("test.tl"), source).unwrap();
+    fs::write(temp_dir.path().join("test.luax"), source).unwrap();
 
     typedlua_cmd()
         .current_dir(&temp_dir)
         .arg("--project")
         .arg("tlconfig.yaml")
-        .arg("test.tl")
+        .arg("test.luax")
         .assert()
         .success();
 
@@ -103,7 +103,7 @@ fn test_error_no_input_files() {
 #[test]
 fn test_invalid_lua_target_falls_back() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("test.tl");
+    let input_file = temp_dir.path().join("test.luax");
     fs::write(&input_file, "const x: number = 42").unwrap();
 
     // Invalid target should fall back to default (5.4) and still compile
@@ -119,7 +119,7 @@ fn test_invalid_lua_target_falls_back() {
 #[test]
 fn test_lexer_error_reporting() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("bad.tl");
+    let input_file = temp_dir.path().join("bad.luax");
 
     // Invalid character that lexer can't handle
     fs::write(&input_file, "const x = @@@").unwrap();
@@ -147,7 +147,7 @@ fn test_lexer_error_reporting() {
 #[test]
 fn test_parser_error_reporting() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("syntax_error.tl");
+    let input_file = temp_dir.path().join("syntax_error.luax");
 
     // Syntax error: unclosed brace
     fs::write(&input_file, "const obj = { x = 1").unwrap();
@@ -176,13 +176,13 @@ fn test_parser_error_reporting() {
 // ============================================================================
 
 /// Test --out-file concatenates multiple files
-/// Note: Uses --no-tree-shake because tree shaking would remove file2.tl
-/// since it's not imported from file1.tl
+/// Note: Uses --no-tree-shake because tree shaking would remove file2.luax
+/// since it's not imported from file1.luax
 #[test]
 fn test_out_file_concatenation() {
     let temp_dir = TempDir::new().unwrap();
-    let file1 = temp_dir.path().join("file1.tl");
-    let file2 = temp_dir.path().join("file2.tl");
+    let file1 = temp_dir.path().join("file1.luax");
+    let file2 = temp_dir.path().join("file2.luax");
     let out_file = temp_dir.path().join("bundle.lua");
 
     fs::write(&file1, "const a: number = 1").unwrap();
@@ -219,7 +219,7 @@ fn test_out_file_concatenation() {
 #[test]
 fn test_inline_source_map() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("test.tl");
+    let input_file = temp_dir.path().join("test.luax");
     let output_file = temp_dir.path().join("test.lua");
 
     fs::write(&input_file, "const x: number = 42").unwrap();
@@ -261,7 +261,7 @@ fn test_parallel_compilation_many_files() {
 
     // Create 10 files
     for i in 0..10 {
-        let file = temp_dir.path().join(format!("file{}.tl", i));
+        let file = temp_dir.path().join(format!("file{}.luax", i));
         fs::write(&file, format!("const x{}: number = {}", i, i)).unwrap();
         files.push(file);
     }
@@ -311,7 +311,7 @@ compilerOptions:
             return x + 1
         end
     "#;
-    let input_file = temp_dir.path().join("test.tl");
+    let input_file = temp_dir.path().join("test.luax");
     fs::write(&input_file, source).unwrap();
 
     // This should fail or succeed depending on strict mode implementation
@@ -331,7 +331,7 @@ compilerOptions:
 #[test]
 fn test_diagnostics_flag() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("error.tl");
+    let input_file = temp_dir.path().join("error.luax");
 
     fs::write(&input_file, "const x: number = \"wrong\"").unwrap();
 
@@ -346,7 +346,7 @@ fn test_diagnostics_flag() {
 #[test]
 fn test_pretty_printing_default() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("error.tl");
+    let input_file = temp_dir.path().join("error.luax");
 
     fs::write(&input_file, "const x: number = \"wrong\"").unwrap();
 
@@ -364,7 +364,7 @@ fn test_pretty_printing_default() {
 #[test]
 fn test_lua51_compatibility() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("test.tl");
+    let input_file = temp_dir.path().join("test.luax");
     let output_file = temp_dir.path().join("test.lua");
     let dist_output = temp_dir.path().join("dist/test.lua");
 
@@ -390,7 +390,7 @@ fn test_lua51_compatibility() {
 #[test]
 fn test_lua54_default_target() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("test.tl");
+    let input_file = temp_dir.path().join("test.luax");
 
     fs::write(&input_file, "const x: number = 42").unwrap();
 
@@ -412,7 +412,7 @@ fn test_nested_directory_structure() {
     let temp_dir = TempDir::new().unwrap();
 
     fs::create_dir_all(temp_dir.path().join("src/utils")).unwrap();
-    let input_file = temp_dir.path().join("src/utils/helper.tl");
+    let input_file = temp_dir.path().join("src/utils/helper.luax");
 
     fs::write(&input_file, "const x: number = 42").unwrap();
 
@@ -435,7 +435,7 @@ fn test_nested_directory_structure() {
 #[test]
 fn test_file_with_spaces() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("my file.tl");
+    let input_file = temp_dir.path().join("my file.luax");
 
     fs::write(&input_file, "const x: number = 42").unwrap();
 

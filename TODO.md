@@ -2,50 +2,6 @@
 
 ## Current Focus
 
-### Phase 4: Runtime Validation from Types
-
-**Goal:** Generate runtime validation code from type annotations.
-
-**Key Features:**
-
-- `Refined<Base, Constraints>` utility type
-- Auto-validate at boundaries + @validate decorator
-- Compiler intrinsics: `parse<T>()`, `safeParse<T>()`, `is<T>()`
-- Fail-fast and collect error modes
-
-**Status:** Not started. See docs/designs/Runtime-Validation.md for specification.
-
-**Subtasks:**
-
-- Phase 4.1: Refined<> Type System
-- Phase 4.2: Validation Mode Configuration
-- Phase 4.3: Validator Code Generation
-- Phase 4.4: Compiler Intrinsics
-- Phase 4.5: Inlining Optimization
-- Phase 4.6: Advanced Optimizations
-- Phase 4.7: Runtime Support Library
-- Phase 4.8: Class Instance Validation
-- Phase 4.9: Integration & Documentation
-
----
-
-### Phase 5: File Extension Migration (.tl → .luax)
-
-**Goal:** Rename project file extension for LuaNext rebrand.
-
-**Status:** Not started. See docs/file-extension-migration.md (45+ files, 12 renames).
-
-**Subtasks:**
-
-- Phase 5.1: Core Runtime Logic
-- Phase 5.2: Test Infrastructure
-- Phase 5.3: Actual File Renames (git mv)
-- Phase 5.4: Documentation Updates
-- Phase 5.5: Module Resolution & Build Scripts
-- Phase 5.6: Verification & Post-Migration
-
----
-
 ### Phase 6: Project Rename (TypedLua → LuaNext)
 
 **Goal:** Rename all project references from TypedLua to LuaNext.

@@ -1345,7 +1345,7 @@ return User
 **File-scoped namespace (entire file in one namespace):**
 
 ```lua
--- File: math/vector.tl
+-- File: math/vector.luax
 namespace Math.Vector;  -- Semicolon = file-scoped
 
 export function dot(a: Vec2, b: Vec2): number {
@@ -1399,7 +1399,7 @@ dot(v1, v2)
 Namespaces excel at organizing large type declaration files:
 
 ```lua
--- godot.d.tl (single file for entire engine API)
+-- godot.d.luax (single file for entire engine API)
 namespace Godot.Scene;
 
 export interface Node {
@@ -1420,7 +1420,7 @@ export interface Camera2D extends Node {
 ```
 
 ```lua
--- godot-physics.d.tl
+-- godot-physics.d.luax
 namespace Godot.Physics;
 
 export interface RigidBody2D {
@@ -1473,14 +1473,14 @@ class Player extends Godot.Scene.Sprite {
    - Track namespace for each module
    - When resolving imports, include namespace prefix
    - If `enforceNamespacePath: true`, verify namespace matches file path:
-     - `math/vector.tl` with `namespace Math.Vector;` → OK
-     - `math/vector.tl` with `namespace Foo.Bar;` → ERROR
+     - `math/vector.luax` with `namespace Math.Vector;` → OK
+     - `math/vector.luax` with `namespace Foo.Bar;` → ERROR
    - Namespace types are accessible via dot notation
 
 5. **Codegen**:
 
 ```lua
--- Input: math/vector.tl
+-- Input: math/vector.luax
 namespace Math.Vector;
 
 export function dot(a: Vec2, b: Vec2): number {
@@ -1517,12 +1517,12 @@ compilerOptions:
 ```
 
 **When `enforceNamespacePath: true`:**
-- `math/vector.tl` MUST declare `namespace Math.Vector;`
-- `utils/string/helpers.tl` MUST declare `namespace Utils.String.Helpers;`
+- `math/vector.luax` MUST declare `namespace Math.Vector;`
+- `utils/string/helpers.luax` MUST declare `namespace Utils.String.Helpers;`
 - Mismatch is a compile error
 
 **When `enforceNamespacePath: false`:**
-- `math/vector.tl` can declare any namespace (e.g., `namespace Engine.Math.Vector;`)
+- `math/vector.luax` can declare any namespace (e.g., `namespace Engine.Math.Vector;`)
 - Provides flexibility for organizing code differently than file structure
 
 ---
@@ -2671,7 +2671,7 @@ compilerOptions:
 
 **Notes:**
 - No config flags needed for language features — they are always available
-- `enforceNamespacePath`: When true, `math/vector.tl` must declare `namespace Math.Vector;`
+- `enforceNamespacePath`: When true, `math/vector.luax` must declare `namespace Math.Vector;`
 - Reflection uses Rust native module (required dependency via LuaRocks)
 - Compiler optimizations are critical for performance since JIT is not available
 - Template literal auto-dedenting is always enabled (no config option)

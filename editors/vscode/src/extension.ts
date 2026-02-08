@@ -57,8 +57,8 @@ async function startLanguageServer() {
             { scheme: 'untitled', language: 'typedlua' }
         ],
         synchronize: {
-            // Notify the server about file changes to '.tl' files in the workspace
-            fileEvents: vscode.workspace.createFileSystemWatcher('**/*.tl')
+            // Notify the server about file changes to '.luax' files in the workspace
+            fileEvents: vscode.workspace.createFileSystemWatcher('**/*.luax')
         },
         outputChannelName: 'TypedLua Language Server',
         traceOutputChannel: vscode.window.createOutputChannel('TypedLua Language Server Trace'),

@@ -662,7 +662,7 @@ impl DocumentManager {
     "languages": [{
       "id": "typedlua",
       "aliases": ["TypedLua", "typedlua"],
-      "extensions": [".tl"],
+      "extensions": [".luax"],
       "configuration": "./language-configuration.json"
     }],
     "grammars": [{
@@ -746,7 +746,7 @@ export function activate(context: vscode.ExtensionContext) {
   const clientOptions: LanguageClientOptions = {
     documentSelector: [{ scheme: 'file', language: 'typedlua' }],
     synchronize: {
-      fileEvents: vscode.workspace.createFileSystemWatcher('**/*.tl')
+      fileEvents: vscode.workspace.createFileSystemWatcher('**/*.luax')
     }
   };
   

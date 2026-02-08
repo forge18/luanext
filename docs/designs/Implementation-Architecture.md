@@ -266,9 +266,9 @@ pub struct DefaultModuleResolver {
 
 impl ModuleResolver for DefaultModuleResolver {
     fn resolve(&self, from: &Path, import_path: &str) -> Result<ResolvedModule, ResolutionError> {
-        // 1. Try .tl file
+        // 1. Try .luax file
         // 2. Try .lua file (if allowNonTypedLua)
-        // 3. Check for .d.tl definition file
+        // 3. Check for .d.luax definition file
         // 4. Apply path aliases from config
         // ...
     }
@@ -497,7 +497,7 @@ mod tests {
     fn test_module_resolver_with_mock_fs() {
         let mut mock_fs = MockFileSystem::new();
         mock_fs.add_file(
-            Path::new("/project/utils.tl"),
+            Path::new("/project/utils.luax"),
             "export function add(a: number, b: number): number"
         );
         
@@ -512,7 +512,7 @@ mod tests {
             "./utils"
         ).unwrap();
         
-        assert_eq!(result.path, Path::new("/project/utils.tl"));
+        assert_eq!(result.path, Path::new("/project/utils.luax"));
     }
 }
 ```

@@ -34,7 +34,7 @@ This launches a new VS Code window with the extension loaded for testing.
    - This opens a new VS Code window titled "[Extension Development Host]"
 
 3. **In the Extension Development Host window:**
-   - Create a new file: `test.tl`
+   - Create a new file: `test.luax`
    - The extension should activate automatically
    - Check the Output panel (View > Output) for "TypedLua Language Server" logs
 
@@ -55,13 +55,13 @@ This tests the extension as users would install it.
    ```
    Or through VS Code UI: Extensions > ... > Install from VSIX
 
-3. **Test with a `.tl` file**
+3. **Test with a `.luax` file**
 
 ## Test Checklist
 
 ### ✅ Extension Activation
 
-- [ ] Extension activates when opening a `.tl` file
+- [ ] Extension activates when opening a `.luax` file
 - [ ] "TypedLua extension is now active" appears in Debug Console
 - [ ] Language server starts without errors
 - [ ] Output channel "TypedLua Language Server" is created
@@ -187,7 +187,7 @@ Open Settings (Ctrl+,) and search for "typedlua":
 - [ ] Error message appears: "Failed to start TypedLua Language Server"
 - [ ] User can see error in Output channel
 
-**Invalid .tl File:**
+**Invalid .luax File:**
 - [ ] Open file with syntax errors
 - [ ] Red squiggles appear
 - [ ] Hover shows error message
@@ -195,7 +195,7 @@ Open Settings (Ctrl+,) and search for "typedlua":
 
 ## Sample Test Files
 
-### test-basic.tl
+### test-basic.luax
 ```lua
 -- Test basic TypedLua features
 function greet(name: string): string
@@ -206,7 +206,7 @@ local message = greet("World")
 print(message)
 ```
 
-### test-types.tl
+### test-types.luax
 ```lua
 -- Test type system
 type Point = {
@@ -225,7 +225,7 @@ const target: Point = { x = 3, y = 4 }
 print(distance(origin, target))  -- Should show 5
 ```
 
-### test-errors.tl
+### test-errors.luax
 ```lua
 -- Test error detection
 function add(a: number, b: number): number
@@ -244,7 +244,7 @@ function broken()
 ## Troubleshooting
 
 ### Extension doesn't activate
-- Check file extension is `.tl`
+- Check file extension is `.luax`
 - Check Developer Tools (Help > Toggle Developer Tools) for JavaScript errors
 - Reload window (Ctrl+Shift+P > "Developer: Reload Window")
 
@@ -268,7 +268,7 @@ function broken()
 
 ## Performance Testing
 
-- [ ] Open large `.tl` file (>1000 lines) → should remain responsive
+- [ ] Open large `.luax` file (>1000 lines) → should remain responsive
 - [ ] Type rapidly → no noticeable lag
 - [ ] Save file → diagnostics update quickly
 - [ ] Memory usage remains reasonable (check Task Manager/Activity Monitor)
@@ -276,7 +276,7 @@ function broken()
 
 ## Multi-file Testing
 
-- [ ] Open workspace with multiple `.tl` files
+- [ ] Open workspace with multiple `.luax` files
 - [ ] Go to definition across files works
 - [ ] Find references across files works
 - [ ] Rename across files works

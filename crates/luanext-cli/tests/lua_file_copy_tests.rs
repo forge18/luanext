@@ -10,7 +10,7 @@ fn test_copy_lua_to_output_feature() {
     let base_path = temp_dir.path();
 
     // Create a simple TypedLua file
-    let tl_file = base_path.join("main.tl");
+    let tl_file = base_path.join("main.luax");
     fs::write(
         &tl_file,
         r#"
@@ -45,7 +45,7 @@ return M
 
     // Note: To fully test this feature, we would need to:
     // 1. Create a TypedLua file that imports the .lua file
-    // 2. Create a .d.tl declaration file for the .lua file
+    // 2. Create a .d.luax declaration file for the .lua file
     // 3. Run the compiler with --allow-non-typed-lua and --copy-lua-to-output
     // 4. Verify that the .lua file was copied to the output directory
     //

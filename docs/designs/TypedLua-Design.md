@@ -888,7 +888,7 @@ TypedLua uses `import` and `export` keywords that compile to Lua's `require()` s
 **Export interfaces, types, functions, and values:**
 
 ```lua
--- user.tl
+-- user.luax
 
 -- Exported (public API)
 export interface User {
@@ -919,7 +919,7 @@ end
 **Default exports:**
 
 ```lua
--- logger.tl
+-- logger.luax
 interface Logger {
   log: (message: string) -> void,
   error: (message: string) -> void
@@ -936,7 +936,7 @@ export default logger
 **Compiled output:**
 
 ```lua
--- user.lua (compiled from user.tl)
+-- user.lua (compiled from user.luax)
 local nextIdCounter = 0
 
 local function nextId()
@@ -960,7 +960,7 @@ return {
 ```
 
 ```lua
--- logger.lua (compiled from logger.tl with default export)
+-- logger.lua (compiled from logger.luax with default export)
 local logger = {
   log = function(message) print(message) end,
   error = function(message) print("ERROR: " .. message) end
@@ -1042,12 +1042,12 @@ local u = {id = 1, name = "Bob"}
 
 ### Type Definition Files
 
-For external Lua libraries without TypedLua source, use `.d.tl` type definition files.
+For external Lua libraries without TypedLua source, use `.d.luax` type definition files.
 
 **Example - LuaSocket type definitions:**
 
 ```lua
--- luasocket.d.tl
+-- luasocket.d.luax
 
 interface TcpClient {
   send: (data: string) -> number | nil,
@@ -1072,8 +1072,8 @@ declare module "socket" {
 **Using typed external library:**
 
 ```lua
--- main.tl
-import { tcp } from "socket"  -- Types from luasocket.d.tl
+-- main.luax
+import { tcp } from "socket"  -- Types from luasocket.d.luax
 
 const client = tcp()
 client.connect("example.com", 80)
@@ -1085,7 +1085,7 @@ client.close()
 **Declaration file structure:**
 
 ```lua
--- mylib.d.tl
+-- mylib.d.luax
 
 -- Declare types
 interface Config {
@@ -1140,16 +1140,16 @@ import { User } from "@/types/user"
 
 When importing a module, the compiler looks for types in this order:
 
-1. **TypedLua source:** `module.tl`
-2. **Type definition:** `module.d.tl`
-3. **Alongside Lua file:** `module.lua` + `module.d.tl` in same directory
+1. **TypedLua source:** `module.luax`
+2. **Type definition:** `module.d.luax`
+3. **Alongside Lua file:** `module.lua` + `module.d.luax` in same directory
 4. **Fallback:** If no types found, imported module type is `unknown`
 
 **Example search for** `require("socket")`:
 
-1. Look for `socket.tl` (TypedLua source)
-2. Look for `socket.d.tl` (type definitions)
-3. Look for `socket/init.tl` or `socket/init.d.tl`
+1. Look for `socket.luax` (TypedLua source)
+2. Look for `socket.d.luax` (type definitions)
+3. Look for `socket/init.luax` or `socket/init.d.luax`
 4. If not found, `require("socket")` returns `unknown`
 
 ### Interoperability with Lua
@@ -1157,7 +1157,7 @@ When importing a module, the compiler looks for types in this order:
 **TypedLua modules can be used from plain Lua:**
 
 ```lua
--- user.tl (TypedLua)
+-- user.luax (TypedLua)
 export interface User {
   id: number,
   name: string
@@ -1187,14 +1187,14 @@ return M
 ```
 
 ```lua
--- math_utils.d.tl (add types)
+-- math_utils.d.luax (add types)
 declare module "math_utils" {
   export function square(x: number): number
 }
 ```
 
 ```lua
--- main.tl (TypedLua with types)
+-- main.luax (TypedLua with types)
 import { square } from "./math_utils"
 const result = square(5)  -- Fully typed!
 ```
@@ -4329,7 +4329,7 @@ Configuration file: `typedlua.json`
 
 - **`exclude`** (array of strings)
   - Glob patterns for files to exclude
-  - Example: `["node_modules", "dist", "**/*.test.tl"]`
+  - Example: `["node_modules", "dist", "**/*.test.luax"]`
 
 #### Feature Toggles
 
@@ -4366,7 +4366,7 @@ end
 
 return M
 
-// main.tl (TypedLua)
+// main.luax (TypedLua)
 import myModule from "./my-module"  // OK - myModule has type 'unknown'
 
 const result = myModule.hello()  // Type is 'unknown'
@@ -4374,22 +4374,22 @@ const result = myModule.hello()  // Type is 'unknown'
 
 **When `false`:**
 ```lua
-// main.tl
+// main.luax
 import myModule from "./my-module"  // ERROR: No type definitions found
-                                     // Create a .d.tl file or set allowNonTypedLua: true
+                                     // Create a .d.luax file or set allowNonTypedLua: true
 ```
 
 **Best practice with `allowNonTypedLua: true`:**
 
-Create `.d.tl` declaration files for type safety:
+Create `.d.luax` declaration files for type safety:
 
 ```lua
-// my-module.d.tl
+// my-module.d.luax
 declare module "./my-module" {
   export function hello(): string
 }
 
-// main.tl
+// main.luax
 import myModule from "./my-module"  // Now fully typed
 const result = myModule.hello()  // Type is 'string'
 ```
@@ -4397,7 +4397,7 @@ const result = myModule.hello()  // Type is 'string'
 **Gradual migration strategy:**
 1. Enable `allowNonTypedLua: true`
 2. Import existing Lua files (typed as `unknown`)
-3. Gradually add `.d.tl` files for critical modules
+3. Gradually add `.d.luax` files for critical modules
 4. Rewrite modules to TypedLua when convenient
 5. Once migration complete, set `allowNonTypedLua: false` for strictness
 

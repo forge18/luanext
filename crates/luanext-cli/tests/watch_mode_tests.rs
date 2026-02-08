@@ -19,7 +19,7 @@ fn get_binary_path() -> PathBuf {
 #[test]
 fn test_watch_mode_starts() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("test.tl");
+    let input_file = temp_dir.path().join("test.luax");
 
     fs::write(&input_file, "const x: number = 42").unwrap();
 
@@ -51,7 +51,7 @@ fn test_watch_mode_starts() {
 #[test]
 fn test_watch_mode_recompiles_on_change() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("test.tl");
+    let input_file = temp_dir.path().join("test.luax");
     let output_file = temp_dir.path().join("test.lua");
 
     // Create initial file
@@ -107,8 +107,8 @@ fn test_watch_mode_recompiles_on_change() {
 #[test]
 fn test_watch_mode_multiple_files() {
     let temp_dir = TempDir::new().unwrap();
-    let file1 = temp_dir.path().join("file1.tl");
-    let file2 = temp_dir.path().join("file2.tl");
+    let file1 = temp_dir.path().join("file1.luax");
+    let file2 = temp_dir.path().join("file2.luax");
 
     fs::write(&file1, "const a: number = 1").unwrap();
     fs::write(&file2, "const b: number = 2").unwrap();
@@ -144,7 +144,7 @@ fn test_watch_mode_multiple_files() {
 #[test]
 fn test_watch_mode_can_be_stopped() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("test.tl");
+    let input_file = temp_dir.path().join("test.luax");
 
     fs::write(&input_file, "const x: number = 42").unwrap();
 
@@ -169,7 +169,7 @@ fn test_watch_mode_can_be_stopped() {
 #[test]
 fn test_watch_mode_with_no_emit() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("test.tl");
+    let input_file = temp_dir.path().join("test.luax");
     let output_file = temp_dir.path().join("test.lua");
 
     fs::write(&input_file, "const x: number = 42").unwrap();
@@ -200,7 +200,7 @@ fn test_watch_mode_with_no_emit() {
 #[test]
 fn test_watch_mode_handles_errors() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("test.tl");
+    let input_file = temp_dir.path().join("test.luax");
 
     // Start with valid code
     fs::write(&input_file, "const x: number = 42").unwrap();
@@ -244,7 +244,7 @@ fn test_watch_mode_handles_errors() {
 #[test]
 fn test_watch_mode_debouncing() {
     let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.path().join("test.tl");
+    let input_file = temp_dir.path().join("test.luax");
 
     fs::write(&input_file, "const x: number = 1").unwrap();
 

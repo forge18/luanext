@@ -169,7 +169,7 @@ RUST_BACKTRACE=1 cargo test
 4. Set breakpoints in TypeScript code
 
 **Common issues:**
-- Extension not activating? Check file extension is `.tl`
+- Extension not activating? Check file extension is `.luax`
 - LSP not starting? Check `target/release/typedlua-lsp` exists
 - Features not working? Run full rebuild script
 
@@ -186,7 +186,7 @@ typed-lua/
 ├── editors/vscode/          # VS Code extension
 │   ├── src/extension.ts     # Extension entry point
 │   ├── syntaxes/            # TextMate grammar
-│   └── test-files/          # Sample .tl files
+│   └── test-files/          # Sample .luax files
 ├── scripts/
 │   ├── rebuild-and-install-extension.sh  # Full rebuild
 │   └── reload-extension.sh               # Quick reload
