@@ -1,12 +1,12 @@
 use super::super::CodeGenerator;
-use typedlua_parser::ast::expression::{AssignmentOp, BinaryOp};
+use luanext_parser::ast::expression::{AssignmentOp, BinaryOp};
 
 impl CodeGenerator {
     pub fn generate_binary_expression(
         &mut self,
         op: BinaryOp,
-        left: &typedlua_parser::ast::expression::Expression,
-        right: &typedlua_parser::ast::expression::Expression,
+        left: &luanext_parser::ast::expression::Expression,
+        right: &luanext_parser::ast::expression::Expression,
     ) {
         match op {
             BinaryOp::NullCoalesce => {
@@ -69,10 +69,10 @@ impl CodeGenerator {
 
     pub fn generate_unary_expression(
         &mut self,
-        op: typedlua_parser::ast::expression::UnaryOp,
-        operand: &typedlua_parser::ast::expression::Expression,
+        op: luanext_parser::ast::expression::UnaryOp,
+        operand: &luanext_parser::ast::expression::Expression,
     ) {
-        if op == typedlua_parser::ast::expression::UnaryOp::BitwiseNot
+        if op == luanext_parser::ast::expression::UnaryOp::BitwiseNot
             && !self.strategy.supports_native_bitwise()
         {
             let operand_str = self.expression_to_string(operand);
@@ -87,9 +87,9 @@ impl CodeGenerator {
 
     pub fn generate_assignment_expression(
         &mut self,
-        target: &typedlua_parser::ast::expression::Expression,
+        target: &luanext_parser::ast::expression::Expression,
         op: AssignmentOp,
-        value: &typedlua_parser::ast::expression::Expression,
+        value: &luanext_parser::ast::expression::Expression,
     ) {
         match op {
             AssignmentOp::Assign => {

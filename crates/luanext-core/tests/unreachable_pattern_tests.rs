@@ -1,4 +1,4 @@
-use typedlua_core::di::DiContainer;
+use luanext_core::di::DiContainer;
 
 fn compile_and_check(source: &str) -> Result<String, String> {
     let mut container = DiContainer::test_default();

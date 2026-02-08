@@ -12,9 +12,9 @@ use crate::MutableProgram;
 use bumpalo::Bump;
 use std::sync::Arc;
 use tracing::{debug, info};
-use typedlua_parser::ast::expression::{Expression, ExpressionKind};
-use typedlua_parser::ast::statement::{Block, ForStatement, Statement};
-use typedlua_parser::string_interner::StringInterner;
+use luanext_parser::ast::expression::{Expression, ExpressionKind};
+use luanext_parser::ast::statement::{Block, ForStatement, Statement};
+use luanext_parser::string_interner::StringInterner;
 
 use bitflags::bitflags;
 
@@ -732,7 +732,7 @@ fn visit_expr_children<'arena>(
     arena: &'arena Bump,
     visit_fn: &mut dyn FnMut(&mut Expression<'arena>, &'arena Bump) -> bool,
 ) -> bool {
-    use typedlua_parser::ast::expression::{ArrayElement, ObjectProperty};
+    use luanext_parser::ast::expression::{ArrayElement, ObjectProperty};
 
     let mut changed = false;
 

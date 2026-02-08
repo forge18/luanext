@@ -1,10 +1,10 @@
 use rustc_hash::FxHashSet as HashSet;
-use typedlua_parser::ast::expression::*;
-use typedlua_parser::ast::pattern::Pattern;
-use typedlua_parser::ast::statement::{ExportKind, Statement, VariableDeclaration, VariableKind};
-use typedlua_parser::ast::Program;
-use typedlua_parser::string_interner::StringId;
-use typedlua_parser::string_interner::StringInterner;
+use luanext_parser::ast::expression::*;
+use luanext_parser::ast::pattern::Pattern;
+use luanext_parser::ast::statement::{ExportKind, Statement, VariableDeclaration, VariableKind};
+use luanext_parser::ast::Program;
+use luanext_parser::string_interner::StringId;
+use luanext_parser::string_interner::StringInterner;
 
 #[derive(Debug, Clone, Default)]
 pub struct HoistableDeclarations {
@@ -177,10 +177,10 @@ impl<'a> EscapeAnalysis<'a> {
                     self.walk_statements_for_returns_skip_functions(while_stmt.body.statements);
                 }
                 Statement::For(for_stmt) => match for_stmt {
-                    typedlua_parser::ast::statement::ForStatement::Numeric(num) => {
+                    luanext_parser::ast::statement::ForStatement::Numeric(num) => {
                         self.walk_statements_for_returns_skip_functions(num.body.statements);
                     }
-                    typedlua_parser::ast::statement::ForStatement::Generic(generic) => {
+                    luanext_parser::ast::statement::ForStatement::Generic(generic) => {
                         self.walk_statements_for_returns_skip_functions(generic.body.statements);
                     }
                 },
@@ -253,7 +253,7 @@ impl<'a> EscapeAnalysis<'a> {
 
     fn can_hoist_function(
         &self,
-        decl: &typedlua_parser::ast::statement::FunctionDeclaration,
+        decl: &luanext_parser::ast::statement::FunctionDeclaration,
         _name: &str,
     ) -> bool {
         // Only concern: can the function be relocated to a higher scope?
@@ -297,10 +297,10 @@ impl<'a> EscapeAnalysis<'a> {
                 }
                 Statement::For(for_stmt) => {
                     let body = match for_stmt {
-                        typedlua_parser::ast::statement::ForStatement::Numeric(num) => {
+                        luanext_parser::ast::statement::ForStatement::Numeric(num) => {
                             num.body.statements
                         }
-                        typedlua_parser::ast::statement::ForStatement::Generic(generic) => {
+                        luanext_parser::ast::statement::ForStatement::Generic(generic) => {
                             generic.body.statements
                         }
                     };
@@ -520,7 +520,7 @@ impl<'a> EscapeAnalysis<'a> {
 
     fn can_hoist_class(
         &self,
-        _decl: &typedlua_parser::ast::statement::ClassDeclaration,
+        _decl: &luanext_parser::ast::statement::ClassDeclaration,
         name: &str,
     ) -> bool {
         // Can't hoist if the class is returned directly from a private function
@@ -529,7 +529,7 @@ impl<'a> EscapeAnalysis<'a> {
 
     fn can_hoist_enum(
         &self,
-        _decl: &typedlua_parser::ast::statement::EnumDeclaration,
+        _decl: &luanext_parser::ast::statement::EnumDeclaration,
         name: &str,
     ) -> bool {
         // Can't hoist if the enum is returned directly from a private function
@@ -859,7 +859,7 @@ impl HoistingContext {
 
     /// Analyze all modules and build the hoisting context
     pub fn analyze_modules(
-        modules: &[(String, &typedlua_parser::ast::Program)],
+        modules: &[(String, &luanext_parser::ast::Program)],
         interner: &StringInterner,
         entry_module_id: &str,
         enabled: bool,
@@ -983,13 +983,13 @@ mod tests {
     use crate::diagnostics::CollectingDiagnosticHandler;
     use bumpalo::Bump;
     use std::sync::Arc;
-    use typedlua_parser::lexer::Lexer;
-    use typedlua_parser::parser::Parser;
+    use luanext_parser::lexer::Lexer;
+    use luanext_parser::parser::Parser;
 
     fn create_program<'arena>(
         source: &str,
         interner: &StringInterner,
-        common: &typedlua_parser::string_interner::CommonIdentifiers,
+        common: &luanext_parser::string_interner::CommonIdentifiers,
         arena: &'arena Bump,
     ) -> Program<'arena> {
         let handler = Arc::new(CollectingDiagnosticHandler::new());

@@ -1,7 +1,7 @@
 //! Pattern Matching Advanced Tests
 //! Section 7.1.3 of TODO.md
 
-use typedlua_core::di::DiContainer;
+use luanext_core::di::DiContainer;
 
 #[test]
 fn test_deep_destructuring_three_levels() {

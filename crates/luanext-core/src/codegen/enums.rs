@@ -1,11 +1,11 @@
 use super::super::config::OptimizationLevel;
 use super::CodeGenerator;
-use typedlua_runtime::enum_rt;
+use luanext_runtime::enum_rt;
 
 impl CodeGenerator {
     pub fn generate_enum_declaration(
         &mut self,
-        enum_decl: &typedlua_parser::ast::statement::EnumDeclaration,
+        enum_decl: &luanext_parser::ast::statement::EnumDeclaration,
     ) {
         let enum_name = self.resolve(enum_decl.name.node).to_string();
 
@@ -26,10 +26,10 @@ impl CodeGenerator {
                 self.write(" = ");
                 if let Some(value) = &member.value {
                     match value {
-                        typedlua_parser::ast::statement::EnumValue::Number(n) => {
+                        luanext_parser::ast::statement::EnumValue::Number(n) => {
                             self.write(&n.to_string())
                         }
-                        typedlua_parser::ast::statement::EnumValue::String(s) => {
+                        luanext_parser::ast::statement::EnumValue::String(s) => {
                             self.write("\"");
                             self.write(s);
                             self.write("\"");
@@ -53,7 +53,7 @@ impl CodeGenerator {
 
     fn generate_rich_enum_declaration(
         &mut self,
-        enum_decl: &typedlua_parser::ast::statement::EnumDeclaration,
+        enum_decl: &luanext_parser::ast::statement::EnumDeclaration,
         enum_name: &str,
     ) {
         let mt_name = format!("{}__mt", enum_name);
@@ -272,8 +272,8 @@ impl CodeGenerator {
 
     /// Check if a method is simple enough to be a candidate for inlining at O3
     /// Simple methods: no parameters, single return statement with simple expression
-    fn is_simple_method_for_inline(method: &typedlua_parser::ast::statement::EnumMethod) -> bool {
-        use typedlua_parser::ast::statement::{Block, Statement};
+    fn is_simple_method_for_inline(method: &luanext_parser::ast::statement::EnumMethod) -> bool {
+        use luanext_parser::ast::statement::{Block, Statement};
 
         // Must have no parameters
         if !method.parameters.is_empty() {

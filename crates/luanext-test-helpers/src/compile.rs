@@ -4,13 +4,13 @@
 //! in tests, using proper DI through the Container.
 
 use std::sync::Arc;
-use typedlua_core::config::{CompilerConfig, OptimizationLevel};
-use typedlua_core::di::DiContainer;
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_core::fs::MockFileSystem;
-use typedlua_core::TypeChecker;
-use typedlua_parser::string_interner::StringInterner;
-use typedlua_parser::{Lexer, Parser};
+use luanext_core::config::{CompilerConfig, OptimizationLevel};
+use luanext_core::di::DiContainer;
+use luanext_core::diagnostics::CollectingDiagnosticHandler;
+use luanext_core::fs::MockFileSystem;
+use luanext_core::TypeChecker;
+use luanext_parser::string_interner::StringInterner;
+use luanext_parser::{Lexer, Parser};
 
 /// Compile TypedLua source code without stdlib
 ///

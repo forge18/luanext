@@ -10,7 +10,7 @@
 //! # Usage
 //!
 //! ```
-//! use typedlua_core::arena::Arena;
+//! use luanext_core::arena::Arena;
 //!
 //! let arena = Arena::new();
 //! let value: &i32 = arena.alloc(42);
@@ -41,7 +41,7 @@ use std::cell::Cell;
 /// # Example
 ///
 /// ```
-/// use typedlua_core::arena::Arena;
+/// use luanext_core::arena::Arena;
 ///
 /// let arena = Arena::new();
 ///
@@ -82,7 +82,7 @@ impl Arena {
     /// # Example
     ///
     /// ```
-    /// use typedlua_core::arena::Arena;
+    /// use luanext_core::arena::Arena;
     ///
     /// // Pre-allocate for a ~50KB source file
     /// let arena = Arena::with_capacity(1024 * 1024); // 1MB
@@ -102,7 +102,7 @@ impl Arena {
     /// # Example
     ///
     /// ```
-    /// use typedlua_core::arena::Arena;
+    /// use luanext_core::arena::Arena;
     ///
     /// let arena = Arena::new();
     /// let value: &String = arena.alloc(String::from("hello"));
@@ -122,7 +122,7 @@ impl Arena {
     /// # Example
     ///
     /// ```
-    /// use typedlua_core::arena::Arena;
+    /// use luanext_core::arena::Arena;
     ///
     /// let arena = Arena::new();
     /// let original = vec![1, 2, 3, 4, 5];
@@ -145,7 +145,7 @@ impl Arena {
     /// # Example
     ///
     /// ```
-    /// use typedlua_core::arena::Arena;
+    /// use luanext_core::arena::Arena;
     ///
     /// let arena = Arena::new();
     /// let original = vec![String::from("a"), String::from("b")];
@@ -168,7 +168,7 @@ impl Arena {
     /// # Example
     ///
     /// ```
-    /// use typedlua_core::arena::Arena;
+    /// use luanext_core::arena::Arena;
     ///
     /// let arena = Arena::new();
     /// let slice: &[i32] = arena.alloc_slice_fill_iter(0..5);
@@ -190,7 +190,7 @@ impl Arena {
     /// # Example
     ///
     /// ```
-    /// use typedlua_core::arena::Arena;
+    /// use luanext_core::arena::Arena;
     ///
     /// let arena = Arena::new();
     /// let s: &str = arena.alloc_str("hello world");
@@ -279,7 +279,7 @@ const MAX_POOL_SIZE: usize = 16;
 /// # Example
 ///
 /// ```
-/// use typedlua_core::arena::with_pooled_arena;
+/// use luanext_core::arena::with_pooled_arena;
 ///
 /// let result = with_pooled_arena(|arena| {
 ///     let value = arena.alloc(42);

@@ -1,4 +1,4 @@
-# TypedLua TODO
+# LuaNext TODO
 
 ## Current Focus
 
@@ -8,18 +8,19 @@
 
 **Subtasks:**
 
-#### Phase 6.1: Cargo Workspace & Crate Names
+#### Phase 6.1: Cargo Workspace & Crate Names ✓ COMPLETED
 
-- [ ] Update `Cargo.toml` workspace name and `members` paths
-- [ ] Update `crates/typedlua-core/Cargo.toml` package name → `luanext-core`
-- [ ] Update `crates/typedlua-cli/Cargo.toml` package name → `luanext-cli`
-- [ ] Update `crates/typedlua-runtime/Cargo.toml` package name → `luanext-runtime`
-- [ ] Update `crates/typedlua-typechecker/Cargo.toml` package name → `luanext-typechecker`
-- [ ] Update `crates/typedlua-parser/Cargo.toml` package name → `luanext-parser`
-- [ ] Update `crates/typedlua-lsp/Cargo.toml` package name → `luanext-lsp`
-- [ ] Run `cargo metadata` to verify workspace resolves
+- [x] Update `Cargo.toml` workspace name and `members` paths
+- [x] Update `crates/typedlua-core/Cargo.toml` package name → `luanext-core`
+- [x] Update `crates/typedlua-cli/Cargo.toml` package name → `luanext-cli`
+- [x] Update `crates/typedlua-runtime/Cargo.toml` package name → `luanext-runtime`
+- [x] Update `crates/typedlua-typechecker/Cargo.toml` package name → `luanext-typechecker`
+- [x] Update `crates/typedlua-parser/Cargo.toml` package name → `luanext-parser`
+- [x] Update `crates/typedlua-lsp/Cargo.toml` package name → `luanext-lsp`
+- [x] Update wayfinder, lintomatic, and depot dependencies
+- [x] Run `cargo metadata` to verify workspace resolves
 
-#### Phase 6.2: Rust Module & Crate Names
+#### Phase 6.2: Rust Module & Crate Names (IN PROGRESS)
 
 - [ ] Rename `typedlua_core` → `luanext_core` in lib.rs of each crate
 - [ ] Rename `typedlua_cli` → `luanext_cli` in lib.rs
@@ -27,13 +28,13 @@
 - [ ] Rename `typedlua_typechecker` → `luanext_typechecker` in lib.rs
 - [ ] Rename `typedlua_parser` → `luanext_parser` in lib.rs
 - [ ] Rename `typedlua_lsp` → `luanext_lsp` in lib.rs
-- [ ] Update all `use` statements across codebase (grep for `typedlua::`)
+- [ ] Update all `use` statements across codebase (grep for `typedlua::` and `typedlua_`)
 - [ ] Update `cargo.toml` dependencies to use new crate names
 - [ ] Run `cargo check --workspace` to find all remaining references
 
 #### Phase 6.3: CLI Binary Name
 
-- [ ] Rename binary in `crates/typedlua-cli/Cargo.toml`: `[[bin]]` name `typedlua` → `luanext`
+- [x] Rename binary in `crates/typedlua-cli/Cargo.toml`: `[[bin]]` name `typedlua` → `luanext`
 - [ ] Update scripts that invoke `typedlua` command
 - [ ] Update VSCode extension to spawn `luanext` instead of `typedlua`
 - [ ] Update CI/CD workflows that use CLI
@@ -76,4 +77,4 @@
 - [ ] Test LSP functionality
 - [ ] Update any local development instructions
 
-**Status:** Not started. Requires coordination with crates.io publishing and GitHub repo rename.
+**Status:** Phase 6.1 complete. Phase 6.2 in progress.

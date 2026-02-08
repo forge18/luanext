@@ -1,13 +1,13 @@
 use bumpalo::Bump;
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::sync::Arc;
-use typedlua_core::codegen::CodeGenerator;
-use typedlua_core::config::CompilerOptions;
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_core::TypeChecker;
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::parser::Parser;
-use typedlua_parser::string_interner::StringInterner;
+use luanext_core::codegen::CodeGenerator;
+use luanext_core::config::CompilerOptions;
+use luanext_core::diagnostics::CollectingDiagnosticHandler;
+use luanext_core::TypeChecker;
+use luanext_parser::lexer::Lexer;
+use luanext_parser::parser::Parser;
+use luanext_parser::string_interner::StringInterner;
 
 fn compile_and_generate(source: &str) -> String {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
@@ -28,7 +28,7 @@ fn compile_and_generate(source: &str) -> String {
         .check_program(&program)
         .expect("Type checking failed");
 
-    let mutable_program = typedlua_core::MutableProgram::from_program(&program);
+    let mutable_program = luanext_core::MutableProgram::from_program(&program);
     let mut codegen = CodeGenerator::new(interner.clone());
     codegen.generate(&mutable_program)
 }

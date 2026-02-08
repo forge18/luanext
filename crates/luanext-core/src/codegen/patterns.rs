@@ -1,5 +1,5 @@
 use crate::codegen::CodeGenerator;
-use typedlua_parser::ast::pattern::{
+use luanext_parser::ast::pattern::{
     ArrayPattern, ArrayPatternElement, ObjectPattern, Pattern, PatternWithDefault,
 };
 

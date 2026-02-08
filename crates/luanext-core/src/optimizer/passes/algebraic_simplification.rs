@@ -2,7 +2,7 @@ use crate::config::OptimizationLevel;
 use crate::optimizer::{ExprVisitor, WholeProgramPass};
 use crate::MutableProgram;
 use bumpalo::Bump;
-use typedlua_parser::ast::expression::{BinaryOp, Expression, ExpressionKind, Literal, UnaryOp};
+use luanext_parser::ast::expression::{BinaryOp, Expression, ExpressionKind, Literal, UnaryOp};
 
 pub struct AlgebraicSimplificationPass;
 
@@ -49,10 +49,10 @@ impl<'arena> WholeProgramPass<'arena> for AlgebraicSimplificationPass {
 impl AlgebraicSimplificationPass {
     fn simplify_statement<'arena>(
         &mut self,
-        stmt: &mut typedlua_parser::ast::statement::Statement<'arena>,
+        stmt: &mut luanext_parser::ast::statement::Statement<'arena>,
         arena: &'arena Bump,
     ) -> bool {
-        use typedlua_parser::ast::statement::{ForStatement, Statement};
+        use luanext_parser::ast::statement::{ForStatement, Statement};
 
         match stmt {
             Statement::Variable(decl) => self.simplify_expression(&mut decl.initializer, arena),
@@ -130,7 +130,7 @@ impl AlgebraicSimplificationPass {
 
     fn simplify_block<'arena>(
         &mut self,
-        block: &mut typedlua_parser::ast::statement::Block<'arena>,
+        block: &mut luanext_parser::ast::statement::Block<'arena>,
         arena: &'arena Bump,
     ) -> bool {
         let mut stmts: Vec<_> = block.statements.to_vec();

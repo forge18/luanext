@@ -7,12 +7,12 @@
 use bumpalo::Bump;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use typedlua_core::codegen::CodeGenerator;
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_core::{MutableProgram, TypeChecker};
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::parser::Parser;
-use typedlua_parser::string_interner::StringInterner;
+use luanext_core::codegen::CodeGenerator;
+use luanext_core::diagnostics::CollectingDiagnosticHandler;
+use luanext_core::{MutableProgram, TypeChecker};
+use luanext_parser::lexer::Lexer;
+use luanext_parser::parser::Parser;
+use luanext_parser::string_interner::StringInterner;
 
 /// Maximum acceptable time for benchmarks (to catch performance regressions)
 /// Set to ~5x observed debug-mode times for CI variance headroom
@@ -349,7 +349,7 @@ fn test_typecheck_many_type_unions() {
 // Optimization Benchmarks (Section 7.1.4)
 // ============================================================================
 
-use typedlua_core::config::OptimizationLevel;
+use luanext_core::config::OptimizationLevel;
 
 /// Compiles source code with a specific optimization level and returns (duration, output_size)
 fn benchmark_optimization_level(
@@ -1001,8 +1001,8 @@ fn test_rich_enum_instance_precomputation() {
 // Incremental Compilation Benchmarks (Section 7.2)
 // ============================================================================
 
-use typedlua_core::cache::{CacheManager, CachedModule};
-use typedlua_core::config::CompilerOptions;
+use luanext_core::cache::{CacheManager, CachedModule};
+use luanext_core::config::CompilerOptions;
 
 /// Benchmark incremental compilation: re-typecheck after single-file change
 #[test]

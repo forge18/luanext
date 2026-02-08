@@ -6,9 +6,9 @@ use crate::config::OptimizationLevel;
 use crate::optimizer::{StmtVisitor, WholeProgramPass};
 use crate::MutableProgram;
 use bumpalo::Bump;
-use typedlua_parser::ast::expression::Expression;
-use typedlua_parser::ast::expression::ExpressionKind;
-use typedlua_parser::ast::statement::{ForStatement, Statement};
+use luanext_parser::ast::expression::Expression;
+use luanext_parser::ast::expression::ExpressionKind;
+use luanext_parser::ast::statement::{ForStatement, Statement};
 
 /// Tail call optimization pass
 /// Analyzes tail call patterns and ensures other optimizations don't break TCO positions

@@ -1,6 +1,6 @@
-use typedlua_core::config::CompilerConfig;
-use typedlua_core::config::OptimizationLevel;
-use typedlua_core::di::DiContainer;
+use luanext_core::config::CompilerConfig;
+use luanext_core::config::OptimizationLevel;
+use luanext_core::di::DiContainer;
 
 fn compile_with_opt_level(source: &str, level: OptimizationLevel) -> Result<String, String> {
     let config = CompilerConfig::default();

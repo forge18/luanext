@@ -1,5 +1,5 @@
-use typedlua_core::config::OptimizationLevel;
-use typedlua_core::di::DiContainer;
+use luanext_core::config::OptimizationLevel;
+use luanext_core::di::DiContainer;
 
 fn compile_with_optimization_level(
     source: &str,

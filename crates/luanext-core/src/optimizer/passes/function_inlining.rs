@@ -6,14 +6,14 @@ use crate::MutableProgram;
 use bumpalo::Bump;
 use rustc_hash::FxHashMap as HashMap;
 use std::sync::Arc;
-use typedlua_parser::ast::expression::{ArrowBody, Expression, ExpressionKind};
-use typedlua_parser::ast::pattern::Pattern;
-use typedlua_parser::ast::statement::{
+use luanext_parser::ast::expression::{ArrowBody, Expression, ExpressionKind};
+use luanext_parser::ast::pattern::Pattern;
+use luanext_parser::ast::statement::{
     Block, ForStatement, FunctionDeclaration, Parameter, ReturnStatement, Statement,
     VariableDeclaration, VariableKind,
 };
-use typedlua_parser::span::Span;
-use typedlua_parser::string_interner::{StringId, StringInterner};
+use luanext_parser::span::Span;
+use luanext_parser::string_interner::{StringId, StringInterner};
 
 enum InlineResult<'arena> {
     /// Direct expression substitution - for simple single-return functions
@@ -410,7 +410,7 @@ impl<'arena> FunctionInliningPass<'arena> {
                 }
                 if vc || ac {
                     expr.kind =
-                        ExpressionKind::Match(typedlua_parser::ast::expression::MatchExpression {
+                        ExpressionKind::Match(luanext_parser::ast::expression::MatchExpression {
                             value: arena.alloc(new_value),
                             arms: arena.alloc_slice_clone(&new_arms),
                             span: match_expr.span,
@@ -474,7 +474,7 @@ impl<'arena> FunctionInliningPass<'arena> {
                 let cc = self.inline_in_expression(&mut new_catch, arena);
                 if ec || cc {
                     expr.kind =
-                        ExpressionKind::Try(typedlua_parser::ast::expression::TryExpression {
+                        ExpressionKind::Try(luanext_parser::ast::expression::TryExpression {
                             expression: arena.alloc(new_expression),
                             catch_variable: try_expr.catch_variable.clone(),
                             catch_expression: arena.alloc(new_catch),
@@ -1071,7 +1071,7 @@ impl<'arena> FunctionInliningPass<'arena> {
                     };
                     Statement::Variable(VariableDeclaration {
                         kind: VariableKind::Local,
-                        pattern: Pattern::Identifier(typedlua_parser::ast::Spanned::new(
+                        pattern: Pattern::Identifier(luanext_parser::ast::Spanned::new(
                             *return_var,
                             Span::dummy(),
                         )),
@@ -1191,7 +1191,7 @@ impl<'arena> FunctionInliningPass<'arena> {
                     }
                 }
                 expr.kind =
-                    ExpressionKind::Match(typedlua_parser::ast::expression::MatchExpression {
+                    ExpressionKind::Match(luanext_parser::ast::expression::MatchExpression {
                         value: arena.alloc(new_value),
                         arms: arena.alloc_slice_clone(&new_arms),
                         span: match_expr.span,
@@ -1216,7 +1216,7 @@ impl<'arena> FunctionInliningPass<'arena> {
                 let mut new_catch = (*try_expr.catch_expression).clone();
                 self.inline_expression(&mut new_expression, param_subst, arena);
                 self.inline_expression(&mut new_catch, param_subst, arena);
-                expr.kind = ExpressionKind::Try(typedlua_parser::ast::expression::TryExpression {
+                expr.kind = ExpressionKind::Try(luanext_parser::ast::expression::TryExpression {
                     expression: arena.alloc(new_expression),
                     catch_variable: try_expr.catch_variable.clone(),
                     catch_expression: arena.alloc(new_catch),
@@ -1299,6 +1299,6 @@ impl<'arena> FunctionInliningPass<'arena> {
     }
 }
 
-use typedlua_parser::ast::expression::Argument;
-use typedlua_parser::ast::expression::ArrayElement;
-use typedlua_parser::ast::expression::MatchArmBody;
+use luanext_parser::ast::expression::Argument;
+use luanext_parser::ast::expression::ArrayElement;
+use luanext_parser::ast::expression::MatchArmBody;

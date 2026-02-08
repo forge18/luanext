@@ -2,17 +2,17 @@ use bumpalo::Bump;
 use rustc_hash::FxHashMap as HashMap;
 use std::path::Path;
 use std::sync::Arc;
-use typedlua_core::codegen::tree_shaking::{ReachabilityAnalysis, ReachableSet};
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_parser::ast::Program;
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::parser::Parser;
-use typedlua_parser::string_interner::StringInterner;
+use luanext_core::codegen::tree_shaking::{ReachabilityAnalysis, ReachableSet};
+use luanext_core::diagnostics::CollectingDiagnosticHandler;
+use luanext_parser::ast::Program;
+use luanext_parser::lexer::Lexer;
+use luanext_parser::parser::Parser;
+use luanext_parser::string_interner::StringInterner;
 
 fn create_program<'arena>(
     source: &str,
     interner: &StringInterner,
-    common: &typedlua_parser::string_interner::CommonIdentifiers,
+    common: &luanext_parser::string_interner::CommonIdentifiers,
     arena: &'arena Bump,
 ) -> Program<'arena> {
     let handler = Arc::new(CollectingDiagnosticHandler::new());

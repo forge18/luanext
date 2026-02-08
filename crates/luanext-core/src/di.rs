@@ -8,10 +8,10 @@ use super::optimizer::Optimizer;
 use bumpalo::Bump;
 use std::any::{Any, TypeId};
 use std::sync::Arc;
-use typedlua_parser::diagnostics::CollectingDiagnosticHandler as ParserCollectingHandler;
-use typedlua_parser::string_interner::StringInterner;
-use typedlua_parser::{Lexer, Parser};
-use typedlua_typechecker::TypeChecker;
+use luanext_parser::diagnostics::CollectingDiagnosticHandler as ParserCollectingHandler;
+use luanext_parser::string_interner::StringInterner;
+use luanext_parser::{Lexer, Parser};
+use luanext_typechecker::TypeChecker;
 
 #[derive(Clone, Copy)]
 pub enum ServiceLifetime {
@@ -185,7 +185,7 @@ impl DiContainer {
     ) -> Result<String, String> {
         let arena = Bump::new();
         let parser_handler =
-            Arc::new(ParserCollectingHandler::new()) as Arc<dyn typedlua_parser::DiagnosticHandler>;
+            Arc::new(ParserCollectingHandler::new()) as Arc<dyn luanext_parser::DiagnosticHandler>;
         let typecheck_handler = self
             .resolve::<Arc<dyn DiagnosticHandler>>()
             .unwrap_or_else(|| Arc::new(ConsoleDiagnosticHandler::new(false)));
@@ -219,7 +219,7 @@ impl DiContainer {
         let mut optimizer = Optimizer::new(level, typecheck_handler.clone(), interner.clone());
         if let Err(err_msg) = optimizer.optimize(&mut mutable_program, &arena) {
             typecheck_handler.warning(
-                typedlua_parser::span::Span::dummy(),
+                luanext_parser::span::Span::dummy(),
                 &format!("Optimization warning: {}", err_msg),
             );
         }
@@ -241,7 +241,7 @@ impl DiContainer {
     ) -> Result<String, String> {
         let arena = Bump::new();
         let parser_handler =
-            Arc::new(ParserCollectingHandler::new()) as Arc<dyn typedlua_parser::DiagnosticHandler>;
+            Arc::new(ParserCollectingHandler::new()) as Arc<dyn luanext_parser::DiagnosticHandler>;
         let typecheck_handler = self
             .resolve::<Arc<dyn DiagnosticHandler>>()
             .unwrap_or_else(|| Arc::new(ConsoleDiagnosticHandler::new(false)));
@@ -276,7 +276,7 @@ impl DiContainer {
         let mut optimizer = Optimizer::new(level, typecheck_handler.clone(), interner.clone());
         if let Err(err_msg) = optimizer.optimize(&mut mutable_program, &arena) {
             typecheck_handler.warning(
-                typedlua_parser::span::Span::dummy(),
+                luanext_parser::span::Span::dummy(),
                 &format!("Optimization warning: {}", err_msg),
             );
         }
@@ -331,7 +331,7 @@ mod tests {
     use super::*;
     use crate::diagnostics::CollectingDiagnosticHandler;
     use crate::fs::MockFileSystem;
-    use typedlua_parser::span::Span;
+    use luanext_parser::span::Span;
 
     #[test]
     fn test_container_creation() {

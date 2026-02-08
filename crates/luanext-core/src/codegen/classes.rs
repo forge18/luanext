@@ -1,6 +1,6 @@
 use super::CodeGenerator;
-use typedlua_parser as parser;
-use typedlua_parser::ast::statement::*;
+use luanext_parser as parser;
+use luanext_parser::ast::statement::*;
 
 impl CodeGenerator {
     pub fn generate_class_declaration(&mut self, class_decl: &ClassDeclaration) {
@@ -9,7 +9,7 @@ impl CodeGenerator {
         let prev_parent = self.current_class_parent.take();
 
         let base_class_name = if let Some(extends) = &class_decl.extends {
-            if let typedlua_parser::ast::types::TypeKind::Reference(type_ref) = &extends.kind {
+            if let luanext_parser::ast::types::TypeKind::Reference(type_ref) = &extends.kind {
                 Some(type_ref.name.node)
             } else {
                 None
@@ -161,7 +161,7 @@ impl CodeGenerator {
 
         self.writeln("");
         for impl_type in class_decl.implements.iter() {
-            if let typedlua_parser::ast::types::TypeKind::Reference(type_ref) = &impl_type.kind {
+            if let luanext_parser::ast::types::TypeKind::Reference(type_ref) = &impl_type.kind {
                 let interface_name = self.resolve(type_ref.name.node).to_string();
 
                 let class_methods: std::collections::HashSet<String> = class_decl
@@ -401,7 +401,7 @@ impl CodeGenerator {
 
             self.writeln("");
             self.writeln(
-                &typedlua_runtime::class::BUILD_ALL_FIELDS
+                &luanext_runtime::class::BUILD_ALL_FIELDS
                     .replace("{}", &class_name)
                     .replace("{}", &class_name)
                     .replace("{}", &class_name)
@@ -412,7 +412,7 @@ impl CodeGenerator {
             );
             self.writeln("");
             self.writeln(
-                &typedlua_runtime::class::BUILD_ALL_METHODS
+                &luanext_runtime::class::BUILD_ALL_METHODS
                     .replace("{}", &class_name)
                     .replace("{}", &class_name)
                     .replace("{}", &class_name)
@@ -677,7 +677,7 @@ impl CodeGenerator {
             self.write_indent();
 
             if param.access.as_ref()
-                == Some(&typedlua_parser::ast::statement::AccessModifier::Private)
+                == Some(&luanext_parser::ast::statement::AccessModifier::Private)
             {
                 self.write("self._");
             } else {
@@ -896,32 +896,32 @@ impl CodeGenerator {
         }
     }
 
-    pub fn operator_kind_name(&self, op: &typedlua_parser::ast::statement::OperatorKind) -> String {
+    pub fn operator_kind_name(&self, op: &luanext_parser::ast::statement::OperatorKind) -> String {
         match op {
-            typedlua_parser::ast::statement::OperatorKind::Add => "__add".to_string(),
-            typedlua_parser::ast::statement::OperatorKind::Subtract => "__sub".to_string(),
-            typedlua_parser::ast::statement::OperatorKind::Multiply => "__mul".to_string(),
-            typedlua_parser::ast::statement::OperatorKind::Divide => "__div".to_string(),
-            typedlua_parser::ast::statement::OperatorKind::Modulo => "__mod".to_string(),
-            typedlua_parser::ast::statement::OperatorKind::Power => "__pow".to_string(),
-            typedlua_parser::ast::statement::OperatorKind::Concatenate => "__concat".to_string(),
-            typedlua_parser::ast::statement::OperatorKind::FloorDivide => "__idiv".to_string(),
-            typedlua_parser::ast::statement::OperatorKind::Equal => "__eq".to_string(),
-            typedlua_parser::ast::statement::OperatorKind::NotEqual => "__eq".to_string(),
-            typedlua_parser::ast::statement::OperatorKind::LessThan => "__lt".to_string(),
-            typedlua_parser::ast::statement::OperatorKind::LessThanOrEqual => "__le".to_string(),
-            typedlua_parser::ast::statement::OperatorKind::GreaterThan => "__lt".to_string(),
-            typedlua_parser::ast::statement::OperatorKind::GreaterThanOrEqual => "__le".to_string(),
-            typedlua_parser::ast::statement::OperatorKind::BitwiseAnd => "__band".to_string(),
-            typedlua_parser::ast::statement::OperatorKind::BitwiseOr => "__bor".to_string(),
-            typedlua_parser::ast::statement::OperatorKind::BitwiseXor => "__bxor".to_string(),
-            typedlua_parser::ast::statement::OperatorKind::ShiftLeft => "__shl".to_string(),
-            typedlua_parser::ast::statement::OperatorKind::ShiftRight => "__shr".to_string(),
-            typedlua_parser::ast::statement::OperatorKind::Index => "__index".to_string(),
-            typedlua_parser::ast::statement::OperatorKind::NewIndex => "__newindex".to_string(),
-            typedlua_parser::ast::statement::OperatorKind::Call => "__call".to_string(),
-            typedlua_parser::ast::statement::OperatorKind::UnaryMinus => "__unm".to_string(),
-            typedlua_parser::ast::statement::OperatorKind::Length => "__len".to_string(),
+            luanext_parser::ast::statement::OperatorKind::Add => "__add".to_string(),
+            luanext_parser::ast::statement::OperatorKind::Subtract => "__sub".to_string(),
+            luanext_parser::ast::statement::OperatorKind::Multiply => "__mul".to_string(),
+            luanext_parser::ast::statement::OperatorKind::Divide => "__div".to_string(),
+            luanext_parser::ast::statement::OperatorKind::Modulo => "__mod".to_string(),
+            luanext_parser::ast::statement::OperatorKind::Power => "__pow".to_string(),
+            luanext_parser::ast::statement::OperatorKind::Concatenate => "__concat".to_string(),
+            luanext_parser::ast::statement::OperatorKind::FloorDivide => "__idiv".to_string(),
+            luanext_parser::ast::statement::OperatorKind::Equal => "__eq".to_string(),
+            luanext_parser::ast::statement::OperatorKind::NotEqual => "__eq".to_string(),
+            luanext_parser::ast::statement::OperatorKind::LessThan => "__lt".to_string(),
+            luanext_parser::ast::statement::OperatorKind::LessThanOrEqual => "__le".to_string(),
+            luanext_parser::ast::statement::OperatorKind::GreaterThan => "__lt".to_string(),
+            luanext_parser::ast::statement::OperatorKind::GreaterThanOrEqual => "__le".to_string(),
+            luanext_parser::ast::statement::OperatorKind::BitwiseAnd => "__band".to_string(),
+            luanext_parser::ast::statement::OperatorKind::BitwiseOr => "__bor".to_string(),
+            luanext_parser::ast::statement::OperatorKind::BitwiseXor => "__bxor".to_string(),
+            luanext_parser::ast::statement::OperatorKind::ShiftLeft => "__shl".to_string(),
+            luanext_parser::ast::statement::OperatorKind::ShiftRight => "__shr".to_string(),
+            luanext_parser::ast::statement::OperatorKind::Index => "__index".to_string(),
+            luanext_parser::ast::statement::OperatorKind::NewIndex => "__newindex".to_string(),
+            luanext_parser::ast::statement::OperatorKind::Call => "__call".to_string(),
+            luanext_parser::ast::statement::OperatorKind::UnaryMinus => "__unm".to_string(),
+            luanext_parser::ast::statement::OperatorKind::Length => "__len".to_string(),
         }
     }
 }

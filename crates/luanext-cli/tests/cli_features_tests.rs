@@ -4,7 +4,7 @@ use std::fs;
 use tempfile::TempDir;
 
 // Helper to create typedlua command using the non-deprecated macro approach
-fn typedlua_cmd() -> Command {
+fn luanext_cmd() -> Command {
     Command::new(assert_cmd::cargo::cargo_bin!("typedlua"))
 }
 
@@ -17,7 +17,7 @@ fn typedlua_cmd() -> Command {
 fn test_init_creates_config_file() {
     let temp_dir = TempDir::new().unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .current_dir(&temp_dir)
         .arg("--init")
         .assert()
@@ -34,7 +34,7 @@ fn test_init_creates_config_file() {
 fn test_init_creates_valid_config() {
     let temp_dir = TempDir::new().unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .current_dir(&temp_dir)
         .arg("--init")
         .assert()
@@ -70,7 +70,7 @@ compilerOptions:
     let source = "const x: number = 42";
     fs::write(temp_dir.path().join("test.luax"), source).unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .current_dir(&temp_dir)
         .arg("--project")
         .arg("tlconfig.yaml")
@@ -93,7 +93,7 @@ compilerOptions:
 /// Test error when no input files provided
 #[test]
 fn test_error_no_input_files() {
-    typedlua_cmd()
+    luanext_cmd()
         .assert()
         .failure()
         .stderr(predicate::str::contains("No input files"));
@@ -107,7 +107,7 @@ fn test_invalid_lua_target_falls_back() {
     fs::write(&input_file, "const x: number = 42").unwrap();
 
     // Invalid target should fall back to default (5.4) and still compile
-    typedlua_cmd()
+    luanext_cmd()
         .arg(input_file)
         .arg("--target")
         .arg("9.9")
@@ -124,7 +124,7 @@ fn test_lexer_error_reporting() {
     // Invalid character that lexer can't handle
     fs::write(&input_file, "const x = @@@").unwrap();
 
-    let output = typedlua_cmd().arg(&input_file).output().unwrap();
+    let output = luanext_cmd().arg(&input_file).output().unwrap();
 
     assert!(
         !output.status.success(),
@@ -152,7 +152,7 @@ fn test_parser_error_reporting() {
     // Syntax error: unclosed brace
     fs::write(&input_file, "const obj = { x = 1").unwrap();
 
-    let output = typedlua_cmd().arg(&input_file).output().unwrap();
+    let output = luanext_cmd().arg(&input_file).output().unwrap();
 
     assert!(
         !output.status.success(),
@@ -188,7 +188,7 @@ fn test_out_file_concatenation() {
     fs::write(&file1, "const a: number = 1").unwrap();
     fs::write(&file2, "const b: number = 2").unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .arg(&file1)
         .arg(&file2)
         .arg("--out-file")
@@ -224,7 +224,7 @@ fn test_inline_source_map() {
 
     fs::write(&input_file, "const x: number = 42").unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .arg(&input_file)
         .arg("--inline-source-map")
         .assert()
@@ -266,7 +266,7 @@ fn test_parallel_compilation_many_files() {
         files.push(file);
     }
 
-    let mut cmd = typedlua_cmd();
+    let mut cmd = luanext_cmd();
     for file in &files {
         cmd.arg(file);
     }
@@ -315,7 +315,7 @@ compilerOptions:
     fs::write(&input_file, source).unwrap();
 
     // This should fail or succeed depending on strict mode implementation
-    typedlua_cmd()
+    luanext_cmd()
         .arg("--project")
         .arg(temp_dir.path().join("tlconfig.yaml"))
         .arg(input_file)
@@ -335,7 +335,7 @@ fn test_diagnostics_flag() {
 
     fs::write(&input_file, "const x: number = \"wrong\"").unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .arg(input_file)
         .arg("--diagnostics")
         .assert()
@@ -350,7 +350,7 @@ fn test_pretty_printing_default() {
 
     fs::write(&input_file, "const x: number = \"wrong\"").unwrap();
 
-    let output = typedlua_cmd().arg(input_file).output().unwrap();
+    let output = luanext_cmd().arg(input_file).output().unwrap();
 
     // Pretty output uses ANSI codes or formatting
     assert!(!output.stderr.is_empty());
@@ -371,7 +371,7 @@ fn test_lua51_compatibility() {
     // Use features compatible with Lua 5.1
     fs::write(&input_file, "function test()\n    return 42\nend").unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .arg(&input_file)
         .arg("--target")
         .arg("5.1")
@@ -394,7 +394,7 @@ fn test_lua54_default_target() {
 
     fs::write(&input_file, "const x: number = 42").unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .arg(&input_file)
         .arg("--no-emit")
         .assert()
@@ -416,7 +416,7 @@ fn test_nested_directory_structure() {
 
     fs::write(&input_file, "const x: number = 42").unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .arg(&input_file)
         .arg("--out-dir")
         .arg(temp_dir.path().join("dist"))
@@ -439,5 +439,5 @@ fn test_file_with_spaces() {
 
     fs::write(&input_file, "const x: number = 42").unwrap();
 
-    typedlua_cmd().arg(&input_file).assert().success();
+    luanext_cmd().arg(&input_file).assert().success();
 }

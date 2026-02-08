@@ -1,5 +1,5 @@
-use typedlua_core::config::CompilerConfig;
-use typedlua_core::di::DiContainer;
+use luanext_core::config::CompilerConfig;
+use luanext_core::di::DiContainer;
 
 fn compile(source: &str) -> Result<String, String> {
     let config = CompilerConfig::default();
@@ -10,16 +10,16 @@ fn compile(source: &str) -> Result<String, String> {
 fn compile_with_target(source: &str, target: &str) -> Result<String, String> {
     let mut config = CompilerConfig::default();
     config.compiler_options.target = match target {
-        "5.1" => typedlua_core::config::LuaVersion::Lua51,
-        "5.2" => typedlua_core::config::LuaVersion::Lua52,
-        "5.3" => typedlua_core::config::LuaVersion::Lua53,
-        "5.4" => typedlua_core::config::LuaVersion::Lua54,
-        _ => typedlua_core::config::LuaVersion::Lua54,
+        "5.1" => luanext_core::config::LuaVersion::Lua51,
+        "5.2" => luanext_core::config::LuaVersion::Lua52,
+        "5.3" => luanext_core::config::LuaVersion::Lua53,
+        "5.4" => luanext_core::config::LuaVersion::Lua54,
+        _ => luanext_core::config::LuaVersion::Lua54,
     };
     let mut container = DiContainer::test(
         config,
-        std::sync::Arc::new(typedlua_core::diagnostics::CollectingDiagnosticHandler::new()),
-        std::sync::Arc::new(typedlua_core::fs::RealFileSystem::new()),
+        std::sync::Arc::new(luanext_core::diagnostics::CollectingDiagnosticHandler::new()),
+        std::sync::Arc::new(luanext_core::fs::RealFileSystem::new()),
     );
     container.compile(source)
 }

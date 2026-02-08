@@ -7,11 +7,11 @@
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use tracing::debug;
-use typedlua_parser::ast::expression::{Expression, ExpressionKind};
-use typedlua_parser::ast::statement::{ClassMember, Statement};
-use typedlua_parser::ast::types::TypeKind;
-use typedlua_parser::ast::Program;
-use typedlua_parser::string_interner::StringId;
+use luanext_parser::ast::expression::{Expression, ExpressionKind};
+use luanext_parser::ast::statement::{ClassMember, Statement};
+use luanext_parser::ast::types::TypeKind;
+use luanext_parser::ast::Program;
+use luanext_parser::string_interner::StringId;
 
 use ExpressionKind::*;
 
@@ -147,7 +147,7 @@ impl ClassHierarchy {
     }
 
     fn collect_instantiations_from_statement<'arena>(&mut self, stmt: &Statement<'arena>) {
-        use typedlua_parser::ast::statement::ForStatement;
+        use luanext_parser::ast::statement::ForStatement;
 
         match stmt {
             Statement::Function(func) => {
@@ -284,10 +284,10 @@ impl ClassHierarchy {
                 self.collect_instantiations_from_expression(match_expr.value);
                 for arm in match_expr.arms.iter() {
                     match &arm.body {
-                        typedlua_parser::ast::expression::MatchArmBody::Expression(e) => {
+                        luanext_parser::ast::expression::MatchArmBody::Expression(e) => {
                             self.collect_instantiations_from_expression(e);
                         }
-                        typedlua_parser::ast::expression::MatchArmBody::Block(block) => {
+                        luanext_parser::ast::expression::MatchArmBody::Block(block) => {
                             for s in block.statements.iter() {
                                 self.collect_instantiations_from_statement(s);
                             }
@@ -302,10 +302,10 @@ impl ClassHierarchy {
                     }
                 }
                 match &arrow.body {
-                    typedlua_parser::ast::expression::ArrowBody::Expression(e) => {
+                    luanext_parser::ast::expression::ArrowBody::Expression(e) => {
                         self.collect_instantiations_from_expression(e);
                     }
-                    typedlua_parser::ast::expression::ArrowBody::Block(block) => {
+                    luanext_parser::ast::expression::ArrowBody::Block(block) => {
                         for s in block.statements.iter() {
                             self.collect_instantiations_from_statement(s);
                         }
@@ -349,10 +349,10 @@ impl ClassHierarchy {
             Array(elements) => {
                 for elem in elements.iter() {
                     match elem {
-                        typedlua_parser::ast::expression::ArrayElement::Expression(e) => {
+                        luanext_parser::ast::expression::ArrayElement::Expression(e) => {
                             self.collect_instantiations_from_expression(e);
                         }
-                        typedlua_parser::ast::expression::ArrayElement::Spread(e) => {
+                        luanext_parser::ast::expression::ArrayElement::Spread(e) => {
                             self.collect_instantiations_from_expression(e);
                         }
                     }
@@ -361,13 +361,13 @@ impl ClassHierarchy {
             Object(props) => {
                 for prop in props.iter() {
                     match prop {
-                        typedlua_parser::ast::expression::ObjectProperty::Property {
+                        luanext_parser::ast::expression::ObjectProperty::Property {
                             value,
                             ..
                         } => {
                             self.collect_instantiations_from_expression(value);
                         }
-                        typedlua_parser::ast::expression::ObjectProperty::Computed {
+                        luanext_parser::ast::expression::ObjectProperty::Computed {
                             key,
                             value,
                             ..
@@ -375,7 +375,7 @@ impl ClassHierarchy {
                             self.collect_instantiations_from_expression(key);
                             self.collect_instantiations_from_expression(value);
                         }
-                        typedlua_parser::ast::expression::ObjectProperty::Spread {
+                        luanext_parser::ast::expression::ObjectProperty::Spread {
                             value, ..
                         } => {
                             self.collect_instantiations_from_expression(value);
@@ -535,7 +535,7 @@ use crate::config::OptimizationLevel;
 use crate::MutableProgram;
 use bumpalo::Bump;
 use std::sync::Arc;
-use typedlua_parser::string_interner::StringInterner;
+use luanext_parser::string_interner::StringInterner;
 
 use super::{AstFeatures, WholeProgramPass};
 

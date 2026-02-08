@@ -1,8 +1,8 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::sync::Arc;
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::string_interner::StringInterner;
+use luanext_core::diagnostics::CollectingDiagnosticHandler;
+use luanext_parser::lexer::Lexer;
+use luanext_parser::string_interner::StringInterner;
 
 fn bench_lexer_simple(c: &mut Criterion) {
     let source = r#"

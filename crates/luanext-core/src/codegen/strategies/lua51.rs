@@ -1,6 +1,6 @@
 use super::CodeGenStrategy;
-use typedlua_parser::ast::expression::BinaryOp;
-use typedlua_parser::string_interner::StringId;
+use luanext_parser::ast::expression::BinaryOp;
+use luanext_parser::string_interner::StringId;
 
 /// Code generation strategy for Lua 5.1
 /// - No native bitwise operators (requires helpers)
@@ -39,7 +39,7 @@ impl CodeGenStrategy for Lua51Strategy {
     }
 
     fn emit_preamble(&self) -> Option<String> {
-        Some(typedlua_runtime::bitwise::for_lua51().to_string())
+        Some(luanext_runtime::bitwise::for_lua51().to_string())
     }
 
     fn supports_native_bitwise(&self) -> bool {

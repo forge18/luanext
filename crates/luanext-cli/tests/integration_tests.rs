@@ -4,7 +4,7 @@ use std::fs;
 use tempfile::TempDir;
 
 // Helper to create typedlua command using the non-deprecated macro approach
-fn typedlua_cmd() -> Command {
+fn luanext_cmd() -> Command {
     Command::new(assert_cmd::cargo::cargo_bin!("typedlua"))
 }
 
@@ -23,7 +23,7 @@ fn test_compile_simple_file() {
     )
     .unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .arg(input_file.to_str().unwrap())
         .assert()
         .success();
@@ -43,7 +43,7 @@ fn test_compile_with_type_error() {
     )
     .unwrap();
 
-    let output = typedlua_cmd()
+    let output = luanext_cmd()
         .arg(input_file.to_str().unwrap())
         .output()
         .unwrap();
@@ -81,7 +81,7 @@ fn test_output_directory() {
     )
     .unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .arg(input_file.to_str().unwrap())
         .arg("--out-dir")
         .arg(output_dir.to_str().unwrap())
@@ -102,7 +102,7 @@ fn test_multiple_files() {
     fs::write(&file1, "const a: number = 1").unwrap();
     fs::write(&file2, "const b: string = \"test\"").unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .arg(file1.to_str().unwrap())
         .arg(file2.to_str().unwrap())
         .assert()
@@ -124,7 +124,7 @@ fn test_no_emit_flag() {
     )
     .unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .arg(input_file.to_str().unwrap())
         .arg("--no-emit")
         .assert()
@@ -148,7 +148,7 @@ fn test_lua51_target() {
     )
     .unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .arg(input_file.to_str().unwrap())
         .arg("--target")
         .arg("5.1")
@@ -176,7 +176,7 @@ fn test_function_compilation() {
     )
     .unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .arg(input_file.to_str().unwrap())
         .assert()
         .success();
@@ -226,7 +226,7 @@ fn test_class_compilation() {
     )
     .unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .arg(input_file.to_str().unwrap())
         .assert()
         .success();
@@ -276,7 +276,7 @@ fn test_interface_type_checking() {
     )
     .unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .arg(input_file.to_str().unwrap())
         .arg("--no-emit")
         .assert()
@@ -305,7 +305,7 @@ fn test_invalid_interface() {
     )
     .unwrap();
 
-    let output = typedlua_cmd()
+    let output = luanext_cmd()
         .arg(input_file.to_str().unwrap())
         .arg("--no-emit")
         .arg("--no-cache")
@@ -332,7 +332,7 @@ fn test_invalid_interface() {
 /// Test --version flag
 #[test]
 fn test_version_flag() {
-    typedlua_cmd()
+    luanext_cmd()
         .arg("--version")
         .assert()
         .success()
@@ -342,7 +342,7 @@ fn test_version_flag() {
 /// Test --help flag
 #[test]
 fn test_help_flag() {
-    typedlua_cmd()
+    luanext_cmd()
         .arg("--help")
         .assert()
         .success()
@@ -352,7 +352,7 @@ fn test_help_flag() {
 /// Test nonexistent file error
 #[test]
 fn test_nonexistent_file() {
-    typedlua_cmd().arg("nonexistent.luax").assert().failure();
+    luanext_cmd().arg("nonexistent.luax").assert().failure();
 }
 
 /// Test source map generation
@@ -371,7 +371,7 @@ fn test_source_map_generation() {
     )
     .unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .arg(input_file.to_str().unwrap())
         .arg("--source-map")
         .assert()
@@ -394,7 +394,7 @@ fn test_pretty_output() {
     )
     .unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .arg(input_file.to_str().unwrap())
         .arg("--pretty")
         .assert()

@@ -11,19 +11,19 @@ use bumpalo::Bump;
 use rustc_hash::FxHashMap;
 use std::collections::HashMap;
 use std::sync::Arc;
-use typedlua_core::codegen::scope_hoisting::{EscapeAnalysis, HoistingContext};
-use typedlua_core::codegen::CodeGenerator;
-use typedlua_core::codegen::LuaTarget;
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_parser::ast::Program;
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::parser::Parser;
-use typedlua_parser::string_interner::StringInterner;
+use luanext_core::codegen::scope_hoisting::{EscapeAnalysis, HoistingContext};
+use luanext_core::codegen::CodeGenerator;
+use luanext_core::codegen::LuaTarget;
+use luanext_core::diagnostics::CollectingDiagnosticHandler;
+use luanext_parser::ast::Program;
+use luanext_parser::lexer::Lexer;
+use luanext_parser::parser::Parser;
+use luanext_parser::string_interner::StringInterner;
 
 fn create_program<'arena>(
     source: &str,
     interner: &StringInterner,
-    common: &typedlua_parser::string_interner::CommonIdentifiers,
+    common: &luanext_parser::string_interner::CommonIdentifiers,
     arena: &'arena Bump,
 ) -> Program<'arena> {
     let handler = Arc::new(CollectingDiagnosticHandler::new());
@@ -376,12 +376,12 @@ fn test_name_collision_same_function_name() {
     assert!(context.is_hoistable(
         "moduleA.lua",
         "helper",
-        &typedlua_core::codegen::scope_hoisting::DeclarationKind::Function
+        &luanext_core::codegen::scope_hoisting::DeclarationKind::Function
     ));
     assert!(context.is_hoistable(
         "moduleB.lua",
         "helper",
-        &typedlua_core::codegen::scope_hoisting::DeclarationKind::Function
+        &luanext_core::codegen::scope_hoisting::DeclarationKind::Function
     ));
 
     // Mangled names should be different
@@ -556,7 +556,7 @@ fn test_hoisting_context_disabled() {
     assert!(!context.is_hoistable(
         "main.lua",
         "helper",
-        &typedlua_core::codegen::scope_hoisting::DeclarationKind::Function
+        &luanext_core::codegen::scope_hoisting::DeclarationKind::Function
     ));
 }
 

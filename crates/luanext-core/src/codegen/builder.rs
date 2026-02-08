@@ -6,19 +6,19 @@
 //!
 //! ```rust
 //! use std::sync::Arc;
-//! use typedlua_parser::string_interner::StringInterner;
-//! use typedlua_core::codegen::{CodeGeneratorBuilder, LuaTarget, CodeGenMode};
+//! use luanext_parser::string_interner::StringInterner;
+//! use luanext_core::codegen::{CodeGeneratorBuilder, LuaTarget, CodeGenMode};
 //!
 //! let interner = Arc::new(StringInterner::new());
 //! let generator = CodeGeneratorBuilder::new(interner)
 //!     .target(LuaTarget::Lua54)
 //!     .source_map("main.luax".to_string())
-//!     .optimization_level(typedlua_core::config::OptimizationLevel::O2)
+//!     .optimization_level(luanext_core::config::OptimizationLevel::O2)
 //!     .build();
 //! ```
 
 use std::sync::Arc;
-use typedlua_parser::string_interner::StringInterner;
+use luanext_parser::string_interner::StringInterner;
 
 use super::{CodeGenMode, CodeGenerator, LuaTarget, ReflectionMode};
 use crate::config::{OptimizationLevel, OutputFormat};
@@ -45,8 +45,8 @@ use crate::optimizer::WholeProgramAnalysis;
 ///
 /// ```rust
 /// use std::sync::Arc;
-/// use typedlua_parser::string_interner::StringInterner;
-/// use typedlua_core::codegen::CodeGeneratorBuilder;
+/// use luanext_parser::string_interner::StringInterner;
+/// use luanext_core::codegen::CodeGeneratorBuilder;
 ///
 /// let interner = Arc::new(StringInterner::new());
 /// let builder = CodeGeneratorBuilder::new(interner);
@@ -74,9 +74,9 @@ impl CodeGeneratorBuilder {
     ///
     /// ```rust
     /// use std::sync::Arc;
-    /// use typedlua_parser::string_interner::StringInterner;
-    /// use typedlua_core::codegen::{CodeGeneratorBuilder, LuaTarget, CodeGenMode};
-    /// use typedlua_core::config::OptimizationLevel;
+    /// use luanext_parser::string_interner::StringInterner;
+    /// use luanext_core::codegen::{CodeGeneratorBuilder, LuaTarget, CodeGenMode};
+    /// use luanext_core::config::OptimizationLevel;
     ///
     /// let interner = Arc::new(StringInterner::new());
     /// let generator = CodeGeneratorBuilder::new(interner)
@@ -110,8 +110,8 @@ impl CodeGeneratorBuilder {
     ///
     /// ```rust
     /// use std::sync::Arc;
-    /// use typedlua_parser::string_interner::StringInterner;
-    /// use typedlua_core::codegen::{CodeGeneratorBuilder, LuaTarget, CodeGenMode};
+    /// use luanext_parser::string_interner::StringInterner;
+    /// use luanext_core::codegen::{CodeGeneratorBuilder, LuaTarget, CodeGenMode};
     ///
     /// let interner = Arc::new(StringInterner::new());
     /// let generator = CodeGeneratorBuilder::new(interner)
@@ -134,8 +134,8 @@ impl CodeGeneratorBuilder {
     ///
     /// ```rust
     /// use std::sync::Arc;
-    /// use typedlua_parser::string_interner::StringInterner;
-    /// use typedlua_core::codegen::CodeGeneratorBuilder;
+    /// use luanext_parser::string_interner::StringInterner;
+    /// use luanext_core::codegen::CodeGeneratorBuilder;
     ///
     /// let interner = Arc::new(StringInterner::new());
     /// let generator = CodeGeneratorBuilder::new(interner)
@@ -156,8 +156,8 @@ impl CodeGeneratorBuilder {
     ///
     /// ```rust
     /// use std::sync::Arc;
-    /// use typedlua_parser::string_interner::StringInterner;
-    /// use typedlua_core::codegen::CodeGeneratorBuilder;
+    /// use luanext_parser::string_interner::StringInterner;
+    /// use luanext_core::codegen::CodeGeneratorBuilder;
     ///
     /// let interner = Arc::new(StringInterner::new());
     /// let generator = CodeGeneratorBuilder::new(interner)
@@ -182,8 +182,8 @@ impl CodeGeneratorBuilder {
     ///
     /// ```rust
     /// use std::sync::Arc;
-    /// use typedlua_parser::string_interner::StringInterner;
-    /// use typedlua_core::codegen::CodeGeneratorBuilder;
+    /// use luanext_parser::string_interner::StringInterner;
+    /// use luanext_core::codegen::CodeGeneratorBuilder;
     ///
     /// let interner = Arc::new(StringInterner::new());
     /// let generator = CodeGeneratorBuilder::new(interner)
@@ -205,9 +205,9 @@ impl CodeGeneratorBuilder {
     ///
     /// ```rust
     /// use std::sync::Arc;
-    /// use typedlua_parser::string_interner::StringInterner;
-    /// use typedlua_core::codegen::CodeGeneratorBuilder;
-    /// use typedlua_core::config::OptimizationLevel;
+    /// use luanext_parser::string_interner::StringInterner;
+    /// use luanext_core::codegen::CodeGeneratorBuilder;
+    /// use luanext_core::config::OptimizationLevel;
     ///
     /// let interner = Arc::new(StringInterner::new());
     /// let generator = CodeGeneratorBuilder::new(interner)
@@ -229,9 +229,9 @@ impl CodeGeneratorBuilder {
     ///
     /// ```rust
     /// use std::sync::Arc;
-    /// use typedlua_parser::string_interner::StringInterner;
-    /// use typedlua_core::codegen::CodeGeneratorBuilder;
-    /// use typedlua_core::config::OutputFormat;
+    /// use luanext_parser::string_interner::StringInterner;
+    /// use luanext_core::codegen::CodeGeneratorBuilder;
+    /// use luanext_core::config::OutputFormat;
     ///
     /// let interner = Arc::new(StringInterner::new());
     /// let generator = CodeGeneratorBuilder::new(interner)
@@ -256,10 +256,10 @@ impl CodeGeneratorBuilder {
     ///
     /// ```rust
     /// use std::sync::Arc;
-    /// use typedlua_parser::string_interner::StringInterner;
-    /// use typedlua_core::codegen::CodeGeneratorBuilder;
-    /// use typedlua_core::optimizer::WholeProgramAnalysis;
-    /// use typedlua_core::config::OptimizationLevel;
+    /// use luanext_parser::string_interner::StringInterner;
+    /// use luanext_core::codegen::CodeGeneratorBuilder;
+    /// use luanext_core::optimizer::WholeProgramAnalysis;
+    /// use luanext_core::config::OptimizationLevel;
     ///
     /// let interner = Arc::new(StringInterner::new());
     /// // Assume analysis was built from all checked modules
@@ -294,8 +294,8 @@ impl CodeGeneratorBuilder {
     /// ```rust
     /// use std::sync::Arc;
     /// use std::collections::HashSet;
-    /// use typedlua_parser::string_interner::StringInterner;
-    /// use typedlua_core::codegen::CodeGeneratorBuilder;
+    /// use luanext_parser::string_interner::StringInterner;
+    /// use luanext_core::codegen::CodeGeneratorBuilder;
     ///
     /// let interner = Arc::new(StringInterner::new());
     /// let reachable: HashSet<String> = ["add", "subtract"].into_iter().map(|s| s.to_string()).collect();
@@ -324,9 +324,9 @@ impl CodeGeneratorBuilder {
     ///
     /// ```rust
     /// use std::sync::Arc;
-    /// use typedlua_parser::string_interner::StringInterner;
-    /// use typedlua_core::codegen::{CodeGeneratorBuilder, LuaTarget};
-    /// use typedlua_core::config::OptimizationLevel;
+    /// use luanext_parser::string_interner::StringInterner;
+    /// use luanext_core::codegen::{CodeGeneratorBuilder, LuaTarget};
+    /// use luanext_core::config::OptimizationLevel;
     ///
     /// let interner = Arc::new(StringInterner::new());
     /// let generator = CodeGeneratorBuilder::new(interner)

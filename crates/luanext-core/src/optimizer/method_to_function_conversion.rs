@@ -4,10 +4,10 @@ use bumpalo::Bump;
 
 use crate::optimizer::{StmtVisitor, WholeProgramPass};
 use std::sync::Arc;
-use typedlua_parser::ast::expression::{Expression, ExpressionKind, ReceiverClassInfo};
-use typedlua_parser::ast::statement::Statement;
-use typedlua_parser::span::Span;
-use typedlua_parser::string_interner::StringInterner;
+use luanext_parser::ast::expression::{Expression, ExpressionKind, ReceiverClassInfo};
+use luanext_parser::ast::statement::Statement;
+use luanext_parser::span::Span;
+use luanext_parser::string_interner::StringInterner;
 
 pub struct MethodToFunctionConversionPass {
     interner: Arc<StringInterner>,
@@ -59,7 +59,7 @@ impl MethodToFunctionConversionPass {
                 changed
             }
             Statement::For(for_stmt) => {
-                use typedlua_parser::ast::statement::ForStatement;
+                use luanext_parser::ast::statement::ForStatement;
                 match &**for_stmt {
                     ForStatement::Numeric(for_num_ref) => {
                         let mut new_num = (**for_num_ref).clone();
@@ -121,7 +121,7 @@ impl MethodToFunctionConversionPass {
 
     fn convert_in_block<'arena>(
         &mut self,
-        block: &mut typedlua_parser::ast::statement::Block<'arena>,
+        block: &mut luanext_parser::ast::statement::Block<'arena>,
         arena: &'arena Bump,
     ) -> bool {
         let mut stmts: Vec<_> = block.statements.to_vec();
@@ -267,24 +267,24 @@ impl MethodToFunctionConversionPass {
                 let mut arms_changed = false;
                 for arm in &mut new_arms {
                     match &mut arm.body {
-                        typedlua_parser::ast::expression::MatchArmBody::Expression(arm_expr) => {
+                        luanext_parser::ast::expression::MatchArmBody::Expression(arm_expr) => {
                             let mut new_arm_expr = (**arm_expr).clone();
                             if self.convert_in_expression(&mut new_arm_expr, arena) {
                                 arm.body =
-                                    typedlua_parser::ast::expression::MatchArmBody::Expression(
+                                    luanext_parser::ast::expression::MatchArmBody::Expression(
                                         arena.alloc(new_arm_expr),
                                     );
                                 arms_changed = true;
                             }
                         }
-                        typedlua_parser::ast::expression::MatchArmBody::Block(block) => {
+                        luanext_parser::ast::expression::MatchArmBody::Block(block) => {
                             arms_changed |= self.convert_in_block(block, arena);
                         }
                     }
                 }
                 if changed || arms_changed {
                     expr.kind =
-                        ExpressionKind::Match(typedlua_parser::ast::expression::MatchExpression {
+                        ExpressionKind::Match(luanext_parser::ast::expression::MatchExpression {
                             value: arena.alloc(new_value),
                             arms: arena.alloc_slice_clone(&new_arms),
                             span: match_expr.span,
@@ -308,17 +308,17 @@ impl MethodToFunctionConversionPass {
                     changed = true;
                 }
                 match &mut new_arrow.body {
-                    typedlua_parser::ast::expression::ArrowBody::Expression(body_expr) => {
+                    luanext_parser::ast::expression::ArrowBody::Expression(body_expr) => {
                         let mut new_body = (**body_expr).clone();
                         if self.convert_in_expression(&mut new_body, arena) {
                             new_arrow.body =
-                                typedlua_parser::ast::expression::ArrowBody::Expression(
+                                luanext_parser::ast::expression::ArrowBody::Expression(
                                     arena.alloc(new_body),
                                 );
                             changed = true;
                         }
                     }
-                    typedlua_parser::ast::expression::ArrowBody::Block(block) => {
+                    luanext_parser::ast::expression::ArrowBody::Block(block) => {
                         changed |= self.convert_in_block(block, arena);
                     }
                 }
@@ -353,7 +353,7 @@ impl MethodToFunctionConversionPass {
                 let c2 = self.convert_in_expression(&mut new_catch, arena);
                 if c1 || c2 {
                     expr.kind =
-                        ExpressionKind::Try(typedlua_parser::ast::expression::TryExpression {
+                        ExpressionKind::Try(luanext_parser::ast::expression::TryExpression {
                             expression: arena.alloc(new_expression),
                             catch_variable: try_expr.catch_variable.clone(),
                             catch_expression: arena.alloc(new_catch),
@@ -452,8 +452,8 @@ impl MethodToFunctionConversionPass {
         &self,
         obj: &Expression<'arena>,
         receiver_info: &ReceiverClassInfo,
-        method_name: &typedlua_parser::ast::Ident,
-        args: &[typedlua_parser::ast::expression::Argument<'arena>],
+        method_name: &luanext_parser::ast::Ident,
+        args: &[luanext_parser::ast::expression::Argument<'arena>],
         span: Span,
         arena: &'arena Bump,
     ) -> Option<ExpressionKind<'arena>> {
@@ -475,7 +475,7 @@ impl MethodToFunctionConversionPass {
             receiver_class: None,
         };
 
-        let new_args: Vec<_> = std::iter::once(typedlua_parser::ast::expression::Argument {
+        let new_args: Vec<_> = std::iter::once(luanext_parser::ast::expression::Argument {
             value: obj.clone(),
             is_spread: false,
             span,
@@ -535,11 +535,11 @@ impl Default for MethodToFunctionConversionPass {
 mod tests {
     use super::*;
     use bumpalo::Bump;
-    use typedlua_parser::ast::expression::{ExpressionKind, Literal};
-    use typedlua_parser::ast::statement::{Block, Statement};
-    use typedlua_parser::ast::types::{PrimitiveType, Type, TypeKind};
-    use typedlua_parser::ast::Spanned;
-    use typedlua_parser::span::Span;
+    use luanext_parser::ast::expression::{ExpressionKind, Literal};
+    use luanext_parser::ast::statement::{Block, Statement};
+    use luanext_parser::ast::types::{PrimitiveType, Type, TypeKind};
+    use luanext_parser::ast::Spanned;
+    use luanext_parser::span::Span;
 
     #[test]
     fn test_method_call_to_function_call_conversion() {
@@ -565,7 +565,7 @@ mod tests {
             receiver_class: None,
         };
 
-        let arguments = arena.alloc_slice_clone(&[typedlua_parser::ast::expression::Argument {
+        let arguments = arena.alloc_slice_clone(&[luanext_parser::ast::expression::Argument {
             value: arg_expr,
             is_spread: false,
             span: Span::dummy(),
@@ -648,7 +648,7 @@ mod tests {
             is_static: false,
         });
 
-        let empty_args: &[typedlua_parser::ast::expression::Argument] =
+        let empty_args: &[luanext_parser::ast::expression::Argument] =
             arena.alloc_slice_clone(&[]);
 
         let expr = Expression {

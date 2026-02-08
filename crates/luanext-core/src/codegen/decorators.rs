@@ -1,9 +1,9 @@
 use super::CodeGenerator;
-use typedlua_parser::ast::statement::*;
+use luanext_parser::ast::statement::*;
 
 impl CodeGenerator {
     pub fn generate_decorator_call(&mut self, decorator: &Decorator, target: &str) {
-        use typedlua_parser::ast::statement::DecoratorExpression;
+        use luanext_parser::ast::statement::DecoratorExpression;
 
         match &decorator.expression {
             DecoratorExpression::Identifier(name) => {
@@ -44,9 +44,9 @@ impl CodeGenerator {
 
     pub fn generate_decorator_expression(
         &mut self,
-        expr: &typedlua_parser::ast::statement::DecoratorExpression,
+        expr: &luanext_parser::ast::statement::DecoratorExpression,
     ) {
-        use typedlua_parser::ast::statement::DecoratorExpression;
+        use luanext_parser::ast::statement::DecoratorExpression;
 
         match expr {
             DecoratorExpression::Identifier(name) => {
@@ -81,13 +81,13 @@ impl CodeGenerator {
         matches!(name, "readonly" | "sealed" | "deprecated")
     }
 
-    pub fn detect_decorators(&mut self, program: &typedlua_parser::ast::Program) {
+    pub fn detect_decorators(&mut self, program: &luanext_parser::ast::Program) {
         self.detect_decorators_from_statements(program.statements);
     }
 
     pub fn detect_decorators_from_statements(
         &mut self,
-        statements: &[typedlua_parser::ast::statement::Statement],
+        statements: &[luanext_parser::ast::statement::Statement],
     ) {
         for statement in statements {
             if self.statement_uses_built_in_decorators(statement) {
@@ -129,9 +129,9 @@ impl CodeGenerator {
 
     pub fn is_decorator_built_in(
         &self,
-        expr: &typedlua_parser::ast::statement::DecoratorExpression,
+        expr: &luanext_parser::ast::statement::DecoratorExpression,
     ) -> bool {
-        use typedlua_parser::ast::statement::DecoratorExpression;
+        use luanext_parser::ast::statement::DecoratorExpression;
 
         match expr {
             DecoratorExpression::Identifier(name) => {
@@ -161,7 +161,7 @@ impl CodeGenerator {
     }
 
     pub fn embed_runtime_library(&mut self) {
-        self.writeln(typedlua_runtime::decorator::DECORATOR_RUNTIME);
+        self.writeln(luanext_runtime::decorator::DECORATOR_RUNTIME);
         self.writeln("");
     }
 }

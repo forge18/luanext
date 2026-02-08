@@ -24,15 +24,15 @@ use bumpalo::Bump;
 use crate::optimizer::{StmtVisitor, WholeProgramPass};
 use rustc_hash::FxHashMap;
 use std::sync::Arc;
-use typedlua_parser::ast::expression::{AssignmentOp, Expression, ExpressionKind};
-use typedlua_parser::ast::pattern::Pattern;
-use typedlua_parser::ast::statement::{
+use luanext_parser::ast::expression::{AssignmentOp, Expression, ExpressionKind};
+use luanext_parser::ast::pattern::Pattern;
+use luanext_parser::ast::statement::{
     Block, ClassMember, ForStatement, InterfaceMember, Statement,
 };
-use typedlua_parser::ast::types::TypeKind;
-use typedlua_parser::ast::Spanned;
-use typedlua_parser::span::Span;
-use typedlua_parser::string_interner::{StringId, StringInterner};
+use luanext_parser::ast::types::TypeKind;
+use luanext_parser::ast::Spanned;
+use luanext_parser::span::Span;
+use luanext_parser::string_interner::{StringId, StringInterner};
 
 const MAX_INLINABLE_STATEMENTS: usize = 10;
 
@@ -220,10 +220,10 @@ impl<'arena> InterfaceImplementationMap<'arena> {
             ExpressionKind::Match(match_expr) => {
                 self.expression_mutates_self(match_expr.value, class_id)
                     || match_expr.arms.iter().any(|arm| match &arm.body {
-                        typedlua_parser::ast::expression::MatchArmBody::Expression(e) => {
+                        luanext_parser::ast::expression::MatchArmBody::Expression(e) => {
                             self.expression_mutates_self(e, class_id)
                         }
-                        typedlua_parser::ast::expression::MatchArmBody::Block(b) => {
+                        luanext_parser::ast::expression::MatchArmBody::Block(b) => {
                             self.block_mutates_self(b, class_id)
                         }
                     })
@@ -234,10 +234,10 @@ impl<'arena> InterfaceImplementationMap<'arena> {
                         .as_ref()
                         .is_some_and(|d| self.expression_mutates_self(d, class_id))
                 }) || match &arrow.body {
-                    typedlua_parser::ast::expression::ArrowBody::Expression(e) => {
+                    luanext_parser::ast::expression::ArrowBody::Expression(e) => {
                         self.expression_mutates_self(e, class_id)
                     }
-                    typedlua_parser::ast::expression::ArrowBody::Block(b) => {
+                    luanext_parser::ast::expression::ArrowBody::Block(b) => {
                         self.block_mutates_self(b, class_id)
                     }
                 }
@@ -609,14 +609,14 @@ impl InterfaceMethodInliningPass {
                 let mut arms_changed = false;
                 for arm in &mut new_arms {
                     match &mut arm.body {
-                        typedlua_parser::ast::expression::MatchArmBody::Expression(e_ref) => {
+                        luanext_parser::ast::expression::MatchArmBody::Expression(e_ref) => {
                             let mut new_e = (**e_ref).clone();
                             if self.process_expression(&mut new_e, impl_map, arena) {
                                 *e_ref = arena.alloc(new_e);
                                 arms_changed = true;
                             }
                         }
-                        typedlua_parser::ast::expression::MatchArmBody::Block(block) => {
+                        luanext_parser::ast::expression::MatchArmBody::Block(block) => {
                             arms_changed |= self.process_block(block, impl_map, arena);
                         }
                     }
@@ -645,14 +645,14 @@ impl InterfaceMethodInliningPass {
                     changed = true;
                 }
                 match &mut new_arrow.body {
-                    typedlua_parser::ast::expression::ArrowBody::Expression(e_ref) => {
+                    luanext_parser::ast::expression::ArrowBody::Expression(e_ref) => {
                         let mut new_e = (**e_ref).clone();
                         if self.process_expression(&mut new_e, impl_map, arena) {
                             *e_ref = arena.alloc(new_e);
                             changed = true;
                         }
                     }
-                    typedlua_parser::ast::expression::ArrowBody::Block(block) => {
+                    luanext_parser::ast::expression::ArrowBody::Block(block) => {
                         changed |= self.process_block(block, impl_map, arena);
                     }
                 }
@@ -799,10 +799,10 @@ impl InterfaceMethodInliningPass {
                 let mut ec = false;
                 for elem in &mut new_elements {
                     match elem {
-                        typedlua_parser::ast::expression::ArrayElement::Expression(e) => {
+                        luanext_parser::ast::expression::ArrayElement::Expression(e) => {
                             ec |= self.process_expression(e, impl_map, arena);
                         }
-                        typedlua_parser::ast::expression::ArrayElement::Spread(e) => {
+                        luanext_parser::ast::expression::ArrayElement::Spread(e) => {
                             ec |= self.process_expression(e, impl_map, arena);
                         }
                     }
@@ -816,7 +816,7 @@ impl InterfaceMethodInliningPass {
                 let mut new_props: Vec<_> = props.to_vec();
                 let mut pc = false;
                 for prop in &mut new_props {
-                    if let typedlua_parser::ast::expression::ObjectProperty::Property {
+                    if let luanext_parser::ast::expression::ObjectProperty::Property {
                         key,
                         value,
                         span,
@@ -824,7 +824,7 @@ impl InterfaceMethodInliningPass {
                     {
                         let mut new_val = (**value).clone();
                         if self.process_expression(&mut new_val, impl_map, arena) {
-                            *prop = typedlua_parser::ast::expression::ObjectProperty::Property {
+                            *prop = luanext_parser::ast::expression::ObjectProperty::Property {
                                 key: key.clone(),
                                 value: arena.alloc(new_val),
                                 span: *span,
@@ -860,13 +860,13 @@ impl InterfaceMethodInliningPass {
         receiver: &Expression<'arena>,
         _class_id: StringId,
         method_body: &Block<'arena>,
-        _args: &[typedlua_parser::ast::expression::Argument<'arena>],
+        _args: &[luanext_parser::ast::expression::Argument<'arena>],
         span: Span,
         arena: &'arena Bump,
     ) -> Option<ExpressionKind<'arena>> {
         if method_body.statements.is_empty() {
             return Some(ExpressionKind::Literal(
-                typedlua_parser::ast::expression::Literal::Nil,
+                luanext_parser::ast::expression::Literal::Nil,
             ));
         }
 
@@ -897,7 +897,7 @@ impl InterfaceMethodInliningPass {
                         return Some(transformed);
                     }
                     return Some(Expression::new(
-                        ExpressionKind::Literal(typedlua_parser::ast::expression::Literal::Nil),
+                        ExpressionKind::Literal(luanext_parser::ast::expression::Literal::Nil),
                         span,
                     ));
                 }
@@ -967,7 +967,7 @@ impl InterfaceMethodInliningPass {
             ExpressionKind::Call(func, args, type_args) => {
                 let new_args: Vec<_> = args
                     .iter()
-                    .map(|arg| typedlua_parser::ast::expression::Argument {
+                    .map(|arg| luanext_parser::ast::expression::Argument {
                         value: self.transform_expression(&arg.value, receiver, span, arena),
                         is_spread: arg.is_spread,
                         span: arg.span,
@@ -1063,12 +1063,12 @@ impl Default for InterfaceMethodInliningPass {
 mod tests {
     use super::*;
     use bumpalo::Bump;
-    use typedlua_parser::ast::expression::{AssignmentOp, ExpressionKind, Literal};
-    use typedlua_parser::ast::pattern::Pattern;
-    use typedlua_parser::ast::statement::{
+    use luanext_parser::ast::expression::{AssignmentOp, ExpressionKind, Literal};
+    use luanext_parser::ast::pattern::Pattern;
+    use luanext_parser::ast::statement::{
         Block, ReturnStatement, VariableDeclaration, VariableKind,
     };
-    use typedlua_parser::span::Span;
+    use luanext_parser::span::Span;
 
     #[test]
     fn test_interface_implementation_map_build_empty() {
@@ -1090,7 +1090,7 @@ mod tests {
             statements: arena.alloc_slice_clone(&[
                 Statement::Variable(VariableDeclaration {
                     kind: VariableKind::Local,
-                    pattern: Pattern::Identifier(typedlua_parser::ast::Spanned::new(
+                    pattern: Pattern::Identifier(luanext_parser::ast::Spanned::new(
                         StringId::from_u32(1),
                         Span::dummy(),
                     )),
@@ -1103,7 +1103,7 @@ mod tests {
                 }),
                 Statement::Variable(VariableDeclaration {
                     kind: VariableKind::Local,
-                    pattern: Pattern::Identifier(typedlua_parser::ast::Spanned::new(
+                    pattern: Pattern::Identifier(luanext_parser::ast::Spanned::new(
                         StringId::from_u32(2),
                         Span::dummy(),
                     )),
@@ -1146,7 +1146,7 @@ mod tests {
                         kind: ExpressionKind::Member(
                             arena
                                 .alloc(Expression::new(ExpressionKind::SelfKeyword, Span::dummy())),
-                            typedlua_parser::ast::Spanned::new(
+                            luanext_parser::ast::Spanned::new(
                                 StringId::from_u32(2),
                                 Span::dummy(),
                             ),

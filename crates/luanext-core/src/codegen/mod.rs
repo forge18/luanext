@@ -23,12 +23,12 @@ pub use sourcemap::{SourceMap, SourceMapBuilder};
 pub use super::config::OptimizationLevel;
 use rustc_hash::FxHashMap as HashMap;
 use std::sync::Arc;
-use typedlua_parser::ast::pattern::Pattern;
-use typedlua_parser::ast::statement::*;
-use typedlua_parser::ast::Program;
-use typedlua_parser::string_interner::{StringId, StringInterner};
-use typedlua_runtime::module;
-use typedlua_runtime::reflection;
+use luanext_parser::ast::pattern::Pattern;
+use luanext_parser::ast::statement::*;
+use luanext_parser::ast::Program;
+use luanext_parser::string_interner::{StringId, StringInterner};
+use luanext_runtime::module;
+use luanext_runtime::reflection;
 
 /// Reflection metadata generation mode
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -215,7 +215,7 @@ impl CodeGenerator {
     }
 
     /// Resolve a StringId to a String
-    fn resolve(&self, id: typedlua_parser::string_interner::StringId) -> String {
+    fn resolve(&self, id: luanext_parser::string_interner::StringId) -> String {
         self.interner.resolve(id).to_string()
     }
 
@@ -537,7 +537,7 @@ impl CodeGenerator {
             // Add a mapping for the start of this module (line 0, column 0 of source)
             if let Some(ref mut builder) = source_map_builder {
                 builder.add_mapping_with_source(
-                    typedlua_parser::span::Span::new(0, 0, 0, 0),
+                    luanext_parser::span::Span::new(0, 0, 0, 0),
                     source_index,
                     None,
                 );
@@ -764,10 +764,10 @@ impl CodeGenerator {
                             if let Some(ref value) = member.value {
                                 // EnumValue is an enum with Number and String variants
                                 match value {
-                                    typedlua_parser::ast::statement::EnumValue::Number(n) => {
+                                    luanext_parser::ast::statement::EnumValue::Number(n) => {
                                         temp_gen.write(&n.to_string());
                                     }
-                                    typedlua_parser::ast::statement::EnumValue::String(s) => {
+                                    luanext_parser::ast::statement::EnumValue::String(s) => {
                                         temp_gen.write("\"");
                                         temp_gen.write(s);
                                         temp_gen.write("\"");
@@ -884,7 +884,7 @@ impl CodeGenerator {
     fn get_declaration_name(
         &self,
         stmt: &Statement,
-    ) -> Option<typedlua_parser::string_interner::StringId> {
+    ) -> Option<luanext_parser::string_interner::StringId> {
         match stmt {
             Statement::Variable(decl) => {
                 if let Pattern::Identifier(ident) = &decl.pattern {
@@ -915,10 +915,10 @@ mod tests {
     use crate::MutableProgram;
     use bumpalo::Bump;
     use std::sync::Arc;
-    use typedlua_parser::ast::expression::BinaryOp;
-    use typedlua_parser::lexer::Lexer;
-    use typedlua_parser::parser::Parser;
-    use typedlua_parser::string_interner::StringInterner;
+    use luanext_parser::ast::expression::BinaryOp;
+    use luanext_parser::lexer::Lexer;
+    use luanext_parser::parser::Parser;
+    use luanext_parser::string_interner::StringInterner;
 
     fn generate_code(source: &str) -> String {
         let handler = Arc::new(CollectingDiagnosticHandler::new());

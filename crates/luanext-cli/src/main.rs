@@ -164,10 +164,10 @@ fn main() -> anyhow::Result<()> {
 
     // Parse target Lua version from config
     let target = match config.compiler_options.target {
-        typedlua_core::config::LuaVersion::Lua51 => typedlua_core::codegen::LuaTarget::Lua51,
-        typedlua_core::config::LuaVersion::Lua52 => typedlua_core::codegen::LuaTarget::Lua52,
-        typedlua_core::config::LuaVersion::Lua53 => typedlua_core::codegen::LuaTarget::Lua53,
-        typedlua_core::config::LuaVersion::Lua54 => typedlua_core::codegen::LuaTarget::Lua54,
+        luanext_core::config::LuaVersion::Lua51 => luanext_core::codegen::LuaTarget::Lua51,
+        luanext_core::config::LuaVersion::Lua52 => luanext_core::codegen::LuaTarget::Lua52,
+        luanext_core::config::LuaVersion::Lua53 => luanext_core::codegen::LuaTarget::Lua53,
+        luanext_core::config::LuaVersion::Lua54 => luanext_core::codegen::LuaTarget::Lua54,
     };
 
     info!(
@@ -259,8 +259,8 @@ print(greet(user))
 }
 
 /// Parse the Lua target version string
-fn parse_lua_target(target: &str) -> anyhow::Result<typedlua_core::codegen::LuaTarget> {
-    use typedlua_core::codegen::LuaTarget;
+fn parse_lua_target(target: &str) -> anyhow::Result<luanext_core::codegen::LuaTarget> {
+    use luanext_core::codegen::LuaTarget;
 
     match target {
         "5.1" | "51" => Ok(LuaTarget::Lua51),
@@ -278,8 +278,8 @@ fn parse_lua_target(target: &str) -> anyhow::Result<typedlua_core::codegen::LuaT
 fn parse_optimization_level(
     optimize: bool,
     no_optimize: bool,
-) -> anyhow::Result<typedlua_core::config::OptimizationLevel> {
-    use typedlua_core::config::OptimizationLevel;
+) -> anyhow::Result<luanext_core::config::OptimizationLevel> {
+    use luanext_core::config::OptimizationLevel;
 
     // Check for conflicting flags
     if optimize && no_optimize {
@@ -299,8 +299,8 @@ fn parse_optimization_level(
 }
 
 /// Parse the output format string
-fn parse_output_format(format: &str) -> typedlua_core::config::OutputFormat {
-    use typedlua_core::config::OutputFormat;
+fn parse_output_format(format: &str) -> luanext_core::config::OutputFormat {
+    use luanext_core::config::OutputFormat;
 
     match format.to_lowercase().as_str() {
         "compact" => OutputFormat::Compact,
@@ -312,8 +312,8 @@ fn parse_output_format(format: &str) -> typedlua_core::config::OutputFormat {
 /// Load configuration from file (if specified) and resolve input files
 fn load_config_and_files(
     cli: &Cli,
-) -> anyhow::Result<(typedlua_core::config::CompilerConfig, Vec<PathBuf>)> {
-    use typedlua_core::config::{CliOverrides, CompilerConfig, LuaVersion};
+) -> anyhow::Result<(luanext_core::config::CompilerConfig, Vec<PathBuf>)> {
+    use luanext_core::config::{CliOverrides, CompilerConfig, LuaVersion};
 
     // Start with default config
     let mut config = if let Some(ref project_path) = cli.project {
@@ -365,10 +365,10 @@ fn load_config_and_files(
     }
     if let Some(ref naming) = cli.strict_naming {
         overrides.strict_naming = Some(match naming.as_str() {
-            "error" => typedlua_core::config::StrictLevel::Error,
-            "warning" => typedlua_core::config::StrictLevel::Warning,
-            "off" => typedlua_core::config::StrictLevel::Off,
-            _ => typedlua_core::config::StrictLevel::Error,
+            "error" => luanext_core::config::StrictLevel::Error,
+            "warning" => luanext_core::config::StrictLevel::Warning,
+            "off" => luanext_core::config::StrictLevel::Off,
+            _ => luanext_core::config::StrictLevel::Error,
         });
     }
     if cli.no_implicit_unknown {
@@ -379,8 +379,8 @@ fn load_config_and_files(
     overrides.enable_decorators = Some(cli.enable_decorators);
     if let Some(ref mode) = cli.module_mode {
         overrides.module_mode = Some(match mode.as_str() {
-            "bundle" => typedlua_core::config::ModuleMode::Bundle,
-            _ => typedlua_core::config::ModuleMode::Require,
+            "bundle" => luanext_core::config::ModuleMode::Bundle,
+            _ => luanext_core::config::ModuleMode::Require,
         });
     }
     if let Some(ref paths) = cli.module_paths {
@@ -392,9 +392,9 @@ fn load_config_and_files(
     // Override output format if specified
     if cli.format != "readable" {
         overrides.output_format = Some(match cli.format.as_str() {
-            "compact" => typedlua_core::config::OutputFormat::Compact,
-            "minified" => typedlua_core::config::OutputFormat::Minified,
-            _ => typedlua_core::config::OutputFormat::Readable,
+            "compact" => luanext_core::config::OutputFormat::Compact,
+            "minified" => luanext_core::config::OutputFormat::Minified,
+            _ => luanext_core::config::OutputFormat::Readable,
         });
     }
 
@@ -417,7 +417,7 @@ fn load_config_and_files(
 /// Expand glob patterns in the input files and config
 fn expand_glob_patterns(
     cli_files: &[PathBuf],
-    config: &typedlua_core::config::CompilerConfig,
+    config: &luanext_core::config::CompilerConfig,
 ) -> anyhow::Result<Vec<PathBuf>> {
     use std::collections::HashSet;
 
@@ -865,7 +865,7 @@ impl<'a> ImportScanner<'a> {
 /// Collect all imports from a source file using fast lexer-only scanning
 fn collect_imports(
     _source: &str,
-    _handler: &std::sync::Arc<typedlua_core::diagnostics::CollectingDiagnosticHandler>,
+    _handler: &std::sync::Arc<luanext_core::diagnostics::CollectingDiagnosticHandler>,
 ) -> anyhow::Result<Vec<CollectedImport>> {
     let mut scanner = ImportScanner::new(_source);
     let sources = scanner.scan_imports();
@@ -886,13 +886,13 @@ struct DependencyResult {
 /// Discover dependencies and determine compilation order
 fn discover_dependencies(
     files: &[PathBuf],
-    fs: &std::sync::Arc<dyn typedlua_core::fs::FileSystem>,
-    resolver: &typedlua_core::module_resolver::ModuleResolver,
+    fs: &std::sync::Arc<dyn luanext_core::fs::FileSystem>,
+    resolver: &luanext_core::module_resolver::ModuleResolver,
 ) -> anyhow::Result<DependencyResult> {
     use std::collections::HashMap;
     use std::sync::Arc;
-    use typedlua_core::diagnostics::{CollectingDiagnosticHandler, DiagnosticHandler};
-    use typedlua_core::module_resolver::{DependencyGraph, ModuleId};
+    use luanext_core::diagnostics::{CollectingDiagnosticHandler, DiagnosticHandler};
+    use luanext_core::module_resolver::{DependencyGraph, ModuleId};
 
     // 1. Build dependency graph
     let mut dep_graph = DependencyGraph::new();
@@ -987,29 +987,29 @@ struct CompilationResult {
 /// Cache entry data collected during type checking for later persistence
 type CacheEntryData = (
     PathBuf,
-    typedlua_core::cache::CachedModule,
+    luanext_core::cache::CachedModule,
     Vec<PathBuf>,
     FxHashMap<String, u64>,
 );
 
 struct CompilationOutput {
     lua_code: String,
-    source_map: Option<typedlua_core::codegen::SourceMap>,
+    source_map: Option<luanext_core::codegen::SourceMap>,
     output_path: PathBuf,
     /// Module to save to cache after compilation (stale files only)
     cache_entry: Option<CacheEntryData>,
 }
 
 struct CompilationError {
-    diagnostics: Vec<typedlua_core::diagnostics::Diagnostic>,
+    diagnostics: Vec<luanext_core::diagnostics::Diagnostic>,
     source: String,
 }
 
 /// Module that has been type-checked and is ready for parallel code generation
 struct CheckedModule<'arena> {
     file_path: PathBuf,
-    ast: typedlua_parser::ast::Program<'arena>,
-    interner: std::sync::Arc<typedlua_parser::string_interner::StringInterner>,
+    ast: luanext_parser::ast::Program<'arena>,
+    interner: std::sync::Arc<luanext_parser::string_interner::StringInterner>,
     output_path: PathBuf,
     enable_source_map: bool,
     cache_entry: Option<CacheEntryData>,
@@ -1022,21 +1022,21 @@ unsafe impl<'arena> Send for CheckedModule<'arena> {}
 /// Parse a single source file for parallel parsing
 fn parse_single_file<'arena>(
     file_path: &Path,
-    file_system: &std::sync::Arc<dyn typedlua_core::fs::FileSystem>,
+    file_system: &std::sync::Arc<dyn luanext_core::fs::FileSystem>,
     arena: &'arena bumpalo::Bump,
-) -> anyhow::Result<typedlua_core::ParsedModule<'arena>> {
+) -> anyhow::Result<luanext_core::ParsedModule<'arena>> {
     let source = file_system.read_file(file_path)?;
 
     let handler =
-        std::sync::Arc::new(typedlua_core::diagnostics::CollectingDiagnosticHandler::new());
+        std::sync::Arc::new(luanext_core::diagnostics::CollectingDiagnosticHandler::new());
     let (interner, common_ids) =
-        typedlua_parser::string_interner::StringInterner::new_with_common_identifiers();
+        luanext_parser::string_interner::StringInterner::new_with_common_identifiers();
     let interner = std::rc::Rc::new(interner);
 
-    let mut lexer = typedlua_parser::lexer::Lexer::new(&source, handler.clone(), &interner);
+    let mut lexer = luanext_parser::lexer::Lexer::new(&source, handler.clone(), &interner);
     let tokens = lexer.tokenize()?;
 
-    let mut parser = typedlua_parser::parser::Parser::new(
+    let mut parser = luanext_parser::parser::Parser::new(
         tokens,
         handler.clone(),
         &interner,
@@ -1045,36 +1045,36 @@ fn parse_single_file<'arena>(
     );
     let ast = parser.parse()?;
 
-    if typedlua_core::diagnostics::DiagnosticHandler::has_errors(&*handler) {
+    if luanext_core::diagnostics::DiagnosticHandler::has_errors(&*handler) {
         anyhow::bail!(
             "Parsing failed with errors: {:?}",
-            typedlua_core::diagnostics::DiagnosticHandler::get_diagnostics(&*handler)
+            luanext_core::diagnostics::DiagnosticHandler::get_diagnostics(&*handler)
         );
     }
 
-    Ok(typedlua_core::ParsedModule {
+    Ok(luanext_core::ParsedModule {
         path: file_path.to_path_buf(),
         ast,
         interner: std::rc::Rc::unwrap_or_clone(interner),
         common_ids,
-        diagnostics: typedlua_core::diagnostics::DiagnosticHandler::get_diagnostics(&*handler),
+        diagnostics: luanext_core::diagnostics::DiagnosticHandler::get_diagnostics(&*handler),
     })
 }
 
 /// Compile the input files
-fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Result<()> {
+fn compile(cli: Cli, target: luanext_core::codegen::LuaTarget) -> anyhow::Result<()> {
     use rustc_hash::FxHashSet;
     use std::collections::HashMap;
     use std::sync::Arc;
     use std::time::Instant;
-    use typedlua_core::cache::{CacheManager, CachedModule};
-    use typedlua_core::codegen::CodeGeneratorBuilder;
-    use typedlua_core::config::{CompilerConfig, CompilerOptions};
-    use typedlua_core::diagnostics::{CollectingDiagnosticHandler, DiagnosticHandler};
+    use luanext_core::cache::{CacheManager, CachedModule};
+    use luanext_core::codegen::CodeGeneratorBuilder;
+    use luanext_core::config::{CompilerConfig, CompilerOptions};
+    use luanext_core::diagnostics::{CollectingDiagnosticHandler, DiagnosticHandler};
 
-    use typedlua_core::module_resolver::{ModuleConfig, ModuleId, ModuleRegistry, ModuleResolver};
+    use luanext_core::module_resolver::{ModuleConfig, ModuleId, ModuleRegistry, ModuleResolver};
 
-    use typedlua_parser::string_interner::StringInterner;
+    use luanext_parser::string_interner::StringInterner;
 
     info!("Compiling {} file(s)...", cli.files.len());
     let compile_start = Instant::now();
@@ -1082,13 +1082,13 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
     // --- DI Container setup ---
     let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let compiler_config = CompilerConfig::default();
-    let mut container = typedlua_core::di::DiContainer::production(compiler_config);
+    let mut container = luanext_core::di::DiContainer::production(compiler_config);
     let use_cache = !cli.no_cache;
     let use_incremental_check = !cli.force_full_check;
 
     // --- Incremental type checking setup ---
     let mut incremental_checker = IncrementalChecker::new();
-    let mut old_declaration_hashes: FxHashMap<typedlua_typechecker::DeclarationId, u64> =
+    let mut old_declaration_hashes: FxHashMap<luanext_typechecker::DeclarationId, u64> =
         FxHashMap::default();
 
     if use_cache && use_incremental_check {
@@ -1099,7 +1099,7 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
                     // Load old declaration hashes from cache
                     for (module_path, hashes) in &manifest.declaration_hashes {
                         for (decl_name, hash) in hashes {
-                            let decl_id = typedlua_typechecker::DeclarationId::new(
+                            let decl_id = luanext_typechecker::DeclarationId::new(
                                 module_path.clone(),
                                 decl_name.clone(),
                             );
@@ -1110,7 +1110,7 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
                     // Initialize incremental checker with cached state
                     let cached_cache = CompilationCache {
                         declaration_hashes: old_declaration_hashes.clone(),
-                        dependency_graph: typedlua_typechecker::DependencyGraph::new(),
+                        dependency_graph: luanext_typechecker::DependencyGraph::new(),
                         version: 0,
                     };
                     incremental_checker.set_cache(cached_cache);
@@ -1181,7 +1181,7 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
 
     // Resolve FileSystem from DI Container for use in parallel section
     let file_system = container
-        .resolve::<Arc<dyn typedlua_core::fs::FileSystem>>()
+        .resolve::<Arc<dyn luanext_core::fs::FileSystem>>()
         .unwrap();
 
     // Create module resolver using FileSystem from DI Container
@@ -1276,7 +1276,7 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
         .iter()
         .filter_map(|file_path| {
             // Use pooled arena for type checking
-            typedlua_core::arena::with_pooled_arena(|arena| {
+            luanext_core::arena::with_pooled_arena(|arena| {
                 let canonical = file_path
                     .canonicalize()
                     .unwrap_or_else(|_| file_path.to_path_buf());
@@ -1304,7 +1304,7 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
                 let common_ids = parsed.common_ids;
 
                 // Type check the program (with module support for import resolution)
-                use typedlua_core::TypeChecker;
+                use luanext_core::TypeChecker;
 
                 let handler = Arc::new(CollectingDiagnosticHandler::new());
 
@@ -1381,7 +1381,7 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
                                 .canonicalize()
                                 .unwrap_or_else(|_| file_path.clone()),
                             // Compute source hash for cache invalidation
-                            typedlua_core::cache::hash_file(file_path)
+                            luanext_core::cache::hash_file(file_path)
                                 .unwrap_or_else(|_| String::from("unknown")),
                             // Store interner strings for reconstructing StringInterner
                             parsed.interner.to_strings(),
@@ -1438,11 +1438,11 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
     info!("Optimization level: {:?}", optimization_level);
     let wpa_start = Instant::now();
     let whole_program_analysis =
-        if optimization_level >= typedlua_core::config::OptimizationLevel::O3 {
+        if optimization_level >= luanext_core::config::OptimizationLevel::O3 {
             info!("Building whole-program analysis for O3 optimizations...");
-            let ast_refs: Vec<&typedlua_parser::ast::Program> =
+            let ast_refs: Vec<&luanext_parser::ast::Program> =
                 checked_modules.iter().map(|m| &m.ast).collect();
-            Some(typedlua_core::optimizer::WholeProgramAnalysis::build(
+            Some(luanext_core::optimizer::WholeProgramAnalysis::build(
                 &ast_refs,
                 optimization_level,
             ))
@@ -1455,14 +1455,14 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
 
     // --- Phase 1.6: Tree shaking (reachability analysis for bundles) ---
     let tree_shaking_enabled = cli.out_file.is_some() && !cli.no_tree_shake;
-    let reachable_set: Option<typedlua_core::codegen::tree_shaking::ReachableSet> =
+    let reachable_set: Option<luanext_core::codegen::tree_shaking::ReachableSet> =
         if tree_shaking_enabled {
             info!("Running tree shaking analysis...");
             let tree_shake_start = Instant::now();
 
             // Build module map for reachability analysis
             use rustc_hash::FxHashMap as HashMap;
-            let mut modules: HashMap<String, typedlua_parser::ast::Program> = HashMap::default();
+            let mut modules: HashMap<String, luanext_parser::ast::Program> = HashMap::default();
             for module in &checked_modules {
                 let module_id = module.file_path.to_string_lossy().to_string();
                 modules.insert(module_id.clone(), module.ast.clone());
@@ -1479,7 +1479,7 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
                 .map(|m| m.interner.clone())
                 .unwrap_or_else(|| Arc::new(StringInterner::new()));
 
-            let reachable = typedlua_core::codegen::tree_shaking::ReachabilityAnalysis::analyze(
+            let reachable = luanext_core::codegen::tree_shaking::ReachabilityAnalysis::analyze(
                 entry_path, &modules, &interner,
             );
 
@@ -1556,7 +1556,7 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
 
             let mut generator = builder.build();
             // Convert arena-allocated Program to mutable AST for codegen
-            let mut mutable_ast = typedlua_core::MutableProgram::from_program(&module.ast);
+            let mut mutable_ast = luanext_core::MutableProgram::from_program(&module.ast);
             let lua_code = generator.generate(&mut mutable_ast);
             let source_map = generator.take_source_map();
 
@@ -1785,13 +1785,13 @@ fn determine_output_path(file_path: &Path, cli: &Cli) -> PathBuf {
 
 /// Print diagnostics from a vec (used by parallel compilation)
 fn print_diagnostics_from_vec(
-    diagnostics: &[typedlua_core::diagnostics::Diagnostic],
+    diagnostics: &[luanext_core::diagnostics::Diagnostic],
     source: &str,
     file_path: &Path,
     pretty: bool,
     show_codes: bool,
 ) {
-    use typedlua_core::diagnostics::DiagnosticLevel;
+    use luanext_core::diagnostics::DiagnosticLevel;
 
     if diagnostics.is_empty() {
         return;

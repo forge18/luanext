@@ -1,0 +1,7 @@
+[package]
+name = "luanext-runtime"
+version = "0.1.0"
+edition = "2021"
+description = "Runtime support code for LuaNext compiler"
+
+[dependencies]

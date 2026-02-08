@@ -1,7 +1,7 @@
 use super::{CodeGenMode, CodeGenerator};
 
 impl CodeGenerator {
-    pub fn generate_import(&mut self, import: &typedlua_parser::ast::statement::ImportDeclaration) {
+    pub fn generate_import(&mut self, import: &luanext_parser::ast::statement::ImportDeclaration) {
         // Detect @std/reflection import - set flag and skip code generation
         if import.source == "@std/reflection" {
             self.has_reflection_import = true;
@@ -21,8 +21,8 @@ impl CodeGenerator {
         };
 
         match &import.clause {
-            typedlua_parser::ast::statement::ImportClause::TypeOnly(_) => {}
-            typedlua_parser::ast::statement::ImportClause::Named(specs) => {
+            luanext_parser::ast::statement::ImportClause::TypeOnly(_) => {}
+            luanext_parser::ast::statement::ImportClause::Named(specs) => {
                 self.write_indent();
                 self.write("local _mod = ");
                 self.write(require_fn);
@@ -51,7 +51,7 @@ impl CodeGenerator {
                 }
                 self.writeln("");
             }
-            typedlua_parser::ast::statement::ImportClause::Default(ident) => {
+            luanext_parser::ast::statement::ImportClause::Default(ident) => {
                 self.write_indent();
                 self.write("local ");
                 let ident_str = self.resolve(ident.node);
@@ -62,7 +62,7 @@ impl CodeGenerator {
                 self.write(&module_path);
                 self.writeln("\")");
             }
-            typedlua_parser::ast::statement::ImportClause::Namespace(ident) => {
+            luanext_parser::ast::statement::ImportClause::Namespace(ident) => {
                 self.write_indent();
                 self.write("local ");
                 let ident_str = self.resolve(ident.node);
@@ -73,7 +73,7 @@ impl CodeGenerator {
                 self.write(&module_path);
                 self.writeln("\")");
             }
-            typedlua_parser::ast::statement::ImportClause::Mixed { default, named } => {
+            luanext_parser::ast::statement::ImportClause::Mixed { default, named } => {
                 // Load module once
                 self.write_indent();
                 self.write("local _mod = ");
@@ -116,9 +116,9 @@ impl CodeGenerator {
         }
     }
 
-    pub fn generate_export(&mut self, export: &typedlua_parser::ast::statement::ExportDeclaration) {
+    pub fn generate_export(&mut self, export: &luanext_parser::ast::statement::ExportDeclaration) {
         match &export.kind {
-            typedlua_parser::ast::statement::ExportKind::Declaration(stmt) => {
+            luanext_parser::ast::statement::ExportKind::Declaration(stmt) => {
                 if let Some(name) = self.get_declaration_name(stmt) {
                     let export_name = self.resolve(name).to_string();
 
@@ -133,7 +133,7 @@ impl CodeGenerator {
                     self.generate_statement(stmt);
                 }
             }
-            typedlua_parser::ast::statement::ExportKind::Named { specifiers, source } => {
+            luanext_parser::ast::statement::ExportKind::Named { specifiers, source } => {
                 if let Some(source_path) = source {
                     self.generate_re_export(specifiers, source_path);
                 } else {
@@ -149,7 +149,7 @@ impl CodeGenerator {
                     }
                 }
             }
-            typedlua_parser::ast::statement::ExportKind::Default(expr) => {
+            luanext_parser::ast::statement::ExportKind::Default(expr) => {
                 // Tree shaking: in bundle mode, skip default export if tree shaking is enabled
                 // and the module has no other reachable exports
                 if self.tree_shaking_enabled {
@@ -170,7 +170,7 @@ impl CodeGenerator {
 
     pub fn generate_re_export(
         &mut self,
-        specifiers: &[typedlua_parser::ast::statement::ExportSpecifier],
+        specifiers: &[luanext_parser::ast::statement::ExportSpecifier],
         source: &str,
     ) {
         let (require_fn, module_path) = match &self.mode {
@@ -219,7 +219,7 @@ impl CodeGenerator {
 
     pub fn generate_namespace_declaration(
         &mut self,
-        ns: &typedlua_parser::ast::statement::NamespaceDeclaration,
+        ns: &luanext_parser::ast::statement::NamespaceDeclaration,
     ) {
         let path: Vec<String> = ns
             .path

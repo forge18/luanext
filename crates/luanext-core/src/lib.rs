@@ -9,8 +9,8 @@ pub mod type_checker;
 // Re-export arena for convenience
 pub use arena::Arena;
 
-// Re-export shared utilities and types used by typedlua-core
-pub use typedlua_typechecker::{
+// Re-export shared utilities and types used by luanext-core
+pub use luanext_typechecker::{
     // Generic specialization optimizer functions
     build_substitutions,
     instantiate_function_declaration,
@@ -25,22 +25,22 @@ pub use typedlua_typechecker::{
 };
 
 // Re-export CLI modules - shared utilities
-pub use typedlua_typechecker::cli::{config, diagnostics, errors, fs};
+pub use luanext_typechecker::cli::{config, diagnostics, errors, fs};
 
 // Re-export common diagnostics for backward compatibility
-pub use typedlua_typechecker::cli::diagnostics::{
+pub use luanext_typechecker::cli::diagnostics::{
     CollectingDiagnosticHandler, Diagnostic, DiagnosticHandler, DiagnosticLevel,
 };
 
 // Re-export parser types
-pub use typedlua_parser::{
+pub use luanext_parser::{
     ast::Program,
     string_interner::{CommonIdentifiers, StringId, StringInterner},
 };
 
+use luanext_parser::ast::statement::Statement;
+use luanext_parser::span::Span;
 use std::path::PathBuf;
-use typedlua_parser::ast::statement::Statement;
-use typedlua_parser::span::Span;
 
 /// A mutable program representation for post-type-checking phases (optimizer, codegen).
 ///

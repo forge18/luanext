@@ -3,7 +3,7 @@ use std::fs;
 use tempfile::TempDir;
 
 // Helper to create typedlua command using the non-deprecated macro approach
-fn typedlua_cmd() -> Command {
+fn luanext_cmd() -> Command {
     Command::new(assert_cmd::cargo::cargo_bin!("typedlua"))
 }
 
@@ -18,7 +18,7 @@ fn test_lua52_target() {
     let input_file = temp_dir.path().join("test.luax");
     fs::write(&input_file, "const x: number = 42").unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .arg(&input_file)
         .arg("--target")
         .arg("5.2")
@@ -32,7 +32,7 @@ fn test_lua53_target() {
     let input_file = temp_dir.path().join("test.luax");
     fs::write(&input_file, "const x: number = 42").unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .arg(&input_file)
         .arg("--target")
         .arg("5.3")
@@ -47,7 +47,7 @@ fn test_lua_target_shorthand() {
     fs::write(&input_file, "const x: number = 42").unwrap();
 
     // Test shorthand "51" instead of "5.1"
-    typedlua_cmd()
+    luanext_cmd()
         .arg(&input_file)
         .arg("--target")
         .arg("51")
@@ -68,7 +68,7 @@ fn test_out_file_single_file() {
 
     fs::write(&input_file, "const x: number = 42").unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .arg(&input_file)
         .arg("--out-file")
         .arg(&out_file)
@@ -90,7 +90,7 @@ fn test_out_dir_preserves_structure() {
 
     fs::write(&input_file, "const x: number = 42").unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .arg(&input_file)
         .arg("--out-dir")
         .arg(&out_dir)
@@ -114,7 +114,7 @@ fn test_source_map_external() {
 
     fs::write(&input_file, "const x: number = 42").unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .arg(&input_file)
         .arg("--source-map")
         .assert()
@@ -131,7 +131,7 @@ fn test_inline_and_external_source_map() {
 
     fs::write(&input_file, "const x: number = 42").unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .arg(&input_file)
         .arg("--source-map")
         .arg("--inline-source-map")
@@ -152,7 +152,7 @@ fn test_no_pretty_flag() {
     fs::write(&input_file, "const x: number = \"wrong\"").unwrap();
 
     // --pretty=false should produce plain output
-    typedlua_cmd()
+    luanext_cmd()
         .arg(&input_file)
         .arg("--pretty=false")
         .assert()
@@ -166,7 +166,7 @@ fn test_diagnostics_with_pretty() {
 
     fs::write(&input_file, "const x: number = \"wrong\"").unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .arg(&input_file)
         .arg("--diagnostics")
         .arg("--pretty")
@@ -185,7 +185,7 @@ fn test_directory_as_input() {
     fs::create_dir_all(temp_dir.path().join("src")).unwrap();
 
     // Try to compile a directory (should fail or handle gracefully)
-    typedlua_cmd()
+    luanext_cmd()
         .arg(temp_dir.path().join("src"))
         .assert()
         .code(predicates::ord::ne(0)); // Should not exit successfully
@@ -199,7 +199,7 @@ fn test_empty_file() {
     fs::write(&input_file, "").unwrap();
 
     // Empty file should compile successfully (no statements)
-    typedlua_cmd().arg(&input_file).assert().success();
+    luanext_cmd().arg(&input_file).assert().success();
 }
 
 #[test]
@@ -214,7 +214,7 @@ fn test_very_large_file() {
     }
     fs::write(&input_file, content).unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .arg(&input_file)
         .arg("--no-emit") // Don't create huge output
         .assert()
@@ -233,7 +233,7 @@ fn test_unicode_in_filename() {
 
     fs::write(&input_file, "const x: number = 42").unwrap();
 
-    typedlua_cmd().arg(&input_file).assert().success();
+    luanext_cmd().arg(&input_file).assert().success();
 }
 
 #[test]
@@ -243,7 +243,7 @@ fn test_special_chars_in_filename() {
 
     fs::write(&input_file, "const x: number = 42").unwrap();
 
-    typedlua_cmd().arg(&input_file).assert().success();
+    luanext_cmd().arg(&input_file).assert().success();
 }
 
 #[test]
@@ -255,7 +255,7 @@ fn test_deeply_nested_path() {
     let input_file = deep_path.join("deep.luax");
     fs::write(&input_file, "const x: number = 42").unwrap();
 
-    typedlua_cmd().arg(&input_file).assert().success();
+    luanext_cmd().arg(&input_file).assert().success();
 }
 
 // ============================================================================
@@ -282,7 +282,7 @@ fn test_parallel_compilation_stress() {
         files.push(file);
     }
 
-    let mut cmd = typedlua_cmd();
+    let mut cmd = luanext_cmd();
     for file in &files {
         cmd.arg(file);
     }
@@ -304,7 +304,7 @@ fn test_all_flags_combined() {
 
     fs::write(&input_file, "const x: number = 42").unwrap();
 
-    typedlua_cmd()
+    luanext_cmd()
         .arg(&input_file)
         .arg("--target")
         .arg("5.3")

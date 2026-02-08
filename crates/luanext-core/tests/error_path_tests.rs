@@ -1,13 +1,13 @@
 use bumpalo::Bump;
 use std::sync::Arc;
-use typedlua_core::{
+use luanext_core::{
     codegen::CodeGenerator,
     diagnostics::{CollectingDiagnosticHandler, DiagnosticHandler, DiagnosticLevel},
     MutableProgram, TypeChecker,
 };
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::parser::Parser;
-use typedlua_parser::string_interner::StringInterner;
+use luanext_parser::lexer::Lexer;
+use luanext_parser::parser::Parser;
+use luanext_parser::string_interner::StringInterner;
 
 #[test]
 fn test_parser_missing_paren() {
@@ -99,9 +99,9 @@ fn test_return_type_mismatch() {
 #[test]
 fn test_diagnostic_handler_counts() {
     let handler = CollectingDiagnosticHandler::new();
-    handler.error(typedlua_parser::span::Span::dummy(), "Error 1");
-    handler.error(typedlua_parser::span::Span::dummy(), "Error 2");
-    handler.warning(typedlua_parser::span::Span::dummy(), "Warning");
+    handler.error(luanext_parser::span::Span::dummy(), "Error 1");
+    handler.error(luanext_parser::span::Span::dummy(), "Error 2");
+    handler.warning(luanext_parser::span::Span::dummy(), "Warning");
 
     assert_eq!(handler.error_count(), 2);
     assert_eq!(handler.warning_count(), 1);
@@ -111,9 +111,9 @@ fn test_diagnostic_handler_counts() {
 #[test]
 fn test_diagnostic_levels() {
     let handler = CollectingDiagnosticHandler::new();
-    handler.error(typedlua_parser::span::Span::dummy(), "Error");
-    handler.warning(typedlua_parser::span::Span::dummy(), "Warning");
-    handler.info(typedlua_parser::span::Span::dummy(), "Info");
+    handler.error(luanext_parser::span::Span::dummy(), "Error");
+    handler.warning(luanext_parser::span::Span::dummy(), "Warning");
+    handler.info(luanext_parser::span::Span::dummy(), "Info");
 
     let diags = handler.get_diagnostics();
     assert_eq!(diags[0].level, DiagnosticLevel::Error);

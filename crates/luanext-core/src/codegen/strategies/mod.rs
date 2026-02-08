@@ -3,8 +3,8 @@ pub mod lua52;
 pub mod lua53;
 pub mod lua54;
 
-use typedlua_parser::ast::expression::BinaryOp;
-use typedlua_parser::string_interner::StringId;
+use luanext_parser::ast::expression::BinaryOp;
+use luanext_parser::string_interner::StringId;
 
 /// Strategy for Lua version-specific code generation
 pub trait CodeGenStrategy {

@@ -1,19 +1,19 @@
 use bumpalo::Bump;
 use std::sync::Arc;
-use typedlua_core::config::OptimizationLevel;
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_core::optimizer::Optimizer;
-use typedlua_core::MutableProgram;
-use typedlua_parser::ast::expression::{Argument, Expression, ExpressionKind, Literal};
-use typedlua_parser::ast::pattern::Pattern;
-use typedlua_parser::ast::statement::{
+use luanext_core::config::OptimizationLevel;
+use luanext_core::diagnostics::CollectingDiagnosticHandler;
+use luanext_core::optimizer::Optimizer;
+use luanext_core::MutableProgram;
+use luanext_parser::ast::expression::{Argument, Expression, ExpressionKind, Literal};
+use luanext_parser::ast::pattern::Pattern;
+use luanext_parser::ast::statement::{
     Block, FunctionDeclaration, Parameter, ReturnStatement, Statement, TypeParameter,
     VariableDeclaration, VariableKind,
 };
-use typedlua_parser::ast::types::{PrimitiveType, Type, TypeKind, TypeReference};
-use typedlua_parser::ast::{Program, Spanned};
-use typedlua_parser::span::Span;
-use typedlua_parser::string_interner::StringInterner;
+use luanext_parser::ast::types::{PrimitiveType, Type, TypeKind, TypeReference};
+use luanext_parser::ast::{Program, Spanned};
+use luanext_parser::span::Span;
+use luanext_parser::string_interner::StringInterner;
 
 // Helper for integration-style tests that parse and type-check source code
 fn type_check(source: &str) -> Result<(), String> {
@@ -33,13 +33,13 @@ fn type_check(source: &str) -> Result<(), String> {
     Ok(())
 }
 
-use typedlua_core::TypeChecker;
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::parser::Parser;
+use luanext_core::TypeChecker;
+use luanext_parser::lexer::Lexer;
+use luanext_parser::parser::Parser;
 
 /// Helper to create a type reference to T (type parameter)
 fn type_param_ref<'arena>(
-    name_id: typedlua_parser::string_interner::StringId,
+    name_id: luanext_parser::string_interner::StringId,
     span: Span,
 ) -> Type<'arena> {
     Type::new(

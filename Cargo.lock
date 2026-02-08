@@ -853,12 +853,130 @@ dependencies = [
 ]
 
 [[package]]
-name = "lua-sourcemap"
+name = "luanext-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "assert_cmd",
+ "bumpalo",
+ "clap",
+ "criterion",
+ "glob",
+ "luanext-core",
+ "luanext-parser",
+ "luanext-typechecker",
+ "notify",
+ "predicates",
+ "rayon",
+ "rustc-hash 2.1.1",
+ "serde_json",
+ "tempfile",
+ "tracing",
+ "tracing-subscriber",
+ "walkdir",
+]
+
+[[package]]
+name = "luanext-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64",
+ "bincode",
+ "bitflags 2.10.0",
+ "blake3",
+ "bumpalo",
+ "criterion",
+ "dhat",
+ "indexmap",
+ "insta",
+ "luanext-parser",
+ "luanext-runtime",
+ "luanext-sourcemap",
+ "luanext-typechecker",
+ "once_cell",
+ "parking_lot",
+ "proptest",
+ "rustc-hash 2.1.1",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
+name = "luanext-lsp"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bumpalo",
+ "crossbeam-channel",
+ "lsp-server",
+ "lsp-types",
+ "luanext-parser",
+ "luanext-typechecker",
+ "once_cell",
+ "parking_lot",
+ "serde",
+ "serde_json",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "luanext-parser"
+version = "0.1.0"
+dependencies = [
+ "bumpalo",
+ "lasso",
+ "rustc-hash 2.1.1",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "luanext-runtime"
+version = "0.1.0"
+
+[[package]]
+name = "luanext-sourcemap"
 version = "0.1.0"
 dependencies = [
  "base64",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "luanext-test-helpers"
+version = "0.1.0"
+dependencies = [
+ "bumpalo",
+ "lsp-types",
+ "luanext-core",
+ "luanext-lsp",
+ "luanext-parser",
+]
+
+[[package]]
+name = "luanext-typechecker"
+version = "0.1.0"
+dependencies = [
+ "bumpalo",
+ "criterion",
+ "indexmap",
+ "lru",
+ "luanext-parser",
+ "quickcheck",
+ "quickcheck_macros",
+ "rustc-hash 2.1.1",
+ "serde",
+ "serde_yaml",
+ "thiserror",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -1576,124 +1694,6 @@ dependencies = [
  "tracing",
  "tracing-core",
  "tracing-log",
-]
-
-[[package]]
-name = "typedlua-cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "assert_cmd",
- "bumpalo",
- "clap",
- "criterion",
- "glob",
- "notify",
- "predicates",
- "rayon",
- "rustc-hash 2.1.1",
- "serde_json",
- "tempfile",
- "tracing",
- "tracing-subscriber",
- "typedlua-core",
- "typedlua-parser",
- "typedlua-typechecker",
- "walkdir",
-]
-
-[[package]]
-name = "typedlua-core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "base64",
- "bincode",
- "bitflags 2.10.0",
- "blake3",
- "bumpalo",
- "criterion",
- "dhat",
- "indexmap",
- "insta",
- "lua-sourcemap",
- "once_cell",
- "parking_lot",
- "proptest",
- "rustc-hash 2.1.1",
- "serde",
- "serde_json",
- "serde_yaml",
- "tempfile",
- "thiserror",
- "tracing",
- "typedlua-parser",
- "typedlua-runtime",
- "typedlua-typechecker",
-]
-
-[[package]]
-name = "typedlua-lsp"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bumpalo",
- "crossbeam-channel",
- "lsp-server",
- "lsp-types",
- "once_cell",
- "parking_lot",
- "serde",
- "serde_json",
- "tracing",
- "tracing-subscriber",
- "typedlua-parser",
- "typedlua-typechecker",
-]
-
-[[package]]
-name = "typedlua-parser"
-version = "0.1.0"
-dependencies = [
- "bumpalo",
- "lasso",
- "rustc-hash 2.1.1",
- "serde",
- "thiserror",
-]
-
-[[package]]
-name = "typedlua-runtime"
-version = "0.1.0"
-
-[[package]]
-name = "typedlua-test-helpers"
-version = "0.1.0"
-dependencies = [
- "bumpalo",
- "lsp-types",
- "typedlua-core",
- "typedlua-lsp",
- "typedlua-parser",
-]
-
-[[package]]
-name = "typedlua-typechecker"
-version = "0.1.0"
-dependencies = [
- "bumpalo",
- "criterion",
- "indexmap",
- "lru",
- "quickcheck",
- "quickcheck_macros",
- "rustc-hash 2.1.1",
- "serde",
- "serde_yaml",
- "thiserror",
- "tracing",
- "tracing-subscriber",
- "typedlua-parser",
 ]
 
 [[package]]

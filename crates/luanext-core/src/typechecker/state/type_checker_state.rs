@@ -9,8 +9,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use rustc_hash::FxHashMap;
-use typedlua_parser::ast::statement::TypeParameter;
-use typedlua_parser::string_interner::{CommonIdentifiers, StringInterner};
+use luanext_parser::ast::statement::TypeParameter;
+use luanext_parser::string_interner::{CommonIdentifiers, StringInterner};
 
 use crate::config::CompilerOptions;
 use crate::diagnostics::DiagnosticHandler;
@@ -18,7 +18,7 @@ use crate::module_resolver::{ModuleId, ModuleRegistry, ModuleResolver};
 use crate::symbol_table::SymbolTable;
 use crate::type_environment::TypeEnvironment;
 use crate::visitors::{AccessControl, TypeNarrower};
-use typedlua_parser::ast::types::Type;
+use luanext_parser::ast::types::Type;
 
 /// Shared state for the type checker
 ///
@@ -184,7 +184,7 @@ mod tests {
     use super::*;
     use crate::diagnostics::CollectingDiagnosticHandler;
     use std::sync::Arc;
-    use typedlua_parser::string_interner::StringInterner;
+    use luanext_parser::string_interner::StringInterner;
 
     fn create_test_state() -> TypeCheckerState<'static> {
         let handler = Arc::new(CollectingDiagnosticHandler::new());

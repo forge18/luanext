@@ -1,4 +1,4 @@
-//! Runtime support code for TypedLua compiler.
+//! Runtime support code for LuaNext compiler.
 //! Provides Lua snippets embedded via `include_str!` for codegen.
 
 pub mod bitwise;

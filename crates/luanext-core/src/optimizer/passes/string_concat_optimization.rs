@@ -7,16 +7,16 @@ use crate::optimizer::{ExprVisitor, WholeProgramPass};
 use crate::MutableProgram;
 use bumpalo::Bump;
 use std::sync::Arc;
-use typedlua_parser::ast::expression::{
+use luanext_parser::ast::expression::{
     Argument, ArrayElement, AssignmentOp, BinaryOp, Expression, ExpressionKind, Literal,
 };
-use typedlua_parser::ast::pattern::Pattern;
-use typedlua_parser::ast::statement::{
+use luanext_parser::ast::pattern::Pattern;
+use luanext_parser::ast::statement::{
     Block, ForStatement, Statement, VariableDeclaration, VariableKind,
 };
-use typedlua_parser::ast::Spanned;
-use typedlua_parser::span::Span;
-use typedlua_parser::string_interner::{StringId, StringInterner};
+use luanext_parser::ast::Spanned;
+use luanext_parser::span::Span;
+use luanext_parser::string_interner::{StringId, StringInterner};
 
 const MIN_CONCAT_PARTS_FOR_OPTIMIZATION: usize = 3;
 

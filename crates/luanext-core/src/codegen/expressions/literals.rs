@@ -1,5 +1,5 @@
 use super::super::CodeGenerator;
-use typedlua_parser::ast::expression::{ArrayElement, Literal, ObjectProperty};
+use luanext_parser::ast::expression::{ArrayElement, Literal, ObjectProperty};
 
 impl CodeGenerator {
     pub fn generate_literal(&mut self, lit: &Literal) {
@@ -16,13 +16,13 @@ impl CodeGenerator {
         }
     }
 
-    pub fn generate_argument(&mut self, arg: &typedlua_parser::ast::expression::Argument) {
+    pub fn generate_argument(&mut self, arg: &luanext_parser::ast::expression::Argument) {
         self.generate_expression(&arg.value);
     }
 
     pub fn generate_object_property(
         &mut self,
-        prop: &typedlua_parser::ast::expression::ObjectProperty,
+        prop: &luanext_parser::ast::expression::ObjectProperty,
     ) {
         match prop {
             ObjectProperty::Property { key, value, .. } => {
@@ -43,7 +43,7 @@ impl CodeGenerator {
         }
     }
 
-    pub fn generate_identifier(&mut self, name: typedlua_parser::string_interner::StringId) {
+    pub fn generate_identifier(&mut self, name: luanext_parser::string_interner::StringId) {
         let name_str = self.resolve(name);
         self.write(&name_str);
     }

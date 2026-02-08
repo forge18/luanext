@@ -1,9 +1,9 @@
 use super::dedent;
 use super::CodeGenerator;
 use crate::config::OptimizationLevel;
-use typedlua_parser::ast::expression::*;
-use typedlua_parser::ast::pattern::Pattern;
-use typedlua_parser::prelude::{MatchArmBody, MatchExpression};
+use luanext_parser::ast::expression::*;
+use luanext_parser::ast::pattern::Pattern;
+use luanext_parser::prelude::{MatchArmBody, MatchExpression};
 
 pub mod binary_ops;
 pub mod calls;
@@ -637,8 +637,8 @@ impl CodeGenerator {
 
                 for (i, elem) in array_pattern.elements.iter().enumerate() {
                     match elem {
-                        typedlua_parser::ast::pattern::ArrayPatternElement::Pattern(
-                            typedlua_parser::ast::pattern::PatternWithDefault {
+                        luanext_parser::ast::pattern::ArrayPatternElement::Pattern(
+                            luanext_parser::ast::pattern::PatternWithDefault {
                                 pattern: pat, ..
                             },
                         ) => {
@@ -646,8 +646,8 @@ impl CodeGenerator {
                             let index_expr = format!("{}[{}]", value_var, i + 1);
                             self.generate_pattern_match(pat, &index_expr);
                         }
-                        typedlua_parser::ast::pattern::ArrayPatternElement::Rest(_) => {}
-                        typedlua_parser::ast::pattern::ArrayPatternElement::Hole => {}
+                        luanext_parser::ast::pattern::ArrayPatternElement::Rest(_) => {}
+                        luanext_parser::ast::pattern::ArrayPatternElement::Hole => {}
                     }
                 }
             }
@@ -683,15 +683,15 @@ impl CodeGenerator {
             Pattern::Array(array_pattern) => {
                 for (i, elem) in array_pattern.elements.iter().enumerate() {
                     match elem {
-                        typedlua_parser::ast::pattern::ArrayPatternElement::Pattern(
-                            typedlua_parser::ast::pattern::PatternWithDefault {
+                        luanext_parser::ast::pattern::ArrayPatternElement::Pattern(
+                            luanext_parser::ast::pattern::PatternWithDefault {
                                 pattern: pat, ..
                             },
                         ) => {
                             let index_expr = format!("{}[{}]", value_var, i + 1);
                             self.generate_pattern_bindings(pat, &index_expr);
                         }
-                        typedlua_parser::ast::pattern::ArrayPatternElement::Rest(ident) => {
+                        luanext_parser::ast::pattern::ArrayPatternElement::Rest(ident) => {
                             self.write_indent();
                             self.write("local ");
                             let ident_str = self.resolve(ident.node);
@@ -703,7 +703,7 @@ impl CodeGenerator {
                             self.write(")}");
                             self.writeln("");
                         }
-                        typedlua_parser::ast::pattern::ArrayPatternElement::Hole => {}
+                        luanext_parser::ast::pattern::ArrayPatternElement::Hole => {}
                     }
                 }
             }

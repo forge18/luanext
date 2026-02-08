@@ -7,7 +7,7 @@
 use crate::config::OptimizationLevel;
 use crate::optimizer::devirtualization::ClassHierarchy;
 use std::sync::Arc;
-use typedlua_parser::ast::Program;
+use luanext_parser::ast::Program;
 
 /// Thread-safe whole-program analysis results
 ///

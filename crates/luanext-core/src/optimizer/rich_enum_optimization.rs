@@ -2,7 +2,7 @@ use crate::config::OptimizationLevel;
 use crate::optimizer::{AstFeatures, WholeProgramPass};
 use crate::MutableProgram;
 use bumpalo::Bump;
-use typedlua_parser::ast::statement::{EnumDeclaration, Statement};
+use luanext_parser::ast::statement::{EnumDeclaration, Statement};
 
 pub struct RichEnumOptimizationPass;
 
@@ -72,15 +72,15 @@ impl Default for RichEnumOptimizationPass {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use typedlua_parser::ast::expression::{Expression, ExpressionKind, Literal};
-    use typedlua_parser::ast::pattern::Pattern;
-    use typedlua_parser::ast::statement::{
+    use luanext_parser::ast::expression::{Expression, ExpressionKind, Literal};
+    use luanext_parser::ast::pattern::Pattern;
+    use luanext_parser::ast::statement::{
         Block, EnumConstructor, EnumDeclaration, EnumField, EnumMember, Parameter,
     };
-    use typedlua_parser::ast::types::{PrimitiveType, Type, TypeKind};
-    use typedlua_parser::ast::Spanned;
-    use typedlua_parser::span::Span;
-    use typedlua_parser::string_interner::StringInterner;
+    use luanext_parser::ast::types::{PrimitiveType, Type, TypeKind};
+    use luanext_parser::ast::Spanned;
+    use luanext_parser::span::Span;
+    use luanext_parser::string_interner::StringInterner;
 
     fn number_type() -> Type<'static> {
         Type::new(TypeKind::Primitive(PrimitiveType::Number), Span::dummy())
@@ -180,7 +180,7 @@ mod tests {
         let members = arena.alloc_slice_clone(&[EnumMember {
             name: Spanned::new(interner.get_or_intern("Red"), Span::dummy()),
             arguments: arena.alloc_slice_clone(&[]),
-            value: Some(typedlua_parser::ast::statement::EnumValue::Number(1.0)),
+            value: Some(luanext_parser::ast::statement::EnumValue::Number(1.0)),
             span: Span::dummy(),
         }]);
 

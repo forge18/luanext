@@ -10,13 +10,13 @@
 
 use bumpalo::Bump;
 use std::sync::Arc;
-use typedlua_core::codegen::CodeGenerator;
-use typedlua_core::config::CompilerOptions;
-use typedlua_core::diagnostics::{CollectingDiagnosticHandler, DiagnosticHandler, DiagnosticLevel};
-use typedlua_core::{MutableProgram, TypeChecker};
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::parser::Parser;
-use typedlua_parser::string_interner::StringInterner;
+use luanext_core::codegen::CodeGenerator;
+use luanext_core::config::CompilerOptions;
+use luanext_core::diagnostics::{CollectingDiagnosticHandler, DiagnosticHandler, DiagnosticLevel};
+use luanext_core::{MutableProgram, TypeChecker};
+use luanext_parser::lexer::Lexer;
+use luanext_parser::parser::Parser;
+use luanext_parser::string_interner::StringInterner;
 
 /// Compile a source string and return the result with diagnostics
 fn compile_with_diagnostics(

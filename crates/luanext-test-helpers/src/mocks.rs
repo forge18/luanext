@@ -1,7 +1,7 @@
 //! Mock implementations for testing
 
 use std::sync::Arc;
-use typedlua_core::diagnostics::{Diagnostic, DiagnosticHandler, DiagnosticLevel};
+use luanext_core::diagnostics::{Diagnostic, DiagnosticHandler, DiagnosticLevel};
 
 /// A mock diagnostic handler that collects diagnostics
 #[derive(Debug, Default)]
@@ -89,8 +89,8 @@ mod lsp_mocks {
         InlayHint, Location, Position, Range, SelectionRange, SemanticToken, SemanticTokensDelta,
         SignatureHelp, Uri, WorkspaceEdit,
     };
-    use typedlua_lsp::document::Document;
-    use typedlua_lsp::traits::*;
+    use luanext_lsp::document::Document;
+    use luanext_lsp::traits::*;
 
     #[derive(Debug, Default)]
     pub struct MockCompletionProvider;

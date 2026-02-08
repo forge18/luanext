@@ -1,11 +1,11 @@
 use super::super::config::OptimizationLevel;
 use super::CodeGenerator;
-use typedlua_parser::ast::pattern::{
+use luanext_parser::ast::pattern::{
     ArrayPattern, ArrayPatternElement, ObjectPattern, Pattern, PatternWithDefault,
 };
-use typedlua_parser::ast::statement::*;
-use typedlua_parser::prelude::Block;
-use typedlua_parser::prelude::Expression;
+use luanext_parser::ast::statement::*;
+use luanext_parser::prelude::Block;
+use luanext_parser::prelude::Expression;
 
 impl CodeGenerator {
     pub fn generate_statement(&mut self, stmt: &Statement) {
@@ -293,7 +293,7 @@ impl CodeGenerator {
         self.write(&fn_name);
         self.write("(");
 
-        let mut rest_param_name: Option<typedlua_parser::string_interner::StringId> = None;
+        let mut rest_param_name: Option<luanext_parser::string_interner::StringId> = None;
 
         for (i, param) in decl.parameters.iter().enumerate() {
             if param.is_rest {
@@ -498,7 +498,7 @@ impl CodeGenerator {
 
     pub fn generate_throw_statement(
         &mut self,
-        stmt: &typedlua_parser::ast::statement::ThrowStatement,
+        stmt: &luanext_parser::ast::statement::ThrowStatement,
     ) {
         self.write_indent();
         self.write("error(");
@@ -506,20 +506,20 @@ impl CodeGenerator {
         self.writeln(")");
     }
 
-    pub fn generate_rethrow_statement(&mut self, _span: typedlua_parser::span::Span) {
+    pub fn generate_rethrow_statement(&mut self, _span: luanext_parser::span::Span) {
         self.write_indent();
         self.writeln("error(__error)");
     }
 
-    pub fn generate_try_statement(&mut self, stmt: &typedlua_parser::ast::statement::TryStatement) {
+    pub fn generate_try_statement(&mut self, stmt: &luanext_parser::ast::statement::TryStatement) {
         self.write_indent();
         self.writeln("-- try block");
 
         let has_typed_catches = stmt.catch_clauses.iter().any(|clause| {
             matches!(
                 clause.pattern,
-                typedlua_parser::ast::statement::CatchPattern::Typed { .. }
-                    | typedlua_parser::ast::statement::CatchPattern::MultiTyped { .. }
+                luanext_parser::ast::statement::CatchPattern::Typed { .. }
+                    | luanext_parser::ast::statement::CatchPattern::MultiTyped { .. }
             )
         });
 
@@ -537,7 +537,7 @@ impl CodeGenerator {
         }
     }
 
-    pub fn generate_try_pcall(&mut self, stmt: &typedlua_parser::ast::statement::TryStatement) {
+    pub fn generate_try_pcall(&mut self, stmt: &luanext_parser::ast::statement::TryStatement) {
         self.write_indent();
         self.writeln("local __ok, __result = pcall(function()");
 
@@ -569,7 +569,7 @@ impl CodeGenerator {
         }
     }
 
-    pub fn generate_try_xpcall(&mut self, stmt: &typedlua_parser::ast::statement::TryStatement) {
+    pub fn generate_try_xpcall(&mut self, stmt: &luanext_parser::ast::statement::TryStatement) {
         self.write_indent();
         self.writeln("local __error");
         self.write_indent();
@@ -585,8 +585,8 @@ impl CodeGenerator {
         let has_typed_catches = stmt.catch_clauses.iter().any(|clause| {
             matches!(
                 clause.pattern,
-                typedlua_parser::ast::statement::CatchPattern::Typed { .. }
-                    | typedlua_parser::ast::statement::CatchPattern::MultiTyped { .. }
+                luanext_parser::ast::statement::CatchPattern::Typed { .. }
+                    | luanext_parser::ast::statement::CatchPattern::MultiTyped { .. }
             )
         });
 
@@ -630,13 +630,13 @@ impl CodeGenerator {
 
     pub fn generate_catch_clause_pcall(
         &mut self,
-        clause: &typedlua_parser::ast::statement::CatchClause,
+        clause: &luanext_parser::ast::statement::CatchClause,
         is_last: bool,
     ) {
         let var_name = match &clause.pattern {
-            typedlua_parser::ast::statement::CatchPattern::Untyped { variable, .. }
-            | typedlua_parser::ast::statement::CatchPattern::Typed { variable, .. }
-            | typedlua_parser::ast::statement::CatchPattern::MultiTyped { variable, .. } => {
+            luanext_parser::ast::statement::CatchPattern::Untyped { variable, .. }
+            | luanext_parser::ast::statement::CatchPattern::Typed { variable, .. }
+            | luanext_parser::ast::statement::CatchPattern::MultiTyped { variable, .. } => {
                 self.resolve(variable.node)
             }
         };
@@ -657,12 +657,12 @@ impl CodeGenerator {
 
     pub fn generate_catch_clause_xpcall(
         &mut self,
-        clause: &typedlua_parser::ast::statement::CatchClause,
+        clause: &luanext_parser::ast::statement::CatchClause,
     ) {
         let var_name = match &clause.pattern {
-            typedlua_parser::ast::statement::CatchPattern::Untyped { variable, .. }
-            | typedlua_parser::ast::statement::CatchPattern::Typed { variable, .. }
-            | typedlua_parser::ast::statement::CatchPattern::MultiTyped { variable, .. } => {
+            luanext_parser::ast::statement::CatchPattern::Untyped { variable, .. }
+            | luanext_parser::ast::statement::CatchPattern::Typed { variable, .. }
+            | luanext_parser::ast::statement::CatchPattern::MultiTyped { variable, .. } => {
                 self.resolve(variable.node)
             }
         };

@@ -1,6 +1,6 @@
 use super::CodeGenStrategy;
-use typedlua_parser::ast::expression::BinaryOp;
-use typedlua_parser::string_interner::StringId;
+use luanext_parser::ast::expression::BinaryOp;
+use luanext_parser::string_interner::StringId;
 
 /// Code generation strategy for Lua 5.2
 /// - Bitwise operators via bit32 library

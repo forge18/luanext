@@ -2,8 +2,8 @@ use crate::config::OptimizationLevel;
 use crate::optimizer::{ExprVisitor, WholeProgramPass};
 use crate::MutableProgram;
 use bumpalo::Bump;
-use typedlua_parser::ast::expression::Expression;
-use typedlua_parser::ast::statement::Statement;
+use luanext_parser::ast::expression::Expression;
+use luanext_parser::ast::statement::Statement;
 
 pub struct TablePreallocationPass;
 
@@ -87,26 +87,26 @@ impl TablePreallocationPass {
     }
 
     fn count_tables_in_expression<'arena>(&self, expr: &Expression<'arena>) -> usize {
-        use typedlua_parser::ast::expression::ExpressionKind;
+        use luanext_parser::ast::expression::ExpressionKind;
 
         match &expr.kind {
             ExpressionKind::Object(fields) => {
                 let mut count = 1; // Count this table
                 for field in fields.iter() {
                     match field {
-                        typedlua_parser::ast::expression::ObjectProperty::Property {
+                        luanext_parser::ast::expression::ObjectProperty::Property {
                             value,
                             ..
                         } => {
                             count += self.count_tables_in_expression(value);
                         }
-                        typedlua_parser::ast::expression::ObjectProperty::Computed {
+                        luanext_parser::ast::expression::ObjectProperty::Computed {
                             value,
                             ..
                         } => {
                             count += self.count_tables_in_expression(value);
                         }
-                        typedlua_parser::ast::expression::ObjectProperty::Spread {
+                        luanext_parser::ast::expression::ObjectProperty::Spread {
                             value, ..
                         } => {
                             count += self.count_tables_in_expression(value);
@@ -119,10 +119,10 @@ impl TablePreallocationPass {
                 let mut count = 1; // Count this array
                 for elem in elements.iter() {
                     match elem {
-                        typedlua_parser::ast::expression::ArrayElement::Expression(expr) => {
+                        luanext_parser::ast::expression::ArrayElement::Expression(expr) => {
                             count += self.count_tables_in_expression(expr);
                         }
-                        typedlua_parser::ast::expression::ArrayElement::Spread(expr) => {
+                        luanext_parser::ast::expression::ArrayElement::Spread(expr) => {
                             count += self.count_tables_in_expression(expr);
                         }
                     }

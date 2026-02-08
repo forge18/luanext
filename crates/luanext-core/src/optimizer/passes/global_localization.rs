@@ -4,12 +4,12 @@ use crate::MutableProgram;
 use bumpalo::Bump;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use typedlua_parser::ast::expression::{Expression, ExpressionKind};
-use typedlua_parser::ast::pattern::Pattern;
-use typedlua_parser::ast::statement::{ForStatement, Statement, VariableDeclaration, VariableKind};
-use typedlua_parser::ast::Spanned;
-use typedlua_parser::span::Span;
-use typedlua_parser::string_interner::StringInterner;
+use luanext_parser::ast::expression::{Expression, ExpressionKind};
+use luanext_parser::ast::pattern::Pattern;
+use luanext_parser::ast::statement::{ForStatement, Statement, VariableDeclaration, VariableKind};
+use luanext_parser::ast::Spanned;
+use luanext_parser::span::Span;
+use luanext_parser::string_interner::StringInterner;
 
 pub struct GlobalLocalizationPass {
     interner: Arc<StringInterner>,
@@ -52,7 +52,7 @@ impl GlobalLocalizationPass {
     fn collect_declared_locals<'arena>(
         &self,
         statements: &[Statement<'arena>],
-        locals: &mut HashSet<typedlua_parser::string_interner::StringId>,
+        locals: &mut HashSet<luanext_parser::string_interner::StringId>,
     ) {
         for stmt in statements {
             match stmt {
@@ -73,7 +73,7 @@ impl GlobalLocalizationPass {
     fn collect_pattern_names<'arena>(
         &self,
         pattern: &Pattern<'arena>,
-        locals: &mut HashSet<typedlua_parser::string_interner::StringId>,
+        locals: &mut HashSet<luanext_parser::string_interner::StringId>,
     ) {
         match pattern {
             Pattern::Identifier(ident) => {
@@ -82,17 +82,17 @@ impl GlobalLocalizationPass {
             Pattern::Array(arr) => {
                 for elem in arr.elements {
                     match elem {
-                        typedlua_parser::ast::pattern::ArrayPatternElement::Pattern(
-                            typedlua_parser::ast::pattern::PatternWithDefault {
+                        luanext_parser::ast::pattern::ArrayPatternElement::Pattern(
+                            luanext_parser::ast::pattern::PatternWithDefault {
                                 pattern: p, ..
                             },
                         ) => {
                             self.collect_pattern_names(p, locals);
                         }
-                        typedlua_parser::ast::pattern::ArrayPatternElement::Rest(ident) => {
+                        luanext_parser::ast::pattern::ArrayPatternElement::Rest(ident) => {
                             locals.insert(ident.node);
                         }
-                        typedlua_parser::ast::pattern::ArrayPatternElement::Hole => {}
+                        luanext_parser::ast::pattern::ArrayPatternElement::Hole => {}
                     }
                 }
             }
@@ -118,7 +118,7 @@ impl GlobalLocalizationPass {
     }
 
     /// Check if a name looks like it was created by this pass (starts with underscore)
-    fn is_localized_name(&self, name: typedlua_parser::string_interner::StringId) -> bool {
+    fn is_localized_name(&self, name: luanext_parser::string_interner::StringId) -> bool {
         let resolved = self.interner.resolve(name);
         resolved.starts_with('_')
     }
@@ -135,7 +135,7 @@ impl GlobalLocalizationPass {
         // First, collect all locally declared names (variables and functions)
         self.collect_declared_locals(&program.statements, &mut declared_locals);
 
-        let mut global_usage: HashMap<typedlua_parser::string_interner::StringId, usize> =
+        let mut global_usage: HashMap<luanext_parser::string_interner::StringId, usize> =
             HashMap::default();
 
         for stmt in &program.statements {
@@ -176,8 +176,8 @@ impl GlobalLocalizationPass {
 
     fn create_local_declaration<'arena>(
         &self,
-        global_name: typedlua_parser::string_interner::StringId,
-        local_name: typedlua_parser::string_interner::StringId,
+        global_name: luanext_parser::string_interner::StringId,
+        local_name: luanext_parser::string_interner::StringId,
         span: Span,
     ) -> VariableDeclaration<'arena> {
         let local_ident = Spanned::new(local_name, span);
@@ -194,8 +194,8 @@ impl GlobalLocalizationPass {
 
     fn create_local_name(
         &self,
-        original: typedlua_parser::string_interner::StringId,
-    ) -> typedlua_parser::string_interner::StringId {
+        original: luanext_parser::string_interner::StringId,
+    ) -> luanext_parser::string_interner::StringId {
         let name = self.interner.resolve(original);
         let local_name = format!("_{}", name);
         self.interner.get_or_intern(&local_name)
@@ -204,8 +204,8 @@ impl GlobalLocalizationPass {
     fn collect_global_usage_optimized<'arena>(
         &self,
         stmt: &Statement<'arena>,
-        usage: &mut HashMap<typedlua_parser::string_interner::StringId, usize>,
-        declared_locals: &HashSet<typedlua_parser::string_interner::StringId>,
+        usage: &mut HashMap<luanext_parser::string_interner::StringId, usize>,
+        declared_locals: &HashSet<luanext_parser::string_interner::StringId>,
     ) {
         match stmt {
             Statement::Variable(decl) => {
@@ -282,8 +282,8 @@ impl GlobalLocalizationPass {
     fn collect_from_expression_optimized<'arena>(
         &self,
         expr: &Expression<'arena>,
-        usage: &mut HashMap<typedlua_parser::string_interner::StringId, usize>,
-        declared_locals: &HashSet<typedlua_parser::string_interner::StringId>,
+        usage: &mut HashMap<luanext_parser::string_interner::StringId, usize>,
+        declared_locals: &HashSet<luanext_parser::string_interner::StringId>,
     ) {
         match &expr.kind {
             ExpressionKind::Identifier(name) => {
@@ -385,15 +385,15 @@ impl GlobalLocalizationPass {
 
     fn collect_from_arrow_body<'arena>(
         &self,
-        body: &typedlua_parser::ast::expression::ArrowBody<'arena>,
-        usage: &mut HashMap<typedlua_parser::string_interner::StringId, usize>,
-        declared_locals: &HashSet<typedlua_parser::string_interner::StringId>,
+        body: &luanext_parser::ast::expression::ArrowBody<'arena>,
+        usage: &mut HashMap<luanext_parser::string_interner::StringId, usize>,
+        declared_locals: &HashSet<luanext_parser::string_interner::StringId>,
     ) {
         match body {
-            typedlua_parser::ast::expression::ArrowBody::Expression(expr) => {
+            luanext_parser::ast::expression::ArrowBody::Expression(expr) => {
                 self.collect_from_expression_optimized(expr, usage, declared_locals);
             }
-            typedlua_parser::ast::expression::ArrowBody::Block(block) => {
+            luanext_parser::ast::expression::ArrowBody::Block(block) => {
                 for stmt in block.statements {
                     self.collect_global_usage_optimized(stmt, usage, declared_locals);
                 }
@@ -403,15 +403,15 @@ impl GlobalLocalizationPass {
 
     fn collect_from_match_arm_body<'arena>(
         &self,
-        body: &typedlua_parser::ast::expression::MatchArmBody<'arena>,
-        usage: &mut HashMap<typedlua_parser::string_interner::StringId, usize>,
-        declared_locals: &HashSet<typedlua_parser::string_interner::StringId>,
+        body: &luanext_parser::ast::expression::MatchArmBody<'arena>,
+        usage: &mut HashMap<luanext_parser::string_interner::StringId, usize>,
+        declared_locals: &HashSet<luanext_parser::string_interner::StringId>,
     ) {
         match body {
-            typedlua_parser::ast::expression::MatchArmBody::Expression(expr) => {
+            luanext_parser::ast::expression::MatchArmBody::Expression(expr) => {
                 self.collect_from_expression_optimized(expr, usage, declared_locals);
             }
-            typedlua_parser::ast::expression::MatchArmBody::Block(block) => {
+            luanext_parser::ast::expression::MatchArmBody::Block(block) => {
                 for stmt in block.statements {
                     self.collect_global_usage_optimized(stmt, usage, declared_locals);
                 }
@@ -422,8 +422,8 @@ impl GlobalLocalizationPass {
     fn replace_global_usages<'arena>(
         &self,
         stmt: &mut Statement<'arena>,
-        frequently_used: &[(typedlua_parser::string_interner::StringId, usize)],
-        declared_locals: &HashSet<typedlua_parser::string_interner::StringId>,
+        frequently_used: &[(luanext_parser::string_interner::StringId, usize)],
+        declared_locals: &HashSet<luanext_parser::string_interner::StringId>,
         arena: &'arena Bump,
     ) {
         match stmt {
@@ -547,8 +547,8 @@ impl GlobalLocalizationPass {
     fn replace_in_expression<'arena>(
         &self,
         expr: &mut Expression<'arena>,
-        frequently_used: &[(typedlua_parser::string_interner::StringId, usize)],
-        declared_locals: &HashSet<typedlua_parser::string_interner::StringId>,
+        frequently_used: &[(luanext_parser::string_interner::StringId, usize)],
+        declared_locals: &HashSet<luanext_parser::string_interner::StringId>,
         arena: &'arena Bump,
     ) {
         match &expr.kind {
@@ -670,7 +670,7 @@ impl GlobalLocalizationPass {
                     );
                 }
                 expr.kind =
-                    ExpressionKind::Match(typedlua_parser::ast::expression::MatchExpression {
+                    ExpressionKind::Match(luanext_parser::ast::expression::MatchExpression {
                         value: arena.alloc(new_value),
                         arms: arena.alloc_slice_clone(&new_arms),
                         span: match_expr.span,
@@ -732,7 +732,7 @@ impl GlobalLocalizationPass {
                     arena,
                 );
                 self.replace_in_expression(&mut new_catch, frequently_used, declared_locals, arena);
-                expr.kind = ExpressionKind::Try(typedlua_parser::ast::expression::TryExpression {
+                expr.kind = ExpressionKind::Try(luanext_parser::ast::expression::TryExpression {
                     expression: arena.alloc(new_expression),
                     catch_variable: try_expr.catch_variable.clone(),
                     catch_expression: arena.alloc(new_catch),
@@ -818,18 +818,18 @@ impl GlobalLocalizationPass {
 
     fn replace_in_arrow_body<'arena>(
         &self,
-        body: &mut typedlua_parser::ast::expression::ArrowBody<'arena>,
-        frequently_used: &[(typedlua_parser::string_interner::StringId, usize)],
-        declared_locals: &HashSet<typedlua_parser::string_interner::StringId>,
+        body: &mut luanext_parser::ast::expression::ArrowBody<'arena>,
+        frequently_used: &[(luanext_parser::string_interner::StringId, usize)],
+        declared_locals: &HashSet<luanext_parser::string_interner::StringId>,
         arena: &'arena Bump,
     ) {
         match body {
-            typedlua_parser::ast::expression::ArrowBody::Expression(expr) => {
+            luanext_parser::ast::expression::ArrowBody::Expression(expr) => {
                 let mut new_expr = (**expr).clone();
                 self.replace_in_expression(&mut new_expr, frequently_used, declared_locals, arena);
                 *expr = arena.alloc(new_expr);
             }
-            typedlua_parser::ast::expression::ArrowBody::Block(block) => {
+            luanext_parser::ast::expression::ArrowBody::Block(block) => {
                 let mut stmts: Vec<_> = block.statements.to_vec();
                 for stmt in &mut stmts {
                     self.replace_global_usages(stmt, frequently_used, declared_locals, arena);
@@ -841,18 +841,18 @@ impl GlobalLocalizationPass {
 
     fn replace_in_match_arm_body<'arena>(
         &self,
-        body: &mut typedlua_parser::ast::expression::MatchArmBody<'arena>,
-        frequently_used: &[(typedlua_parser::string_interner::StringId, usize)],
-        declared_locals: &HashSet<typedlua_parser::string_interner::StringId>,
+        body: &mut luanext_parser::ast::expression::MatchArmBody<'arena>,
+        frequently_used: &[(luanext_parser::string_interner::StringId, usize)],
+        declared_locals: &HashSet<luanext_parser::string_interner::StringId>,
         arena: &'arena Bump,
     ) {
         match body {
-            typedlua_parser::ast::expression::MatchArmBody::Expression(expr) => {
+            luanext_parser::ast::expression::MatchArmBody::Expression(expr) => {
                 let mut new_expr = (**expr).clone();
                 self.replace_in_expression(&mut new_expr, frequently_used, declared_locals, arena);
                 *expr = arena.alloc(new_expr);
             }
-            typedlua_parser::ast::expression::MatchArmBody::Block(block) => {
+            luanext_parser::ast::expression::MatchArmBody::Block(block) => {
                 let mut stmts: Vec<_> = block.statements.to_vec();
                 for stmt in &mut stmts {
                     self.replace_global_usages(stmt, frequently_used, declared_locals, arena);

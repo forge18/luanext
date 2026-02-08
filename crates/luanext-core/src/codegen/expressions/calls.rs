@@ -1,11 +1,11 @@
 use super::super::CodeGenerator;
-use typedlua_parser::ast::expression::ExpressionKind;
+use luanext_parser::ast::expression::ExpressionKind;
 
 impl CodeGenerator {
     pub fn generate_call_expression(
         &mut self,
-        callee: &typedlua_parser::ast::expression::Expression,
-        args: &[typedlua_parser::ast::expression::Argument],
+        callee: &luanext_parser::ast::expression::Expression,
+        args: &[luanext_parser::ast::expression::Argument],
     ) {
         if matches!(&callee.kind, ExpressionKind::SuperKeyword) {
             if let Some(parent) = self.current_class_parent {
@@ -54,9 +54,9 @@ impl CodeGenerator {
 
     pub fn generate_method_call_expression(
         &mut self,
-        obj: &typedlua_parser::ast::expression::Expression,
-        method: &typedlua_parser::ast::Spanned<typedlua_parser::string_interner::StringId>,
-        args: &[typedlua_parser::ast::expression::Argument],
+        obj: &luanext_parser::ast::expression::Expression,
+        method: &luanext_parser::ast::Spanned<luanext_parser::string_interner::StringId>,
+        args: &[luanext_parser::ast::expression::Argument],
     ) {
         let method_str = self.resolve(method.node);
         self.generate_expression(obj);
@@ -75,8 +75,8 @@ impl CodeGenerator {
 
     pub fn generate_new_expression(
         &mut self,
-        callee: &typedlua_parser::ast::expression::Expression,
-        args: &[typedlua_parser::ast::expression::Argument],
+        callee: &luanext_parser::ast::expression::Expression,
+        args: &[luanext_parser::ast::expression::Argument],
     ) {
         self.write("(");
         self.generate_expression(callee);

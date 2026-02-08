@@ -5,19 +5,19 @@ use bumpalo::Bump;
 use crate::optimizer::{StmtVisitor, WholeProgramPass};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use typedlua_parser::ast::expression::{
+use luanext_parser::ast::expression::{
     Argument, ArrowBody, Expression, ExpressionKind, MatchArmBody,
 };
-use typedlua_parser::ast::pattern::Pattern;
-use typedlua_parser::ast::statement::{
+use luanext_parser::ast::pattern::Pattern;
+use luanext_parser::ast::statement::{
     Block, ForStatement, FunctionDeclaration, Parameter, ReturnStatement, Statement,
     VariableDeclaration, VariableKind,
 };
-use typedlua_parser::span::Span;
-use typedlua_parser::string_interner::StringId;
-use typedlua_parser::string_interner::StringInterner;
+use luanext_parser::span::Span;
+use luanext_parser::string_interner::StringId;
+use luanext_parser::string_interner::StringInterner;
 
-use typedlua_parser::ast::expression::ArrayElement;
+use luanext_parser::ast::expression::ArrayElement;
 
 enum InlineResult<'arena> {
     Direct(Box<Expression<'arena>>),
@@ -1347,7 +1347,7 @@ impl AggressiveInliningPass {
                     };
                     Statement::Variable(VariableDeclaration {
                         kind: VariableKind::Local,
-                        pattern: Pattern::Identifier(typedlua_parser::ast::Spanned::new(
+                        pattern: Pattern::Identifier(luanext_parser::ast::Spanned::new(
                             *return_var,
                             Span::dummy(),
                         )),

@@ -15,11 +15,11 @@ use crate::optimizer::{ExprVisitor, PreAnalysisPass, WholeProgramPass};
 use bumpalo::Bump;
 use rustc_hash::FxHashMap;
 use std::sync::Arc;
-use typedlua_parser::ast::expression::{BinaryOp, Expression, ExpressionKind, UnaryOp};
-use typedlua_parser::ast::statement::{Block, ClassMember, ForStatement, Statement};
-use typedlua_parser::ast::types::{Type, TypeKind};
-use typedlua_parser::span::Span;
-use typedlua_parser::string_interner::{StringId, StringInterner};
+use luanext_parser::ast::expression::{BinaryOp, Expression, ExpressionKind, UnaryOp};
+use luanext_parser::ast::statement::{Block, ClassMember, ForStatement, Statement};
+use luanext_parser::ast::types::{Type, TypeKind};
+use luanext_parser::span::Span;
+use luanext_parser::string_interner::{StringId, StringInterner};
 
 const MAX_INLINE_STATEMENTS: usize = 5;
 const MIN_CALL_FREQUENCY: usize = 3;
@@ -33,7 +33,7 @@ struct OperatorInfo {
 
 pub struct OperatorInliningPass {
     operator_catalog:
-        FxHashMap<(StringId, typedlua_parser::ast::statement::OperatorKind), OperatorInfo>,
+        FxHashMap<(StringId, luanext_parser::ast::statement::OperatorKind), OperatorInfo>,
     interner: Arc<StringInterner>,
 }
 
@@ -173,10 +173,10 @@ impl OperatorInliningPass {
                 self.catalog_expression(match_expr.value);
                 for arm in match_expr.arms.iter() {
                     match &arm.body {
-                        typedlua_parser::ast::expression::MatchArmBody::Expression(e) => {
+                        luanext_parser::ast::expression::MatchArmBody::Expression(e) => {
                             self.catalog_expression(e);
                         }
-                        typedlua_parser::ast::expression::MatchArmBody::Block(block) => {
+                        luanext_parser::ast::expression::MatchArmBody::Block(block) => {
                             self.catalog_block(block);
                         }
                     }
@@ -189,10 +189,10 @@ impl OperatorInliningPass {
                     }
                 }
                 match &arrow.body {
-                    typedlua_parser::ast::expression::ArrowBody::Expression(e) => {
+                    luanext_parser::ast::expression::ArrowBody::Expression(e) => {
                         self.catalog_expression(e);
                     }
-                    typedlua_parser::ast::expression::ArrowBody::Block(block) => {
+                    luanext_parser::ast::expression::ArrowBody::Block(block) => {
                         self.catalog_block(block);
                     }
                 }
@@ -240,10 +240,10 @@ impl OperatorInliningPass {
             ExpressionKind::Array(elements) => {
                 for elem in elements.iter() {
                     match elem {
-                        typedlua_parser::ast::expression::ArrayElement::Expression(e) => {
+                        luanext_parser::ast::expression::ArrayElement::Expression(e) => {
                             self.catalog_expression(e);
                         }
-                        typedlua_parser::ast::expression::ArrayElement::Spread(e) => {
+                        luanext_parser::ast::expression::ArrayElement::Spread(e) => {
                             self.catalog_expression(e);
                         }
                     }
@@ -252,13 +252,13 @@ impl OperatorInliningPass {
             ExpressionKind::Object(props) => {
                 for prop in props.iter() {
                     match prop {
-                        typedlua_parser::ast::expression::ObjectProperty::Property {
+                        luanext_parser::ast::expression::ObjectProperty::Property {
                             value,
                             ..
                         } => {
                             self.catalog_expression(value);
                         }
-                        typedlua_parser::ast::expression::ObjectProperty::Computed {
+                        luanext_parser::ast::expression::ObjectProperty::Computed {
                             key,
                             value,
                             ..
@@ -266,7 +266,7 @@ impl OperatorInliningPass {
                             self.catalog_expression(key);
                             self.catalog_expression(value);
                         }
-                        typedlua_parser::ast::expression::ObjectProperty::Spread {
+                        luanext_parser::ast::expression::ObjectProperty::Spread {
                             value, ..
                         } => {
                             self.catalog_expression(value);
@@ -363,7 +363,7 @@ impl OperatorInliningPass {
                     annotated_type: None,
                     receiver_class: None,
                 }),
-                typedlua_parser::ast::Spanned::new(method_ident_id, span),
+                luanext_parser::ast::Spanned::new(method_ident_id, span),
             ),
             span,
             annotated_type: None,
@@ -371,12 +371,12 @@ impl OperatorInliningPass {
         };
 
         let args = arena.alloc_slice_clone(&[
-            typedlua_parser::ast::expression::Argument {
+            luanext_parser::ast::expression::Argument {
                 value: left.clone(),
                 is_spread: false,
                 span,
             },
-            typedlua_parser::ast::expression::Argument {
+            luanext_parser::ast::expression::Argument {
                 value: right.clone(),
                 is_spread: false,
                 span,
@@ -666,20 +666,20 @@ impl OperatorInliningPass {
                 let mut ac = false;
                 for arm in &mut new_arms {
                     match &mut arm.body {
-                        typedlua_parser::ast::expression::MatchArmBody::Expression(e) => {
+                        luanext_parser::ast::expression::MatchArmBody::Expression(e) => {
                             let mut new_e = (**e).clone();
                             if self.process_expression(&mut new_e, arena) {
                                 arm.body =
-                                    typedlua_parser::ast::expression::MatchArmBody::Expression(
+                                    luanext_parser::ast::expression::MatchArmBody::Expression(
                                         arena.alloc(new_e),
                                     );
                                 ac = true;
                             }
                         }
-                        typedlua_parser::ast::expression::MatchArmBody::Block(block) => {
+                        luanext_parser::ast::expression::MatchArmBody::Block(block) => {
                             let mut new_block = block.clone();
                             if self.process_block(&mut new_block, arena) {
-                                arm.body = typedlua_parser::ast::expression::MatchArmBody::Block(
+                                arm.body = luanext_parser::ast::expression::MatchArmBody::Block(
                                     new_block,
                                 );
                                 ac = true;
@@ -707,17 +707,17 @@ impl OperatorInliningPass {
                 }
                 let mut bc = false;
                 match &mut new_arrow.body {
-                    typedlua_parser::ast::expression::ArrowBody::Expression(e) => {
+                    luanext_parser::ast::expression::ArrowBody::Expression(e) => {
                         let mut new_e = (**e).clone();
                         if self.process_expression(&mut new_e, arena) {
                             new_arrow.body =
-                                typedlua_parser::ast::expression::ArrowBody::Expression(
+                                luanext_parser::ast::expression::ArrowBody::Expression(
                                     arena.alloc(new_e),
                                 );
                             bc = true;
                         }
                     }
-                    typedlua_parser::ast::expression::ArrowBody::Block(block) => {
+                    luanext_parser::ast::expression::ArrowBody::Block(block) => {
                         bc |= self.process_block(block, arena);
                     }
                 }
@@ -751,7 +751,7 @@ impl OperatorInliningPass {
                 let cc = self.process_expression(&mut new_catch, arena);
                 if ec || cc {
                     expr.kind =
-                        ExpressionKind::Try(typedlua_parser::ast::expression::TryExpression {
+                        ExpressionKind::Try(luanext_parser::ast::expression::TryExpression {
                             expression: arena.alloc(new_expr),
                             catch_variable: try_expr.catch_variable.clone(),
                             catch_expression: arena.alloc(new_catch),
@@ -866,10 +866,10 @@ impl OperatorInliningPass {
                 let mut ec = false;
                 for elem in &mut new_elements {
                     match elem {
-                        typedlua_parser::ast::expression::ArrayElement::Expression(e) => {
+                        luanext_parser::ast::expression::ArrayElement::Expression(e) => {
                             ec |= self.process_expression(e, arena);
                         }
-                        typedlua_parser::ast::expression::ArrayElement::Spread(e) => {
+                        luanext_parser::ast::expression::ArrayElement::Spread(e) => {
                             ec |= self.process_expression(e, arena);
                         }
                     }
@@ -884,7 +884,7 @@ impl OperatorInliningPass {
                 let mut pc = false;
                 for prop in &mut new_props {
                     match prop {
-                        typedlua_parser::ast::expression::ObjectProperty::Property {
+                        luanext_parser::ast::expression::ObjectProperty::Property {
                             key,
                             value,
                             span,
@@ -892,7 +892,7 @@ impl OperatorInliningPass {
                             let mut new_val = (**value).clone();
                             if self.process_expression(&mut new_val, arena) {
                                 *prop =
-                                    typedlua_parser::ast::expression::ObjectProperty::Property {
+                                    luanext_parser::ast::expression::ObjectProperty::Property {
                                         key: key.clone(),
                                         value: arena.alloc(new_val),
                                         span: *span,
@@ -900,7 +900,7 @@ impl OperatorInliningPass {
                                 pc = true;
                             }
                         }
-                        typedlua_parser::ast::expression::ObjectProperty::Computed {
+                        luanext_parser::ast::expression::ObjectProperty::Computed {
                             key,
                             value,
                             span,
@@ -911,7 +911,7 @@ impl OperatorInliningPass {
                             let vc = self.process_expression(&mut new_val, arena);
                             if kc || vc {
                                 *prop =
-                                    typedlua_parser::ast::expression::ObjectProperty::Computed {
+                                    luanext_parser::ast::expression::ObjectProperty::Computed {
                                         key: arena.alloc(new_key),
                                         value: arena.alloc(new_val),
                                         span: *span,
@@ -919,13 +919,13 @@ impl OperatorInliningPass {
                                 pc = true;
                             }
                         }
-                        typedlua_parser::ast::expression::ObjectProperty::Spread {
+                        luanext_parser::ast::expression::ObjectProperty::Spread {
                             value,
                             span,
                         } => {
                             let mut new_val = (**value).clone();
                             if self.process_expression(&mut new_val, arena) {
-                                *prop = typedlua_parser::ast::expression::ObjectProperty::Spread {
+                                *prop = luanext_parser::ast::expression::ObjectProperty::Spread {
                                     value: arena.alloc(new_val),
                                     span: *span,
                                 };
@@ -973,71 +973,71 @@ impl Default for OperatorInliningPass {
 
 fn binary_op_to_operator_kind(
     op: &BinaryOp,
-) -> Option<typedlua_parser::ast::statement::OperatorKind> {
+) -> Option<luanext_parser::ast::statement::OperatorKind> {
     match op {
-        BinaryOp::Add => Some(typedlua_parser::ast::statement::OperatorKind::Add),
-        BinaryOp::Subtract => Some(typedlua_parser::ast::statement::OperatorKind::Subtract),
-        BinaryOp::Multiply => Some(typedlua_parser::ast::statement::OperatorKind::Multiply),
-        BinaryOp::Divide => Some(typedlua_parser::ast::statement::OperatorKind::Divide),
-        BinaryOp::Modulo => Some(typedlua_parser::ast::statement::OperatorKind::Modulo),
-        BinaryOp::Power => Some(typedlua_parser::ast::statement::OperatorKind::Power),
-        BinaryOp::Concatenate => Some(typedlua_parser::ast::statement::OperatorKind::Concatenate),
-        BinaryOp::Equal => Some(typedlua_parser::ast::statement::OperatorKind::Equal),
-        BinaryOp::NotEqual => Some(typedlua_parser::ast::statement::OperatorKind::NotEqual),
-        BinaryOp::LessThan => Some(typedlua_parser::ast::statement::OperatorKind::LessThan),
+        BinaryOp::Add => Some(luanext_parser::ast::statement::OperatorKind::Add),
+        BinaryOp::Subtract => Some(luanext_parser::ast::statement::OperatorKind::Subtract),
+        BinaryOp::Multiply => Some(luanext_parser::ast::statement::OperatorKind::Multiply),
+        BinaryOp::Divide => Some(luanext_parser::ast::statement::OperatorKind::Divide),
+        BinaryOp::Modulo => Some(luanext_parser::ast::statement::OperatorKind::Modulo),
+        BinaryOp::Power => Some(luanext_parser::ast::statement::OperatorKind::Power),
+        BinaryOp::Concatenate => Some(luanext_parser::ast::statement::OperatorKind::Concatenate),
+        BinaryOp::Equal => Some(luanext_parser::ast::statement::OperatorKind::Equal),
+        BinaryOp::NotEqual => Some(luanext_parser::ast::statement::OperatorKind::NotEqual),
+        BinaryOp::LessThan => Some(luanext_parser::ast::statement::OperatorKind::LessThan),
         BinaryOp::LessThanOrEqual => {
-            Some(typedlua_parser::ast::statement::OperatorKind::LessThanOrEqual)
+            Some(luanext_parser::ast::statement::OperatorKind::LessThanOrEqual)
         }
-        BinaryOp::GreaterThan => Some(typedlua_parser::ast::statement::OperatorKind::GreaterThan),
+        BinaryOp::GreaterThan => Some(luanext_parser::ast::statement::OperatorKind::GreaterThan),
         BinaryOp::GreaterThanOrEqual => {
-            Some(typedlua_parser::ast::statement::OperatorKind::GreaterThanOrEqual)
+            Some(luanext_parser::ast::statement::OperatorKind::GreaterThanOrEqual)
         }
-        BinaryOp::BitwiseAnd => Some(typedlua_parser::ast::statement::OperatorKind::BitwiseAnd),
-        BinaryOp::BitwiseOr => Some(typedlua_parser::ast::statement::OperatorKind::BitwiseOr),
-        BinaryOp::BitwiseXor => Some(typedlua_parser::ast::statement::OperatorKind::BitwiseXor),
-        BinaryOp::ShiftLeft => Some(typedlua_parser::ast::statement::OperatorKind::ShiftLeft),
-        BinaryOp::ShiftRight => Some(typedlua_parser::ast::statement::OperatorKind::ShiftRight),
-        BinaryOp::IntegerDivide => Some(typedlua_parser::ast::statement::OperatorKind::FloorDivide),
+        BinaryOp::BitwiseAnd => Some(luanext_parser::ast::statement::OperatorKind::BitwiseAnd),
+        BinaryOp::BitwiseOr => Some(luanext_parser::ast::statement::OperatorKind::BitwiseOr),
+        BinaryOp::BitwiseXor => Some(luanext_parser::ast::statement::OperatorKind::BitwiseXor),
+        BinaryOp::ShiftLeft => Some(luanext_parser::ast::statement::OperatorKind::ShiftLeft),
+        BinaryOp::ShiftRight => Some(luanext_parser::ast::statement::OperatorKind::ShiftRight),
+        BinaryOp::IntegerDivide => Some(luanext_parser::ast::statement::OperatorKind::FloorDivide),
         _ => None,
     }
 }
 
 fn unary_op_to_operator_kind(
     op: &UnaryOp,
-) -> Option<typedlua_parser::ast::statement::OperatorKind> {
+) -> Option<luanext_parser::ast::statement::OperatorKind> {
     match op {
-        UnaryOp::Negate => Some(typedlua_parser::ast::statement::OperatorKind::UnaryMinus),
-        UnaryOp::Length => Some(typedlua_parser::ast::statement::OperatorKind::Length),
+        UnaryOp::Negate => Some(luanext_parser::ast::statement::OperatorKind::UnaryMinus),
+        UnaryOp::Length => Some(luanext_parser::ast::statement::OperatorKind::Length),
         _ => None,
     }
 }
 
-fn operator_kind_to_metamethod_name(op: typedlua_parser::ast::statement::OperatorKind) -> String {
+fn operator_kind_to_metamethod_name(op: luanext_parser::ast::statement::OperatorKind) -> String {
     match op {
-        typedlua_parser::ast::statement::OperatorKind::Add => "__add",
-        typedlua_parser::ast::statement::OperatorKind::Subtract => "__sub",
-        typedlua_parser::ast::statement::OperatorKind::Multiply => "__mul",
-        typedlua_parser::ast::statement::OperatorKind::Divide => "__div",
-        typedlua_parser::ast::statement::OperatorKind::Modulo => "__mod",
-        typedlua_parser::ast::statement::OperatorKind::Power => "__pow",
-        typedlua_parser::ast::statement::OperatorKind::Concatenate => "__concat",
-        typedlua_parser::ast::statement::OperatorKind::FloorDivide => "__idiv",
-        typedlua_parser::ast::statement::OperatorKind::Equal => "__eq",
-        typedlua_parser::ast::statement::OperatorKind::NotEqual => "__eq",
-        typedlua_parser::ast::statement::OperatorKind::LessThan => "__lt",
-        typedlua_parser::ast::statement::OperatorKind::LessThanOrEqual => "__le",
-        typedlua_parser::ast::statement::OperatorKind::GreaterThan => "__lt",
-        typedlua_parser::ast::statement::OperatorKind::GreaterThanOrEqual => "__le",
-        typedlua_parser::ast::statement::OperatorKind::BitwiseAnd => "__band",
-        typedlua_parser::ast::statement::OperatorKind::BitwiseOr => "__bor",
-        typedlua_parser::ast::statement::OperatorKind::BitwiseXor => "__bxor",
-        typedlua_parser::ast::statement::OperatorKind::ShiftLeft => "__shl",
-        typedlua_parser::ast::statement::OperatorKind::ShiftRight => "__shr",
-        typedlua_parser::ast::statement::OperatorKind::Index => "__index",
-        typedlua_parser::ast::statement::OperatorKind::NewIndex => "__newindex",
-        typedlua_parser::ast::statement::OperatorKind::Call => "__call",
-        typedlua_parser::ast::statement::OperatorKind::UnaryMinus => "__unm",
-        typedlua_parser::ast::statement::OperatorKind::Length => "__len",
+        luanext_parser::ast::statement::OperatorKind::Add => "__add",
+        luanext_parser::ast::statement::OperatorKind::Subtract => "__sub",
+        luanext_parser::ast::statement::OperatorKind::Multiply => "__mul",
+        luanext_parser::ast::statement::OperatorKind::Divide => "__div",
+        luanext_parser::ast::statement::OperatorKind::Modulo => "__mod",
+        luanext_parser::ast::statement::OperatorKind::Power => "__pow",
+        luanext_parser::ast::statement::OperatorKind::Concatenate => "__concat",
+        luanext_parser::ast::statement::OperatorKind::FloorDivide => "__idiv",
+        luanext_parser::ast::statement::OperatorKind::Equal => "__eq",
+        luanext_parser::ast::statement::OperatorKind::NotEqual => "__eq",
+        luanext_parser::ast::statement::OperatorKind::LessThan => "__lt",
+        luanext_parser::ast::statement::OperatorKind::LessThanOrEqual => "__le",
+        luanext_parser::ast::statement::OperatorKind::GreaterThan => "__lt",
+        luanext_parser::ast::statement::OperatorKind::GreaterThanOrEqual => "__le",
+        luanext_parser::ast::statement::OperatorKind::BitwiseAnd => "__band",
+        luanext_parser::ast::statement::OperatorKind::BitwiseOr => "__bor",
+        luanext_parser::ast::statement::OperatorKind::BitwiseXor => "__bxor",
+        luanext_parser::ast::statement::OperatorKind::ShiftLeft => "__shl",
+        luanext_parser::ast::statement::OperatorKind::ShiftRight => "__shr",
+        luanext_parser::ast::statement::OperatorKind::Index => "__index",
+        luanext_parser::ast::statement::OperatorKind::NewIndex => "__newindex",
+        luanext_parser::ast::statement::OperatorKind::Call => "__call",
+        luanext_parser::ast::statement::OperatorKind::UnaryMinus => "__unm",
+        luanext_parser::ast::statement::OperatorKind::Length => "__len",
     }
     .to_string()
 }
@@ -1119,10 +1119,10 @@ fn expression_has_side_effects(expr: &Expression<'_>) -> bool {
         ExpressionKind::Match(match_expr) => {
             expression_has_side_effects(match_expr.value)
                 || match_expr.arms.iter().any(|arm| match &arm.body {
-                    typedlua_parser::ast::expression::MatchArmBody::Expression(e) => {
+                    luanext_parser::ast::expression::MatchArmBody::Expression(e) => {
                         expression_has_side_effects(e)
                     }
-                    typedlua_parser::ast::expression::MatchArmBody::Block(b) => {
+                    luanext_parser::ast::expression::MatchArmBody::Block(b) => {
                         block_has_side_effects(b)
                     }
                 })
@@ -1134,10 +1134,10 @@ fn expression_has_side_effects(expr: &Expression<'_>) -> bool {
                     .map(expression_has_side_effects)
                     .unwrap_or(false)
             }) || match &arrow.body {
-                typedlua_parser::ast::expression::ArrowBody::Expression(e) => {
+                luanext_parser::ast::expression::ArrowBody::Expression(e) => {
                     expression_has_side_effects(e)
                 }
-                typedlua_parser::ast::expression::ArrowBody::Block(b) => block_has_side_effects(b),
+                luanext_parser::ast::expression::ArrowBody::Block(b) => block_has_side_effects(b),
             }
         }
         ExpressionKind::New(callee, args, _) => {
@@ -1177,7 +1177,7 @@ fn expression_has_side_effects(expr: &Expression<'_>) -> bool {
 mod tests {
     use super::*;
     use bumpalo::Bump;
-    use typedlua_parser::ast::types::{PrimitiveType, Type, TypeKind};
+    use luanext_parser::ast::types::{PrimitiveType, Type, TypeKind};
 
     #[test]
     fn test_operator_catalog_build() {
@@ -1199,15 +1199,15 @@ mod tests {
     fn test_binary_op_to_operator_kind() {
         assert_eq!(
             binary_op_to_operator_kind(&BinaryOp::Add),
-            Some(typedlua_parser::ast::statement::OperatorKind::Add)
+            Some(luanext_parser::ast::statement::OperatorKind::Add)
         );
         assert_eq!(
             binary_op_to_operator_kind(&BinaryOp::Subtract),
-            Some(typedlua_parser::ast::statement::OperatorKind::Subtract)
+            Some(luanext_parser::ast::statement::OperatorKind::Subtract)
         );
         assert_eq!(
             binary_op_to_operator_kind(&BinaryOp::Multiply),
-            Some(typedlua_parser::ast::statement::OperatorKind::Multiply)
+            Some(luanext_parser::ast::statement::OperatorKind::Multiply)
         );
         assert_eq!(binary_op_to_operator_kind(&BinaryOp::And), None);
     }
@@ -1215,12 +1215,12 @@ mod tests {
     #[test]
     fn test_operator_kind_to_metamethod_name() {
         assert_eq!(
-            operator_kind_to_metamethod_name(typedlua_parser::ast::statement::OperatorKind::Add),
+            operator_kind_to_metamethod_name(luanext_parser::ast::statement::OperatorKind::Add),
             "__add"
         );
         assert_eq!(
             operator_kind_to_metamethod_name(
-                typedlua_parser::ast::statement::OperatorKind::Multiply
+                luanext_parser::ast::statement::OperatorKind::Multiply
             ),
             "__mul"
         );
@@ -1230,8 +1230,8 @@ mod tests {
     fn test_get_class_from_type() {
         let type_id = StringId::from_u32(1);
         let ref_type = Type::new(
-            TypeKind::Reference(typedlua_parser::ast::types::TypeReference {
-                name: typedlua_parser::ast::Spanned::new(type_id, Span::dummy()),
+            TypeKind::Reference(luanext_parser::ast::types::TypeReference {
+                name: luanext_parser::ast::Spanned::new(type_id, Span::dummy()),
                 type_arguments: None,
                 span: Span::dummy(),
             }),
@@ -1251,11 +1251,11 @@ mod tests {
         let arena = Bump::new();
         let block = Block {
             statements: arena.alloc_slice_clone(&[
-                Statement::Return(typedlua_parser::ast::statement::ReturnStatement {
+                Statement::Return(luanext_parser::ast::statement::ReturnStatement {
                     values: &[],
                     span: Span::dummy(),
                 }),
-                Statement::Return(typedlua_parser::ast::statement::ReturnStatement {
+                Statement::Return(luanext_parser::ast::statement::ReturnStatement {
                     values: &[],
                     span: Span::dummy(),
                 }),

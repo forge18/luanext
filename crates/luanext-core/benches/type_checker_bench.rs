@@ -1,12 +1,12 @@
 use bumpalo::Bump;
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::sync::Arc;
-use typedlua_core::config::CompilerOptions;
-use typedlua_core::diagnostics::CollectingDiagnosticHandler;
-use typedlua_core::TypeChecker;
-use typedlua_parser::lexer::Lexer;
-use typedlua_parser::parser::Parser;
-use typedlua_parser::string_interner::StringInterner;
+use luanext_core::config::CompilerOptions;
+use luanext_core::diagnostics::CollectingDiagnosticHandler;
+use luanext_core::TypeChecker;
+use luanext_parser::lexer::Lexer;
+use luanext_parser::parser::Parser;
+use luanext_parser::string_interner::StringInterner;
 
 fn bench_type_checker_simple(c: &mut Criterion) {
     let source = r#"

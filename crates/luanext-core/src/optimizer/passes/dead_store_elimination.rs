@@ -5,10 +5,10 @@
 use crate::optimizer::BlockVisitor;
 use bumpalo::Bump;
 use std::collections::HashSet;
-use typedlua_parser::ast::expression::{BinaryOp, Expression, ExpressionKind};
-use typedlua_parser::ast::pattern::Pattern;
-use typedlua_parser::ast::statement::{Block, ForStatement, Statement};
-use typedlua_parser::string_interner::StringId;
+use luanext_parser::ast::expression::{BinaryOp, Expression, ExpressionKind};
+use luanext_parser::ast::pattern::Pattern;
+use luanext_parser::ast::statement::{Block, ForStatement, Statement};
+use luanext_parser::string_interner::StringId;
 
 /// Dead store elimination pass
 /// Removes assignments to variables that are never read
@@ -116,9 +116,9 @@ impl DeadStoreEliminationPass {
                 changed
             }
             ExpressionKind::Arrow(arrow) => match &arrow.body {
-                typedlua_parser::ast::expression::ArrowBody::Block(_) => {
+                luanext_parser::ast::expression::ArrowBody::Block(_) => {
                     let mut new_arrow = arrow.clone();
-                    if let typedlua_parser::ast::expression::ArrowBody::Block(ref mut block) =
+                    if let luanext_parser::ast::expression::ArrowBody::Block(ref mut block) =
                         new_arrow.body
                     {
                         let changed = self.eliminate_dead_stores_in_block(block, arena);
@@ -130,12 +130,12 @@ impl DeadStoreEliminationPass {
                         unreachable!()
                     }
                 }
-                typedlua_parser::ast::expression::ArrowBody::Expression(inner) => {
+                luanext_parser::ast::expression::ArrowBody::Expression(inner) => {
                     let mut new_inner = (**inner).clone();
                     let changed = self.eliminate_dead_stores_in_expression(&mut new_inner, arena);
                     if changed {
                         let mut new_arrow = arrow.clone();
-                        new_arrow.body = typedlua_parser::ast::expression::ArrowBody::Expression(
+                        new_arrow.body = luanext_parser::ast::expression::ArrowBody::Expression(
                             arena.alloc(new_inner),
                         );
                         expr.kind = ExpressionKind::Arrow(new_arrow);
@@ -226,10 +226,10 @@ impl DeadStoreEliminationPass {
                 let mut changed = false;
                 for elem in &mut new_elements {
                     match elem {
-                        typedlua_parser::ast::expression::ArrayElement::Expression(e) => {
+                        luanext_parser::ast::expression::ArrayElement::Expression(e) => {
                             changed |= self.eliminate_dead_stores_in_expression(e, arena);
                         }
-                        typedlua_parser::ast::expression::ArrayElement::Spread(e) => {
+                        luanext_parser::ast::expression::ArrayElement::Spread(e) => {
                             changed |= self.eliminate_dead_stores_in_expression(e, arena);
                         }
                     }
@@ -240,7 +240,7 @@ impl DeadStoreEliminationPass {
                 changed
             }
             ExpressionKind::Object(properties) => {
-                use typedlua_parser::ast::expression::ObjectProperty;
+                use luanext_parser::ast::expression::ObjectProperty;
                 let mut new_props: Vec<_> = properties.to_vec();
                 let mut changed = false;
                 for prop in &mut new_props {
@@ -457,17 +457,17 @@ impl DeadStoreEliminationPass {
             Pattern::Array(arr) => {
                 for elem in arr.elements {
                     match elem {
-                        typedlua_parser::ast::pattern::ArrayPatternElement::Pattern(
-                            typedlua_parser::ast::pattern::PatternWithDefault {
+                        luanext_parser::ast::pattern::ArrayPatternElement::Pattern(
+                            luanext_parser::ast::pattern::PatternWithDefault {
                                 pattern: p, ..
                             },
                         ) => {
                             self.collect_names_from_pattern(p, names);
                         }
-                        typedlua_parser::ast::pattern::ArrayPatternElement::Rest(ident) => {
+                        luanext_parser::ast::pattern::ArrayPatternElement::Rest(ident) => {
                             names.push(ident.node);
                         }
-                        typedlua_parser::ast::pattern::ArrayPatternElement::Hole => {}
+                        luanext_parser::ast::pattern::ArrayPatternElement::Hole => {}
                     }
                 }
             }
@@ -638,10 +638,10 @@ impl DeadStoreEliminationPass {
             ExpressionKind::Array(elements) => {
                 for elem in *elements {
                     match elem {
-                        typedlua_parser::ast::expression::ArrayElement::Expression(e) => {
+                        luanext_parser::ast::expression::ArrayElement::Expression(e) => {
                             self.collect_expression_reads_into(e, reads);
                         }
-                        typedlua_parser::ast::expression::ArrayElement::Spread(e) => {
+                        luanext_parser::ast::expression::ArrayElement::Spread(e) => {
                             self.collect_expression_reads_into(e, reads);
                         }
                     }
@@ -650,13 +650,13 @@ impl DeadStoreEliminationPass {
             ExpressionKind::Object(properties) => {
                 for prop in *properties {
                     match prop {
-                        typedlua_parser::ast::expression::ObjectProperty::Property {
+                        luanext_parser::ast::expression::ObjectProperty::Property {
                             value,
                             ..
                         } => {
                             self.collect_expression_reads_into(value, reads);
                         }
-                        typedlua_parser::ast::expression::ObjectProperty::Computed {
+                        luanext_parser::ast::expression::ObjectProperty::Computed {
                             key,
                             value,
                             ..
@@ -664,7 +664,7 @@ impl DeadStoreEliminationPass {
                             self.collect_expression_reads_into(key, reads);
                             self.collect_expression_reads_into(value, reads);
                         }
-                        typedlua_parser::ast::expression::ObjectProperty::Spread {
+                        luanext_parser::ast::expression::ObjectProperty::Spread {
                             value, ..
                         } => {
                             self.collect_expression_reads_into(value, reads);
@@ -676,10 +676,10 @@ impl DeadStoreEliminationPass {
                 self.collect_block_reads_into(&func.body, reads);
             }
             ExpressionKind::Arrow(arrow) => match &arrow.body {
-                typedlua_parser::ast::expression::ArrowBody::Expression(expr) => {
+                luanext_parser::ast::expression::ArrowBody::Expression(expr) => {
                     self.collect_expression_reads_into(expr, reads);
                 }
-                typedlua_parser::ast::expression::ArrowBody::Block(block) => {
+                luanext_parser::ast::expression::ArrowBody::Block(block) => {
                     self.collect_block_reads_into(block, reads);
                 }
             },
@@ -696,10 +696,10 @@ impl DeadStoreEliminationPass {
                 self.collect_expression_reads_into(match_expr.value, reads);
                 for arm in match_expr.arms {
                     match &arm.body {
-                        typedlua_parser::ast::expression::MatchArmBody::Expression(expr) => {
+                        luanext_parser::ast::expression::MatchArmBody::Expression(expr) => {
                             self.collect_expression_reads_into(expr, reads);
                         }
-                        typedlua_parser::ast::expression::MatchArmBody::Block(block) => {
+                        luanext_parser::ast::expression::MatchArmBody::Block(block) => {
                             self.collect_block_reads_into(block, reads);
                         }
                     }
@@ -707,7 +707,7 @@ impl DeadStoreEliminationPass {
             }
             ExpressionKind::Template(template) => {
                 for part in template.parts {
-                    if let typedlua_parser::ast::expression::TemplatePart::Expression(expr) = part {
+                    if let luanext_parser::ast::expression::TemplatePart::Expression(expr) = part {
                         self.collect_expression_reads_into(expr, reads);
                     }
                 }
@@ -871,10 +871,10 @@ impl DeadStoreEliminationPass {
             ExpressionKind::Match(match_expr) => {
                 self.expression_captures_variables(match_expr.value)
                     || match_expr.arms.iter().any(|arm| match &arm.body {
-                        typedlua_parser::ast::expression::MatchArmBody::Expression(expr) => {
+                        luanext_parser::ast::expression::MatchArmBody::Expression(expr) => {
                             self.expression_captures_variables(expr)
                         }
-                        typedlua_parser::ast::expression::MatchArmBody::Block(block) => {
+                        luanext_parser::ast::expression::MatchArmBody::Block(block) => {
                             self.block_captures_variables(block)
                         }
                     })
@@ -973,7 +973,7 @@ impl Default for DeadStoreEliminationPass {
 }
 
 fn for_expr_has_side_effects<'arena>(
-    exprs: &[typedlua_parser::ast::expression::Expression<'arena>],
+    exprs: &[luanext_parser::ast::expression::Expression<'arena>],
 ) -> bool {
     exprs.iter().any(|e| {
         matches!(

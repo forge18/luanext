@@ -11,10 +11,10 @@ use rustc_hash::FxHashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
-use typedlua_parser::ast::expression::{ArrayElement, Expression, ExpressionKind, ObjectProperty};
-use typedlua_parser::ast::statement::{ForStatement, FunctionDeclaration, Statement};
-use typedlua_parser::ast::types::Type;
-use typedlua_parser::string_interner::{StringId, StringInterner};
+use luanext_parser::ast::expression::{ArrayElement, Expression, ExpressionKind, ObjectProperty};
+use luanext_parser::ast::statement::{ForStatement, FunctionDeclaration, Statement};
+use luanext_parser::ast::types::Type;
+use luanext_parser::string_interner::{StringId, StringInterner};
 
 /// Computes a hash of type arguments for caching specialized functions
 fn hash_type_args(type_args: &[Type<'_>]) -> u64 {
@@ -110,7 +110,7 @@ impl<'arena, 'pass> SpecializationContext<'arena, 'pass> {
         // Create specialized function by instantiating with type substitutions
         let mut specialized_func = instantiate_function_declaration(arena, func, &substitutions);
         specialized_func.name =
-            typedlua_parser::ast::Spanned::new(specialized_name, func.name.span);
+            luanext_parser::ast::Spanned::new(specialized_name, func.name.span);
 
         // Add to cache and to list of new functions
         self.pass

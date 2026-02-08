@@ -7,12 +7,12 @@ use crate::optimizer::{AstFeatures, WholeProgramPass};
 use crate::MutableProgram;
 use bumpalo::Bump;
 use std::collections::HashSet;
-use typedlua_parser::ast::expression::{
+use luanext_parser::ast::expression::{
     ArrayElement, BinaryOp, Expression, ExpressionKind, Literal, UnaryOp,
 };
-use typedlua_parser::ast::pattern::Pattern;
-use typedlua_parser::ast::statement::{Block, ForNumeric, ForStatement, Statement};
-use typedlua_parser::string_interner::StringId;
+use luanext_parser::ast::pattern::Pattern;
+use luanext_parser::ast::statement::{Block, ForNumeric, ForStatement, Statement};
+use luanext_parser::string_interner::StringId;
 
 /// Loop optimization pass
 /// 1. Hoists loop-invariant local variable declarations
@@ -183,7 +183,7 @@ impl LoopOptimizationPass {
 
     fn optimize_while_loop<'arena>(
         &mut self,
-        while_stmt: &mut typedlua_parser::ast::statement::WhileStatement<'arena>,
+        while_stmt: &mut luanext_parser::ast::statement::WhileStatement<'arena>,
         arena: &'arena Bump,
     ) -> (Vec<Statement<'arena>>, bool) {
         if let ExpressionKind::Literal(Literal::Boolean(false)) = &while_stmt.condition.kind {
@@ -201,7 +201,7 @@ impl LoopOptimizationPass {
 
     fn optimize_repeat_loop<'arena>(
         &mut self,
-        repeat_stmt: &mut typedlua_parser::ast::statement::RepeatStatement<'arena>,
+        repeat_stmt: &mut luanext_parser::ast::statement::RepeatStatement<'arena>,
         arena: &'arena Bump,
     ) -> (Vec<Statement<'arena>>, bool) {
         if let ExpressionKind::Literal(Literal::Boolean(true)) = &repeat_stmt.until.kind {
@@ -325,18 +325,18 @@ impl LoopOptimizationPass {
                 self.collect_modified_in_block(&try_stmt.try_block, modified);
                 for catch in try_stmt.catch_clauses.iter() {
                     match &catch.pattern {
-                        typedlua_parser::ast::statement::CatchPattern::Typed {
+                        luanext_parser::ast::statement::CatchPattern::Typed {
                             variable, ..
                         } => {
                             modified.insert(variable.node);
                         }
-                        typedlua_parser::ast::statement::CatchPattern::MultiTyped {
+                        luanext_parser::ast::statement::CatchPattern::MultiTyped {
                             variable,
                             ..
                         } => {
                             modified.insert(variable.node);
                         }
-                        typedlua_parser::ast::statement::CatchPattern::Untyped {
+                        luanext_parser::ast::statement::CatchPattern::Untyped {
                             variable, ..
                         } => {
                             modified.insert(variable.node);
@@ -371,17 +371,17 @@ impl LoopOptimizationPass {
             Pattern::Array(array_pattern) => {
                 for elem in array_pattern.elements.iter() {
                     match elem {
-                        typedlua_parser::ast::pattern::ArrayPatternElement::Pattern(
-                            typedlua_parser::ast::pattern::PatternWithDefault {
+                        luanext_parser::ast::pattern::ArrayPatternElement::Pattern(
+                            luanext_parser::ast::pattern::PatternWithDefault {
                                 pattern: p, ..
                             },
                         ) => {
                             self.collect_modified_in_pattern(p, modified);
                         }
-                        typedlua_parser::ast::pattern::ArrayPatternElement::Rest(id) => {
+                        luanext_parser::ast::pattern::ArrayPatternElement::Rest(id) => {
                             modified.insert(id.node);
                         }
-                        typedlua_parser::ast::pattern::ArrayPatternElement::Hole => {}
+                        luanext_parser::ast::pattern::ArrayPatternElement::Hole => {}
                     }
                 }
             }
@@ -457,14 +457,14 @@ impl LoopOptimizationPass {
             ExpressionKind::Object(properties) => {
                 for prop in properties.iter() {
                     match prop {
-                        typedlua_parser::ast::expression::ObjectProperty::Property {
+                        luanext_parser::ast::expression::ObjectProperty::Property {
                             key: _,
                             value,
                             span: _,
                         } => {
                             self.collect_modified_in_expression(value, modified);
                         }
-                        typedlua_parser::ast::expression::ObjectProperty::Computed {
+                        luanext_parser::ast::expression::ObjectProperty::Computed {
                             key,
                             value,
                             span: _,
@@ -472,7 +472,7 @@ impl LoopOptimizationPass {
                             self.collect_modified_in_expression(key, modified);
                             self.collect_modified_in_expression(value, modified);
                         }
-                        typedlua_parser::ast::expression::ObjectProperty::Spread {
+                        luanext_parser::ast::expression::ObjectProperty::Spread {
                             value,
                             span: _,
                         } => {
@@ -489,10 +489,10 @@ impl LoopOptimizationPass {
                     self.collect_modified_in_pattern(&param.pattern, modified);
                 }
                 match &arrow.body {
-                    typedlua_parser::ast::expression::ArrowBody::Expression(expr) => {
+                    luanext_parser::ast::expression::ArrowBody::Expression(expr) => {
                         self.collect_modified_in_expression(expr, modified);
                     }
-                    typedlua_parser::ast::expression::ArrowBody::Block(block) => {
+                    luanext_parser::ast::expression::ArrowBody::Block(block) => {
                         self.collect_modified_in_block(block, modified);
                     }
                 }
@@ -514,10 +514,10 @@ impl LoopOptimizationPass {
                         self.collect_modified_in_expression(guard, modified);
                     }
                     match &arm.body {
-                        typedlua_parser::ast::expression::MatchArmBody::Expression(expr) => {
+                        luanext_parser::ast::expression::MatchArmBody::Expression(expr) => {
                             self.collect_modified_in_expression(expr, modified);
                         }
-                        typedlua_parser::ast::expression::MatchArmBody::Block(block) => {
+                        luanext_parser::ast::expression::MatchArmBody::Block(block) => {
                             self.collect_modified_in_block(block, modified);
                         }
                     }
@@ -526,8 +526,8 @@ impl LoopOptimizationPass {
             ExpressionKind::Template(template) => {
                 for part in template.parts.iter() {
                     match part {
-                        typedlua_parser::ast::expression::TemplatePart::String(_) => {}
-                        typedlua_parser::ast::expression::TemplatePart::Expression(expr) => {
+                        luanext_parser::ast::expression::TemplatePart::String(_) => {}
+                        luanext_parser::ast::expression::TemplatePart::Expression(expr) => {
                             self.collect_modified_in_expression(expr, modified);
                         }
                     }
@@ -649,12 +649,12 @@ impl LoopOptimizationPass {
                 ArrayElement::Spread(e) => self.is_invariant_expression(e, loop_vars),
             }),
             ExpressionKind::Object(properties) => properties.iter().all(|prop| match prop {
-                typedlua_parser::ast::expression::ObjectProperty::Property {
+                luanext_parser::ast::expression::ObjectProperty::Property {
                     key: _,
                     value,
                     span: _,
                 } => self.is_invariant_expression(value, loop_vars),
-                typedlua_parser::ast::expression::ObjectProperty::Computed {
+                luanext_parser::ast::expression::ObjectProperty::Computed {
                     key,
                     value,
                     span: _,
@@ -662,17 +662,17 @@ impl LoopOptimizationPass {
                     self.is_invariant_expression(key, loop_vars)
                         && self.is_invariant_expression(value, loop_vars)
                 }
-                typedlua_parser::ast::expression::ObjectProperty::Spread { value, span: _ } => {
+                luanext_parser::ast::expression::ObjectProperty::Spread { value, span: _ } => {
                     self.is_invariant_expression(value, loop_vars)
                 }
             }),
             ExpressionKind::Function(_) => true,
             ExpressionKind::Arrow(arrow) => {
                 let body_invariant = match &arrow.body {
-                    typedlua_parser::ast::expression::ArrowBody::Expression(expr) => {
+                    luanext_parser::ast::expression::ArrowBody::Expression(expr) => {
                         self.is_invariant_expression(expr, loop_vars)
                     }
-                    typedlua_parser::ast::expression::ArrowBody::Block(block) => {
+                    luanext_parser::ast::expression::ArrowBody::Block(block) => {
                         block.statements.iter().all(|s| match s {
                             Statement::Variable(decl) => {
                                 self.is_invariant_expression(&decl.initializer, loop_vars)
@@ -696,10 +696,10 @@ impl LoopOptimizationPass {
                 self.is_invariant_expression(match_expr.value, loop_vars)
                     && match_expr.arms.iter().all(|arm| {
                         let body_invariant = match &arm.body {
-                            typedlua_parser::ast::expression::MatchArmBody::Expression(expr) => {
+                            luanext_parser::ast::expression::MatchArmBody::Expression(expr) => {
                                 self.is_invariant_expression(expr, loop_vars)
                             }
-                            typedlua_parser::ast::expression::MatchArmBody::Block(block) => {
+                            luanext_parser::ast::expression::MatchArmBody::Block(block) => {
                                 block.statements.iter().all(|s| match s {
                                     Statement::Variable(decl) => {
                                         self.is_invariant_expression(&decl.initializer, loop_vars)
@@ -712,8 +712,8 @@ impl LoopOptimizationPass {
                     })
             }
             ExpressionKind::Template(template) => template.parts.iter().all(|part| match part {
-                typedlua_parser::ast::expression::TemplatePart::String(_) => true,
-                typedlua_parser::ast::expression::TemplatePart::Expression(expr) => {
+                luanext_parser::ast::expression::TemplatePart::String(_) => true,
+                luanext_parser::ast::expression::TemplatePart::Expression(expr) => {
                     self.is_invariant_expression(expr, loop_vars)
                 }
             }),

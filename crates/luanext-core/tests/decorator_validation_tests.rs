@@ -1,5 +1,5 @@
-use typedlua_core::config::{CompilerConfig, CompilerOptions};
-use typedlua_core::di::DiContainer;
+use luanext_core::config::{CompilerConfig, CompilerOptions};
+use luanext_core::di::DiContainer;
 
 fn type_check(source: &str) -> Result<(), String> {
     let mut config = CompilerConfig::default();

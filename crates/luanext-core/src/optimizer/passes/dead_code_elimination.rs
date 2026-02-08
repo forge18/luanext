@@ -1,6 +1,6 @@
 use crate::optimizer::BlockVisitor;
 use bumpalo::Bump;
-use typedlua_parser::ast::statement::{Block, ForStatement, Statement};
+use luanext_parser::ast::statement::{Block, ForStatement, Statement};
 
 pub struct DeadCodeEliminationPass;
 

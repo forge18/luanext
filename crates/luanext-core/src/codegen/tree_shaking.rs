@@ -1,9 +1,9 @@
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 use std::path::Path;
-use typedlua_parser::ast::statement::{ExportKind, Statement};
-use typedlua_parser::ast::Program;
-use typedlua_parser::string_interner::{StringId, StringInterner};
+use luanext_parser::ast::statement::{ExportKind, Statement};
+use luanext_parser::ast::Program;
+use luanext_parser::string_interner::{StringId, StringInterner};
 
 #[derive(Debug, Clone, Default)]
 pub struct ReachableSet {
@@ -165,7 +165,7 @@ impl<'a> ReachabilityAnalysis<'a> {
                     exports.insert((id, name));
                 }
                 Statement::Variable(decl) => {
-                    if let typedlua_parser::ast::pattern::Pattern::Identifier(ident) = &decl.pattern
+                    if let luanext_parser::ast::pattern::Pattern::Identifier(ident) = &decl.pattern
                     {
                         let id = ident.node;
                         let name = self.resolve_string(id);
@@ -205,7 +205,7 @@ impl<'a> ReachabilityAnalysis<'a> {
                 Some((id, name))
             }
             Statement::Variable(decl) => {
-                if let typedlua_parser::ast::pattern::Pattern::Identifier(ident) = &decl.pattern {
+                if let luanext_parser::ast::pattern::Pattern::Identifier(ident) = &decl.pattern {
                     let id = ident.node;
                     let name = self.resolve_string(id);
                     Some((id, name))
@@ -232,25 +232,25 @@ impl<'a> ReachabilityAnalysis<'a> {
             if let Statement::Import(import_decl) = statement {
                 let source = import_decl.source.clone();
                 match &import_decl.clause {
-                    typedlua_parser::ast::statement::ImportClause::Default(ident) => {
+                    luanext_parser::ast::statement::ImportClause::Default(ident) => {
                         let id = ident.node;
                         let name = self.resolve_string(id);
                         imports.push((source, id, name));
                     }
-                    typedlua_parser::ast::statement::ImportClause::Named(specifiers)
-                    | typedlua_parser::ast::statement::ImportClause::TypeOnly(specifiers) => {
+                    luanext_parser::ast::statement::ImportClause::Named(specifiers)
+                    | luanext_parser::ast::statement::ImportClause::TypeOnly(specifiers) => {
                         for spec in specifiers.iter() {
                             let id = spec.imported.node;
                             let name = self.resolve_string(id);
                             imports.push((source.clone(), id, name));
                         }
                     }
-                    typedlua_parser::ast::statement::ImportClause::Namespace(ident) => {
+                    luanext_parser::ast::statement::ImportClause::Namespace(ident) => {
                         let id = ident.node;
                         let name = self.resolve_string(id);
                         imports.push((source, id, name));
                     }
-                    typedlua_parser::ast::statement::ImportClause::Mixed { default, named } => {
+                    luanext_parser::ast::statement::ImportClause::Mixed { default, named } => {
                         let default_id = default.node;
                         let default_name = self.resolve_string(default_id);
                         imports.push((source.clone(), default_id, default_name));
@@ -361,13 +361,13 @@ mod tests {
     use crate::diagnostics::CollectingDiagnosticHandler;
     use bumpalo::Bump;
     use std::sync::Arc;
-    use typedlua_parser::lexer::Lexer;
-    use typedlua_parser::parser::Parser;
+    use luanext_parser::lexer::Lexer;
+    use luanext_parser::parser::Parser;
 
     fn create_program<'arena>(
         source: &str,
         interner: &StringInterner,
-        common: &typedlua_parser::string_interner::CommonIdentifiers,
+        common: &luanext_parser::string_interner::CommonIdentifiers,
         arena: &'arena Bump,
     ) -> Program<'arena> {
         let handler = Arc::new(CollectingDiagnosticHandler::new());
