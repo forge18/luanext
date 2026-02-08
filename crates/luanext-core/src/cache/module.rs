@@ -1,14 +1,16 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+use super::serializable_types::SerializableModuleExports;
 use super::{CacheError, Result};
 
 /// Cached module data
 ///
-/// Note: During the arena allocation migration (Phase 4), the AST, exports,
-/// and symbol table types lost their Deserialize derives because they contain
-/// arena-allocated references. The cache module uses a simplified serializable
-/// representation until a proper owned-type serialization strategy is implemented.
+/// Stores enough information to reconstruct module exports for the
+/// `ModuleRegistry` on cache hits, avoiding re-parsing and re-type-checking
+/// unchanged files. The `serializable_exports` field contains the full
+/// typed export data; older cache entries may have `None` and will
+/// fall through to recompilation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CachedModule {
     /// Module identifier (canonical path)
@@ -26,6 +28,12 @@ pub struct CachedModule {
 
     /// Whether a default export exists
     pub has_default_export: bool,
+
+    /// Full serializable export data for cache-hit module registry population.
+    /// `None` for caches created before this field was added — those entries
+    /// fall through to recompilation.
+    #[serde(default)]
+    pub serializable_exports: Option<SerializableModuleExports>,
 }
 
 impl CachedModule {
@@ -36,6 +44,7 @@ impl CachedModule {
         interner_strings: Vec<String>,
         export_names: Vec<String>,
         has_default_export: bool,
+        serializable_exports: Option<SerializableModuleExports>,
     ) -> Self {
         Self {
             path,
@@ -43,6 +52,7 @@ impl CachedModule {
             interner_strings,
             export_names,
             has_default_export,
+            serializable_exports,
         }
     }
 
@@ -75,6 +85,7 @@ mod tests {
             vec![],
             vec![],
             false,
+            None,
         )
     }
 
@@ -97,5 +108,44 @@ mod tests {
         let hash2 = module.compute_hash();
 
         assert_eq!(hash1, hash2);
+    }
+
+    #[test]
+    fn test_serialization_with_exports() {
+        let exports = SerializableModuleExports {
+            named: vec![],
+            default: None,
+        };
+        let module = CachedModule::new(
+            PathBuf::from("/test/module.luax"),
+            "abc123".to_string(),
+            vec!["foo".to_string()],
+            vec!["foo".to_string()],
+            false,
+            Some(exports),
+        );
+
+        let bytes = module.to_bytes().unwrap();
+        let deserialized = CachedModule::from_bytes(&bytes).unwrap();
+
+        assert!(deserialized.serializable_exports.is_some());
+    }
+
+    #[test]
+    fn test_backward_compat_without_exports() {
+        // Simulate old cache format without serializable_exports
+        let module_old = CachedModule {
+            path: PathBuf::from("/test/module.luax"),
+            source_hash: "abc123".to_string(),
+            interner_strings: vec![],
+            export_names: vec![],
+            has_default_export: false,
+            serializable_exports: None,
+        };
+
+        let bytes = module_old.to_bytes().unwrap();
+        let deserialized = CachedModule::from_bytes(&bytes).unwrap();
+
+        assert!(deserialized.serializable_exports.is_none());
     }
 }

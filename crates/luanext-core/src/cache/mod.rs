@@ -10,6 +10,7 @@ mod invalidation;
 mod manager;
 mod manifest;
 mod module;
+pub mod serializable_types;
 
 pub use error::{CacheError, Result};
 pub use hash::{hash_config, hash_file};
@@ -17,9 +18,11 @@ pub use invalidation::InvalidationEngine;
 pub use manager::CacheManager;
 pub use manifest::{CacheEntry, CacheManifest};
 pub use module::CachedModule;
+pub use serializable_types::SerializableModuleExports;
 
 /// Cache format version - increment when cache structure changes
-pub const CACHE_VERSION: u32 = 1;
+/// v2: Added serializable_exports field to CachedModule
+pub const CACHE_VERSION: u32 = 2;
 
 /// Default cache directory name
 pub const CACHE_DIR_NAME: &str = ".luanext-cache";

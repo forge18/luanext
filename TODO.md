@@ -7,16 +7,6 @@
 
 ## Priority 1: Critical Issues
 
-### 🔴 LSP Memory Leaks (URGENT)
-
-- [x] Replace `Box::leak(Box::new(Bump::new()))` with arena pool pattern
-  - `crates/luanext-lsp/src/features/navigation/references.rs:41`
-  - `crates/luanext-lsp/src/features/navigation/hover.rs:49`
-  - `crates/luanext-lsp/src/features/navigation/definition.rs:36`
-- [x] Implement arena pooling (referenced in claude-mem #7848)
-- [x] Add arena lifecycle management for long-running LSP servers
-- **Impact:** Unbounded memory growth causing server crashes
-
 ### 🔴 Incremental Compilation Broken
 
 - [ ] Implement cache serialization for arena-allocated AST
