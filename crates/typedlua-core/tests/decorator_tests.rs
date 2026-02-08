@@ -23,7 +23,7 @@ fn test_simple_class_decorator() {
         "Simple class decorator should compile: {:?}",
         result.err()
     );
-    let output = result.unwrap();
+    let _output = result.unwrap();
 }
 
 #[test]
