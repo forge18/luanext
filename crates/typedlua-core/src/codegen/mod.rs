@@ -1684,4 +1684,147 @@ end
         assert!(strategy.supports_native_bitwise());
         assert!(strategy.supports_native_integer_divide());
     }
+
+    // =========================================================================
+    // Reflection v2 tests
+    // =========================================================================
+
+    fn generate_code_with_reflection(source: &str, mode: super::ReflectionMode) -> String {
+        let handler = Arc::new(CollectingDiagnosticHandler::new());
+        let (interner, common) = StringInterner::new_with_common_identifiers();
+        let interner = Arc::new(interner);
+        let arena = Bump::new();
+        let mut lexer = Lexer::new(source, handler.clone(), &interner);
+        let tokens = lexer.tokenize().expect("Lexing failed");
+        let mut parser = Parser::new(tokens, handler, &interner, &common, &arena);
+        let program = parser.parse().expect("Parsing failed");
+        let mutable = MutableProgram::from_program(&program);
+
+        let mut generator = CodeGenerator::new(interner.clone())
+            .with_reflection_mode(mode);
+        generator.generate(&mutable)
+    }
+
+    #[test]
+    fn test_reflection_selective_no_import() {
+        let source = r#"
+            class Animal {
+                name: string
+                speak(): string {
+                    return self.name
+                }
+            }
+        "#;
+        let output = generate_code_with_reflection(source, super::ReflectionMode::Selective);
+        println!("Output:\n{}", output);
+        // Infrastructure should always be present
+        assert!(output.contains("__typeName"), "should have __typeName");
+        assert!(output.contains("__typeId"), "should have __typeId");
+        assert!(output.contains("__ancestors"), "should have __ancestors");
+        // Reflection metadata should NOT be present (no @std/reflection import)
+        assert!(!output.contains("__ownFields"), "should NOT have __ownFields");
+        assert!(!output.contains("__ownMethods"), "should NOT have __ownMethods");
+        assert!(!output.contains("_buildAllFields"), "should NOT have _buildAllFields");
+        assert!(!output.contains("__TypeRegistry"), "should NOT have __TypeRegistry");
+    }
+
+    #[test]
+    fn test_reflection_full_mode() {
+        let source = r#"
+            class Animal {
+                name: string
+                speak(): string {
+                    return self.name
+                }
+            }
+        "#;
+        let output = generate_code_with_reflection(source, super::ReflectionMode::Full);
+        println!("Output:\n{}", output);
+        // Everything should be present
+        assert!(output.contains("__typeName"), "should have __typeName");
+        assert!(output.contains("__typeId"), "should have __typeId");
+        assert!(output.contains("__ownFields"), "should have __ownFields");
+        assert!(output.contains("__ownMethods"), "should have __ownMethods");
+        assert!(output.contains("__TypeRegistry"), "should have __TypeRegistry");
+    }
+
+    #[test]
+    fn test_reflection_none_mode() {
+        let source = r#"
+            class Animal {
+                name: string
+                speak(): string {
+                    return self.name
+                }
+            }
+        "#;
+        let output = generate_code_with_reflection(source, super::ReflectionMode::None);
+        println!("Output:\n{}", output);
+        // Infrastructure still present
+        assert!(output.contains("__typeName"), "should have __typeName");
+        assert!(output.contains("__typeId"), "should have __typeId");
+        // No reflection metadata
+        assert!(!output.contains("__ownFields"), "should NOT have __ownFields");
+        assert!(!output.contains("__ownMethods"), "should NOT have __ownMethods");
+        assert!(!output.contains("__TypeRegistry"), "should NOT have __TypeRegistry");
+    }
+
+    #[test]
+    fn test_reflection_bit_flags() {
+        let source = r#"
+            class Widget {
+                public name: string
+                private id: number
+                protected readonly label: string
+                static count: number
+            }
+        "#;
+        let output = generate_code_with_reflection(source, super::ReflectionMode::Full);
+        println!("Output:\n{}", output);
+        // public(1)
+        assert!(output.contains("_flags = 1"), "public field should have _flags = 1: {}", output);
+        // private(2)
+        assert!(output.contains("_flags = 2"), "private field should have _flags = 2: {}", output);
+        // protected(4) | readonly(8) = 12
+        assert!(output.contains("_flags = 12"), "protected readonly should have _flags = 12: {}", output);
+        // public(1) | static(16) = 17
+        assert!(output.contains("_flags = 17"), "static field should have _flags = 17: {}", output);
+    }
+
+    #[test]
+    fn test_reflection_compact_signatures() {
+        let source = r#"
+            class Math {
+                add(a: number, b: number): number {
+                    return a + b
+                }
+                greet(name: string): boolean {
+                    return true
+                }
+            }
+        "#;
+        let output = generate_code_with_reflection(source, super::ReflectionMode::Full);
+        println!("Output:\n{}", output);
+        // add: params="nn", ret="n"
+        assert!(output.contains(r#"params = "nn""#), "add should have params nn: {}", output);
+        assert!(output.contains(r#"ret = "n""#), "add should have ret n: {}", output);
+        // greet: params="s", ret="b"
+        assert!(output.contains(r#"params = "s""#), "greet should have params s: {}", output);
+        assert!(output.contains(r#"ret = "b""#), "greet should have ret b: {}", output);
+    }
+
+    #[test]
+    fn test_reflection_type_encoding() {
+        let source = r#"
+            class Container {
+                data: table
+                callback: (x: number) => void
+            }
+        "#;
+        let output = generate_code_with_reflection(source, super::ReflectionMode::Full);
+        println!("Output:\n{}", output);
+        // table -> "t", function -> "f"
+        assert!(output.contains(r#"type = "t""#), "table should encode as t: {}", output);
+        assert!(output.contains(r#"type = "f""#), "function should encode as f: {}", output);
+    }
 }
