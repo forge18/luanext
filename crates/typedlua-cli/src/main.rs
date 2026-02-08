@@ -1476,9 +1476,11 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
             }
 
             // Perform reachability analysis from entry point
-            let entry_path = cli.files.first().map(|f| f.as_path()).unwrap_or_else(|| {
-                Path::new("main")
-            });
+            let entry_path = cli
+                .files
+                .first()
+                .map(|f| f.as_path())
+                .unwrap_or_else(|| Path::new("main"));
             let interner = checked_modules
                 .first()
                 .map(|m| m.interner.clone())

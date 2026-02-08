@@ -109,9 +109,6 @@
 #### Phase 6.7: GitHub & Publishing
 
 - [ ] Rename GitHub repository from `typedlua` to `luanext`
-- [ ] Yank old crates.io packages, publish new ones
-- [ ] Update GitHub Actions workflows
-- [ ] Update any badges in README.md
 - [ ] Update package.json version for VSCode extension
 
 #### Phase 6.8: Verification
