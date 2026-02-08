@@ -70,6 +70,9 @@ cargo-fuzz = "0.12"
 [patch."https://github.com/forge18/luanext-parser.git"]
 luanext-parser = { path = "crates/luanext-parser" }
 
+[patch."https://github.com/forge18/luanext-sourcemap.git"]
+luanext-sourcemap = { path = "crates/luanext-sourcemap" }
+
 [patch."https://github.com/forge18/luanext-typechecker.git"]
 luanext-typechecker = { path = "crates/luanext-typechecker" }
 
