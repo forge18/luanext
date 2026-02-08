@@ -1,14 +1,14 @@
-# TypedLua for Visual Studio Code
+# LuaNext for Visual Studio Code
 
-![TypedLua Logo](assets/typedlua-logo.png)
+![LuaNext Logo](assets/luanext-logo.png)
 
-Official VS Code extension for [TypedLua](https://github.com/yourusername/typed-lua) - a statically typed dialect of Lua that brings TypeScript-like type safety to Lua development.
+Official VS Code extension for [LuaNext](https://github.com/yourusername/luanext) - a statically typed dialect of Lua that brings TypeScript-like type safety to Lua development.
 
 ## Features
 
 ### 🎨 Rich Language Support
 
-- **Syntax Highlighting**: Full syntax highlighting for TypedLua with TextMate grammar
+- **Syntax Highlighting**: Full syntax highlighting for LuaNext with TextMate grammar
 - **Semantic Tokens**: Context-aware highlighting based on type information
 - **IntelliSense**: Smart code completion with context awareness
   - Keyword completion
@@ -69,35 +69,35 @@ Official VS Code extension for [TypedLua](https://github.com/yourusername/typed-
 
 ## Requirements
 
-This extension requires the TypedLua language server (`typedlua-lsp`) to be installed.
+This extension requires the LuaNext language server (`luanext-lsp`) to be installed.
 
 ### Installation
 
-1. **Install the TypedLua compiler:**
+1. **Install the LuaNext compiler:**
    ```bash
-   cargo install typedlua
+   cargo install luanext
    ```
 
 2. **Verify installation:**
    ```bash
-   typedlua-lsp --version
+   luanext-lsp --version
    ```
 
 3. **Configure path (optional):**
    If the binary isn't in your PATH, set the absolute path in VS Code settings:
    ```json
    {
-     "typedlua.server.path": "/absolute/path/to/typedlua-lsp"
+     "luanext.server.path": "/absolute/path/to/luanext-lsp"
    }
    ```
 
 ## Quick Start
 
-1. **Create a new TypedLua file:**
+1. **Create a new LuaNext file:**
    - Create a file with `.luax` extension
    - Example: `hello.luax`
 
-2. **Write TypedLua code:**
+2. **Write LuaNext code:**
    ```lua
    function greet(name: string): string
        return "Hello, " .. name
@@ -115,48 +115,48 @@ This extension requires the TypedLua language server (`typedlua-lsp`) to be inst
 
 ## Extension Settings
 
-Configure TypedLua through VS Code settings (File > Preferences > Settings):
+Configure LuaNext through VS Code settings (File > Preferences > Settings):
 
 ### Language Server
 
-- **`typedlua.server.path`** (string, default: `"typedlua-lsp"`)
-  Path to the TypedLua language server executable
+- **`luanext.server.path`** (string, default: `"luanext-lsp"`)
+  Path to the LuaNext language server executable
 
-- **`typedlua.trace.server`** (enum: "off" | "messages" | "verbose", default: `"off"`)
+- **`luanext.trace.server`** (enum: "off" | "messages" | "verbose", default: `"off"`)
   Trace communication between VS Code and the language server (for debugging)
 
 ### Compiler
 
-- **`typedlua.compiler.checkOnSave`** (boolean, default: `true`)
+- **`luanext.compiler.checkOnSave`** (boolean, default: `true`)
   Run type checking when saving files
 
-- **`typedlua.compiler.strictNullChecks`** (boolean, default: `true`)
+- **`luanext.compiler.strictNullChecks`** (boolean, default: `true`)
   Enable strict null checking
 
 ### Formatting
 
-- **`typedlua.format.enable`** (boolean, default: `true`)
+- **`luanext.format.enable`** (boolean, default: `true`)
   Enable/disable code formatting
 
-- **`typedlua.format.indentSize`** (number, default: `4`)
+- **`luanext.format.indentSize`** (number, default: `4`)
   Number of spaces for indentation
 
 ### Inlay Hints
 
-- **`typedlua.inlayHints.typeHints`** (boolean, default: `true`)
+- **`luanext.inlayHints.typeHints`** (boolean, default: `true`)
   Show inlay hints for inferred types
 
-- **`typedlua.inlayHints.parameterHints`** (boolean, default: `true`)
+- **`luanext.inlayHints.parameterHints`** (boolean, default: `true`)
   Show inlay hints for parameter names
 
 ## Commands
 
 Access commands via Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`):
 
-- **`TypedLua: Restart Language Server`**
+- **`LuaNext: Restart Language Server`**
   Restart the language server (useful if it crashes or becomes unresponsive)
 
-- **`TypedLua: Show Output Channel`**
+- **`LuaNext: Show Output Channel`**
   Show the language server output channel for debugging
 
 ## Keyboard Shortcuts
@@ -181,11 +181,11 @@ Access commands via Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`):
 - `Ctrl+K Ctrl+0` - Fold All
 - `Ctrl+K Ctrl+J` - Unfold All
 
-## TypedLua Language Features
+## LuaNext Language Features
 
 ### Type Annotations
 ```lua
-local name: string = "TypedLua"
+local name: string = "LuaNext"
 local count: number = 42
 local isActive: boolean = true
 const PI: number = 3.14159
@@ -268,19 +268,19 @@ end
 - Try reloading the window (Ctrl+Shift+P > "Developer: Reload Window")
 
 ### Language server doesn't start
-- Verify `typedlua-lsp` is installed: `which typedlua-lsp`
-- Check the Output panel (View > Output) for "TypedLua Language Server"
-- Set absolute path in settings: `typedlua.server.path`
-- Enable verbose logging: set `typedlua.trace.server` to `"verbose"`
+- Verify `luanext-lsp` is installed: `which luanext-lsp`
+- Check the Output panel (View > Output) for "LuaNext Language Server"
+- Set absolute path in settings: `luanext.server.path`
+- Enable verbose logging: set `luanext.trace.server` to `"verbose"`
 
 ### Features not working
 - Check that the language server is running (look in Output panel)
-- Try restarting the server: Ctrl+Shift+P > "TypedLua: Restart Language Server"
+- Try restarting the server: Ctrl+Shift+P > "LuaNext: Restart Language Server"
 - Check for errors in the Output panel
 
 ### Performance issues
 - Large files (>1000 lines) may be slower - consider splitting into modules
-- Disable inlay hints if they cause lag: set `typedlua.inlayHints.typeHints` to `false`
+- Disable inlay hints if they cause lag: set `luanext.inlayHints.typeHints` to `false`
 
 ## Known Issues
 
@@ -288,7 +288,7 @@ end
 - Some advanced type system features are still in development
 - Semantic tokens require type checker integration (coming soon)
 
-Please report issues at [GitHub Issues](https://github.com/yourusername/typed-lua/issues).
+Please report issues at [GitHub Issues](https://github.com/yourusername/luanext/issues).
 
 ## Release Notes
 
@@ -319,17 +319,17 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
 
 ## Contributing
 
-TypedLua is open source! Contributions are welcome:
+LuaNext is open source! Contributions are welcome:
 
-- [GitHub Repository](https://github.com/yourusername/typed-lua)
-- [Issue Tracker](https://github.com/yourusername/typed-lua/issues)
-- [Documentation](https://github.com/yourusername/typed-lua/docs)
+- [GitHub Repository](https://github.com/yourusername/luanext)
+- [Issue Tracker](https://github.com/yourusername/luanext/issues)
+- [Documentation](https://github.com/yourusername/luanext/docs)
 
 ## Resources
 
-- **Documentation**: [TypedLua Docs](https://github.com/yourusername/typed-lua/docs)
-- **Grammar Specification**: [Grammar.md](https://github.com/yourusername/typed-lua/docs/Grammar.md)
-- **LSP Design**: [LSP-Design.md](https://github.com/yourusername/typed-lua/docs/LSP-Design.md)
+- **Documentation**: [LuaNext Docs](https://github.com/yourusername/luanext/docs)
+- **Grammar Specification**: [Grammar.md](https://github.com/yourusername/luanext/docs/Grammar.md)
+- **LSP Design**: [LSP-Design.md](https://github.com/yourusername/luanext/docs/LSP-Design.md)
 - **Examples**: See `test-files/` in the extension directory
 
 ## License
@@ -338,4 +338,4 @@ MIT License - see [LICENSE](../../LICENSE) for details.
 
 ---
 
-**Enjoy coding with TypedLua!** 🚀
+**Enjoy coding with LuaNext!** 🚀

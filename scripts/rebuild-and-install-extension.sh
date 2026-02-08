@@ -1,10 +1,10 @@
 #!/bin/bash
-# Complete rebuild and installation script for TypedLua VS Code extension
+# Complete rebuild and installation script for LuaNext VS Code extension
 # Run this from the project root whenever you make changes
 
 set -e  # Exit on any error
 
-echo "🚀 TypedLua: Complete Rebuild and Install"
+echo "🚀 LuaNext: Complete Rebuild and Install"
 echo "=========================================="
 echo ""
 
@@ -14,8 +14,8 @@ cd "$PROJECT_ROOT"
 
 # Step 1: Build the LSP server
 echo "📦 Step 1/4: Building LSP server..."
-cargo build --release --package typedlua-lsp
-echo "✅ LSP server built: target/release/typedlua-lsp"
+cargo build --release --package luanext-lsp
+echo "✅ LSP server built: target/release/luanext-lsp"
 echo ""
 
 # Step 2: Compile the extension
@@ -29,9 +29,9 @@ echo ""
 echo "📦 Step 3/4: Packaging extension as VSIX..."
 # Create dist directory
 mkdir -p dist
-rm -f dist/typedlua-*.vsix
+rm -f dist/luanext-*.vsix
 npx vsce package --allow-missing-repository --no-dependencies --out dist/ 2>&1 | grep -v "DeprecationWarning" || true
-VSIX_FILE=$(ls dist/typedlua-*.vsix 2>/dev/null | head -1)
+VSIX_FILE=$(ls dist/luanext-*.vsix 2>/dev/null | head -1)
 
 if [ -z "$VSIX_FILE" ]; then
     echo "❌ Error: Failed to create .vsix file"
@@ -58,6 +58,6 @@ echo "   code editors/vscode/test-files/test-basic.luax"
 echo ""
 echo "3. Check Output panel for LSP logs:"
 echo "   - View > Output"
-echo "   - Select 'TypedLua Language Server'"
+echo "   - Select 'LuaNext Language Server'"
 echo ""
 echo "=========================================="

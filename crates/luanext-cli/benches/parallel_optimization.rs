@@ -3,7 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
-/// Generate a test TypedLua module with the specified number of statements
+/// Generate a test LuaNext module with the specified number of statements
 fn generate_module(name: &str, statement_count: usize) -> String {
     let mut code = format!("-- Generated module: {}\n\n", name);
 
@@ -86,11 +86,11 @@ fn generate_test_project(module_count: usize, statements_per_module: usize) -> T
     temp_dir
 }
 
-/// Compile a project using the TypedLua CLI
+/// Compile a project using the LuaNext CLI
 fn compile_project(project_path: &PathBuf, parallel: bool) -> Result<(), String> {
     use std::process::Command;
 
-    let binary_path = env!("CARGO_BIN_EXE_typedlua");
+    let binary_path = env!("CARGO_BIN_EXE_luanext");
     let mut cmd = Command::new(binary_path);
 
     cmd.arg("compile")

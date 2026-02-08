@@ -1,15 +1,15 @@
-# TypedLua Language Server Protocol (LSP) Design
+# LuaNext Language Server Protocol (LSP) Design
 
 **Document Version:** 0.1  
 **Last Updated:** 2024-12-31
 
-This document defines the Language Server Protocol implementation for TypedLua, providing full IDE support in editors like VS Code.
+This document defines the Language Server Protocol implementation for LuaNext, providing full IDE support in editors like VS Code.
 
 ---
 
 ## Overview
 
-TypedLua's LSP provides:
+LuaNext's LSP provides:
 - **Syntax highlighting** via TextMate grammar
 - **Real-time diagnostics** (errors, warnings)
 - **IntelliSense** (autocomplete, signature help)
@@ -35,7 +35,7 @@ TypedLua's LSP provides:
                      │ JSON-RPC over stdio
                      │
 ┌────────────────────▼────────────────────────────────────┐
-│              TypedLua LSP Server (Rust)                 │
+│              LuaNext LSP Server (Rust)                 │
 │  ┌──────────────────────────────────────────────────┐   │
 │  │           Document Manager                       │   │
 │  │  - Track open documents                          │   │
@@ -169,7 +169,7 @@ impl DiagnosticsProvider {
   },
   "severity": 1,
   "code": "TL2322",
-  "source": "typedlua",
+  "source": "luanext",
   "message": "Type 'string' is not assignable to type 'number'."
 }
 ```
@@ -650,35 +650,35 @@ impl DocumentManager {
 
 ```json
 {
-  "name": "typedlua",
-  "displayName": "TypedLua",
-  "description": "TypedLua language support",
+  "name": "luanext",
+  "displayName": "LuaNext",
+  "description": "LuaNext language support",
   "version": "0.1.0",
   "engines": { "vscode": "^1.75.0" },
   "categories": ["Programming Languages"],
-  "activationEvents": ["onLanguage:typedlua"],
+  "activationEvents": ["onLanguage:luanext"],
   "main": "./out/extension.js",
   "contributes": {
     "languages": [{
-      "id": "typedlua",
-      "aliases": ["TypedLua", "typedlua"],
+      "id": "luanext",
+      "aliases": ["LuaNext", "luanext"],
       "extensions": [".luax"],
       "configuration": "./language-configuration.json"
     }],
     "grammars": [{
-      "language": "typedlua",
-      "scopeName": "source.typedlua",
-      "path": "./syntaxes/typedlua.tmLanguage.json"
+      "language": "luanext",
+      "scopeName": "source.luanext",
+      "path": "./syntaxes/luanext.tmLanguage.json"
     }],
     "configuration": {
-      "title": "TypedLua",
+      "title": "LuaNext",
       "properties": {
-        "typedlua.trace.server": {
+        "luanext.trace.server": {
           "type": "string",
           "enum": ["off", "messages", "verbose"],
           "default": "off"
         },
-        "typedlua.compiler.path": {
+        "luanext.compiler.path": {
           "type": "string",
           "default": "tl"
         }
@@ -692,8 +692,8 @@ impl DocumentManager {
 
 ```json
 {
-  "name": "TypedLua",
-  "scopeName": "source.typedlua",
+  "name": "LuaNext",
+  "scopeName": "source.luanext",
   "patterns": [
     {"include": "#comments"},
     {"include": "#keywords"},
@@ -705,18 +705,18 @@ impl DocumentManager {
   "repository": {
     "keywords": {
       "patterns": [{
-        "name": "keyword.control.typedlua",
+        "name": "keyword.control.luanext",
         "match": "\\b(if|then|else|while|for|return|break|continue|match|when)\\b"
       }]
     },
     "types": {
       "patterns": [{
-        "name": "support.type.primitive.typedlua",
+        "name": "support.type.primitive.luanext",
         "match": "\\b(nil|boolean|number|string|unknown|never)\\b"
       }]
     },
     "decorators": {
-      "name": "entity.name.function.decorator.typedlua",
+      "name": "entity.name.function.decorator.luanext",
       "match": "@[A-Za-z_][A-Za-z0-9_]*"
     }
   }
@@ -734,7 +734,7 @@ import { LanguageClient, ServerOptions, LanguageClientOptions } from 'vscode-lan
 let client: LanguageClient;
 
 export function activate(context: vscode.ExtensionContext) {
-  const config = vscode.workspace.getConfiguration('typedlua');
+  const config = vscode.workspace.getConfiguration('luanext');
   const compilerPath = config.get<string>('compiler.path', 'tl');
   
   const serverOptions: ServerOptions = {
@@ -744,13 +744,13 @@ export function activate(context: vscode.ExtensionContext) {
   };
   
   const clientOptions: LanguageClientOptions = {
-    documentSelector: [{ scheme: 'file', language: 'typedlua' }],
+    documentSelector: [{ scheme: 'file', language: 'luanext' }],
     synchronize: {
       fileEvents: vscode.workspace.createFileSystemWatcher('**/*.luax')
     }
   };
   
-  client = new LanguageClient('typedlua', 'TypedLua Language Server', serverOptions, clientOptions);
+  client = new LanguageClient('luanext', 'LuaNext Language Server', serverOptions, clientOptions);
   client.start();
 }
 

@@ -1,4 +1,4 @@
-# TypedLua Security
+# LuaNext Security
 
 **Version:** 1.0
 **Last Updated:** 2026-01-13
@@ -18,7 +18,7 @@
 
 ## Overview
 
-TypedLua is a compiler that transforms typed Lua source code into executable Lua. As a development tool, security considerations focus on preventing vulnerabilities in generated code, protecting developer environments, and maintaining secure development practices.
+LuaNext is a compiler that transforms typed Lua source code into executable Lua. As a development tool, security considerations focus on preventing vulnerabilities in generated code, protecting developer environments, and maintaining secure development practices.
 
 ### Security Principles
 
@@ -34,7 +34,7 @@ TypedLua is a compiler that transforms typed Lua source code into executable Lua
 
 ### In Scope
 
-TypedLua security considerations include:
+LuaNext security considerations include:
 
 1. **Malicious Input Files**
    - Crafted source files designed to exploit parser/compiler
@@ -65,11 +65,11 @@ TypedLua security considerations include:
 
 The following are explicitly **not** security boundaries:
 
-1. **Trusted Code Execution** - TypedLua compiles code the user has written or explicitly chosen to compile. We assume the source files are trusted.
+1. **Trusted Code Execution** - LuaNext compiles code the user has written or explicitly chosen to compile. We assume the source files are trusted.
 
-2. **Sandbox Escape** - TypedLua does not run untrusted code. Generated Lua is executed in the user's chosen environment (which may or may not be sandboxed).
+2. **Sandbox Escape** - LuaNext does not run untrusted code. Generated Lua is executed in the user's chosen environment (which may or may not be sandboxed).
 
-3. **Lua Runtime Security** - Securing the Lua runtime environment is the responsibility of the deployment platform, not TypedLua.
+3. **Lua Runtime Security** - Securing the Lua runtime environment is the responsibility of the deployment platform, not LuaNext.
 
 ---
 
@@ -77,7 +77,7 @@ The following are explicitly **not** security boundaries:
 
 ### Isolation and Sandboxing
 
-TypedLua operates as a **non-sandboxed compiler** that:
+LuaNext operates as a **non-sandboxed compiler** that:
 
 - Reads files from disk (within project directory)
 - Writes compiled output to disk
@@ -97,7 +97,7 @@ The compiler never uses `eval`, `exec`, or similar constructs. All code generati
 └──────────────────┬──────────────────────────┘
                    │
          ┌─────────▼──────────┐
-         │   TypedLua CLI     │
+         │   LuaNext CLI     │
          │  (User privileges) │
          └─────────┬──────────┘
                    │
@@ -233,7 +233,7 @@ const MAX_STRING_LITERAL_LENGTH: usize = 1_000_000;
 
 ### No Injection Vulnerabilities
 
-TypedLua generates Lua code using **safe templating** with no string interpolation of user input:
+LuaNext generates Lua code using **safe templating** with no string interpolation of user input:
 
 ```rust
 // SAFE: User input is not interpolated into code
@@ -553,7 +553,7 @@ fn test_no_code_injection() {
 // fuzz/fuzz_targets/lexer.rs
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use typedlua_core::Lexer;
+use luanext_core::Lexer;
 
 fuzz_target!(|data: &[u8]| {
     if let Ok(s) = std::str::from_utf8(data) {
@@ -573,10 +573,10 @@ cargo fuzz run lexer -- -max_len=10000 -timeout=5
 
 ### Responsible Disclosure
 
-**If you discover a security vulnerability in TypedLua:**
+**If you discover a security vulnerability in LuaNext:**
 
 1. **DO NOT** open a public GitHub issue
-2. **DO** email security@typedlua.dev with:
+2. **DO** email security@luanext.dev with:
    - Description of the vulnerability
    - Steps to reproduce
    - Potential impact assessment
@@ -631,12 +631,12 @@ Before each release:
 
 ## Appendix: Security Contact
 
-**Security Email:** security@typedlua.dev
-**PGP Key:** Available at https://typedlua.dev/security.asc
-**Security Policy:** https://github.com/forge18/typed-lua/security/policy
+**Security Email:** security@luanext.dev
+**PGP Key:** Available at https://luanext.dev/security.asc
+**Security Policy:** https://github.com/forge18/luanext/security/policy
 
 ---
 
 **Version:** 1.0
-**Contributors:** TypedLua Security Team
+**Contributors:** LuaNext Security Team
 **License:** MIT

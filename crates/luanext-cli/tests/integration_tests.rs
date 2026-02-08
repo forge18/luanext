@@ -3,9 +3,9 @@ use predicates::prelude::*;
 use std::fs;
 use tempfile::TempDir;
 
-// Helper to create typedlua command using the non-deprecated macro approach
+// Helper to create luanext command using the non-deprecated macro approach
 fn luanext_cmd() -> Command {
-    Command::new(assert_cmd::cargo::cargo_bin!("typedlua"))
+    Command::new(assert_cmd::cargo::cargo_bin!("luanext"))
 }
 
 /// Test basic compilation of a simple file
@@ -336,7 +336,7 @@ fn test_version_flag() {
         .arg("--version")
         .assert()
         .success()
-        .stdout(predicate::str::contains("typedlua"));
+        .stdout(predicate::str::contains("luanext"));
 }
 
 /// Test --help flag
@@ -346,7 +346,7 @@ fn test_help_flag() {
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("TypedLua"));
+        .stdout(predicate::str::contains("LuaNext"));
 }
 
 /// Test nonexistent file error

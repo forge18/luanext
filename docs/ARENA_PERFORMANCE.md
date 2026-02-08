@@ -5,7 +5,7 @@
 
 ## Executive Summary
 
-The TypedLua parser AST has been successfully migrated from heap allocation (`Box`, `Vec`) to arena allocation using `bumpalo`. All 168+ AST node construction sites now use arena allocation, and all tests pass (431 parser tests, 421 typechecker tests, 500+ core tests).
+The LuaNext parser AST has been successfully migrated from heap allocation (`Box`, `Vec`) to arena allocation using `bumpalo`. All 168+ AST node construction sites now use arena allocation, and all tests pass (431 parser tests, 421 typechecker tests, 500+ core tests).
 
 ## Benchmark Results
 

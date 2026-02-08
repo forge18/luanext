@@ -1,8 +1,8 @@
-# TypedLua Design Document
+# LuaNext Design Document
 
 ## Project Overview
 
-TypedLua is a typed superset of Lua, inspired by TypeScript's gradual typing approach and developer experience. It aims to provide robust type checking while maintaining Lua's simplicity and allowing gradual adoption.
+LuaNext is a typed superset of Lua, inspired by TypeScript's gradual typing approach and developer experience. It aims to provide robust type checking while maintaining Lua's simplicity and allowing gradual adoption.
 
 **Implementation Language:** Rust
 
@@ -147,7 +147,7 @@ Array<number>      -- Also valid
 
 ### Variable Declarations
 
-TypedLua provides two types of variable declarations:
+LuaNext provides two types of variable declarations:
 
 **`const` - Immutable Variables**
 ```lua
@@ -170,7 +170,7 @@ name = "Alice"      -- OK
 Both `const` and `local` compile to Lua's `local` keyword - the immutability is enforced only at compile-time:
 
 ```lua
--- TypedLua:
+-- LuaNext:
 const x = 5
 local y = 10
 
@@ -247,7 +247,7 @@ type HttpMethod = "GET" | "POST" | "PUT" | "DELETE"
 
 ### Enums
 
-TypedLua supports runtime enums that compile to Lua tables, providing both type safety and runtime value access.
+LuaNext supports runtime enums that compile to Lua tables, providing both type safety and runtime value access.
 
 **Three enum types:**
 
@@ -306,7 +306,7 @@ local userStatus: Status = Status.Active
 
 **Compiled Output:**
 ```lua
--- TypedLua source:
+-- LuaNext source:
 enum Role {
   Guest,
   User,
@@ -337,7 +337,7 @@ setUserRole(5)
 
 ### Generics
 
-TypedLua supports generics on interfaces, types, and functions, enabling type-safe reusable code.
+LuaNext supports generics on interfaces, types, and functions, enabling type-safe reusable code.
 
 #### Generic Interfaces
 
@@ -467,7 +467,7 @@ local result = first<string>({"a", "b"})  -- Explicit: T = string
 
 ### Type Narrowing
 
-TypedLua supports comprehensive type narrowing through control flow analysis, type guards, and assertion functions.
+LuaNext supports comprehensive type narrowing through control flow analysis, type guards, and assertion functions.
 
 #### Built-in Type Guards
 
@@ -678,7 +678,7 @@ end
 
 ### Type Inference
 
-TypedLua follows TypeScript's approach to type inference, inferring types aggressively while maintaining type safety.
+LuaNext follows TypeScript's approach to type inference, inferring types aggressively while maintaining type safety.
 
 #### Literal Type Widening
 
@@ -881,7 +881,7 @@ const name: string = getName()  -- Redundant if getName returns string
 
 ## Module System
 
-TypedLua uses `import` and `export` keywords that compile to Lua's `require()` system, providing a familiar TypeScript-like syntax while maintaining compatibility with Lua's module system.
+LuaNext uses `import` and `export` keywords that compile to Lua's `require()` system, providing a familiar TypeScript-like syntax while maintaining compatibility with Lua's module system.
 
 ### Exporting
 
@@ -1011,7 +1011,7 @@ const creator = User  -- ERROR: User is type-only, not a value
 **Compiled imports:**
 
 ```lua
--- TypedLua source:
+-- LuaNext source:
 import { User, createUser } from "./user"
 const u: User = createUser("Bob")
 
@@ -1022,7 +1022,7 @@ local u = createUser("Bob")
 ```
 
 ```lua
--- TypedLua source:
+-- LuaNext source:
 import * as user from "./user"
 const u: user.User = user.createUser("Bob")
 
@@ -1032,7 +1032,7 @@ local u = user.createUser("Bob")
 ```
 
 ```lua
--- TypedLua source:
+-- LuaNext source:
 import type { User } from "./user"
 const u: User = {id = 1, name = "Bob"}
 
@@ -1042,7 +1042,7 @@ local u = {id = 1, name = "Bob"}
 
 ### Type Definition Files
 
-For external Lua libraries without TypedLua source, use `.d.luax` type definition files.
+For external Lua libraries without LuaNext source, use `.d.luax` type definition files.
 
 **Example - LuaSocket type definitions:**
 
@@ -1108,7 +1108,7 @@ declare module "mylib" {
 
 ### Module Resolution
 
-Module paths are resolved following Lua's `package.path` conventions, with additional support for path aliases from `typedlua.json`.
+Module paths are resolved following Lua's `package.path` conventions, with additional support for path aliases from `luanext.json`.
 
 **Relative imports:**
 ```lua
@@ -1119,7 +1119,7 @@ import { Utils } from "./utils/index"  -- Subdirectory
 
 **Absolute imports (with path aliases):**
 ```lua
-// typedlua.json
+// luanext.json
 {
   "compilerOptions": {
     "baseUrl": "./src",
@@ -1140,24 +1140,24 @@ import { User } from "@/types/user"
 
 When importing a module, the compiler looks for types in this order:
 
-1. **TypedLua source:** `module.luax`
+1. **LuaNext source:** `module.luax`
 2. **Type definition:** `module.d.luax`
 3. **Alongside Lua file:** `module.lua` + `module.d.luax` in same directory
 4. **Fallback:** If no types found, imported module type is `unknown`
 
 **Example search for** `require("socket")`:
 
-1. Look for `socket.luax` (TypedLua source)
+1. Look for `socket.luax` (LuaNext source)
 2. Look for `socket.d.luax` (type definitions)
 3. Look for `socket/init.luax` or `socket/init.d.luax`
 4. If not found, `require("socket")` returns `unknown`
 
 ### Interoperability with Lua
 
-**TypedLua modules can be used from plain Lua:**
+**LuaNext modules can be used from plain Lua:**
 
 ```lua
--- user.luax (TypedLua)
+-- user.luax (LuaNext)
 export interface User {
   id: number,
   name: string
@@ -1177,7 +1177,7 @@ local u = user.createUser("Bob")
 print(u.name)  -- Works fine
 ```
 
-**Plain Lua modules can be used from TypedLua with type definitions:**
+**Plain Lua modules can be used from LuaNext with type definitions:**
 
 ```lua
 -- math_utils.lua (existing Lua code)
@@ -1194,7 +1194,7 @@ declare module "math_utils" {
 ```
 
 ```lua
--- main.luax (TypedLua with types)
+-- main.luax (LuaNext with types)
 import { square } from "./math_utils"
 const result = square(5)  -- Fully typed!
 ```
@@ -1203,7 +1203,7 @@ const result = square(5)  -- Fully typed!
 
 ## Standard Library Type Definitions
 
-TypedLua includes built-in type definitions for Lua's standard library. These types are always available without imports and provide full type safety for Lua's core functionality.
+LuaNext includes built-in type definitions for Lua's standard library. These types are always available without imports and provide full type safety for Lua's core functionality.
 
 **Supported Lua versions:** 5.1, 5.2, 5.3, 5.4 (LuaJIT not officially supported)
 
@@ -1480,7 +1480,7 @@ declare module coroutine {
 
 ### Version-Specific Features
 
-The compiler selects the appropriate standard library definitions based on the `target` setting in `typedlua.json`:
+The compiler selects the appropriate standard library definitions based on the `target` setting in `luanext.json`:
 
 ```json
 {
@@ -1495,7 +1495,7 @@ The compiler selects the appropriate standard library definitions based on the `
 - **Lua 5.1**: No `table.pack`, `table.unpack`, `bit32` operations
 - **Lua 5.2**: Added `table.pack`, `table.unpack`, `bit32` module, removed `module()`, `setfenv()`, `getfenv()`
 - **Lua 5.3**: Added integer type, integer division `//`, bitwise operators, `utf8` module, `math.tointeger`, `math.type`, `math.ult`
-- **Lua 5.4**: Added const variables (different from TypedLua's `const`), `warn()` function, `<close>` attribute
+- **Lua 5.4**: Added const variables (different from LuaNext's `const`), `warn()` function, `<close>` attribute
 
 **Using version-specific features:**
 
@@ -1528,11 +1528,11 @@ const trimmed = string.trim("  hello  ")  // Fully typed
 
 ## Utility Types
 
-TypedLua provides built-in utility types for common type transformations, following TypeScript's conventions with Lua-specific additions.
+LuaNext provides built-in utility types for common type transformations, following TypeScript's conventions with Lua-specific additions.
 
 ### Readonly Properties
 
-Before exploring utility types, TypedLua supports `readonly` property modifiers:
+Before exploring utility types, LuaNext supports `readonly` property modifiers:
 
 ```lua
 interface User {
@@ -1549,7 +1549,7 @@ user.created = 123   -- ERROR: Cannot assign to readonly property
 
 **Readonly is compile-time only:**
 ```lua
--- TypedLua enforces readonly at compile-time
+-- LuaNext enforces readonly at compile-time
 -- Compiled Lua has no runtime enforcement:
 local user = {id = 1, name = "Bob", created = 1234567890}
 user.name = "Alice"  -- Works
@@ -1924,7 +1924,7 @@ type DeepReadonly<T> = {
 
 ## Advanced Type Features
 
-TypedLua supports advanced type-level programming features that enable powerful type transformations and generic abstractions.
+LuaNext supports advanced type-level programming features that enable powerful type transformations and generic abstractions.
 
 ### `keyof` Operator
 
@@ -2262,8 +2262,8 @@ type Uncapitalize<S extends string> = /* intrinsic */
 
 type A = Uppercase<"hello">       // "HELLO"
 type B = Lowercase<"WORLD">       // "world"
-type C = Capitalize<"typedLua">   // "TypedLua"
-type D = Uncapitalize<"TypedLua"> // "typedLua"
+type C = Capitalize<"typedLua">   // "LuaNext"
+type D = Uncapitalize<"LuaNext"> // "typedLua"
 ```
 
 ### Advanced Patterns
@@ -2402,7 +2402,7 @@ print(tostring(v1))       // Type checker knows __tostring exists
 
 ## Object-Oriented Programming
 
-TypedLua supports a complete object-oriented programming system that compiles to idiomatic Lua metatable patterns. OOP features can be disabled via configuration.
+LuaNext supports a complete object-oriented programming system that compiles to idiomatic Lua metatable patterns. OOP features can be disabled via configuration.
 
 ### Configuration
 
@@ -3007,7 +3007,7 @@ greet(user)  // OK - User structurally matches HasName
 
 ## Functional Programming
 
-TypedLua supports functional programming features that enable expressive, composable code patterns. FP features can be disabled via configuration.
+LuaNext supports functional programming features that enable expressive, composable code patterns. FP features can be disabled via configuration.
 
 ### Configuration
 
@@ -3617,7 +3617,7 @@ const [name, age, active] = getUserData()
 
 ## Decorators
 
-TypedLua supports TC39 Stage 3 decorators for classes, methods, fields, and accessors. Decorators enable metaprogramming patterns like validation, logging, and aspect-oriented programming.
+LuaNext supports TC39 Stage 3 decorators for classes, methods, fields, and accessors. Decorators enable metaprogramming patterns like validation, logging, and aspect-oriented programming.
 
 ### Configuration
 
@@ -4014,7 +4014,7 @@ end
 
 ### Built-in Decorators
 
-TypedLua provides some built-in decorators:
+LuaNext provides some built-in decorators:
 
 #### `@readonly`
 
@@ -4066,7 +4066,7 @@ api:oldMethod()  // WARNING: oldMethod is deprecated. Use newMethod instead
 
 ### Decorator Compilation
 
-**TypedLua source:**
+**LuaNext source:**
 ```lua
 function log(value: callable, context: DecoratorContext): callable
   return function(...args: unknown[]): unknown
@@ -4218,7 +4218,7 @@ type Result = User | nil
 
 ## Compiler Configuration
 
-Configuration file: `typedlua.json`
+Configuration file: `luanext.json`
 
 ```json
 {
@@ -4245,7 +4245,7 @@ Configuration file: `typedlua.json`
     "enableFP": true,
     "enableDecorators": true,
     
-    "allowNonTypedLua": true
+    "allowNonLuaNext": true
   },
   "include": ["src/**/*"],
   "exclude": ["dist"]
@@ -4295,7 +4295,7 @@ Configuration file: `typedlua.json`
 
 - **`sourceMap`** (boolean)
   - Generate source maps for debugging
-  - Maps compiled Lua back to TypedLua source
+  - Maps compiled Lua back to LuaNext source
   - Default: `true`
 
 #### Target
@@ -4350,10 +4350,10 @@ Configuration file: `typedlua.json`
 
 #### Interoperability
 
-- **`allowNonTypedLua`** (boolean)
+- **`allowNonLuaNext`** (boolean)
   - Allow importing plain `.lua` files without type definitions
   - Default: `true`
-  - Enables gradual migration from Lua to TypedLua
+  - Enables gradual migration from Lua to LuaNext
 
 **When `true`:**
 ```lua
@@ -4366,7 +4366,7 @@ end
 
 return M
 
-// main.luax (TypedLua)
+// main.luax (LuaNext)
 import myModule from "./my-module"  // OK - myModule has type 'unknown'
 
 const result = myModule.hello()  // Type is 'unknown'
@@ -4376,10 +4376,10 @@ const result = myModule.hello()  // Type is 'unknown'
 ```lua
 // main.luax
 import myModule from "./my-module"  // ERROR: No type definitions found
-                                     // Create a .d.luax file or set allowNonTypedLua: true
+                                     // Create a .d.luax file or set allowNonLuaNext: true
 ```
 
-**Best practice with `allowNonTypedLua: true`:**
+**Best practice with `allowNonLuaNext: true`:**
 
 Create `.d.luax` declaration files for type safety:
 
@@ -4395,17 +4395,17 @@ const result = myModule.hello()  // Type is 'string'
 ```
 
 **Gradual migration strategy:**
-1. Enable `allowNonTypedLua: true`
+1. Enable `allowNonLuaNext: true`
 2. Import existing Lua files (typed as `unknown`)
 3. Gradually add `.d.luax` files for critical modules
-4. Rewrite modules to TypedLua when convenient
-5. Once migration complete, set `allowNonTypedLua: false` for strictness
+4. Rewrite modules to LuaNext when convenient
+5. Once migration complete, set `allowNonLuaNext: false` for strictness
 
 ---
 
 ## Design Decisions Summary
 
-### What Makes TypedLua Different from TypeScript
+### What Makes LuaNext Different from TypeScript
 
 1. **No `any` type** - Forces explicit typing or use of `unknown`
 2. **Clear type/interface distinction** - Eliminates confusion about when to use which
@@ -4413,7 +4413,7 @@ const result = myModule.hello()  // Type is 'string'
 4. **Configurable strictness** - Each strict option is independent and explicit
 5. **No OOP initially** - Focusing on functional/structural patterns first
 
-### What Makes TypedLua Different from Existing Lua Type Systems
+### What Makes LuaNext Different from Existing Lua Type Systems
 
 1. **TypeScript-inspired workflow** - Familiar for developers coming from TypeScript
 2. **Gradual adoption** - Can mix typed and untyped code
@@ -4437,11 +4437,11 @@ const result = myModule.hello()  // Type is 'string'
 
 ## Next Steps
 
-1. Define complete grammar for TypedLua syntax
+1. Define complete grammar for LuaNext syntax
 2. Design AST structure
 3. Implement lexer/parser in Rust
 4. Build type checker
-5. Implement code generator (TypedLua → Lua)
+5. Implement code generator (LuaNext → Lua)
 6. Create CLI tool
 7. Develop LSP for editor integration
 8. Build standard library type definitions

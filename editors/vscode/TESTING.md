@@ -1,14 +1,14 @@
-# TypedLua VS Code Extension Testing Guide
+# LuaNext VS Code Extension Testing Guide
 
-This guide covers how to test the TypedLua VS Code extension locally before publishing.
+This guide covers how to test the LuaNext VS Code extension locally before publishing.
 
 ## Prerequisites
 
 1. VS Code installed (version 1.75.0 or higher)
-2. TypedLua LSP server built:
+2. LuaNext LSP server built:
    ```bash
-   cd /path/to/typed-lua
-   cargo build --release --package typedlua-lsp
+   cd /path/to/luanext
+   cargo build --release --package luanext-lsp
    ```
 3. Extension dependencies installed:
    ```bash
@@ -36,7 +36,7 @@ This launches a new VS Code window with the extension loaded for testing.
 3. **In the Extension Development Host window:**
    - Create a new file: `test.luax`
    - The extension should activate automatically
-   - Check the Output panel (View > Output) for "TypedLua Language Server" logs
+   - Check the Output panel (View > Output) for "LuaNext Language Server" logs
 
 ### Method 2: Install as VSIX Package
 
@@ -47,11 +47,11 @@ This tests the extension as users would install it.
    cd editors/vscode
    npm run package
    ```
-   This creates `typedlua-0.1.0.vsix`
+   This creates `luanext-0.1.0.vsix`
 
 2. **Install the extension:**
    ```bash
-   code --install-extension typedlua-0.1.0.vsix
+   code --install-extension luanext-0.1.0.vsix
    ```
    Or through VS Code UI: Extensions > ... > Install from VSIX
 
@@ -62,13 +62,13 @@ This tests the extension as users would install it.
 ### ✅ Extension Activation
 
 - [ ] Extension activates when opening a `.luax` file
-- [ ] "TypedLua extension is now active" appears in Debug Console
+- [ ] "LuaNext extension is now active" appears in Debug Console
 - [ ] Language server starts without errors
-- [ ] Output channel "TypedLua Language Server" is created
+- [ ] Output channel "LuaNext Language Server" is created
 
 ### ✅ Language Server Connection
 
-- [ ] LSP server process starts (`typedlua-lsp`)
+- [ ] LSP server process starts (`luanext-lsp`)
 - [ ] No connection errors in Output channel
 - [ ] Server initialization completes successfully
 - [ ] Server capabilities are advertised correctly
@@ -153,38 +153,38 @@ This tests the extension as users would install it.
 **Restart Language Server:**
 - [ ] Command appears in command palette (Ctrl+Shift+P)
 - [ ] Command restarts server successfully
-- [ ] "Restarting TypedLua Language Server..." message appears
+- [ ] "Restarting LuaNext Language Server..." message appears
 - [ ] Extension reconnects after restart
 
 **Show Output Channel:**
 - [ ] Command appears in command palette
-- [ ] Opens "TypedLua Language Server" output panel
+- [ ] Opens "LuaNext Language Server" output panel
 - [ ] Shows LSP communication logs
 
 ### ✅ Extension Settings
 
-Open Settings (Ctrl+,) and search for "typedlua":
+Open Settings (Ctrl+,) and search for "luanext":
 
-- [ ] `typedlua.trace.server` setting exists
-- [ ] `typedlua.server.path` setting exists
-- [ ] `typedlua.compiler.checkOnSave` setting exists
-- [ ] `typedlua.compiler.strictNullChecks` setting exists
-- [ ] `typedlua.format.enable` setting exists
-- [ ] `typedlua.format.indentSize` setting exists
-- [ ] `typedlua.inlayHints.typeHints` setting exists
-- [ ] `typedlua.inlayHints.parameterHints` setting exists
+- [ ] `luanext.trace.server` setting exists
+- [ ] `luanext.server.path` setting exists
+- [ ] `luanext.compiler.checkOnSave` setting exists
+- [ ] `luanext.compiler.strictNullChecks` setting exists
+- [ ] `luanext.format.enable` setting exists
+- [ ] `luanext.format.indentSize` setting exists
+- [ ] `luanext.inlayHints.typeHints` setting exists
+- [ ] `luanext.inlayHints.parameterHints` setting exists
 
 **Test changing settings:**
-- [ ] Change `typedlua.trace.server` to "verbose" → see detailed logs
-- [ ] Change `typedlua.inlayHints.typeHints` to false → hints disappear
-- [ ] Change `typedlua.format.indentSize` to 2 → formatting uses 2 spaces
+- [ ] Change `luanext.trace.server` to "verbose" → see detailed logs
+- [ ] Change `luanext.inlayHints.typeHints` to false → hints disappear
+- [ ] Change `luanext.format.indentSize` to 2 → formatting uses 2 spaces
 
 ### ✅ Error Handling
 
 **Missing LSP Server:**
-- [ ] Set `typedlua.server.path` to invalid path
+- [ ] Set `luanext.server.path` to invalid path
 - [ ] Reload window
-- [ ] Error message appears: "Failed to start TypedLua Language Server"
+- [ ] Error message appears: "Failed to start LuaNext Language Server"
 - [ ] User can see error in Output channel
 
 **Invalid .luax File:**
@@ -197,7 +197,7 @@ Open Settings (Ctrl+,) and search for "typedlua":
 
 ### test-basic.luax
 ```lua
--- Test basic TypedLua features
+-- Test basic LuaNext features
 function greet(name: string): string
     return "Hello, " .. name
 end
@@ -249,14 +249,14 @@ function broken()
 - Reload window (Ctrl+Shift+P > "Developer: Reload Window")
 
 ### Language server doesn't start
-- Verify `typedlua-lsp` is in PATH: `which typedlua-lsp`
+- Verify `luanext-lsp` is in PATH: `which luanext-lsp`
 - Check Output channel for error messages
-- Try absolute path in `typedlua.server.path` setting
-- Check LSP server builds: `cargo build --package typedlua-lsp`
+- Try absolute path in `luanext.server.path` setting
+- Check LSP server builds: `cargo build --package luanext-lsp`
 
 ### Features not working
 - Check Output channel for LSP errors
-- Enable verbose logging: `typedlua.trace.server` = "verbose"
+- Enable verbose logging: `luanext.trace.server` = "verbose"
 - Restart language server via command palette
 - Check if server capabilities are advertised (in Output channel)
 
@@ -296,9 +296,9 @@ After making changes to the extension:
 When reporting bugs, include:
 1. VS Code version
 2. Extension version
-3. TypedLua LSP server version (`typedlua-lsp --version`)
+3. LuaNext LSP server version (`luanext-lsp --version`)
 4. Steps to reproduce
-5. Output channel logs (with `typedlua.trace.server` = "verbose")
+5. Output channel logs (with `luanext.trace.server` = "verbose")
 6. Screenshots if applicable
 
 ---

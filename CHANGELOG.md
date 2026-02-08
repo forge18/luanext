@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to TypedLua will be documented in this file.
+All notable changes to LuaNext will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Complete lexer with all Lua tokens plus TypeScript-inspired syntax
-- Full parser for TypedLua language
+- Full parser for LuaNext language
 - Comprehensive type checker with structural typing
 - Code generator targeting Lua 5.1+
 - CLI with compile, test, and bundle commands
@@ -56,5 +56,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Standard library type definitions
 - 822 tests with 100% passing rate
 
-[Unreleased]: https://github.com/yourusername/typed-lua/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/yourusername/typed-lua/releases/tag/v0.1.0
+[Unreleased]: https://github.com/yourusername/luanext/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/yourusername/luanext/releases/tag/v0.1.0

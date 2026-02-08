@@ -1,16 +1,16 @@
-//! Decorator runtime support for TypedLua.
+//! Decorator runtime support for LuaNext.
 
-pub const DECORATOR_RUNTIME: &str = r#"-- TypedLua Runtime Library
+pub const DECORATOR_RUNTIME: &str = r#"-- LuaNext Runtime Library
 -- Provides built-in decorators and runtime helpers
 
-local TypedLua = {}
+local LuaNext = {}
 
 -- ============================================================================
 -- @readonly Decorator
 -- ============================================================================
 
 -- Makes a class property readonly by intercepting property writes
-function TypedLua.readonly(target)
+function LuaNext.readonly(target)
     if type(target) ~= "table" then
         return target
     end
@@ -45,7 +45,7 @@ end
 -- ============================================================================
 
 -- Prevents adding new properties or methods to a class
-function TypedLua.sealed(target)
+function LuaNext.sealed(target)
     if type(target) ~= "table" then
         return target
     end
@@ -80,20 +80,20 @@ end
 -- ============================================================================
 
 -- Decorator factory that takes an optional message
-function TypedLua.deprecated(message)
+function LuaNext.deprecated(message)
     -- If called with a string, return a decorator function
     if type(message) == "string" then
         return function(target)
-            return TypedLua._markDeprecated(target, message)
+            return LuaNext._markDeprecated(target, message)
         end
     else
         -- If called directly on target, use default message
-        return TypedLua._markDeprecated(message, nil)
+        return LuaNext._markDeprecated(message, nil)
     end
 end
 
 -- Internal function to mark something as deprecated
-function TypedLua._markDeprecated(target, customMessage)
+function LuaNext._markDeprecated(target, customMessage)
     if type(target) == "function" then
         -- Wrap functions to emit warning on call
         return function(...)
@@ -141,16 +141,16 @@ end
 
 -- Export to global scope if not already defined (allows user overrides)
 if not readonly then
-    readonly = TypedLua.readonly
+    readonly = LuaNext.readonly
 end
 
 if not sealed then
-    sealed = TypedLua.sealed
+    sealed = LuaNext.sealed
 end
 
 if not deprecated then
-    deprecated = TypedLua.deprecated
+    deprecated = LuaNext.deprecated
 end
 
-return TypedLua
+return LuaNext
 "#;

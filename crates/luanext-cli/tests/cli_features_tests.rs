@@ -3,9 +3,9 @@ use predicates::prelude::*;
 use std::fs;
 use tempfile::TempDir;
 
-// Helper to create typedlua command using the non-deprecated macro approach
+// Helper to create luanext command using the non-deprecated macro approach
 fn luanext_cmd() -> Command {
-    Command::new(assert_cmd::cargo::cargo_bin!("typedlua"))
+    Command::new(assert_cmd::cargo::cargo_bin!("luanext"))
 }
 
 // ============================================================================

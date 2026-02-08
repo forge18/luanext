@@ -1,13 +1,13 @@
-# TypedLua Formal Grammar
+# LuaNext Formal Grammar
 
 **Document Version:** 0.1
 **Last Updated:** 2024-12-31
 
-This document defines the complete formal grammar for TypedLua using Extended Backus-Naur Form (EBNF) notation.
+This document defines the complete formal grammar for LuaNext using Extended Backus-Naur Form (EBNF) notation.
 
 ## Note on Comments
 
-TypedLua uses **Lua-style comments**:
+LuaNext uses **Lua-style comments**:
 - Single-line: `--` (not C-style `//`)
 - Multi-line: `--[[ ... ]]--` (not C-style `/* ... */`)
 

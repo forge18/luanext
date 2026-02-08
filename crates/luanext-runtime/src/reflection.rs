@@ -1,4 +1,4 @@
-//! Reflection runtime support for TypedLua.
+//! Reflection runtime support for LuaNext.
 
 pub const TYPE_REGISTRY: &str = r#"__TypeRegistry = {}
 __TypeIdToClass = {}

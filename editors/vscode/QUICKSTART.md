@@ -1,6 +1,6 @@
-# Quick Start: Testing TypedLua Extension
+# Quick Start: Testing LuaNext Extension
 
-Get the TypedLua VS Code extension running in under 5 minutes.
+Get the LuaNext VS Code extension running in under 5 minutes.
 
 ## Prerequisites
 
@@ -11,11 +11,11 @@ Get the TypedLua VS Code extension running in under 5 minutes.
 ## Step 1: Build the LSP Server
 
 ```bash
-cd /path/to/typed-lua
-cargo build --release --package typedlua-lsp
+cd /path/to/luanext
+cargo build --release --package luanext-lsp
 ```
 
-The binary will be at: `target/release/typedlua-lsp`
+The binary will be at: `target/release/luanext-lsp`
 
 ## Step 2: Set up the Extension
 
@@ -55,7 +55,7 @@ npm run compile
 
 2. Install it:
    ```bash
-   code --install-extension typedlua-0.1.0.vsix
+   code --install-extension luanext-0.1.0.vsix
    ```
 
 3. Open any `.luax` file to activate the extension
@@ -66,7 +66,7 @@ npm run compile
 
 1. Open `test-basic.luax`
 2. Open Output panel: View > Output
-3. Select "TypedLua Language Server" from dropdown
+3. Select "LuaNext Language Server" from dropdown
 4. You should see initialization messages
 
 ### Test Basic Features
@@ -85,22 +85,22 @@ npm run compile
 
 **Commands:**
 - Press `Ctrl+Shift+P` (Cmd+Shift+P on Mac)
-- Type "TypedLua" → should see commands:
-  - "TypedLua: Restart Language Server"
-  - "TypedLua: Show Output Channel"
+- Type "LuaNext" → should see commands:
+  - "LuaNext: Restart Language Server"
+  - "LuaNext: Show Output Channel"
 
 ## Troubleshooting
 
-### "Failed to start TypedLua Language Server"
+### "Failed to start LuaNext Language Server"
 
 The extension can't find the LSP server binary.
 
 **Fix:**
-1. Make sure you built it: `cargo build --release --package typedlua-lsp`
+1. Make sure you built it: `cargo build --release --package luanext-lsp`
 2. Add to PATH or set absolute path in settings:
    ```json
    {
-     "typedlua.server.path": "/absolute/path/to/target/release/typedlua-lsp"
+     "luanext.server.path": "/absolute/path/to/target/release/luanext-lsp"
    }
    ```
 
@@ -115,20 +115,20 @@ The extension can't find the LSP server binary.
 ### No syntax highlighting
 
 **Check:**
-- File is recognized as TypedLua (bottom-right of VS Code should show "TypedLua")
-- If it says "Plain Text", click it and select "TypedLua"
+- File is recognized as LuaNext (bottom-right of VS Code should show "LuaNext")
+- If it says "Plain Text", click it and select "LuaNext"
 - Reopen the file
 
 ### Features not working (completion, hover, etc.)
 
 **Check Output channel:**
 1. View > Output
-2. Select "TypedLua Language Server"
+2. Select "LuaNext Language Server"
 3. Look for errors
 
 **Enable verbose logging:**
 1. Open Settings (Ctrl+,)
-2. Search for "typedlua trace"
+2. Search for "luanext trace"
 3. Set to "verbose"
 4. Restart language server
 5. Check Output channel again
@@ -137,7 +137,7 @@ The extension can't find the LSP server binary.
 
 - Read [TESTING.md](./TESTING.md) for comprehensive test checklist
 - Try the sample files in `test-files/`
-- Report issues at https://github.com/yourusername/typed-lua/issues
+- Report issues at https://github.com/yourusername/luanext/issues
 
 ## Common Test Scenarios
 

@@ -1,4 +1,4 @@
-# TypedLua Implementation Guide
+# LuaNext Implementation Guide
 
 **Version:** 1.0
 **Last Updated:** 2026-01-13
@@ -18,7 +18,7 @@
 
 ## Overview
 
-This document provides practical guidance for working with the TypedLua codebase, covering implementation patterns, algorithms, and best practices.
+This document provides practical guidance for working with the LuaNext codebase, covering implementation patterns, algorithms, and best practices.
 
 ### Prerequisites
 
@@ -33,9 +33,9 @@ This document provides practical guidance for working with the TypedLua codebase
 ### Project Structure
 
 ```text
-typed-lua/
+luanext/
 ├── crates/
-│   ├── typedlua-core/          # Core compiler logic
+│   ├── luanext-core/          # Core compiler logic
 │   │   ├── src/
 │   │   │   ├── lib.rs          # Public API exports
 │   │   │   ├── di.rs           # Dependency injection
@@ -83,12 +83,12 @@ typed-lua/
 │   │       ├── pattern_matching_tests.rs
 │   │       ├── type_narrowing_tests.rs
 │   │       └── ...
-│   ├── typedlua-cli/           # Command-line interface
+│   ├── luanext-cli/           # Command-line interface
 │   │   ├── src/
 │   │   │   ├── main.rs
 │   │   │   └── ...
 │   │   └── tests/
-│   └── typedlua-lsp/           # Language server
+│   └── luanext-lsp/           # Language server
 │       ├── src/
 │       │   ├── main.rs
 │       │   ├── document.rs
@@ -102,7 +102,7 @@ typed-lua/
     ├── ARCHITECTURE.md
     ├── IMPLEMENTATION.md (this file)
     ├── SECURITY.md
-    ├── TypedLua-Design.md
+    ├── LuaNext-Design.md
     └── ...
 ```
 
@@ -683,12 +683,12 @@ mod tests {
 
 ### Integration Tests
 
-**Located:** `crates/typedlua-core/tests/*.rs`
+**Located:** `crates/luanext-core/tests/*.rs`
 
 ```rust
 // tests/type_narrowing_tests.rs
 
-use typedlua_core::*;
+use luanext_core::*;
 
 #[test]
 fn test_type_narrowing_with_typeof() {
@@ -1008,12 +1008,12 @@ let mut type_checker = TypeChecker::new(handler.clone(), &interner);
 ## References
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture overview
-- [TypedLua Design](TypedLua-Design.md) - Type system specification
+- [LuaNext Design](LuaNext-Design.md) - Type system specification
 - [AST Structure](AST-Structure.md) - AST node definitions
 - [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/)
 
 ---
 
 **Version:** 1.0
-**Contributors:** TypedLua Team
+**Contributors:** LuaNext Team
 **License:** MIT

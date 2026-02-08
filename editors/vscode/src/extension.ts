@@ -9,20 +9,20 @@ import {
 let client: LanguageClient | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('TypedLua extension is now active');
+    console.log('LuaNext extension is now active');
 
     // Start the language server
     startLanguageServer();
 
     // Register commands
     context.subscriptions.push(
-        vscode.commands.registerCommand('typedlua.restartServer', async () => {
+        vscode.commands.registerCommand('luanext.restartServer', async () => {
             await restartLanguageServer();
         })
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('typedlua.showOutputChannel', () => {
+        vscode.commands.registerCommand('luanext.showOutputChannel', () => {
             client?.outputChannel.show();
         })
     );
@@ -36,8 +36,8 @@ export function deactivate(): Thenable<void> | undefined {
 }
 
 async function startLanguageServer() {
-    const config = vscode.workspace.getConfiguration('typedlua');
-    const serverPath = config.get<string>('server.path', 'typedlua-lsp');
+    const config = vscode.workspace.getConfiguration('luanext');
+    const serverPath = config.get<string>('server.path', 'luanext-lsp');
 
     // Define the server options
     const serverOptions: ServerOptions = {
@@ -51,17 +51,17 @@ async function startLanguageServer() {
 
     // Options to control the language client
     const clientOptions: LanguageClientOptions = {
-        // Register the server for TypedLua documents
+        // Register the server for LuaNext documents
         documentSelector: [
-            { scheme: 'file', language: 'typedlua' },
-            { scheme: 'untitled', language: 'typedlua' }
+            { scheme: 'file', language: 'luanext' },
+            { scheme: 'untitled', language: 'luanext' }
         ],
         synchronize: {
             // Notify the server about file changes to '.luax' files in the workspace
             fileEvents: vscode.workspace.createFileSystemWatcher('**/*.luax')
         },
-        outputChannelName: 'TypedLua Language Server',
-        traceOutputChannel: vscode.window.createOutputChannel('TypedLua Language Server Trace'),
+        outputChannelName: 'LuaNext Language Server',
+        traceOutputChannel: vscode.window.createOutputChannel('LuaNext Language Server Trace'),
         revealOutputChannelOn: 2, // RevealOutputChannelOn.Error
         initializationOptions: {
             // Pass configuration to the server
@@ -76,8 +76,8 @@ async function startLanguageServer() {
 
     // Create the language client
     client = new LanguageClient(
-        'typedlua',
-        'TypedLua Language Server',
+        'luanext',
+        'LuaNext Language Server',
         serverOptions,
         clientOptions
     );
@@ -85,10 +85,10 @@ async function startLanguageServer() {
     // Start the client (and server)
     try {
         await client.start();
-        vscode.window.showInformationMessage('TypedLua Language Server started successfully');
+        vscode.window.showInformationMessage('LuaNext Language Server started successfully');
     } catch (error) {
         vscode.window.showErrorMessage(
-            `Failed to start TypedLua Language Server: ${error}`
+            `Failed to start LuaNext Language Server: ${error}`
         );
         console.error('Failed to start language server:', error);
     }
@@ -96,7 +96,7 @@ async function startLanguageServer() {
 
 async function restartLanguageServer() {
     if (client) {
-        vscode.window.showInformationMessage('Restarting TypedLua Language Server...');
+        vscode.window.showInformationMessage('Restarting LuaNext Language Server...');
         await client.stop();
         client = undefined;
     }

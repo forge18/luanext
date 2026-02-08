@@ -498,7 +498,7 @@ fn test_circular_dependency_modules() {
 
     // Generate bundle should work
     let output = generate_bundle(&sources, "a.lua", true);
-    assert!(output.contains("-- TypedLua Bundle"));
+    assert!(output.contains("-- LuaNext Bundle"));
 }
 
 // ============================================================================

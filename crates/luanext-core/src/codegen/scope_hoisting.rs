@@ -629,7 +629,7 @@ impl NameMangler {
         ] {
             reserved.insert((*keyword).to_string());
         }
-        // TypedLua runtime names
+        // LuaNext runtime names
         for name in &[
             "__modules",
             "__loaded",

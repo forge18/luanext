@@ -1,4 +1,4 @@
-# TypedLua Architecture
+# LuaNext Architecture
 
 **Version:** 2.0
 **Last Updated:** 2026-01-23
@@ -23,7 +23,7 @@
 
 ## Executive Summary
 
-TypedLua is a typed superset of Lua implemented in Rust, providing static type checking with gradual typing inspired by TypeScript. The compiler transforms typed Lua code into plain Lua while ensuring type safety at compile time.
+LuaNext is a typed superset of Lua implemented in Rust, providing static type checking with gradual typing inspired by TypeScript. The compiler transforms typed Lua code into plain Lua while ensuring type safety at compile time.
 
 ### Implementation Status at a Glance
 
@@ -154,7 +154,7 @@ TypedLua is a typed superset of Lua implemented in Rust, providing static type c
 ┌─────────────────────────────────────────────────────────────────┐
 │                         CLI Layer                               │
 │  Entry point, argument parsing, configuration loading           │
-│  Crates: typedlua-cli                                           │
+│  Crates: luanext-cli                                           │
 └────────────────────────────┬────────────────────────────────────┘
                              │
                              ▼
@@ -197,11 +197,11 @@ TypedLua is a typed superset of Lua implemented in Rust, providing static type c
 ### Crate Structure
 
 ```text
-typed-lua/
+luanext/
 ├── crates/
-│   ├── typedlua-core/      # Compiler core (lexer, parser, type checker, codegen)
-│   ├── typedlua-cli/       # Command-line interface
-│   └── typedlua-lsp/       # Language Server Protocol implementation
+│   ├── luanext-core/      # Compiler core (lexer, parser, type checker, codegen)
+│   ├── luanext-cli/       # Command-line interface
+│   └── luanext-lsp/       # Language Server Protocol implementation
 ├── editors/
 │   └── vscode/             # VS Code extension
 └── docs/                   # Documentation
@@ -211,7 +211,7 @@ typed-lua/
 
 ## Component Design
 
-### Core Module: `typedlua-core`
+### Core Module: `luanext-core`
 
 The core crate contains all compilation logic, organized into focused modules:
 
@@ -255,7 +255,7 @@ pub struct Container {
 
 ### Lexer
 
-**Location:** `crates/typedlua-core/src/lexer/`
+**Location:** `crates/luanext-core/src/lexer/`
 
 Converts source code into a stream of tokens.
 
@@ -268,14 +268,14 @@ Converts source code into a stream of tokens.
 
 **Features:**
 
-- Context-aware tokenization (respects TypedLua vs Lua syntax)
+- Context-aware tokenization (respects LuaNext vs Lua syntax)
 - Comprehensive error reporting via diagnostic handler
 - Support for multi-line strings, comments, and template literals
 - String interning for fast identifier comparison
 
 ### Parser
 
-**Location:** `crates/typedlua-core/src/parser/`
+**Location:** `crates/luanext-core/src/parser/`
 
 Builds an Abstract Syntax Tree (AST) from tokens using a trait-based design.
 
@@ -296,7 +296,7 @@ Builds an Abstract Syntax Tree (AST) from tokens using a trait-based design.
 
 ### Type Checker
 
-**Location:** `crates/typedlua-core/src/typechecker/`
+**Location:** `crates/luanext-core/src/typechecker/`
 
 Performs static type analysis and inference.
 
@@ -322,7 +322,7 @@ Performs static type analysis and inference.
 
 ### Code Generator
 
-**Location:** `crates/typedlua-core/src/codegen/`
+**Location:** `crates/luanext-core/src/codegen/`
 
 Transforms typed AST into executable Lua code.
 
@@ -342,14 +342,14 @@ Transforms typed AST into executable Lua code.
 
 ### Optimizer
 
-**Location:** `crates/typedlua-core/src/optimizer/`
+**Location:** `crates/luanext-core/src/optimizer/`
 
 The optimizer performs AST transformations to improve generated Lua code performance. It uses a configurable multi-level optimization system with 15 registered passes.
 
 #### Structure
 
 ```
-crates/typedlua-core/src/optimizer/
+crates/luanext-core/src/optimizer/
 ├── mod.rs                    # Optimizer orchestrator and pass registration
 └── passes.rs                 # Individual optimization pass implementations
 ```
@@ -521,7 +521,7 @@ The optimizer receives a `Program` (typed AST) and returns a transformed `Progra
 
 ### Diagnostic System
 
-**Location:** `crates/typedlua-core/src/diagnostics.rs`
+**Location:** `crates/luanext-core/src/diagnostics.rs`
 
 Comprehensive error reporting with LSP compatibility.
 
@@ -542,7 +542,7 @@ Comprehensive error reporting with LSP compatibility.
 
 ### LSP Server
 
-**Location:** `crates/typedlua-lsp/src/`
+**Location:** `crates/luanext-lsp/src/`
 
 Full-featured Language Server Protocol implementation.
 
@@ -572,7 +572,7 @@ impl HoverProvider {
 
 ## Runtime Extensions Architecture
 
-TypedLua extends Lua with modern language features that don't exist in base Lua or its standard library. These extensions require **runtime support code** that gets embedded in the generated Lua output.
+LuaNext extends Lua with modern language features that don't exist in base Lua or its standard library. These extensions require **runtime support code** that gets embedded in the generated Lua output.
 
 ### What Qualifies as a Runtime Extension?
 
@@ -589,7 +589,7 @@ Any feature beyond base Lua 5.1-5.4 specification requires runtime support:
 | **Operator Overloading** | `operator +`, `operator ==` | Metatable setup, metamethod binding |
 | **Interface Defaults** | Default method implementations | Method copying, inheritance chains |
 
-### The `typedlua-runtime` Crate
+### The `luanext-runtime` Crate
 
 **Status:** Planned (not yet created)
 
@@ -598,7 +598,7 @@ Any feature beyond base Lua 5.1-5.4 specification requires runtime support:
 **Structure:**
 
 ```
-crates/typedlua-runtime/
+crates/luanext-runtime/
 ├── src/
 │   ├── lib.rs                    # Re-exports all modules
 │   ├── classes.rs                # Class system runtime
@@ -619,11 +619,11 @@ crates/typedlua-runtime/
 **Integration Pattern:**
 
 ```rust
-// In typedlua-runtime/src/decorators.rs
+// In luanext-runtime/src/decorators.rs
 pub const DECORATOR_RUNTIME: &str = include_str!("../lua/decorator_runtime.lua");
 
 // In codegen/mod.rs
-use typedlua_runtime::decorators::DECORATOR_RUNTIME;
+use luanext_runtime::decorators::DECORATOR_RUNTIME;
 
 impl CodeGenerator {
     fn emit_decorator_runtime(&mut self) {
@@ -665,7 +665,7 @@ Only features with `uses_*: true` have their runtime included in output.
 
 ### Compilation Pipeline
 
-1. **Source Input** → Raw TypedLua source code
+1. **Source Input** → Raw LuaNext source code
 2. **Lexer** → Tokenizes source into `Vec<Token>` with string interning
 3. **Parser** → Builds `Program` (AST root) in arena
 4. **Type Checker** → Validates types, performs inference, produces `TypeEnvironment`
@@ -692,14 +692,14 @@ Component → diagnostic_handler.error(span, message)
 
 ## Extension Points
 
-This section documents how to extend TypedLua with new features.
+This section documents how to extend LuaNext with new features.
 
 ### Adding New Token Types
 
 **Files to modify:**
 
-1. [crates/typedlua-core/src/lexer/lexeme.rs](../crates/typedlua-core/src/lexer/lexeme.rs) - Add variant to `TokenKind` enum
-2. [crates/typedlua-core/src/lexer/mod.rs](../crates/typedlua-core/src/lexer/mod.rs) - Add lexing logic in `scan_token()`
+1. [crates/luanext-core/src/lexer/lexeme.rs](../crates/luanext-core/src/lexer/lexeme.rs) - Add variant to `TokenKind` enum
+2. [crates/luanext-core/src/lexer/mod.rs](../crates/luanext-core/src/lexer/mod.rs) - Add lexing logic in `scan_token()`
 
 **Example:**
 
@@ -718,10 +718,10 @@ pub enum TokenKind {
 
 **Files to modify:**
 
-1. [crates/typedlua-core/src/ast/statement.rs](../crates/typedlua-core/src/ast/statement.rs) - Add variant to `Statement` enum
-2. [crates/typedlua-core/src/parser/statement.rs](../crates/typedlua-core/src/parser/statement.rs) - Implement `parse_*_statement()` method
-3. [crates/typedlua-core/src/typechecker/type_checker.rs](../crates/typedlua-core/src/typechecker/type_checker.rs) - Add `check_*_statement()` method
-4. [crates/typedlua-core/src/codegen/mod.rs](../crates/typedlua-core/src/codegen/mod.rs) - Add `generate_*_statement()` method
+1. [crates/luanext-core/src/ast/statement.rs](../crates/luanext-core/src/ast/statement.rs) - Add variant to `Statement` enum
+2. [crates/luanext-core/src/parser/statement.rs](../crates/luanext-core/src/parser/statement.rs) - Implement `parse_*_statement()` method
+3. [crates/luanext-core/src/typechecker/type_checker.rs](../crates/luanext-core/src/typechecker/type_checker.rs) - Add `check_*_statement()` method
+4. [crates/luanext-core/src/codegen/mod.rs](../crates/luanext-core/src/codegen/mod.rs) - Add `generate_*_statement()` method
 
 **Pattern:**
 
@@ -745,24 +745,24 @@ Statement::NewStatement(data) => self.generate_new_statement(data),
 
 **Files to modify:**
 
-1. [crates/typedlua-core/src/ast/expression.rs](../crates/typedlua-core/src/ast/expression.rs) - Add variant to `ExpressionKind` enum
-2. [crates/typedlua-core/src/parser/expression.rs](../crates/typedlua-core/src/parser/expression.rs) - Add parsing logic
-3. [crates/typedlua-core/src/typechecker/type_checker.rs](../crates/typedlua-core/src/typechecker/type_checker.rs) - Add type inference logic
-4. [crates/typedlua-core/src/codegen/mod.rs](../crates/typedlua-core/src/codegen/mod.rs) - Add code generation
+1. [crates/luanext-core/src/ast/expression.rs](../crates/luanext-core/src/ast/expression.rs) - Add variant to `ExpressionKind` enum
+2. [crates/luanext-core/src/parser/expression.rs](../crates/luanext-core/src/parser/expression.rs) - Add parsing logic
+3. [crates/luanext-core/src/typechecker/type_checker.rs](../crates/luanext-core/src/typechecker/type_checker.rs) - Add type inference logic
+4. [crates/luanext-core/src/codegen/mod.rs](../crates/luanext-core/src/codegen/mod.rs) - Add code generation
 
 ### Adding New Types
 
 **Files to modify:**
 
-1. [crates/typedlua-core/src/ast/types.rs](../crates/typedlua-core/src/ast/types.rs) - Add variant to `Type` enum
-2. [crates/typedlua-core/src/parser/types.rs](../crates/typedlua-core/src/parser/types.rs) - Add parsing logic
-3. [crates/typedlua-core/src/typechecker/type_compat.rs](../crates/typedlua-core/src/typechecker/type_compat.rs) - Add compatibility rules
+1. [crates/luanext-core/src/ast/types.rs](../crates/luanext-core/src/ast/types.rs) - Add variant to `Type` enum
+2. [crates/luanext-core/src/parser/types.rs](../crates/luanext-core/src/parser/types.rs) - Add parsing logic
+3. [crates/luanext-core/src/typechecker/type_compat.rs](../crates/luanext-core/src/typechecker/type_compat.rs) - Add compatibility rules
 
 ### Adding New Utility Types
 
 **File to modify:**
 
-- [crates/typedlua-core/src/typechecker/utility_types.rs](../crates/typedlua-core/src/typechecker/utility_types.rs)
+- [crates/luanext-core/src/typechecker/utility_types.rs](../crates/luanext-core/src/typechecker/utility_types.rs)
 
 **Pattern:**
 
@@ -783,11 +783,11 @@ fn evaluate_new_utility(&self, args: &[Type]) -> Option<Type> {
 
 **Files to modify:**
 
-1. Create new provider in [crates/typedlua-lsp/src/providers/](../crates/typedlua-lsp/src/providers/)
-2. Export from [crates/typedlua-lsp/src/providers/mod.rs](../crates/typedlua-lsp/src/providers/mod.rs)
-3. Add field to `MessageHandler` in [crates/typedlua-lsp/src/message_handler.rs](../crates/typedlua-lsp/src/message_handler.rs)
+1. Create new provider in [crates/luanext-lsp/src/providers/](../crates/luanext-lsp/src/providers/)
+2. Export from [crates/luanext-lsp/src/providers/mod.rs](../crates/luanext-lsp/src/providers/mod.rs)
+3. Add field to `MessageHandler` in [crates/luanext-lsp/src/message_handler.rs](../crates/luanext-lsp/src/message_handler.rs)
 4. Handle request in `MessageHandler::handle_request()`
-5. Advertise capability in [crates/typedlua-lsp/src/main.rs](../crates/typedlua-lsp/src/main.rs)
+5. Advertise capability in [crates/luanext-lsp/src/main.rs](../crates/luanext-lsp/src/main.rs)
 
 **Pattern:**
 
@@ -932,7 +932,7 @@ These features have lexer tokens but no AST, parser, type checker, or codegen su
 
 ### ADR-001: Use Rust for Implementation
 
-**Decision:** Implement TypedLua in Rust rather than C++, OCaml, or Haskell.
+**Decision:** Implement LuaNext in Rust rather than C++, OCaml, or Haskell.
 
 **Rationale:**
 
@@ -1182,12 +1182,12 @@ Incrementally extract version-specific logic from main codegen into strategy imp
 
 **Current State:**
 
-The [codegen/mod.rs](../crates/typedlua-core/src/codegen/mod.rs) file is 3,120 lines - too large for easy maintenance.
+The [codegen/mod.rs](../crates/luanext-core/src/codegen/mod.rs) file is 3,120 lines - too large for easy maintenance.
 
 **Proposed Structure:**
 
 ```text
-crates/typedlua-core/src/codegen/
+crates/luanext-core/src/codegen/
 ├── mod.rs              # Orchestrator (300 lines)
 ├── strategies/         # Lua version strategies
 │   ├── mod.rs
@@ -1242,7 +1242,7 @@ pub struct CodeGenerator<'a> {
 
 **Current State:**
 
-The [type_checker.rs](../crates/typedlua-core/src/typechecker/type_checker.rs) file is 3,544 lines with multiple concerns mixed together.
+The [type_checker.rs](../crates/luanext-core/src/typechecker/type_checker.rs) file is 3,544 lines with multiple concerns mixed together.
 
 **Proposed Architecture:**
 
@@ -1264,7 +1264,7 @@ pub struct InferenceVisitor;      // Type inference rules
 **Structure:**
 
 ```text
-crates/typedlua-core/src/typechecker/
+crates/luanext-core/src/typechecker/
 ├── type_checker.rs           # Main orchestrator
 ├── visitors/
 │   ├── mod.rs
@@ -1321,11 +1321,11 @@ let generator = CodeGenerator::builder()
 ## References
 
 - [Implementation Architecture](Implementation-Architecture.md) - Original design document
-- [TypedLua Design](TypedLua-Design.md) - Type system specification
+- [LuaNext Design](LuaNext-Design.md) - Type system specification
 - [Language Features](LANGUAGE_FEATURES.md) - Feature documentation
 
 ---
 
 **Version:** 2.0
-**Contributors:** TypedLua Team
+**Contributors:** LuaNext Team
 **License:** MIT

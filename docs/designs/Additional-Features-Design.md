@@ -1,13 +1,13 @@
-# TypedLua Feature Roadmap
+# LuaNext Feature Roadmap
 
-This document specifies new features to be implemented in the TypedLua compiler. TypedLua is a Rust-based compiler that compiles a TypeScript-inspired typed language to Lua.
+This document specifies new features to be implemented in the LuaNext compiler. LuaNext is a Rust-based compiler that compiles a TypeScript-inspired typed language to Lua.
 
-**Repository:** `/Users/forge18/Repos/typed-lua`
+**Repository:** `/Users/forge18/Repos/luanext`
 
 **Architecture:**
-- `crates/typedlua-core/` — Lexer, parser, type checker, codegen
-- `crates/typedlua-lsp/` — Language Server Protocol
-- `crates/typedlua-cli/` — CLI
+- `crates/luanext-core/` — Lexer, parser, type checker, codegen
+- `crates/luanext-lsp/` — Language Server Protocol
+- `crates/luanext-cli/` — CLI
 
 ---
 
@@ -60,18 +60,18 @@ class Dog extends Animal {
 
 **Implementation:**
 
-1. **Lexer** (`crates/typedlua-core/src/lexer/token.rs`):
+1. **Lexer** (`crates/luanext-core/src/lexer/token.rs`):
    - Add `Override` to `TokenKind` enum
    - Add to `from_keyword()` match
 
-2. **AST** (`crates/typedlua-core/src/ast/statement.rs`):
+2. **AST** (`crates/luanext-core/src/ast/statement.rs`):
    - Add `is_override: bool` to `MethodDeclaration`
 
-3. **Parser** (`crates/typedlua-core/src/parser/`):
+3. **Parser** (`crates/luanext-core/src/parser/`):
    - Parse `override` keyword before method declarations in classes
    - Set `is_override: true` on the `MethodDeclaration`
 
-4. **Type Checker** (`crates/typedlua-core/src/typechecker/`):
+4. **Type Checker** (`crates/luanext-core/src/typechecker/`):
    - When checking a method with `is_override: true`:
      - Verify the class has a parent (`extends`)
      - Verify the parent class has a method with the same name
@@ -283,7 +283,7 @@ print(user.email)       // ERROR: protected member
 
 1. **Lexer**: No changes needed
 
-2. **AST** (`crates/typedlua-core/src/ast/statement.rs`):
+2. **AST** (`crates/luanext-core/src/ast/statement.rs`):
    ```rust
    pub struct ClassDeclaration {
        pub name: String,
@@ -499,7 +499,7 @@ const z = x ?? true   -- z = false (CORRECT)
    - Add `QuestionQuestion` to `TokenKind`
    - Parse `??` as a single token (not two `?`)
 
-2. **AST** (`crates/typedlua-core/src/ast/expression.rs`):
+2. **AST** (`crates/luanext-core/src/ast/expression.rs`):
    - Add `NullCoalesce` to `BinaryOp` enum
 
 3. **Parser**:
@@ -651,7 +651,7 @@ const len = #v1     -- Uses operator #
 
 **Supported Operators:**
 
-| TypedLua Operator | Lua Metamethod |
+| LuaNext Operator | Lua Metamethod |
 |-------------------|----------------|
 | `operator +` | `__add` |
 | `operator -` (binary) | `__sub` |
@@ -1452,7 +1452,7 @@ class Player extends Godot.Scene.Sprite {
    - Add `Namespace` to `TokenKind`
    - Add to `from_keyword()` match
 
-2. **AST** (`crates/typedlua-core/src/ast/statement.rs`):
+2. **AST** (`crates/luanext-core/src/ast/statement.rs`):
    ```rust
    pub enum Statement {
        // ... existing variants
@@ -1618,7 +1618,7 @@ const text = `
 
 ### Implementation
 
-1. **Lexer** (`crates/typedlua-core/src/lexer/mod.rs`):
+1. **Lexer** (`crates/luanext-core/src/lexer/mod.rs`):
    - When parsing template literal, track indentation of each line
    - Store raw string with indentation metadata
 
@@ -1626,7 +1626,7 @@ const text = `
    - Template literals already parsed into `TemplateLiteral` AST node
    - No changes needed
 
-3. **Codegen** (`crates/typedlua-core/src/codegen/mod.rs`):
+3. **Codegen** (`crates/luanext-core/src/codegen/mod.rs`):
    - During codegen, apply dedenting algorithm:
      1. Split string into lines
      2. Find minimum leading whitespace (excluding empty lines)
@@ -1771,7 +1771,7 @@ The reflection system is implemented entirely in Rust for maximum performance:
 
 - Pre-compiled binary rocks for common platforms (Linux x64/ARM, macOS x64/ARM, Windows x64)
 - Distributed via LuaRocks and GitHub releases
-- Users install via: `luarocks install typedlua-reflect`
+- Users install via: `luarocks install luanext-reflect`
 
 **Expected Performance:**
 - **50-500x faster** than naive Lua reflection implementation
@@ -1781,7 +1781,7 @@ The reflection system is implemented entirely in Rust for maximum performance:
 
 ### Implementation
 
-#### **Rust Native Module** (`crates/typedlua-reflect-native/src/lib.rs`):
+#### **Rust Native Module** (`crates/luanext-reflect-native/src/lib.rs`):
 
 Core reflection implementation using `mlua` for Lua integration:
 
@@ -1802,7 +1802,7 @@ struct TypeInfo {
 }
 
 #[mlua::lua_module]
-fn typedlua_reflect(lua: &Lua) -> LuaResult<LuaTable> {
+fn luanext_reflect(lua: &Lua) -> LuaResult<LuaTable> {
     let exports = lua.create_table()?;
 
     exports.set("is_instance", lua.create_function(is_instance)?)?;
@@ -1826,12 +1826,12 @@ fn typeof_impl(_lua: &Lua, type_id: u32) -> LuaResult<LuaTable> {
 **Distribution:**
 
 ```lua
--- typedlua-reflect-scm-1.rockspec
-package = "typedlua-reflect"
+-- luanext-reflect-scm-1.rockspec
+package = "luanext-reflect"
 version = "scm-1"
 
 source = {
-   url = "git://github.com/yourorg/typedlua",
+   url = "git://github.com/yourorg/luanext",
 }
 
 dependencies = { "lua >= 5.1" }
@@ -1841,7 +1841,7 @@ build = {
    build_command = "cargo build --release",
    install = {
       lib = {
-         ["typedlua.reflect.native"] = "target/release/libtypedlua_reflect.*"
+         ["luanext.reflect.native"] = "target/release/libluanext_reflect.*"
       }
    }
 }
@@ -1849,7 +1849,7 @@ build = {
 
 **Binary Distribution:**
 - Pre-compiled `.rock` files for Linux (x64, ARM), macOS (x64, ARM), Windows (x64)
-- Available via LuaRocks: `luarocks install typedlua-reflect`
+- Available via LuaRocks: `luarocks install luanext-reflect`
 - GitHub releases: Manual download + install
 
 #### **Runtime Integration:**
@@ -1857,8 +1857,8 @@ build = {
 The Lua runtime loads the native module directly:
 
 ```lua
--- typedlua_runtime.lua
-local native = require("typedlua.reflect.native")
+-- luanext_runtime.lua
+local native = require("luanext.reflect.native")
 
 local Runtime = {}
 
@@ -2017,7 +2017,7 @@ The system automatically builds metadata based on what's accessed:
 
 **Effort:** 5-7 weeks
 
-**Description:** Compile-time optimizations that generate faster Lua code. Since TypedLua targets standard Lua VMs (5.1-5.4) without JIT compilation, these source-to-source transformations are critical for achieving good performance while maintaining compatibility with all Lua environments and game engines.
+**Description:** Compile-time optimizations that generate faster Lua code. Since LuaNext targets standard Lua VMs (5.1-5.4) without JIT compilation, these source-to-source transformations are critical for achieving good performance while maintaining compatibility with all Lua environments and game engines.
 
 ### Optimization Levels
 
@@ -2609,7 +2609,7 @@ pub trait OptimizationPass {
 - Works with all Lua VMs (5.1-5.4)
 - Compatible with game engines (Löve2D, Defold, Roblox, etc.)
 - Generates clean, debuggable Lua code
-- Leverages TypedLua's type information for safe optimizations
+- Leverages LuaNext's type information for safe optimizations
 
 ---
 

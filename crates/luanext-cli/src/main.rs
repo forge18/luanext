@@ -50,7 +50,7 @@ struct Cli {
     #[arg(short, long)]
     watch: bool,
 
-    /// Initialize a new TypedLua project
+    /// Initialize a new LuaNext project
     #[arg(long)]
     init: bool,
 
@@ -171,7 +171,7 @@ fn main() -> anyhow::Result<()> {
     };
 
     info!(
-        "TypedLua CLI - Compiling with target Lua {:?}",
+        "LuaNext CLI - Compiling with target Lua {:?}",
         config.compiler_options.target
     );
     info!("Input files: {} file(s)", files.len());
@@ -200,12 +200,12 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Initialize a new TypedLua project with a configuration file
+/// Initialize a new LuaNext project with a configuration file
 fn init_project() -> anyhow::Result<()> {
-    println!("Initializing new TypedLua project...");
+    println!("Initializing new LuaNext project...");
 
-    let config = r#"# TypedLua Configuration File
-# https://typedlua.dev/docs/configuration
+    let config = r#"# LuaNext Configuration File
+# https://luanext.dev/docs/configuration
 
 compilerOptions:
   target: "5.4"          # Lua version: 5.1, 5.2, 5.3, 5.4
@@ -229,7 +229,7 @@ exclude:
     println!("Created src/ directory");
 
     // Create a sample file
-    let sample = r#"-- Welcome to TypedLua!
+    let sample = r#"-- Welcome to LuaNext!
 -- This is a sample file to get you started.
 
 type Person = {
@@ -253,7 +253,7 @@ print(greet(user))
     println!("Created src/main.luax");
 
     println!("\nProject initialized successfully!");
-    println!("Run 'typedlua src/main.luax' to compile your first file.");
+    println!("Run 'luanext src/main.luax' to compile your first file.");
 
     Ok(())
 }
@@ -1743,7 +1743,7 @@ fn copy_lua_files_to_output(cli: &Cli) -> anyhow::Result<()> {
         let path_str = path.to_string_lossy();
         if path_str.contains("node_modules")
             || path_str.contains(".git")
-            || path_str.contains(".typed-lua-cache")
+            || path_str.contains(".luanext-cache")
             || path_str.contains("target")
         {
             continue;

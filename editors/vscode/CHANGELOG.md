@@ -1,6 +1,6 @@
 # Change Log
 
-All notable changes to the TypedLua VS Code extension will be documented in this file.
+All notable changes to the LuaNext VS Code extension will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -10,14 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 #### Language Server Features
-- Full LSP (Language Server Protocol) integration with `typedlua-lsp`
+- Full LSP (Language Server Protocol) integration with `luanext-lsp`
 - Real-time type checking and diagnostics
 - Incremental document synchronization for performance
 - Asynchronous architecture using Tokio
 
 #### IntelliSense
 - Context-aware code completion
-  - Keyword completion (40+ TypedLua keywords)
+  - Keyword completion (40+ LuaNext keywords)
   - Type completion (primitive types)
   - Decorator completion (@deprecated, @readonly, etc.)
   - Member access completion (`.` trigger)
@@ -64,7 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Folding markers (`--#region` / `--#endregion`)
 
 #### Extension Features
-- TypedLua icon (128x128, optimized)
+- LuaNext icon (128x128, optimized)
 - Configurable settings (8 configuration options)
 - Two extension commands:
   - Restart Language Server
@@ -86,14 +86,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Configuration Options
 
 Added 8 user-configurable settings:
-- `typedlua.trace.server` - LSP communication tracing
-- `typedlua.server.path` - Path to language server binary
-- `typedlua.compiler.checkOnSave` - Type check on save
-- `typedlua.compiler.strictNullChecks` - Strict null checking
-- `typedlua.format.enable` - Enable/disable formatting
-- `typedlua.format.indentSize` - Indentation size
-- `typedlua.inlayHints.typeHints` - Show type hints
-- `typedlua.inlayHints.parameterHints` - Show parameter hints
+- `luanext.trace.server` - LSP communication tracing
+- `luanext.server.path` - Path to language server binary
+- `luanext.compiler.checkOnSave` - Type check on save
+- `luanext.compiler.strictNullChecks` - Strict null checking
+- `luanext.format.enable` - Enable/disable formatting
+- `luanext.format.indentSize` - Indentation size
+- `luanext.inlayHints.typeHints` - Show type hints
+- `luanext.inlayHints.parameterHints` - Show parameter hints
 
 ### Technical Details
 

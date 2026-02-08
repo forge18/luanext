@@ -1,6 +1,6 @@
 # Publishing to VS Code Marketplace
 
-This guide walks you through publishing the TypedLua extension to the Visual Studio Code Marketplace.
+This guide walks you through publishing the LuaNext extension to the Visual Studio Code Marketplace.
 
 ## Prerequisites
 
@@ -15,7 +15,7 @@ This guide walks you through publishing the TypedLua extension to the Visual Stu
 1. Go to [https://dev.azure.com](https://dev.azure.com)
 2. Sign in with your Microsoft account
 3. Click "Create new organization"
-4. Choose a unique name for your organization (e.g., "typedlua")
+4. Choose a unique name for your organization (e.g., "luanext")
 5. Select your region
 6. Complete the setup
 
@@ -41,8 +41,8 @@ This guide walks you through publishing the TypedLua extension to the Visual Stu
 2. Sign in with the same Microsoft account
 3. Click "Create publisher"
 4. Fill in the form:
-   - **ID**: Unique identifier (e.g., "typedlua-team") - can't be changed later
-   - **Name**: Display name (e.g., "TypedLua")
+   - **ID**: Unique identifier (e.g., "luanext-team") - can't be changed later
+   - **Name**: Display name (e.g., "LuaNext")
    - **Email**: Contact email
    - **Logo**: Optional (can add later)
 5. Click "Create"
@@ -101,11 +101,11 @@ cd editors/vscode
 vsce package
 ```
 
-This creates `typedlua-0.1.0.vsix` (or similar).
+This creates `luanext-0.1.0.vsix` (or similar).
 
 **Optional**: Test the .vsix locally before publishing:
 ```bash
-code --install-extension typedlua-0.1.0.vsix
+code --install-extension luanext-0.1.0.vsix
 ```
 
 ### 4. Publish to Marketplace
@@ -133,11 +133,11 @@ vsce publish major  # 0.1.0 -> 1.0.0
 
 ### 5. Verify Publication
 
-1. Go to [https://marketplace.visualstudio.com/items?itemName=your-publisher-id.typedlua](https://marketplace.visualstudio.com/items?itemName=your-publisher-id.typedlua)
+1. Go to [https://marketplace.visualstudio.com/items?itemName=your-publisher-id.luanext](https://marketplace.visualstudio.com/items?itemName=your-publisher-id.luanext)
 2. Check that all information is correct
 3. Try installing in VS Code:
    ```
-   Ctrl+Shift+X > Search "TypedLua" > Install
+   Ctrl+Shift+X > Search "LuaNext" > Install
    ```
 
 ## Updating the Extension
@@ -200,7 +200,7 @@ Create `editors/vscode/publish.sh`:
 #!/bin/bash
 set -e
 
-echo "🚀 Publishing TypedLua Extension"
+echo "🚀 Publishing LuaNext Extension"
 echo "================================="
 
 # Ensure we're in the right directory
@@ -266,7 +266,7 @@ Use it:
 **Warning**: Only unpublish if absolutely necessary. Users with the extension installed will be affected.
 
 ```bash
-vsce unpublish your-publisher-id.typedlua
+vsce unpublish your-publisher-id.luanext
 ```
 
 ## Best Practices

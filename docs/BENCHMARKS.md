@@ -1,6 +1,6 @@
-# TypedLua Performance Benchmarks
+# LuaNext Performance Benchmarks
 
-Baseline performance measurements for TypedLua compiler components using Criterion.rs.
+Baseline performance measurements for LuaNext compiler components using Criterion.rs.
 
 **System Information:**
 - Benchmarking Tool: Criterion.rs 0.5

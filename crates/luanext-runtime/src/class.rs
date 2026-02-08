@@ -1,4 +1,4 @@
-//! Class runtime support for TypedLua.
+//! Class runtime support for LuaNext.
 //! Uses `{}` placeholder for class name - replace before use.
 
 pub const BUILD_ALL_FIELDS: &str = r#"function {}._buildAllFields()
