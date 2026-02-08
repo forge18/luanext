@@ -161,6 +161,7 @@ impl CodeGenerator {
                     .any(|elem| matches!(elem, ArrayElement::Spread(_)));
 
                 if !has_spread {
+                    // Simple array literal without spread - use table constructor
                     self.write("{");
                     for (i, elem) in elements.iter().enumerate() {
                         if i > 0 {
@@ -170,7 +171,29 @@ impl CodeGenerator {
                     }
                     self.write("}");
                 } else {
-                    self.write("(function() local __arr = {} ");
+                    // Array with spread elements - preallocate for known elements
+                    let known_element_count = elements
+                        .iter()
+                        .filter(|elem| matches!(elem, ArrayElement::Expression(_)))
+                        .count();
+
+                    self.write("(function() ");
+
+                    // Preallocate array with size hint for better performance
+                    // For standard Lua, we create a table with known elements filled with nil
+                    // This allocates the array part upfront, reducing reallocations
+                    if known_element_count > 0 {
+                        self.write("local __arr = {");
+                        for i in 0..known_element_count {
+                            if i > 0 {
+                                self.write(", ");
+                            }
+                            self.write("nil");
+                        }
+                        self.write("} ");
+                    } else {
+                        self.write("local __arr = {} ");
+                    }
 
                     for elem in elements.iter() {
                         match elem {
@@ -205,7 +228,36 @@ impl CodeGenerator {
                     }
                     self.write("}");
                 } else {
-                    self.write("(function() local __obj = {} ");
+                    // Object with spread - use table preallocation optimization
+                    // Collect known keys for size hint
+                    let known_keys: Vec<String> = props
+                        .iter()
+                        .filter_map(|prop| match prop {
+                            ObjectProperty::Property { key, .. } => {
+                                Some(self.resolve(key.node).to_string())
+                            }
+                            ObjectProperty::Computed { .. } => None, // Dynamic keys can't be preallocated
+                            ObjectProperty::Spread { .. } => None,
+                        })
+                        .collect();
+
+                    self.write("(function() ");
+
+                    // Preallocate object with known keys set to nil
+                    // This hints the hash table size to the Lua VM, reducing rehashing overhead
+                    if !known_keys.is_empty() {
+                        self.write("local __obj = {");
+                        for (i, key) in known_keys.iter().enumerate() {
+                            if i > 0 {
+                                self.write(", ");
+                            }
+                            self.write(key);
+                            self.write(" = nil");
+                        }
+                        self.write("} ");
+                    } else {
+                        self.write("local __obj = {} ");
+                    }
 
                     for prop in props.iter() {
                         match prop {

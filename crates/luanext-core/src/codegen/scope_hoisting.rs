@@ -75,7 +75,8 @@ impl<'a> EscapeAnalysis<'a> {
         analysis.collect_return_values_from_private_functions(program);
         let result = analysis.find_hoistable_declarations(program);
         // Debug: log what was found
-        if cfg!(test) && !analysis.module_locals.is_empty() {
+        #[cfg(test)]
+        if !analysis.module_locals.is_empty() {
             eprintln!("DEBUG module_locals: {:?}", analysis.module_locals);
             eprintln!("DEBUG exported_names: {:?}", analysis.exported_names);
             eprintln!("DEBUG return_values: {:?}", analysis.return_values);

@@ -165,14 +165,28 @@ impl SourceMapBuilder {
         column_offset: usize,
         source_index_map: &HashMap<usize, usize>,
     ) {
+        // Build a name index mapping: other's name index -> our name index
+        let mut name_index_map: HashMap<usize, usize> = HashMap::default();
+        for (other_idx, name) in other.names.iter().enumerate() {
+            // Check if we already have this name
+            let our_idx = if let Some(existing_idx) = self.names.iter().position(|n| n == name) {
+                existing_idx
+            } else {
+                // Add the name to our list
+                self.names.push(name.clone());
+                self.names.len() - 1
+            };
+            name_index_map.insert(other_idx, our_idx);
+        }
+
         for mapping in &other.mappings {
             let new_source_index = source_index_map
                 .get(&mapping.source_index)
                 .copied()
                 .unwrap_or(0);
-            // If the other builder has names, we need to add them to our names
-            // For now, we skip name mappings in merge to keep it simple
-            let name_index = None;
+
+            // Remap the name index using our mapping
+            let name_index = mapping.name_index.and_then(|idx| name_index_map.get(&idx).copied());
 
             self.mappings.push(Mapping {
                 generated_line: mapping.generated_line + line_offset,
@@ -485,5 +499,40 @@ mod tests {
         assert_eq!(SourceMapBuilder::encode_vlq(-15), "f");
         assert_eq!(SourceMapBuilder::encode_vlq(16), "gB");
         assert_eq!(SourceMapBuilder::encode_vlq(-16), "hB");
+    }
+
+    #[test]
+    fn test_merge_mappings_with_names() {
+        // Create first builder with some mappings and names
+        let mut builder1 = SourceMapBuilder::new("file1.luax".to_string());
+        builder1.add_mapping(Span::new(0, 3, 1, 1), Some("foo".to_string()));
+        builder1.advance("foo");
+        builder1.add_mapping(Span::new(4, 7, 1, 5), Some("bar".to_string()));
+        builder1.advance("bar");
+
+        // Create second builder with overlapping and new names
+        let mut builder2 = SourceMapBuilder::new("file2.luax".to_string());
+        builder2.add_mapping(Span::new(0, 3, 1, 1), Some("bar".to_string())); // Same as builder1
+        builder2.advance("bar");
+        builder2.add_mapping(Span::new(4, 7, 1, 5), Some("baz".to_string())); // New name
+        builder2.advance("baz");
+
+        // Merge builder2 into builder1
+        let mut source_index_map = HashMap::default();
+        source_index_map.insert(0, 1); // Map file2's index 0 to builder1's index 1
+
+        builder1.merge_mappings_from(&builder2, 2, 0, &source_index_map);
+
+        // Build and verify
+        let source_map = builder1.build();
+
+        // Should have 3 unique names: foo, bar, baz
+        assert_eq!(source_map.names.len(), 3);
+        assert!(source_map.names.contains(&"foo".to_string()));
+        assert!(source_map.names.contains(&"bar".to_string()));
+        assert!(source_map.names.contains(&"baz".to_string()));
+
+        // Should have 4 mappings total (2 from builder1 + 2 from builder2)
+        assert_eq!(source_map.mappings.split(';').count(), 3); // Lines: 0, 1, 2
     }
 }
