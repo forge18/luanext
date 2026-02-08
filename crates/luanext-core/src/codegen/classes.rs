@@ -3,9 +3,15 @@ use luanext_parser as parser;
 use luanext_parser::ast::statement::*;
 
 impl CodeGenerator {
+    /// Generate a class declaration, using the name from the AST.
     pub fn generate_class_declaration(&mut self, class_decl: &ClassDeclaration) {
         let class_name = self.resolve(class_decl.name.node).to_string();
+        self.generate_class_with_name(class_decl, &class_name);
+    }
 
+    /// Generate a class declaration with a custom name (for scope hoisting with name mangling).
+    /// This allows generating a class with a mangled name while preserving all class features.
+    pub fn generate_class_with_name(&mut self, class_decl: &ClassDeclaration, class_name: &str) {
         let prev_parent = self.current_class_parent.take();
 
         let base_class_name = if let Some(extends) = &class_decl.extends {
@@ -22,20 +28,20 @@ impl CodeGenerator {
 
         self.write_indent();
         self.write("local ");
-        self.write(&class_name);
+        self.write(class_name);
         self.writeln(" = {}");
 
         self.write_indent();
-        self.write(&class_name);
+        self.write(class_name);
         self.write(".__index = ");
-        self.write(&class_name);
+        self.write(class_name);
         self.writeln("");
 
         if let Some(base_name) = &base_class_name {
             self.writeln("");
             self.write_indent();
             self.write("setmetatable(");
-            self.write(&class_name);
+            self.write(class_name);
             self.write(", { __index = ");
             let base_name_str = self.resolve(*base_name);
             self.write(&base_name_str);
@@ -50,11 +56,11 @@ impl CodeGenerator {
         let has_primary_constructor = class_decl.primary_constructor.is_some();
 
         if has_primary_constructor {
-            self.generate_primary_constructor(class_decl, &class_name, base_class_name);
+            self.generate_primary_constructor(class_decl, class_name, base_class_name);
         } else if has_constructor {
             for member in class_decl.members.iter() {
                 if let ClassMember::Constructor(ctor) = member {
-                    self.generate_class_constructor(&class_name, ctor, class_decl.is_abstract);
+                    self.generate_class_constructor(class_name, ctor, class_decl.is_abstract);
                 }
             }
         } else {
@@ -62,7 +68,7 @@ impl CodeGenerator {
             self.writeln("");
             self.write_indent();
             self.write("function ");
-            self.write(&class_name);
+            self.write(class_name);
             self.writeln(".new()");
             self.indent();
 
@@ -70,12 +76,12 @@ impl CodeGenerator {
             if class_decl.is_abstract {
                 self.write_indent();
                 self.write("if self == nil or self.__typeName == \"");
-                self.write(&class_name);
+                self.write(class_name);
                 self.writeln("\" then");
                 self.indent();
                 self.write_indent();
                 self.write("error(\"Cannot instantiate abstract class '");
-                self.write(&class_name);
+                self.write(class_name);
                 self.writeln("'\")");
                 self.dedent();
                 self.write_indent();
@@ -84,7 +90,7 @@ impl CodeGenerator {
 
             self.write_indent();
             self.write("local self = setmetatable({}, ");
-            self.write(&class_name);
+            self.write(class_name);
             self.writeln(")");
             self.write_indent();
             self.writeln("return self");
@@ -96,16 +102,16 @@ impl CodeGenerator {
         for member in class_decl.members.iter() {
             match member {
                 ClassMember::Method(method) => {
-                    self.generate_class_method(&class_name, method);
+                    self.generate_class_method(class_name, method);
                 }
                 ClassMember::Getter(getter) => {
-                    self.generate_class_getter(&class_name, getter);
+                    self.generate_class_getter(class_name, getter);
                 }
                 ClassMember::Setter(setter) => {
-                    self.generate_class_setter(&class_name, setter);
+                    self.generate_class_setter(class_name, setter);
                 }
                 ClassMember::Operator(op) => {
-                    self.generate_operator_declaration(&class_name, op);
+                    self.generate_operator_declaration(class_name, op);
                 }
                 ClassMember::Property(_) | ClassMember::Constructor(_) => {}
             }
@@ -123,7 +129,7 @@ impl CodeGenerator {
         if has_operators {
             self.writeln("");
             self.write_indent();
-            self.write(&class_name);
+            self.write(class_name);
             self.writeln(".__metatable = {");
             self.indent();
 
@@ -152,9 +158,9 @@ impl CodeGenerator {
             self.writeln("");
             for decorator in class_decl.decorators.iter() {
                 self.write_indent();
-                self.write(&class_name);
+                self.write(class_name);
                 self.write(" = ");
-                self.generate_decorator_call(decorator, &class_name);
+                self.generate_decorator_call(decorator, class_name);
                 self.writeln("");
             }
         }
@@ -188,11 +194,11 @@ impl CodeGenerator {
 
                 for (method_name, default_fn_name) in default_methods {
                     self.write_indent();
-                    self.write(&class_name);
+                    self.write(class_name);
                     self.write(":");
                     self.write(&method_name);
                     self.write(" = ");
-                    self.write(&class_name);
+                    self.write(class_name);
                     self.write(":");
                     self.write(&method_name);
                     self.write(" or ");
@@ -208,19 +214,19 @@ impl CodeGenerator {
         self.next_type_id += 1;
 
         self.write_indent();
-        self.write(&class_name);
+        self.write(class_name);
         self.write(".__typeName = \"");
-        self.write(&class_name);
+        self.write(class_name);
         self.writeln("\"");
 
         self.write_indent();
-        self.write(&class_name);
+        self.write(class_name);
         self.writeln(&format!(".__typeId = {}", type_id));
 
         // Mark class as final if needed
         if class_decl.is_final {
             self.write_indent();
-            self.write(&class_name);
+            self.write(class_name);
             self.writeln(".__final = true");
         }
 
@@ -243,7 +249,7 @@ impl CodeGenerator {
 
         if !final_methods.is_empty() {
             self.write_indent();
-            self.write(&class_name);
+            self.write(class_name);
             self.writeln(".__finalMethods = {");
             self.indent();
             for method_name in &final_methods {
@@ -256,7 +262,7 @@ impl CodeGenerator {
         }
 
         self.write_indent();
-        self.write(&class_name);
+        self.write(class_name);
         self.writeln(".__ancestors = {");
         self.indent();
         self.write_indent();
@@ -293,7 +299,7 @@ impl CodeGenerator {
         if let Some(base_name) = &base_class_name {
             let base_name_str = self.resolve(*base_name);
             self.write_indent();
-            self.write(&class_name);
+            self.write(class_name);
             self.writeln(&format!(".__parent = {}", base_name_str));
 
             // Check if parent class is final
@@ -342,11 +348,12 @@ impl CodeGenerator {
 
         // -- Reflection metadata (gated on reflection mode) --
         if self.should_emit_reflection() {
-            self.registered_types.insert(class_name.clone(), type_id);
+            self.registered_types
+                .insert(class_name.to_string(), type_id);
 
             // __ownFields with v2 bit flags
             self.write_indent();
-            self.write(&class_name);
+            self.write(class_name);
             self.writeln(".__ownFields = {");
             self.indent();
             for member in class_decl.members.iter() {
@@ -367,7 +374,7 @@ impl CodeGenerator {
 
             // __ownMethods with compact signatures
             self.write_indent();
-            self.write(&class_name);
+            self.write(class_name);
             self.writeln(".__ownMethods = {");
             self.indent();
             for member in class_decl.members.iter() {
@@ -402,24 +409,24 @@ impl CodeGenerator {
             self.writeln("");
             self.writeln(
                 &luanext_runtime::class::BUILD_ALL_FIELDS
-                    .replace("{}", &class_name)
-                    .replace("{}", &class_name)
-                    .replace("{}", &class_name)
-                    .replace("{}", &class_name)
-                    .replace("{}", &class_name)
-                    .replace("{}", &class_name)
-                    .replace("{}", &class_name),
+                    .replace("{}", class_name)
+                    .replace("{}", class_name)
+                    .replace("{}", class_name)
+                    .replace("{}", class_name)
+                    .replace("{}", class_name)
+                    .replace("{}", class_name)
+                    .replace("{}", class_name),
             );
             self.writeln("");
             self.writeln(
                 &luanext_runtime::class::BUILD_ALL_METHODS
-                    .replace("{}", &class_name)
-                    .replace("{}", &class_name)
-                    .replace("{}", &class_name)
-                    .replace("{}", &class_name)
-                    .replace("{}", &class_name)
-                    .replace("{}", &class_name)
-                    .replace("{}", &class_name),
+                    .replace("{}", class_name)
+                    .replace("{}", class_name)
+                    .replace("{}", class_name)
+                    .replace("{}", class_name)
+                    .replace("{}", class_name)
+                    .replace("{}", class_name)
+                    .replace("{}", class_name),
             );
         }
 

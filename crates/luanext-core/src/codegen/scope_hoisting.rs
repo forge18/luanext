@@ -1,6 +1,8 @@
 use luanext_parser::ast::expression::*;
 use luanext_parser::ast::pattern::Pattern;
-use luanext_parser::ast::statement::{ExportKind, Statement, VariableDeclaration, VariableKind};
+use luanext_parser::ast::statement::{
+    ExportKind, ImportClause, InterfaceMember, Statement, VariableDeclaration, VariableKind,
+};
 use luanext_parser::ast::Program;
 use luanext_parser::string_interner::StringId;
 use luanext_parser::string_interner::StringInterner;
@@ -826,6 +828,8 @@ pub struct ReferenceRewriter<'a> {
 pub struct HoistingContext {
     /// Hoistable declarations per module
     pub hoistable_by_module: std::collections::HashMap<String, HoistableDeclarations>,
+    /// Modules where the wrapper can be eliminated entirely
+    pub fully_hoistable_modules: HashSet<String>,
     /// Name mangler for collision-free naming
     pub mangler: NameMangler,
     /// Whether scope hoisting is enabled
@@ -837,6 +841,7 @@ impl HoistingContext {
     pub fn new() -> Self {
         Self {
             hoistable_by_module: Default::default(),
+            fully_hoistable_modules: HashSet::default(),
             mangler: NameMangler::new(),
             enabled: true,
         }
@@ -846,6 +851,7 @@ impl HoistingContext {
     pub fn disabled() -> Self {
         Self {
             hoistable_by_module: Default::default(),
+            fully_hoistable_modules: HashSet::default(),
             mangler: NameMangler::new(),
             enabled: false,
         }
@@ -877,6 +883,16 @@ impl HoistingContext {
                 context
                     .hoistable_by_module
                     .insert(module_id.clone(), hoistable);
+            }
+        }
+
+        // Detect fully hoistable modules: every top-level statement is either
+        // hoisted or produces no runtime code (type-only)
+        for (module_id, program) in modules {
+            if let Some(hoistable) = context.hoistable_by_module.get(module_id.as_str()) {
+                if Self::check_module_fully_hoistable(program, hoistable, interner) {
+                    context.fully_hoistable_modules.insert(module_id.clone());
+                }
             }
         }
 
@@ -923,16 +939,88 @@ impl HoistingContext {
 
     /// Check if a module is fully hoistable (all declarations can be hoisted)
     ///
-    /// A module is fully hoistable if:
-    /// 1. It has no exports (or all exports are hoisted)
-    /// 2. All top-level declarations are hoistable
+    /// A module is fully hoistable if every top-level statement either:
+    /// 1. Is a declaration that has been hoisted to the top-level scope
+    /// 2. Produces no runtime code (type aliases, declare statements, type-only imports)
     ///
     /// For fully hoistable modules, we can skip the module wrapper entirely.
-    pub fn is_module_fully_hoistable(&self, _module_id: &str) -> bool {
-        // For now, we don't support fully hoisting modules
-        // This would require checking that all declarations are hoistable
-        // AND that there are no side effects at the module level
-        false
+    pub fn is_module_fully_hoistable(&self, module_id: &str) -> bool {
+        if !self.enabled {
+            return false;
+        }
+        self.fully_hoistable_modules.contains(module_id)
+    }
+
+    /// Check whether all top-level statements in a module are either hoisted
+    /// or type-only (producing no runtime code).
+    fn check_module_fully_hoistable(
+        program: &Program,
+        hoistable: &HoistableDeclarations,
+        interner: &StringInterner,
+    ) -> bool {
+        let hoisted_names = hoistable.all_names();
+        for stmt in program.statements.iter() {
+            if !Self::is_statement_fully_handled(stmt, &hoisted_names, interner) {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// Check if a statement is either hoisted or produces no runtime code.
+    fn is_statement_fully_handled(
+        stmt: &Statement,
+        hoisted_names: &HashSet<String>,
+        interner: &StringInterner,
+    ) -> bool {
+        match stmt {
+            // Declarations: hoisted if their name is in the hoisted set
+            Statement::Function(decl) => {
+                hoisted_names.contains(&interner.resolve(decl.name.node).to_string())
+            }
+            Statement::Variable(decl) => {
+                if let Pattern::Identifier(ident) = &decl.pattern {
+                    hoisted_names.contains(&interner.resolve(ident.node).to_string())
+                } else {
+                    false
+                }
+            }
+            Statement::Class(decl) => {
+                hoisted_names.contains(&interner.resolve(decl.name.node).to_string())
+            }
+            Statement::Enum(decl) => {
+                hoisted_names.contains(&interner.resolve(decl.name.node).to_string())
+            }
+
+            // Type-only statements: produce no runtime code
+            Statement::TypeAlias(_) => true,
+            Statement::DeclareFunction(_)
+            | Statement::DeclareNamespace(_)
+            | Statement::DeclareType(_)
+            | Statement::DeclareInterface(_)
+            | Statement::DeclareConst(_) => true,
+
+            // Interfaces: only type-only if no default method bodies
+            Statement::Interface(iface) => iface
+                .members
+                .iter()
+                .all(|m| !matches!(m, InterfaceMember::Method(method) if method.body.is_some())),
+
+            // Type-only imports: produce no runtime code
+            Statement::Import(import) => matches!(import.clause, ImportClause::TypeOnly(_)),
+
+            // Exports: check inner declaration
+            Statement::Export(export) => match &export.kind {
+                ExportKind::Declaration(inner) => {
+                    Self::is_statement_fully_handled(inner, hoisted_names, interner)
+                }
+                // Named exports and default exports need the module wrapper
+                _ => false,
+            },
+
+            // Everything else (control flow, expressions, returns) prevents full hoisting
+            _ => false,
+        }
     }
 
     /// Get all hoistable declarations for a module
@@ -1545,5 +1633,104 @@ mod tests {
         // Consecutive separators should not create multiple underscores
         let mut m3 = NameMangler::new();
         assert_eq!(m3.mangle_name("a//b", "foo"), "a_b__foo");
+    }
+
+    #[test]
+    fn test_fully_hoistable_pure_functions() {
+        let arena = Bump::new();
+        let (interner, common) = StringInterner::new_with_common_identifiers();
+        // Module with only private functions — all hoistable, no side effects
+        let source = r#"
+            function helper(x: number): number
+                return x * 2
+            end
+            function util(a: number, b: number): number
+                return a + b
+            end
+        "#;
+        let program = create_program(source, &interner, &common, &arena);
+        let modules = vec![("utils".to_string(), &program)];
+        let context = HoistingContext::analyze_modules(&modules, &interner, "main", true);
+        assert!(
+            context.is_module_fully_hoistable("utils"),
+            "Module with only private functions should be fully hoistable"
+        );
+    }
+
+    #[test]
+    fn test_not_fully_hoistable_with_exports() {
+        let arena = Bump::new();
+        let (interner, common) = StringInterner::new_with_common_identifiers();
+        // Module with exported function — exported symbols prevent full hoisting
+        let source = r#"
+            export function add(a: number, b: number): number
+                return a + b
+            end
+        "#;
+        let program = create_program(source, &interner, &common, &arena);
+        let modules = vec![("math".to_string(), &program)];
+        let context = HoistingContext::analyze_modules(&modules, &interner, "main", true);
+        assert!(
+            !context.is_module_fully_hoistable("math"),
+            "Module with exports should not be fully hoistable"
+        );
+    }
+
+    #[test]
+    fn test_not_fully_hoistable_with_side_effects() {
+        let arena = Bump::new();
+        let (interner, common) = StringInterner::new_with_common_identifiers();
+        // Module with top-level expression (side effect)
+        let source = r#"
+            function helper(): number
+                return 42
+            end
+            print("loaded")
+        "#;
+        let program = create_program(source, &interner, &common, &arena);
+        let modules = vec![("sideeffect".to_string(), &program)];
+        let context = HoistingContext::analyze_modules(&modules, &interner, "main", true);
+        assert!(
+            !context.is_module_fully_hoistable("sideeffect"),
+            "Module with side effects should not be fully hoistable"
+        );
+    }
+
+    #[test]
+    fn test_fully_hoistable_with_type_only_stmts() {
+        let arena = Bump::new();
+        let (interner, common) = StringInterner::new_with_common_identifiers();
+        // Module with private functions + type alias (type-only, no runtime code)
+        let source = r#"
+            type Num = number
+            function helper(x: Num): Num
+                return x * 2
+            end
+        "#;
+        let program = create_program(source, &interner, &common, &arena);
+        let modules = vec![("typed".to_string(), &program)];
+        let context = HoistingContext::analyze_modules(&modules, &interner, "main", true);
+        assert!(
+            context.is_module_fully_hoistable("typed"),
+            "Module with private functions + type aliases should be fully hoistable"
+        );
+    }
+
+    #[test]
+    fn test_not_fully_hoistable_disabled() {
+        let arena = Bump::new();
+        let (interner, common) = StringInterner::new_with_common_identifiers();
+        let source = r#"
+            function helper(): number
+                return 42
+            end
+        "#;
+        let program = create_program(source, &interner, &common, &arena);
+        let modules = vec![("utils".to_string(), &program)];
+        let context = HoistingContext::analyze_modules(&modules, &interner, "main", false);
+        assert!(
+            !context.is_module_fully_hoistable("utils"),
+            "Fully hoistable should return false when hoisting is disabled"
+        );
     }
 }

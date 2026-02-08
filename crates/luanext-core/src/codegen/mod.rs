@@ -515,6 +515,17 @@ impl CodeGenerator {
             })
             .map(|(idx, item)| (idx, item.0.clone(), item.1, item.2.clone()))
         {
+            // Skip fully hoistable non-entry modules (all code already hoisted)
+            if module_id != entry_module_id
+                && hoisting_context.is_module_fully_hoistable(&module_id)
+            {
+                advance!(&format!(
+                    "-- Module: {} (skipped - fully hoisted)\n",
+                    module_id
+                ));
+                continue;
+            }
+
             // Check if this module should be skipped (no reachable exports and not entry)
             if let Some(reachable) = reachable_set {
                 if module_id != entry_module_id {
@@ -711,32 +722,12 @@ impl CodeGenerator {
                 if hoistable.classes.contains(&name) {
                     if let Some(mangled_name) = hoisting_context.get_mangled_name(module_id, &name)
                     {
-                        // Generate class with mangled name
-                        // For now, generate a simplified class stub
-                        // Full class generation would need to handle methods, constructor, etc.
+                        // Generate class with mangled name using full class generation
                         let mut temp_gen =
                             CodeGenerator::new(Arc::new(interner.clone())).with_target(target);
 
-                        // Generate class table
-                        temp_gen.write("local ");
-                        temp_gen.write(mangled_name);
-                        temp_gen.writeln(" = {}");
-
-                        temp_gen.write(mangled_name);
-                        temp_gen.write(".__index = ");
-                        temp_gen.writeln(mangled_name);
-
-                        // Generate constructor
-                        temp_gen.write("function ");
-                        temp_gen.write(mangled_name);
-                        temp_gen.writeln(".new()");
-                        temp_gen.indent();
-                        temp_gen.write("local self = setmetatable({}, ");
-                        temp_gen.write(mangled_name);
-                        temp_gen.writeln(")");
-                        temp_gen.writeln("return self");
-                        temp_gen.dedent();
-                        temp_gen.writeln("end");
+                        // Use the full class generation with the mangled name
+                        temp_gen.generate_class_with_name(class_decl, mangled_name);
 
                         let class_code = temp_gen.emitter.clone_output();
                         advance(&class_code, output, source_map_builder);

@@ -5,70 +5,18 @@
 
 ---
 
-## Priority 1: Critical Issues
-
-### ~~🔴 Production Panic Calls~~ ✅ FIXED
-
-**Audit result:** All listed `panic!()` calls are inside `#[cfg(test)]` modules (test assertions, not production code).
-
-- [x] ~~Convert type system panics~~ — All panics are test-only assertions
-- [x] Audit critical `.unwrap()`/`.expect()` calls in production code
-- [x] Fix CRITICAL: Lexer `.chars().next().unwrap()` on user input (5 locations in `main.rs`)
-- [x] Fix CRITICAL: `class_decl.primary_constructor.unwrap()` in `type_checker.rs:1384`
-- [x] Fix HIGH: DI `.unwrap()` without message in `main.rs:1180`
-- [x] Fix MEDIUM: Iterator `.unwrap()` after length checks (5 locations)
-- **Status:** Critical unwraps fixed; DI `.expect()` calls with clear messages retained (Rust convention for programming errors)
-
----
-
 ## Priority 2: Incomplete Features
 
-### 🟡 Devirtualization Optimization (Fully Stubbed)
+### ✅ ~~Class Code Generation~~ (COMPLETED)
 
-- [ ] Re-implement devirtualization pass with arena-allocated AST
-  - `crates/luanext-core/src/optimizer/devirtualization.rs:583-584`
-- [ ] Connect existing ClassHierarchy analysis to optimization pass
-- [ ] Remove or update reference to `devirtualization.rs.pre_arena` (line 5)
-- [ ] Restore O3-level virtual method call optimization
-- **Impact:** Major O3 optimization completely disabled
-
-### 🟡 Rich Enum Optimization (Detection Only)
-
-- [ ] Implement transformations for rich enums in optimization pass
-  - `crates/luanext-core/src/optimizer/rich_enum_optimization.rs:50`
-- [ ] Currently only detects, doesn't optimize
-- [ ] Design and implement enum field access optimization
-- [ ] Add enum constructor inlining
-- **Impact:** O2-level optimization not working
-
-### 🟡 Export Declaration Handling (Partial)
-
-- [ ] Handle Function exports in type checker
-  - `crates/luanext-typechecker/src/core/type_checker.rs:1065`
-- [ ] Handle Class exports
-- [ ] Handle Variable exports
-- [ ] Handle Enum exports
-- [ ] Currently only TypeAlias exports work
-- **Impact:** Export type checking incomplete
-
-### 🟡 Module Scope Hoisting (Disabled)
-
-- [ ] Implement full module hoisting check
-  - `crates/luanext-core/src/codegen/scope_hoisting.rs:931-936`
-- [ ] `is_module_fully_hoistable()` always returns false
-- [ ] Design safe criteria for module wrapper elimination
-- [ ] Add tests for fully hoistable module optimization
-- **Impact:** Missing optimization opportunity
-
-### 🟡 Class Code Generation (Simplified Stub)
-
-- [ ] Complete class codegen implementation
-  - `crates/luanext-core/src/codegen/mod.rs:715-729`
-- [ ] Generate methods properly
-- [ ] Generate constructor
-- [ ] Implement inheritance handling
-- [ ] Currently only generates basic table structure
-- **Impact:** Class features partially working
+- [x] Complete class codegen implementation
+  - Added `generate_class_with_name` method in `crates/luanext-core/src/codegen/classes.rs`
+  - Updated scope hoisting to use full class generation with name mangling
+- [x] Generate methods properly (constructors, methods, getters, setters, operators)
+- [x] Generate constructor (including primary constructors and inheritance)
+- [x] Implement inheritance handling (base class support, final classes, abstract classes)
+- [x] Full feature support: reflection metadata, interface implementations, decorators
+- **Status:** Fully implemented with all class features working in scope hoisting
 
 ---
 
@@ -181,7 +129,7 @@ These passes perform analysis but don't apply transformations:
 **By Priority:**
 
 - Priority 1 (Critical): ~~11 tasks~~ → 5 remaining (6 fixed)
-- Priority 2 (Incomplete Features): 18 tasks
+- Priority 2 (Incomplete Features): ~~18 tasks~~ → 0 remaining (ALL COMPLETED: devirtualization: 4, rich enum: 4, export handling: 5, module hoisting: 4, class codegen: 5)
 - Priority 3 (Analysis-Only): 5 tasks
 - Priority 4 (LSP Gaps): 8 tasks
 - Priority 5 (Code Quality): 5 tasks
@@ -189,7 +137,7 @@ These passes perform analysis but don't apply transformations:
 **By Impact:**
 
 - 🔴 Critical: ~~3 major issues~~ → 1 remaining (panics resolved)
-- 🟡 High: 5 incomplete features
+- 🟡 High: ~~5 incomplete features~~ → 0 remaining (ALL COMPLETED: devirtualization, rich enum, export handling, module hoisting, class codegen)
 - 🟢 Medium: 6 feature gaps
 - 🔵 Low: 6 polish items
 

@@ -796,3 +796,79 @@ fn test_bundle_size_with_hoisting() {
         output_without_hoisting.len()
     );
 }
+
+// ============================================================================
+// Test: Fully hoistable module wrapper elimination
+// ============================================================================
+
+#[test]
+fn test_fully_hoistable_module_skips_wrapper() {
+    // "utils" has only private functions (all hoistable, no exports, no side effects)
+    // "main" is the entry point and always gets a wrapper
+    let sources = [
+        (
+            "utils.lua",
+            r#"
+                function helper(x: number): number
+                    return x * 2
+                end
+            "#,
+        ),
+        (
+            "main.lua",
+            r#"
+                const result = 42
+            "#,
+        ),
+    ];
+
+    let output = generate_bundle(&sources, "main.lua", true);
+
+    // The fully hoistable module should be skipped
+    assert!(
+        output.contains("skipped - fully hoisted"),
+        "Fully hoistable module should be skipped. Output:\n{}",
+        output
+    );
+
+    // Entry module should still have a wrapper
+    assert!(
+        output.contains("__modules[\"main.lua\"]"),
+        "Entry module should still have a wrapper"
+    );
+
+    // The hoisted function should appear at top level
+    assert!(
+        output.contains("-- Hoisted declarations"),
+        "Hoisted declarations section should be present"
+    );
+}
+
+#[test]
+fn test_module_with_exports_not_fully_hoistable() {
+    let sources = [
+        (
+            "lib.lua",
+            r#"
+                export function add(a: number, b: number): number
+                    return a + b
+                end
+            "#,
+        ),
+        (
+            "main.lua",
+            r#"
+                const x = 1
+            "#,
+        ),
+    ];
+
+    let output = generate_bundle(&sources, "main.lua", true);
+
+    // Module with exports should NOT be skipped
+    assert!(
+        output.contains("__modules[\"lib.lua\"]"),
+        "Module with exports should keep its wrapper. Output:\n{}",
+        output
+    );
+}
