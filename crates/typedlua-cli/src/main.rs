@@ -1006,9 +1006,9 @@ struct CompilationError {
 }
 
 /// Module that has been type-checked and is ready for parallel code generation
-struct CheckedModule {
+struct CheckedModule<'arena> {
     file_path: PathBuf,
-    ast: typedlua_parser::ast::Program,
+    ast: typedlua_parser::ast::Program<'arena>,
     interner: std::sync::Arc<typedlua_parser::string_interner::StringInterner>,
     output_path: PathBuf,
     enable_source_map: bool,
@@ -1017,41 +1017,51 @@ struct CheckedModule {
 
 // SAFETY: All fields are Send after StringInterner migration to ThreadedRodeo.
 // The AST is safe to send across threads since StringInterner no longer uses Rc.
-unsafe impl Send for CheckedModule {}
+unsafe impl<'arena> Send for CheckedModule<'arena> {}
 
 /// Parse a single source file for parallel parsing
-fn parse_single_file(
+fn parse_single_file<'arena>(
     file_path: &Path,
     file_system: &std::sync::Arc<dyn typedlua_core::fs::FileSystem>,
-) -> anyhow::Result<ParsedModule> {
-    let source = file_system.read_file(file_path)?;
+    arena: &'arena bumpalo::Bump,
+) -> anyhow::Result<typedlua_core::ParsedModule<'arena>> {
+    use typedlua_core::arena::with_pooled_arena;
 
-    let handler =
-        std::sync::Arc::new(typedlua_core::diagnostics::CollectingDiagnosticHandler::new());
-    let (interner, common_ids) =
-        typedlua_parser::string_interner::StringInterner::new_with_common_identifiers();
-    let interner = std::rc::Rc::new(interner);
+    with_pooled_arena(|arena| {
+        let source = file_system.read_file(file_path)?;
 
-    let mut lexer = typedlua_parser::lexer::Lexer::new(&source, handler.clone(), &interner);
-    let tokens = lexer.tokenize()?;
+        let handler =
+            std::sync::Arc::new(typedlua_core::diagnostics::CollectingDiagnosticHandler::new());
+        let (interner, common_ids) =
+            typedlua_parser::string_interner::StringInterner::new_with_common_identifiers();
+        let interner = std::rc::Rc::new(interner);
 
-    let mut parser =
-        typedlua_parser::parser::Parser::new(tokens, handler.clone(), &interner, &common_ids);
-    let ast = parser.parse()?;
+        let mut lexer = typedlua_parser::lexer::Lexer::new(&source, handler.clone(), &interner);
+        let tokens = lexer.tokenize()?;
 
-    if typedlua_core::diagnostics::DiagnosticHandler::has_errors(&*handler) {
-        anyhow::bail!(
-            "Parsing failed with errors: {:?}",
-            typedlua_core::diagnostics::DiagnosticHandler::get_diagnostics(&*handler)
+        let mut parser = typedlua_parser::parser::Parser::new(
+            tokens,
+            handler.clone(),
+            &interner,
+            &common_ids,
+            arena,
         );
-    }
+        let ast = parser.parse()?;
 
-    Ok(ParsedModule {
-        path: file_path.to_path_buf(),
-        ast,
-        interner: std::rc::Rc::unwrap_or_clone(interner),
-        common_ids,
-        diagnostics: typedlua_core::diagnostics::DiagnosticHandler::get_diagnostics(&*handler),
+        if typedlua_core::diagnostics::DiagnosticHandler::has_errors(&*handler) {
+            anyhow::bail!(
+                "Parsing failed with errors: {:?}",
+                typedlua_core::diagnostics::DiagnosticHandler::get_diagnostics(&*handler)
+            );
+        }
+
+        Ok(ParsedModule {
+            path: file_path.to_path_buf(),
+            ast,
+            interner: std::rc::Rc::unwrap_or_clone(interner),
+            common_ids,
+            diagnostics: typedlua_core::diagnostics::DiagnosticHandler::get_diagnostics(&*handler),
+        })
     })
 }
 

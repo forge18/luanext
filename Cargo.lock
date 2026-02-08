@@ -1616,6 +1616,8 @@ dependencies = [
  "indexmap",
  "insta",
  "lua-sourcemap",
+ "once_cell",
+ "parking_lot",
  "proptest",
  "rustc-hash 2.1.1",
  "serde",
@@ -1634,9 +1636,12 @@ name = "typedlua-lsp"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bumpalo",
  "crossbeam-channel",
  "lsp-server",
  "lsp-types",
+ "once_cell",
+ "parking_lot",
  "serde",
  "serde_json",
  "tracing",

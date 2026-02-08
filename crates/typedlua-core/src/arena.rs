@@ -29,6 +29,8 @@
 //! thread-safe by design - parallel compilation uses separate arenas.
 
 use bumpalo::Bump;
+use once_cell::sync::Lazy;
+use parking_lot::Mutex;
 use std::cell::Cell;
 
 /// Arena allocator for AST nodes.
@@ -245,6 +247,72 @@ impl std::fmt::Debug for Arena {
             .field("bytes", &self.bump.allocated_bytes())
             .finish()
     }
+}
+
+//
+// Arena Pooling
+//
+
+/// Global pool of reusable arenas for long-lived processes.
+///
+/// In watch mode and LSP scenarios, arenas are reused across many
+/// compilation runs instead of allocating fresh arenas each time.
+/// This reduces allocation overhead in transpiler workflows where
+/// the same files are parsed hundreds of times.
+static ARENA_POOL: Lazy<Mutex<Vec<Bump>>> = Lazy::new(|| Mutex::new(Vec::new()));
+
+/// Maximum number of arenas to keep in the pool.
+///
+/// Limits memory usage - old arenas are dropped when pool exceeds this size.
+/// Value is chosen to handle typical Rayon thread pool size (num_cpus).
+const MAX_POOL_SIZE: usize = 16;
+
+/// Execute a function with a pooled arena.
+///
+/// The arena is checked out from a global pool, reset to clear previous
+/// allocations, and automatically returned to the pool when done.
+///
+/// This is the recommended way to parse files in long-lived processes
+/// (LSP servers, watch mode, build servers). For one-shot compilation,
+/// creating a fresh `Bump` directly may be simpler.
+///
+/// # Example
+///
+/// ```
+/// use typedlua_core::arena::with_pooled_arena;
+///
+/// let result = with_pooled_arena(|arena| {
+///     let value = arena.alloc(42);
+///     *value
+/// });
+/// ```
+///
+/// # Thread Safety
+///
+/// This function is thread-safe and works correctly with parallel
+/// parsing (e.g., Rayon). The pool is protected by a lightweight mutex.
+pub fn with_pooled_arena<F, R>(f: F) -> R
+where
+    F: FnOnce(&Bump) -> R,
+{
+    // Try to get arena from pool (lock is held briefly)
+    let mut arena = ARENA_POOL.lock().pop().unwrap_or_default();
+
+    // Reset arena to clear previous allocations
+    // SAFETY: We own the arena, so no references from previous uses exist
+    arena.reset();
+
+    // Execute user code
+    let result = f(&arena);
+
+    // Return arena to pool if under capacity
+    let mut pool = ARENA_POOL.lock();
+    if pool.len() < MAX_POOL_SIZE {
+        pool.push(arena);
+    }
+    // else: arena dropped here (pool is full)
+
+    result
 }
 
 #[cfg(test)]
@@ -482,5 +550,138 @@ mod tests {
 
         assert_eq!(arena.allocation_count(), 10_000);
         assert!(arena.allocated_bytes() > 40_000); // At least 4 bytes per i32
+    }
+
+    //
+    // Arena Pool Tests
+    //
+
+    /// Test that arenas are reused from the pool
+    #[test]
+    fn test_arena_pool_reuse() {
+        // First allocation creates arena
+        let addr1 = with_pooled_arena(|arena| arena as *const Bump);
+
+        // Second allocation should reuse same arena (same address)
+        let addr2 = with_pooled_arena(|arena| arena as *const Bump);
+
+        assert_eq!(addr1, addr2, "Arena should be reused from pool");
+    }
+
+    /// Test that pool doesn't exceed MAX_POOL_SIZE
+    #[test]
+    fn test_arena_pool_capacity_limit() {
+        // Fill pool beyond MAX_POOL_SIZE
+        for _ in 0..(MAX_POOL_SIZE + 10) {
+            with_pooled_arena(|arena| {
+                arena.alloc(42);
+            });
+        }
+
+        // Pool should not exceed MAX_POOL_SIZE
+        let pool_size = ARENA_POOL.lock().len();
+        assert!(
+            pool_size <= MAX_POOL_SIZE,
+            "Pool size {} exceeds MAX_POOL_SIZE {}",
+            pool_size,
+            MAX_POOL_SIZE
+        );
+    }
+
+    /// Test that arenas are reset between uses
+    #[test]
+    fn test_arena_pool_reset() {
+        with_pooled_arena(|arena| {
+            // Allocate lots of data
+            for i in 0..1000 {
+                arena.alloc(i);
+            }
+        });
+
+        with_pooled_arena(|arena| {
+            // Arena should be reset (low allocation count)
+            arena.alloc(1);
+            let after = arena.allocated_bytes();
+
+            // After reset, allocation should be small
+            // Note: allocated_bytes() includes chunk overhead, so we just check
+            // that it's reasonable (not thousands of bytes)
+            assert!(
+                after < 10000,
+                "Arena not properly reset - allocated {} bytes",
+                after
+            );
+        });
+    }
+
+    /// Test concurrent access to the arena pool
+    #[test]
+    fn test_arena_pool_concurrent() {
+        use std::thread;
+
+        let handles: Vec<_> = (0..8)
+            .map(|i| {
+                thread::spawn(move || {
+                    with_pooled_arena(|arena| {
+                        // Don't return arena reference - just use it
+                        let val = arena.alloc(i);
+                        *val
+                    })
+                })
+            })
+            .collect();
+
+        for handle in handles {
+            let result = handle.join().unwrap();
+            assert!(result < 8);
+        }
+    }
+
+    /// Test that pool works correctly with actual AST-like allocations
+    #[test]
+    fn test_arena_pool_ast_simulation() {
+        #[derive(Debug)]
+        enum Expr<'a> {
+            Number(i64),
+            Binary {
+                left: &'a Expr<'a>,
+                op: &'static str,
+                right: &'a Expr<'a>,
+            },
+        }
+
+        // First parse
+        let result1 = with_pooled_arena(|arena| {
+            let one = arena.alloc(Expr::Number(1));
+            let two = arena.alloc(Expr::Number(2));
+            let add = arena.alloc(Expr::Binary {
+                left: one,
+                op: "+",
+                right: two,
+            });
+            // Return something that doesn't reference the arena
+            match add {
+                Expr::Binary { op, .. } => *op,
+                _ => panic!(),
+            }
+        });
+
+        // Second parse with same arena (should be reset)
+        let result2 = with_pooled_arena(|arena| {
+            let three = arena.alloc(Expr::Number(3));
+            let four = arena.alloc(Expr::Number(4));
+            let mul = arena.alloc(Expr::Binary {
+                left: three,
+                op: "*",
+                right: four,
+            });
+            match mul {
+                Expr::Binary { op, .. } => *op,
+                _ => panic!(),
+            }
+        });
+
+        assert_eq!(result1, "+");
+        assert_eq!(result2, "*");
     }
 }

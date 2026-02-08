@@ -22,4 +22,11 @@
 |----|------|---|-------|------|
 | #6828 | 8:25 PM | 🔵 | Complete TypedLua Optimization System Analysis Compiled | ~737 |
 | #6817 | 8:20 PM | 🔵 | TypedLua Compiler Pipeline Architecture with Configurable Optimization | ~457 |
+
+### Feb 7, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #7836 | 6:40 PM | 🟣 | Implemented Arena Pooling for Long-Lived Processes | ~569 |
+| #7824 | 6:36 PM | 🔵 | Arena Allocator Implementation and Design Patterns | ~474 |
 </claude-mem-context>
