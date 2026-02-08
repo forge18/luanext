@@ -1025,43 +1025,39 @@ fn parse_single_file<'arena>(
     file_system: &std::sync::Arc<dyn typedlua_core::fs::FileSystem>,
     arena: &'arena bumpalo::Bump,
 ) -> anyhow::Result<typedlua_core::ParsedModule<'arena>> {
-    use typedlua_core::arena::with_pooled_arena;
+    let source = file_system.read_file(file_path)?;
 
-    with_pooled_arena(|arena| {
-        let source = file_system.read_file(file_path)?;
+    let handler =
+        std::sync::Arc::new(typedlua_core::diagnostics::CollectingDiagnosticHandler::new());
+    let (interner, common_ids) =
+        typedlua_parser::string_interner::StringInterner::new_with_common_identifiers();
+    let interner = std::rc::Rc::new(interner);
 
-        let handler =
-            std::sync::Arc::new(typedlua_core::diagnostics::CollectingDiagnosticHandler::new());
-        let (interner, common_ids) =
-            typedlua_parser::string_interner::StringInterner::new_with_common_identifiers();
-        let interner = std::rc::Rc::new(interner);
+    let mut lexer = typedlua_parser::lexer::Lexer::new(&source, handler.clone(), &interner);
+    let tokens = lexer.tokenize()?;
 
-        let mut lexer = typedlua_parser::lexer::Lexer::new(&source, handler.clone(), &interner);
-        let tokens = lexer.tokenize()?;
+    let mut parser = typedlua_parser::parser::Parser::new(
+        tokens,
+        handler.clone(),
+        &interner,
+        &common_ids,
+        arena,
+    );
+    let ast = parser.parse()?;
 
-        let mut parser = typedlua_parser::parser::Parser::new(
-            tokens,
-            handler.clone(),
-            &interner,
-            &common_ids,
-            arena,
+    if typedlua_core::diagnostics::DiagnosticHandler::has_errors(&*handler) {
+        anyhow::bail!(
+            "Parsing failed with errors: {:?}",
+            typedlua_core::diagnostics::DiagnosticHandler::get_diagnostics(&*handler)
         );
-        let ast = parser.parse()?;
+    }
 
-        if typedlua_core::diagnostics::DiagnosticHandler::has_errors(&*handler) {
-            anyhow::bail!(
-                "Parsing failed with errors: {:?}",
-                typedlua_core::diagnostics::DiagnosticHandler::get_diagnostics(&*handler)
-            );
-        }
-
-        Ok(ParsedModule {
-            path: file_path.to_path_buf(),
-            ast,
-            interner: std::rc::Rc::unwrap_or_clone(interner),
-            common_ids,
-            diagnostics: typedlua_core::diagnostics::DiagnosticHandler::get_diagnostics(&*handler),
-        })
+    Ok(typedlua_core::ParsedModule {
+        path: file_path.to_path_buf(),
+        ast,
+        interner: std::rc::Rc::unwrap_or_clone(interner),
+        common_ids,
+        diagnostics: typedlua_core::diagnostics::DiagnosticHandler::get_diagnostics(&*handler),
     })
 }
 
@@ -1197,14 +1193,10 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
         project_root.clone(),
     ));
 
-    // Pre-populate registry with cached exports for non-stale files
-    for (canonical, cached) in &cached_modules {
-        let module_id = ModuleId::new(canonical.clone());
-        let symbol_table = Arc::new(typedlua_core::SymbolTable::from_serializable(
-            cached.symbol_table.clone(),
-        ));
-        registry.register_from_cache(module_id, cached.exports.clone(), symbol_table);
-    }
+    // Note: With arena allocation, we can't deserialize AST or SymbolTable.
+    // Cached modules will be used for source hash validation only.
+    // Export registration happens during type checking for all modules.
+    // TODO: Implement lightweight export-only cache registration
 
     // --- Discover dependencies and determine compilation order ---
     let dep_start = Instant::now();
@@ -1240,7 +1232,10 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
         stale_file_paths
             .par_iter()
             .map(|file_path| {
-                parse_single_file(file_path, &file_system).map_err(|e| {
+                // For parallel parsing, use Box::leak to get 'static arena
+                // This is acceptable for short-lived CLI processes
+                let arena: &'static bumpalo::Bump = Box::leak(Box::new(bumpalo::Bump::new()));
+                parse_single_file(file_path, &file_system, arena).map_err(|e| {
                     eprintln!("Failed to parse {:?}: {}", file_path, e);
                     e
                 })
@@ -1280,37 +1275,17 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
     let checked_modules: Vec<CheckedModule> = ordered_files
         .iter()
         .filter_map(|file_path| {
+            // Use pooled arena for type checking
+            typedlua_core::arena::with_pooled_arena(|arena| {
             let canonical = file_path
                 .canonicalize()
                 .unwrap_or_else(|_| file_path.to_path_buf());
             let is_stale = stale_files.contains(&canonical);
 
-            // --- Cache hit: use cached AST, skip parse + type check ---
-            if !is_stale {
-                if let Some(cached) = cached_modules.get(&canonical) {
-                    debug!("Cache hit: {:?}", file_path);
-
-                    if cli.no_emit {
-                        return None; // Skip codegen for no-emit mode
-                    }
-
-                    // Reconstruct interner from cached strings and prepare for codegen
-                    let interner = Arc::new(StringInterner::from_strings(
-                        cached.interner_strings.clone(),
-                    ));
-                    let program = cached.ast.clone();
-                    let output_path = determine_output_path(file_path, &cli);
-
-                    return Some(CheckedModule {
-                        file_path: file_path.clone(),
-                        ast: program,
-                        interner,
-                        output_path,
-                        enable_source_map: cli.source_map || cli.inline_source_map,
-                        cache_entry: None, // Cache already saved
-                    });
-                }
-            }
+            // --- Cache hit: with arena allocation, can't use cached AST ---
+            // TODO: Implement owned-type serialization or accept recompilation on cache hit
+            // For now, treat all files as stale (recompile everything)
+            let _is_stale = stale_files.contains(&canonical) || true; // Force recompilation
 
             // --- Prepared module from parallel parsing ---
             let parsed = match parsed_map.get(&canonical) {
@@ -1340,6 +1315,7 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
                 handler.clone(),
                 &parsed.interner, // Use the interner from parsed module
                 &common_ids,
+                arena,
                 registry.clone(),
                 module_id.clone(),
                 resolver.clone(),
@@ -1369,11 +1345,11 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
 
             // Register exports in shared registry for other files
             let exports = type_checker.extract_exports(&program);
-            let serializable_st = type_checker.symbol_table().to_serializable();
-            let symbol_table_arc = Arc::new(typedlua_core::SymbolTable::from_serializable(
-                serializable_st.clone(),
-            ));
-            registry.register_from_cache(module_id.clone(), exports.clone(), symbol_table_arc);
+            // Note: We can't cache SymbolTable (arena-allocated), so we only register exports
+            // The registry will use default/empty symbol table for imported modules
+            if let Err(e) = registry.register_exports(&module_id, exports.clone()) {
+                warn!("Failed to register exports for {:?}: {}", module_id, e);
+            }
 
             // Build cache entry to save after parallel section
             let cache_entry = if use_cache {
@@ -1403,10 +1379,15 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
                         file_path
                             .canonicalize()
                             .unwrap_or_else(|_| file_path.clone()),
-                        program.clone(),
-                        exports,
-                        type_checker.symbol_table().to_serializable(),
+                        // Compute source hash for cache invalidation
+                        typedlua_core::cache::hash_file(file_path)
+                            .unwrap_or_else(|_| String::from("unknown")),
+                        // Store interner strings for reconstructing StringInterner
                         parsed.interner.to_strings(),
+                        // Extract export names from ModuleExports (only names, not full types)
+                        exports.named.keys().cloned().collect(),
+                        // Check if default export exists
+                        exports.default.is_some(),
                     ),
                     dependencies,
                     declaration_hashes,
@@ -1431,6 +1412,7 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
                 enable_source_map: cli.source_map || cli.inline_source_map,
                 cache_entry,
             })
+            }) // End of with_pooled_arena
         })
         .collect();
 
@@ -1572,8 +1554,9 @@ fn compile(cli: Cli, target: typedlua_core::codegen::LuaTarget) -> anyhow::Resul
             }
 
             let mut generator = builder.build();
-            let mut ast = module.ast;
-            let lua_code = generator.generate(&mut ast);
+            // Convert arena-allocated Program to mutable AST for codegen
+            let mut mutable_ast = typedlua_core::MutableProgram::from_program(&module.ast);
+            let lua_code = generator.generate(&mut mutable_ast);
             let source_map = generator.take_source_map();
 
             CompilationResult {

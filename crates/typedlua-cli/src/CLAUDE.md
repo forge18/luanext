@@ -22,6 +22,21 @@
 
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
+| #7934 | 6:57 PM | 🔄 | Replaced Arena Pooling with Box::leak for Parallel Parsing | ~429 |
+| #7932 | " | 🔵 | Parallel Parsing Uses Per-Thread Arena Allocation Pattern | ~307 |
+| #7928 | 6:56 PM | ✅ | Added Comment Clarifying Arena Pool Closure Scope | ~309 |
+| #7927 | " | 🔵 | Cache Hit Path Disabled and Type Checker Registration Changed | ~458 |
+| #7925 | 6:55 PM | 🔴 | Fixed Code Generator to Use Mutable AST Conversion | ~416 |
+| #7923 | " | 🔵 | Code Generation Phase Uses Mutable AST Reference | ~278 |
+| #7922 | " | 🔄 | Replaced Symbol Table Serialization with Direct Registration | ~404 |
+| #7921 | 6:54 PM | 🔵 | CLI Cache System Stores Program Clone and Serialized Symbol Tables | ~465 |
+| #7917 | " | 🔵 | Type Checking Uses Parsed Module Interner | ~279 |
+| #7916 | 6:53 PM | 🔵 | Identified CachedModule Constructor Using Deleted Fields | ~342 |
+| #7915 | 6:52 PM | 🔴 | Disabled AST Caching Due to Arena Allocation Incompatibility | ~472 |
+| #7914 | " | ⚖️ | Disabled Cached Module Export Registration Due to Arena Lifetime Constraints | ~469 |
+| #7911 | 6:51 PM | ⚖️ | Pragmatic Decision to Skip Cache Fixes and Focus on Arena Pooling | ~345 |
+| #7904 | 6:50 PM | 🔵 | parse_single_file Signature Updated With Arena Parameter | ~443 |
+| #7903 | " | 🔄 | Removed with_pooled_arena Wrapper from parse_single_file Function | ~172 |
 | #7901 | 6:49 PM | 🔄 | Added Arena Lifetime Parameters to CheckedModule and parse_single_file | ~404 |
 | #7900 | " | 🔵 | CheckedModule Still Missing Arena Lifetime Parameter | ~321 |
 | #7834 | 6:39 PM | 🔴 | Fixed Missing Arena Parameter in parse_single_file Function | ~430 |

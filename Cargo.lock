@@ -1584,6 +1584,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
+ "bumpalo",
  "clap",
  "criterion",
  "glob",
@@ -1669,6 +1670,7 @@ version = "0.1.0"
 name = "typedlua-test-helpers"
 version = "0.1.0"
 dependencies = [
+ "bumpalo",
  "lsp-types",
  "typedlua-core",
  "typedlua-lsp",

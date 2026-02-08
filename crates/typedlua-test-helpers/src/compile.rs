@@ -84,6 +84,8 @@ pub fn compile_with_stdlib_and_optimization(
 /// # Returns
 /// Ok(()) if type checking succeeds, or an error message
 pub fn type_check(source: &str) -> Result<(), String> {
+    // Use Box::leak for 'static arena in tests (acceptable for test helpers)
+    let arena: &'static bumpalo::Bump = Box::leak(Box::new(bumpalo::Bump::new()));
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let (interner, common_ids) = StringInterner::new_with_common_identifiers();
     let interner = std::rc::Rc::new(interner);
@@ -93,14 +95,14 @@ pub fn type_check(source: &str) -> Result<(), String> {
         .tokenize()
         .map_err(|e| format!("Lexing failed: {:?}", e))?;
 
-    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids);
-    let mut program = parser
+    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids, arena);
+    let program = parser
         .parse()
         .map_err(|e| format!("Parsing failed: {:?}", e))?;
 
-    let mut type_checker = TypeChecker::new(handler, &interner, &common_ids);
+    let mut type_checker = TypeChecker::new(handler, &interner, &common_ids, arena);
     type_checker
-        .check_program(&mut program)
+        .check_program(&program)
         .map_err(|e| e.message)?;
 
     Ok(())

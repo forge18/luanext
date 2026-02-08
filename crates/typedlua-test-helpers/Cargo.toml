@@ -15,5 +15,6 @@ typedlua-core = { path = "../typedlua-core" }
 typedlua-parser = { git = "https://github.com/forge18/typedlua-parser.git" }
 typedlua-lsp = { path = "../typedlua-lsp", optional = true }
 lsp-types = { version = "0.97", optional = true }
+bumpalo.workspace = true
 
 [dev-dependencies]
