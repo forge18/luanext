@@ -10,11 +10,11 @@ use crate::diagnostics::DiagnosticHandler;
 use crate::MutableProgram;
 
 use bumpalo::Bump;
-use std::sync::Arc;
-use tracing::{debug, info};
 use luanext_parser::ast::expression::{Expression, ExpressionKind};
 use luanext_parser::ast::statement::{Block, ForStatement, Statement};
 use luanext_parser::string_interner::StringInterner;
+use std::sync::Arc;
+use tracing::{debug, info};
 
 use bitflags::bitflags;
 

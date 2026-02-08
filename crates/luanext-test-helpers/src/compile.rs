@@ -3,7 +3,6 @@
 //! Provides convenient functions for compiling TypedLua source code
 //! in tests, using proper DI through the Container.
 
-use std::sync::Arc;
 use luanext_core::config::{CompilerConfig, OptimizationLevel};
 use luanext_core::di::DiContainer;
 use luanext_core::diagnostics::CollectingDiagnosticHandler;
@@ -11,6 +10,7 @@ use luanext_core::fs::MockFileSystem;
 use luanext_core::TypeChecker;
 use luanext_parser::string_interner::StringInterner;
 use luanext_parser::{Lexer, Parser};
+use std::sync::Arc;
 
 /// Compile TypedLua source code without stdlib
 ///

@@ -22,8 +22,6 @@ use crate::MutableProgram;
 use bumpalo::Bump;
 
 use crate::optimizer::{StmtVisitor, WholeProgramPass};
-use rustc_hash::FxHashMap;
-use std::sync::Arc;
 use luanext_parser::ast::expression::{AssignmentOp, Expression, ExpressionKind};
 use luanext_parser::ast::pattern::Pattern;
 use luanext_parser::ast::statement::{
@@ -33,6 +31,8 @@ use luanext_parser::ast::types::TypeKind;
 use luanext_parser::ast::Spanned;
 use luanext_parser::span::Span;
 use luanext_parser::string_interner::{StringId, StringInterner};
+use rustc_hash::FxHashMap;
+use std::sync::Arc;
 
 const MAX_INLINABLE_STATEMENTS: usize = 10;
 
@@ -1146,10 +1146,7 @@ mod tests {
                         kind: ExpressionKind::Member(
                             arena
                                 .alloc(Expression::new(ExpressionKind::SelfKeyword, Span::dummy())),
-                            luanext_parser::ast::Spanned::new(
-                                StringId::from_u32(2),
-                                Span::dummy(),
-                            ),
+                            luanext_parser::ast::Spanned::new(StringId::from_u32(2), Span::dummy()),
                         ),
                         span: Span::dummy(),
                         annotated_type: None,

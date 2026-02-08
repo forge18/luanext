@@ -95,14 +95,12 @@ impl TablePreallocationPass {
                 for field in fields.iter() {
                     match field {
                         luanext_parser::ast::expression::ObjectProperty::Property {
-                            value,
-                            ..
+                            value, ..
                         } => {
                             count += self.count_tables_in_expression(value);
                         }
                         luanext_parser::ast::expression::ObjectProperty::Computed {
-                            value,
-                            ..
+                            value, ..
                         } => {
                             count += self.count_tables_in_expression(value);
                         }

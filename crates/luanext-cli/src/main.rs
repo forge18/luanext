@@ -572,6 +572,10 @@ impl<'a> ImportScanner<'a> {
         self.position >= self.source.len()
     }
 
+    fn current_char(&self) -> Option<char> {
+        self.source[self.position..].chars().next()
+    }
+
     fn peek_keyword(&self, keyword: &str) -> bool {
         let remaining = &self.source[self.position..];
         remaining.starts_with(keyword) && {
@@ -583,9 +587,7 @@ impl<'a> ImportScanner<'a> {
     }
 
     fn skip_whitespace_and_comments(&mut self) {
-        while !self.is_at_end() {
-            let ch = self.source[self.position..].chars().next().unwrap();
-
+        while let Some(ch) = self.current_char() {
             match ch {
                 ' ' | '\t' | '\r' | '\n' => {
                     self.advance_char();
@@ -624,8 +626,7 @@ impl<'a> ImportScanner<'a> {
     }
 
     fn skip_line_comment(&mut self) {
-        while !self.is_at_end() {
-            let ch = self.source[self.position..].chars().next().unwrap();
+        while let Some(ch) = self.current_char() {
             self.advance_char();
             if ch == '\n' {
                 break;
@@ -784,8 +785,7 @@ impl<'a> ImportScanner<'a> {
 
     fn skip_braced_content(&mut self) {
         let mut depth = 0;
-        while !self.is_at_end() {
-            let ch = self.source[self.position..].chars().next().unwrap();
+        while let Some(ch) = self.current_char() {
             match ch {
                 '{' => {
                     depth += 1;
@@ -810,11 +810,12 @@ impl<'a> ImportScanner<'a> {
     }
 
     fn skip_string_literal(&mut self) {
-        let quote = self.source[self.position..].chars().next().unwrap();
+        let Some(quote) = self.current_char() else {
+            return;
+        };
         self.advance_char();
 
-        while !self.is_at_end() {
-            let ch = self.source[self.position..].chars().next().unwrap();
+        while let Some(ch) = self.current_char() {
             if ch == quote {
                 self.advance_char();
                 break;
@@ -889,10 +890,10 @@ fn discover_dependencies(
     fs: &std::sync::Arc<dyn luanext_core::fs::FileSystem>,
     resolver: &luanext_core::module_resolver::ModuleResolver,
 ) -> anyhow::Result<DependencyResult> {
-    use std::collections::HashMap;
-    use std::sync::Arc;
     use luanext_core::diagnostics::{CollectingDiagnosticHandler, DiagnosticHandler};
     use luanext_core::module_resolver::{DependencyGraph, ModuleId};
+    use std::collections::HashMap;
+    use std::sync::Arc;
 
     // 1. Build dependency graph
     let mut dep_graph = DependencyGraph::new();
@@ -1036,13 +1037,8 @@ fn parse_single_file<'arena>(
     let mut lexer = luanext_parser::lexer::Lexer::new(&source, handler.clone(), &interner);
     let tokens = lexer.tokenize()?;
 
-    let mut parser = luanext_parser::parser::Parser::new(
-        tokens,
-        handler.clone(),
-        &interner,
-        &common_ids,
-        arena,
-    );
+    let mut parser =
+        luanext_parser::parser::Parser::new(tokens, handler.clone(), &interner, &common_ids, arena);
     let ast = parser.parse()?;
 
     if luanext_core::diagnostics::DiagnosticHandler::has_errors(&*handler) {
@@ -1063,14 +1059,14 @@ fn parse_single_file<'arena>(
 
 /// Compile the input files
 fn compile(cli: Cli, target: luanext_core::codegen::LuaTarget) -> anyhow::Result<()> {
-    use rustc_hash::FxHashSet;
-    use std::collections::HashMap;
-    use std::sync::Arc;
-    use std::time::Instant;
     use luanext_core::cache::{CacheManager, CachedModule};
     use luanext_core::codegen::CodeGeneratorBuilder;
     use luanext_core::config::{CompilerConfig, CompilerOptions};
     use luanext_core::diagnostics::{CollectingDiagnosticHandler, DiagnosticHandler};
+    use rustc_hash::FxHashSet;
+    use std::collections::HashMap;
+    use std::sync::Arc;
+    use std::time::Instant;
 
     use luanext_core::module_resolver::{ModuleConfig, ModuleId, ModuleRegistry, ModuleResolver};
 
@@ -1182,7 +1178,7 @@ fn compile(cli: Cli, target: luanext_core::codegen::LuaTarget) -> anyhow::Result
     // Resolve FileSystem from DI Container for use in parallel section
     let file_system = container
         .resolve::<Arc<dyn luanext_core::fs::FileSystem>>()
-        .unwrap();
+        .expect("FileSystem must be registered in DI container");
 
     // Create module resolver using FileSystem from DI Container
     let module_config =
@@ -1193,10 +1189,8 @@ fn compile(cli: Cli, target: luanext_core::codegen::LuaTarget) -> anyhow::Result
         project_root.clone(),
     ));
 
-    // Note: With arena allocation, we can't deserialize AST or SymbolTable.
-    // Cached modules will be used for source hash validation only.
-    // Export registration happens during type checking for all modules.
-    // TODO: Implement lightweight export-only cache registration
+    // Cached modules provide serializable export data for cache-hit reconstruction.
+    // Cache hits restore ModuleExports in the registry without parsing or type-checking.
 
     // --- Discover dependencies and determine compilation order ---
     let dep_start = Instant::now();
@@ -1272,26 +1266,61 @@ fn compile(cli: Cli, target: luanext_core::codegen::LuaTarget) -> anyhow::Result
     // This phase MUST be sequential to maintain dependency order
     let typecheck_start = Instant::now();
     let typecheck_failures = Cell::new(false);
+    let mut cache_hit_count = 0usize;
     let checked_modules: Vec<CheckedModule> = ordered_files
         .iter()
         .filter_map(|file_path| {
+            let canonical = file_path
+                .canonicalize()
+                .unwrap_or_else(|_| file_path.to_path_buf());
+            let is_stale = stale_files.contains(&canonical);
+
+            // --- Cache hit: reconstruct exports from serializable cache data ---
+            if !is_stale {
+                if let Some(cached) = cached_modules.get(&canonical) {
+                    if let Some(ref ser_exports) = cached.serializable_exports {
+                        // Reconstruct interner from cached strings
+                        let interner =
+                            luanext_parser::string_interner::StringInterner::from_strings(
+                                cached.interner_strings.clone(),
+                            );
+
+                        // Reconstruct ModuleExports from serializable form
+                        let exports = ser_exports.to_exports(&interner);
+
+                        // Register in module registry so dependents can resolve imports
+                        let module_id = ModuleId::new(canonical.clone());
+                        registry.register_from_cache(
+                            module_id,
+                            exports,
+                            Arc::new(luanext_typechecker::SymbolTable::new()),
+                        );
+
+                        cache_hit_count += 1;
+                        info!(
+                            "Cache hit: {:?} (skipping parse/typecheck/codegen)",
+                            file_path
+                        );
+
+                        // Cached files don't need codegen — output was already
+                        // generated in a previous compilation
+                        return None;
+                    }
+                }
+                // Fallthrough: cache miss (no serializable exports) — treat as stale
+                warn!(
+                    "Cache hit but no serializable exports for {:?}, recompiling",
+                    file_path
+                );
+            }
+
+            // --- Stale path: parse, type-check, extract exports ---
             // Use pooled arena for type checking
             luanext_core::arena::with_pooled_arena(|arena| {
-                let canonical = file_path
-                    .canonicalize()
-                    .unwrap_or_else(|_| file_path.to_path_buf());
-                let is_stale = stale_files.contains(&canonical);
-
-                // --- Cache hit: with arena allocation, can't use cached AST ---
-                // TODO: Implement owned-type serialization or accept recompilation on cache hit
-                // For now, treat all files as stale (recompile everything)
-                let _is_stale = stale_files.contains(&canonical) || true; // Force recompilation
-
                 // --- Prepared module from parallel parsing ---
                 let parsed = match parsed_map.get(&canonical) {
                     Some(parsed) => parsed,
                     None => {
-                        // This shouldn't happen since we already filtered for stale files
                         warn!(
                             "Internal error: parsed module not found for {:?} (is_stale={})",
                             file_path, is_stale
@@ -1300,7 +1329,7 @@ fn compile(cli: Cli, target: luanext_core::codegen::LuaTarget) -> anyhow::Result
                     }
                 };
 
-                let mut program = parsed.ast.clone();
+                let program = parsed.ast.clone();
                 let common_ids = parsed.common_ids;
 
                 // Type check the program (with module support for import resolution)
@@ -1323,7 +1352,7 @@ fn compile(cli: Cli, target: luanext_core::codegen::LuaTarget) -> anyhow::Result
                 .with_stdlib()
                 .expect("Failed to load standard library");
 
-                if type_checker.check_program(&mut program).is_err() || handler.has_errors() {
+                if type_checker.check_program(&program).is_err() || handler.has_errors() {
                     typecheck_failures.set(true);
                     let diagnostics = handler.get_diagnostics();
                     warn!(
@@ -1345,8 +1374,6 @@ fn compile(cli: Cli, target: luanext_core::codegen::LuaTarget) -> anyhow::Result
 
                 // Register exports in shared registry for other files
                 let exports = type_checker.extract_exports(&program);
-                // Note: We can't cache SymbolTable (arena-allocated), so we only register exports
-                // The registry will use default/empty symbol table for imported modules
                 if let Err(e) = registry.register_exports(&module_id, exports.clone()) {
                     warn!("Failed to register exports for {:?}: {}", module_id, e);
                 }
@@ -1374,6 +1401,13 @@ fn compile(cli: Cli, target: luanext_core::codegen::LuaTarget) -> anyhow::Result
                         }
                     }
 
+                    // Serialize exports for future cache hits
+                    let serializable_exports =
+                        luanext_core::cache::SerializableModuleExports::from_exports(
+                            &exports,
+                            &parsed.interner,
+                        );
+
                     Some((
                         canonical.clone(),
                         CachedModule::new(
@@ -1389,6 +1423,8 @@ fn compile(cli: Cli, target: luanext_core::codegen::LuaTarget) -> anyhow::Result
                             exports.named.keys().cloned().collect(),
                             // Check if default export exists
                             exports.default.is_some(),
+                            // Full serializable exports for cache-hit reconstruction
+                            Some(serializable_exports),
                         ),
                         dependencies,
                         declaration_hashes,
@@ -1418,7 +1454,13 @@ fn compile(cli: Cli, target: luanext_core::codegen::LuaTarget) -> anyhow::Result
         .collect();
 
     let typecheck_elapsed = typecheck_start.elapsed();
-    let typechecked_count = checked_modules.len() - cached_modules.len();
+    let typechecked_count = checked_modules.len();
+    if cache_hit_count > 0 {
+        info!(
+            "Cache: {} modules restored from cache, {} recompiled",
+            cache_hit_count, typechecked_count
+        );
+    }
     info!(
         "Type checking complete. {} modules ready for codegen.",
         checked_modules.len()
@@ -1556,8 +1598,8 @@ fn compile(cli: Cli, target: luanext_core::codegen::LuaTarget) -> anyhow::Result
 
             let mut generator = builder.build();
             // Convert arena-allocated Program to mutable AST for codegen
-            let mut mutable_ast = luanext_core::MutableProgram::from_program(&module.ast);
-            let lua_code = generator.generate(&mut mutable_ast);
+            let mutable_ast = luanext_core::MutableProgram::from_program(&module.ast);
+            let lua_code = generator.generate(&mutable_ast);
             let source_map = generator.take_source_map();
 
             CompilationResult {

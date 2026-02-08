@@ -4,14 +4,14 @@
 //! The actual devirtualization pass is temporarily disabled during arena migration
 //! (see devirtualization.rs.pre_arena for the full implementation).
 
-use rustc_hash::FxHashMap;
-use rustc_hash::FxHashSet;
-use tracing::debug;
 use luanext_parser::ast::expression::{Expression, ExpressionKind};
 use luanext_parser::ast::statement::{ClassMember, Statement};
 use luanext_parser::ast::types::TypeKind;
 use luanext_parser::ast::Program;
 use luanext_parser::string_interner::StringId;
+use rustc_hash::FxHashMap;
+use rustc_hash::FxHashSet;
+use tracing::debug;
 
 use ExpressionKind::*;
 
@@ -362,8 +362,7 @@ impl ClassHierarchy {
                 for prop in props.iter() {
                     match prop {
                         luanext_parser::ast::expression::ObjectProperty::Property {
-                            value,
-                            ..
+                            value, ..
                         } => {
                             self.collect_instantiations_from_expression(value);
                         }
@@ -534,8 +533,8 @@ impl ClassHierarchy {
 use crate::config::OptimizationLevel;
 use crate::MutableProgram;
 use bumpalo::Bump;
-use std::sync::Arc;
 use luanext_parser::string_interner::StringInterner;
+use std::sync::Arc;
 
 use super::{AstFeatures, WholeProgramPass};
 

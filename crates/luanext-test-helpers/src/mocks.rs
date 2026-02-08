@@ -1,7 +1,7 @@
 //! Mock implementations for testing
 
-use std::sync::Arc;
 use luanext_core::diagnostics::{Diagnostic, DiagnosticHandler, DiagnosticLevel};
+use std::sync::Arc;
 
 /// A mock diagnostic handler that collects diagnostics
 #[derive(Debug, Default)]

@@ -1,5 +1,4 @@
 use bumpalo::Bump;
-use std::sync::Arc;
 use luanext_core::config::OptimizationLevel;
 use luanext_core::diagnostics::CollectingDiagnosticHandler;
 use luanext_core::optimizer::Optimizer;
@@ -14,6 +13,7 @@ use luanext_parser::ast::types::{PrimitiveType, Type, TypeKind, TypeReference};
 use luanext_parser::ast::{Program, Spanned};
 use luanext_parser::span::Span;
 use luanext_parser::string_interner::StringInterner;
+use std::sync::Arc;
 
 // Helper for integration-style tests that parse and type-check source code
 fn type_check(source: &str) -> Result<(), String> {

@@ -7,28 +7,17 @@
 
 ## Priority 1: Critical Issues
 
-### 🔴 Incremental Compilation Broken
+### ~~🔴 Production Panic Calls~~ ✅ FIXED
 
-- [ ] Implement cache serialization for arena-allocated AST
-  - `crates/luanext-cli/src/main.rs:1199` - Export-only cache registration
-  - `crates/luanext-cli/src/main.rs:1286` - Owned-type serialization
-- [ ] Remove `|| true` force-recompilation workaround (line 1288)
-- [ ] Restore `to_serializable/from_serializable` for SymbolTable
-  - `crates/luanext-typechecker/src/utils/symbol_table.rs:216`
-- **Impact:** Always recompiles everything, no incremental benefits
+**Audit result:** All listed `panic!()` calls are inside `#[cfg(test)]` modules (test assertions, not production code).
 
-### 🔴 Production Panic Calls (Violates Guidelines)
-
-**Project guidelines require:** "Result<T, E> over panicking"
-
-- [ ] Convert type system panics to Result types:
-  - `crates/luanext-typechecker/src/helpers/type_utilities.rs:366` - "Expected union type"
-  - `crates/luanext-typechecker/src/types/generics.rs` - 14 panic calls
-    - Lines: 1130, 1463, 1513, 1587, 1630, 1677, 2000, 2072, 2132, 2135, 2196, 2199, 2256, 2259
-  - `crates/luanext-typechecker/src/types/utility_types.rs` - Multiple panics throughout
-- [ ] Audit 1,464 `.unwrap()`/`.expect()` calls across 122 files
-- [ ] Convert production code to proper error handling
-- **Impact:** Compiler crashes on edge cases, poor error messages
+- [x] ~~Convert type system panics~~ — All panics are test-only assertions
+- [x] Audit critical `.unwrap()`/`.expect()` calls in production code
+- [x] Fix CRITICAL: Lexer `.chars().next().unwrap()` on user input (5 locations in `main.rs`)
+- [x] Fix CRITICAL: `class_decl.primary_constructor.unwrap()` in `type_checker.rs:1384`
+- [x] Fix HIGH: DI `.unwrap()` without message in `main.rs:1180`
+- [x] Fix MEDIUM: Iterator `.unwrap()` after length checks (5 locations)
+- **Status:** Critical unwraps fixed; DI `.expect()` calls with clear messages retained (Rust convention for programming errors)
 
 ---
 
@@ -191,7 +180,7 @@ These passes perform analysis but don't apply transformations:
 
 **By Priority:**
 
-- Priority 1 (Critical): 11 tasks
+- Priority 1 (Critical): ~~11 tasks~~ → 5 remaining (6 fixed)
 - Priority 2 (Incomplete Features): 18 tasks
 - Priority 3 (Analysis-Only): 5 tasks
 - Priority 4 (LSP Gaps): 8 tasks
@@ -199,7 +188,7 @@ These passes perform analysis but don't apply transformations:
 
 **By Impact:**
 
-- 🔴 Critical: 3 major issues
+- 🔴 Critical: ~~3 major issues~~ → 1 remaining (panics resolved)
 - 🟡 High: 5 incomplete features
 - 🟢 Medium: 6 feature gaps
 - 🔵 Low: 6 polish items

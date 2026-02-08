@@ -1,6 +1,5 @@
 use bumpalo::Bump;
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::sync::Arc;
 use luanext_core::codegen::CodeGenerator;
 use luanext_core::config::CompilerOptions;
 use luanext_core::diagnostics::CollectingDiagnosticHandler;
@@ -8,6 +7,7 @@ use luanext_core::TypeChecker;
 use luanext_parser::lexer::Lexer;
 use luanext_parser::parser::Parser;
 use luanext_parser::string_interner::StringInterner;
+use std::sync::Arc;
 
 fn compile_and_generate(source: &str) -> String {
     let handler = Arc::new(CollectingDiagnosticHandler::new());

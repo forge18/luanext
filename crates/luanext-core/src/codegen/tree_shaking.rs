@@ -1,9 +1,9 @@
-use rustc_hash::FxHashMap as HashMap;
-use rustc_hash::FxHashSet as HashSet;
-use std::path::Path;
 use luanext_parser::ast::statement::{ExportKind, Statement};
 use luanext_parser::ast::Program;
 use luanext_parser::string_interner::{StringId, StringInterner};
+use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxHashSet as HashSet;
+use std::path::Path;
 
 #[derive(Debug, Clone, Default)]
 pub struct ReachableSet {
@@ -360,9 +360,9 @@ mod tests {
     use super::*;
     use crate::diagnostics::CollectingDiagnosticHandler;
     use bumpalo::Bump;
-    use std::sync::Arc;
     use luanext_parser::lexer::Lexer;
     use luanext_parser::parser::Parser;
+    use std::sync::Arc;
 
     fn create_program<'arena>(
         source: &str,

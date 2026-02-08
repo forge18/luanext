@@ -4,11 +4,11 @@
 
 use crate::optimizer::BlockVisitor;
 use bumpalo::Bump;
-use std::collections::HashSet;
 use luanext_parser::ast::expression::{BinaryOp, Expression, ExpressionKind};
 use luanext_parser::ast::pattern::Pattern;
 use luanext_parser::ast::statement::{Block, ForStatement, Statement};
 use luanext_parser::string_interner::StringId;
+use std::collections::HashSet;
 
 /// Dead store elimination pass
 /// Removes assignments to variables that are never read
@@ -458,9 +458,7 @@ impl DeadStoreEliminationPass {
                 for elem in arr.elements {
                     match elem {
                         luanext_parser::ast::pattern::ArrayPatternElement::Pattern(
-                            luanext_parser::ast::pattern::PatternWithDefault {
-                                pattern: p, ..
-                            },
+                            luanext_parser::ast::pattern::PatternWithDefault { pattern: p, .. },
                         ) => {
                             self.collect_names_from_pattern(p, names);
                         }
@@ -651,8 +649,7 @@ impl DeadStoreEliminationPass {
                 for prop in *properties {
                     match prop {
                         luanext_parser::ast::expression::ObjectProperty::Property {
-                            value,
-                            ..
+                            value, ..
                         } => {
                             self.collect_expression_reads_into(value, reads);
                         }

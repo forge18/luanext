@@ -2,14 +2,14 @@ use crate::config::OptimizationLevel;
 use crate::optimizer::WholeProgramPass;
 use crate::MutableProgram;
 use bumpalo::Bump;
-use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
 use luanext_parser::ast::expression::{Expression, ExpressionKind};
 use luanext_parser::ast::pattern::Pattern;
 use luanext_parser::ast::statement::{ForStatement, Statement, VariableDeclaration, VariableKind};
 use luanext_parser::ast::Spanned;
 use luanext_parser::span::Span;
 use luanext_parser::string_interner::StringInterner;
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 pub struct GlobalLocalizationPass {
     interner: Arc<StringInterner>,
@@ -83,9 +83,7 @@ impl GlobalLocalizationPass {
                 for elem in arr.elements {
                     match elem {
                         luanext_parser::ast::pattern::ArrayPatternElement::Pattern(
-                            luanext_parser::ast::pattern::PatternWithDefault {
-                                pattern: p, ..
-                            },
+                            luanext_parser::ast::pattern::PatternWithDefault { pattern: p, .. },
                         ) => {
                             self.collect_pattern_names(p, locals);
                         }

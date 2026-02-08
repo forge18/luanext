@@ -5,14 +5,14 @@
 //! - Full compilation (parse + typecheck + codegen)
 
 use bumpalo::Bump;
-use std::sync::Arc;
-use std::time::{Duration, Instant};
 use luanext_core::codegen::CodeGenerator;
 use luanext_core::diagnostics::CollectingDiagnosticHandler;
 use luanext_core::{MutableProgram, TypeChecker};
 use luanext_parser::lexer::Lexer;
 use luanext_parser::parser::Parser;
 use luanext_parser::string_interner::StringInterner;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 /// Maximum acceptable time for benchmarks (to catch performance regressions)
 /// Set to ~5x observed debug-mode times for CI variance headroom
@@ -1076,7 +1076,7 @@ fn test_incremental_retypecheck_single_file_change() {
 
         // Save to cache
         let source_hash = format!("hash_{}", file_path.display());
-        let cached = CachedModule::new(file_path.clone(), source_hash, vec![], vec![], false);
+        let cached = CachedModule::new(file_path.clone(), source_hash, vec![], vec![], false, None);
         let _ = cache_manager.save_module(file_path, &cached, vec![]);
     }
 
@@ -1217,7 +1217,7 @@ fn test_cache_hit_rate_unchanged_modules() {
             .expect("Type checking failed");
 
         let source_hash = format!("hash_{}", file_path.display());
-        let cached = CachedModule::new(file_path.clone(), source_hash, vec![], vec![], false);
+        let cached = CachedModule::new(file_path.clone(), source_hash, vec![], vec![], false, None);
         let _ = cache_manager.save_module(file_path, &cached, vec![]);
     }
 

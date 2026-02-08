@@ -13,13 +13,13 @@ use crate::MutableProgram;
 
 use crate::optimizer::{ExprVisitor, PreAnalysisPass, WholeProgramPass};
 use bumpalo::Bump;
-use rustc_hash::FxHashMap;
-use std::sync::Arc;
 use luanext_parser::ast::expression::{BinaryOp, Expression, ExpressionKind, UnaryOp};
 use luanext_parser::ast::statement::{Block, ClassMember, ForStatement, Statement};
 use luanext_parser::ast::types::{Type, TypeKind};
 use luanext_parser::span::Span;
 use luanext_parser::string_interner::{StringId, StringInterner};
+use rustc_hash::FxHashMap;
+use std::sync::Arc;
 
 const MAX_INLINE_STATEMENTS: usize = 5;
 const MIN_CALL_FREQUENCY: usize = 3;
@@ -253,8 +253,7 @@ impl OperatorInliningPass {
                 for prop in props.iter() {
                     match prop {
                         luanext_parser::ast::expression::ObjectProperty::Property {
-                            value,
-                            ..
+                            value, ..
                         } => {
                             self.catalog_expression(value);
                         }
@@ -679,9 +678,8 @@ impl OperatorInliningPass {
                         luanext_parser::ast::expression::MatchArmBody::Block(block) => {
                             let mut new_block = block.clone();
                             if self.process_block(&mut new_block, arena) {
-                                arm.body = luanext_parser::ast::expression::MatchArmBody::Block(
-                                    new_block,
-                                );
+                                arm.body =
+                                    luanext_parser::ast::expression::MatchArmBody::Block(new_block);
                                 ac = true;
                             }
                         }
@@ -710,10 +708,9 @@ impl OperatorInliningPass {
                     luanext_parser::ast::expression::ArrowBody::Expression(e) => {
                         let mut new_e = (**e).clone();
                         if self.process_expression(&mut new_e, arena) {
-                            new_arrow.body =
-                                luanext_parser::ast::expression::ArrowBody::Expression(
-                                    arena.alloc(new_e),
-                                );
+                            new_arrow.body = luanext_parser::ast::expression::ArrowBody::Expression(
+                                arena.alloc(new_e),
+                            );
                             bc = true;
                         }
                     }
@@ -891,12 +888,11 @@ impl OperatorInliningPass {
                         } => {
                             let mut new_val = (**value).clone();
                             if self.process_expression(&mut new_val, arena) {
-                                *prop =
-                                    luanext_parser::ast::expression::ObjectProperty::Property {
-                                        key: key.clone(),
-                                        value: arena.alloc(new_val),
-                                        span: *span,
-                                    };
+                                *prop = luanext_parser::ast::expression::ObjectProperty::Property {
+                                    key: key.clone(),
+                                    value: arena.alloc(new_val),
+                                    span: *span,
+                                };
                                 pc = true;
                             }
                         }
@@ -910,19 +906,15 @@ impl OperatorInliningPass {
                             let kc = self.process_expression(&mut new_key, arena);
                             let vc = self.process_expression(&mut new_val, arena);
                             if kc || vc {
-                                *prop =
-                                    luanext_parser::ast::expression::ObjectProperty::Computed {
-                                        key: arena.alloc(new_key),
-                                        value: arena.alloc(new_val),
-                                        span: *span,
-                                    };
+                                *prop = luanext_parser::ast::expression::ObjectProperty::Computed {
+                                    key: arena.alloc(new_key),
+                                    value: arena.alloc(new_val),
+                                    span: *span,
+                                };
                                 pc = true;
                             }
                         }
-                        luanext_parser::ast::expression::ObjectProperty::Spread {
-                            value,
-                            span,
-                        } => {
+                        luanext_parser::ast::expression::ObjectProperty::Spread { value, span } => {
                             let mut new_val = (**value).clone();
                             if self.process_expression(&mut new_val, arena) {
                                 *prop = luanext_parser::ast::expression::ObjectProperty::Spread {
@@ -1002,9 +994,7 @@ fn binary_op_to_operator_kind(
     }
 }
 
-fn unary_op_to_operator_kind(
-    op: &UnaryOp,
-) -> Option<luanext_parser::ast::statement::OperatorKind> {
+fn unary_op_to_operator_kind(op: &UnaryOp) -> Option<luanext_parser::ast::statement::OperatorKind> {
     match op {
         UnaryOp::Negate => Some(luanext_parser::ast::statement::OperatorKind::UnaryMinus),
         UnaryOp::Length => Some(luanext_parser::ast::statement::OperatorKind::Length),

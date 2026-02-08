@@ -173,17 +173,15 @@ impl SerializableTypeKind {
     fn from_type_kind(kind: &TypeKind<'_>, interner: &StringInterner) -> Self {
         match kind {
             TypeKind::Primitive(p) => SerializableTypeKind::Primitive(*p),
-            TypeKind::Reference(r) => {
-                SerializableTypeKind::Reference(SerializableTypeReference {
-                    name: interner.resolve(r.name.node),
-                    type_arguments: r.type_arguments.map(|args| {
-                        args.iter()
-                            .map(|t| SerializableType::from_type(t, interner))
-                            .collect()
-                    }),
-                    span: r.span,
-                })
-            }
+            TypeKind::Reference(r) => SerializableTypeKind::Reference(SerializableTypeReference {
+                name: interner.resolve(r.name.node),
+                type_arguments: r.type_arguments.map(|args| {
+                    args.iter()
+                        .map(|t| SerializableType::from_type(t, interner))
+                        .collect()
+                }),
+                span: r.span,
+            }),
             TypeKind::Union(members) => SerializableTypeKind::Union(
                 members
                     .iter()
@@ -208,11 +206,9 @@ impl SerializableTypeKind {
                     .map(|t| SerializableType::from_type(t, interner))
                     .collect(),
             ),
-            TypeKind::Function(func) => {
-                SerializableTypeKind::Function(SerializableFunctionType::from_function(
-                    func, interner,
-                ))
-            }
+            TypeKind::Function(func) => SerializableTypeKind::Function(
+                SerializableFunctionType::from_function(func, interner),
+            ),
             TypeKind::Literal(lit) => {
                 SerializableTypeKind::Literal(SerializableLiteral::from_literal(lit))
             }
@@ -253,13 +249,11 @@ impl SerializableTypeKind {
                 })
             }
             SerializableTypeKind::Union(members) => {
-                let vec: Vec<Type<'static>> =
-                    members.iter().map(|t| t.to_type(interner)).collect();
+                let vec: Vec<Type<'static>> = members.iter().map(|t| t.to_type(interner)).collect();
                 TypeKind::Union(&*Box::leak(vec.into_boxed_slice()))
             }
             SerializableTypeKind::Intersection(members) => {
-                let vec: Vec<Type<'static>> =
-                    members.iter().map(|t| t.to_type(interner)).collect();
+                let vec: Vec<Type<'static>> = members.iter().map(|t| t.to_type(interner)).collect();
                 TypeKind::Intersection(&*Box::leak(vec.into_boxed_slice()))
             }
             SerializableTypeKind::Object(obj) => TypeKind::Object(obj.to_object_type(interner)),
@@ -268,8 +262,7 @@ impl SerializableTypeKind {
                 TypeKind::Array(inner)
             }
             SerializableTypeKind::Tuple(elems) => {
-                let vec: Vec<Type<'static>> =
-                    elems.iter().map(|t| t.to_type(interner)).collect();
+                let vec: Vec<Type<'static>> = elems.iter().map(|t| t.to_type(interner)).collect();
                 TypeKind::Tuple(&*Box::leak(vec.into_boxed_slice()))
             }
             SerializableTypeKind::Function(func) => {
@@ -304,11 +297,8 @@ impl SerializableObjectType {
     }
 
     fn to_object_type(&self, interner: &StringInterner) -> ObjectType<'static> {
-        let members: Vec<ObjectTypeMember<'static>> = self
-            .members
-            .iter()
-            .map(|m| m.to_member(interner))
-            .collect();
+        let members: Vec<ObjectTypeMember<'static>> =
+            self.members.iter().map(|m| m.to_member(interner)).collect();
         ObjectType {
             members: &*Box::leak(members.into_boxed_slice()),
             span: self.span,
@@ -340,14 +330,12 @@ impl SerializableObjectMember {
                     span: method.span,
                 })
             }
-            ObjectTypeMember::Index(idx) => {
-                SerializableObjectMember::Index(SerializableIndex {
-                    key_name: interner.resolve(idx.key_name.node),
-                    key_type: idx.key_type,
-                    value_type: SerializableType::from_type(&idx.value_type, interner),
-                    span: idx.span,
-                })
-            }
+            ObjectTypeMember::Index(idx) => SerializableObjectMember::Index(SerializableIndex {
+                key_name: interner.resolve(idx.key_name.node),
+                key_type: idx.key_type,
+                value_type: SerializableType::from_type(&idx.value_type, interner),
+                span: idx.span,
+            }),
         }
     }
 
@@ -511,10 +499,7 @@ impl SerializableParameter {
         let ident: Ident = Spanned::new(name_id, self.span);
         luanext_parser::ast::statement::Parameter {
             pattern: luanext_parser::ast::pattern::Pattern::Identifier(ident),
-            type_annotation: self
-                .type_annotation
-                .as_ref()
-                .map(|t| t.to_type(interner)),
+            type_annotation: self.type_annotation.as_ref().map(|t| t.to_type(interner)),
             default: None,
             is_rest: self.is_rest,
             is_optional: self.is_optional,
@@ -550,21 +535,6 @@ impl SerializableLiteral {
 // ---------------------------------------------------------------------------
 
 impl SerializableExportedSymbol {
-    fn from_exported(name: &str, export: &ExportedSymbol) -> Self {
-        // We need a dummy interner for resolving the type — but the symbols in
-        // the registry already use 'static transmuted types. We convert the type
-        // structure directly without needing to resolve StringIds (those are
-        // already resolved in the symbol data).
-        SerializableExportedSymbol {
-            name: name.to_string(),
-            kind: export.symbol.kind,
-            typ: SerializableType::from_type_raw(&export.symbol.typ),
-            span: export.symbol.span,
-            is_exported: export.symbol.is_exported,
-            is_type_only: export.is_type_only,
-        }
-    }
-
     fn to_exported(&self, interner: &StringInterner) -> (String, ExportedSymbol) {
         let typ = self.typ.to_type(interner);
         let symbol = Symbol::new(self.name.clone(), self.kind, typ, self.span);
@@ -574,75 +544,6 @@ impl SerializableExportedSymbol {
             self.name.clone(),
             ExportedSymbol::new(sym, self.is_type_only),
         )
-    }
-}
-
-impl SerializableType {
-    /// Convert from `Type<'_>` without an interner — used when we have
-    /// transmuted `'static` types from the registry. StringIds in these types
-    /// may not resolve correctly in a fresh interner, so we preserve what we can.
-    ///
-    /// For export caching, we call `from_type` with the original interner during
-    /// the type-checking phase (not from the registry).
-    fn from_type_raw(ty: &Type<'_>) -> Self {
-        // Use a fallback that doesn't resolve StringIds — store empty strings
-        // for names. This is only used when converting from registry symbols
-        // where we don't have the original interner.
-        SerializableType {
-            kind: SerializableTypeKind::from_type_kind_raw(&ty.kind),
-            span: ty.span,
-        }
-    }
-}
-
-impl SerializableTypeKind {
-    fn from_type_kind_raw(kind: &TypeKind<'_>) -> Self {
-        match kind {
-            TypeKind::Primitive(p) => SerializableTypeKind::Primitive(*p),
-            TypeKind::Reference(r) => {
-                // Without interner, we can't resolve the name.
-                // Use empty string — the name is carried in the SerializableExportedSymbol.
-                SerializableTypeKind::Reference(SerializableTypeReference {
-                    name: String::new(),
-                    type_arguments: r.type_arguments.map(|args| {
-                        args.iter()
-                            .map(|t| SerializableType::from_type_raw(t))
-                            .collect()
-                    }),
-                    span: r.span,
-                })
-            }
-            TypeKind::Union(members) => SerializableTypeKind::Union(
-                members
-                    .iter()
-                    .map(|t| SerializableType::from_type_raw(t))
-                    .collect(),
-            ),
-            TypeKind::Intersection(members) => SerializableTypeKind::Intersection(
-                members
-                    .iter()
-                    .map(|t| SerializableType::from_type_raw(t))
-                    .collect(),
-            ),
-            TypeKind::Array(elem) => {
-                SerializableTypeKind::Array(Box::new(SerializableType::from_type_raw(elem)))
-            }
-            TypeKind::Tuple(elems) => SerializableTypeKind::Tuple(
-                elems
-                    .iter()
-                    .map(|t| SerializableType::from_type_raw(t))
-                    .collect(),
-            ),
-            TypeKind::Literal(lit) => {
-                SerializableTypeKind::Literal(SerializableLiteral::from_literal(lit))
-            }
-            TypeKind::Nullable(inner) => SerializableTypeKind::Nullable(Box::new(
-                SerializableType::from_type_raw(inner),
-            )),
-            TypeKind::Namespace(parts) => SerializableTypeKind::Namespace(parts.clone()),
-            // Complex types and anything requiring interner → Unknown
-            _ => SerializableTypeKind::Unknown,
-        }
     }
 }
 
@@ -667,16 +568,17 @@ impl SerializableModuleExports {
             })
             .collect();
 
-        let default = exports.default.as_ref().map(|export| {
-            SerializableExportedSymbol {
+        let default = exports
+            .default
+            .as_ref()
+            .map(|export| SerializableExportedSymbol {
                 name: "default".to_string(),
                 kind: export.symbol.kind,
                 typ: SerializableType::from_type(&export.symbol.typ, interner),
                 span: export.symbol.span,
                 is_exported: export.symbol.is_exported,
                 is_type_only: export.is_type_only,
-            }
-        });
+            });
 
         SerializableModuleExports { named, default }
     }
@@ -862,7 +764,12 @@ mod tests {
         let mut exports = ModuleExports::new();
 
         let typ = Type::new(TypeKind::Primitive(PrimitiveType::Number), Span::default());
-        let symbol = Symbol::new("foo".to_string(), SymbolKind::Variable, typ, Span::default());
+        let symbol = Symbol::new(
+            "foo".to_string(),
+            SymbolKind::Variable,
+            typ,
+            Span::default(),
+        );
         exports.add_named("foo".to_string(), ExportedSymbol::new(symbol, false));
 
         let ser = SerializableModuleExports::from_exports(&exports, &interner);

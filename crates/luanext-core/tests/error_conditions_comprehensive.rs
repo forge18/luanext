@@ -9,7 +9,6 @@
 #![allow(dead_code)]
 
 use bumpalo::Bump;
-use std::sync::Arc;
 use luanext_core::codegen::CodeGenerator;
 use luanext_core::config::CompilerOptions;
 use luanext_core::diagnostics::{CollectingDiagnosticHandler, DiagnosticHandler, DiagnosticLevel};
@@ -17,6 +16,7 @@ use luanext_core::{MutableProgram, TypeChecker};
 use luanext_parser::lexer::Lexer;
 use luanext_parser::parser::Parser;
 use luanext_parser::string_interner::StringInterner;
+use std::sync::Arc;
 
 /// Compile a source string and return the result with diagnostics
 fn compile_with_diagnostics(

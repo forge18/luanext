@@ -8,9 +8,6 @@
 //! 5. Circular dependencies still work with hoisting
 
 use bumpalo::Bump;
-use rustc_hash::FxHashMap;
-use std::collections::HashMap;
-use std::sync::Arc;
 use luanext_core::codegen::scope_hoisting::{EscapeAnalysis, HoistingContext};
 use luanext_core::codegen::CodeGenerator;
 use luanext_core::codegen::LuaTarget;
@@ -19,6 +16,9 @@ use luanext_parser::ast::Program;
 use luanext_parser::lexer::Lexer;
 use luanext_parser::parser::Parser;
 use luanext_parser::string_interner::StringInterner;
+use rustc_hash::FxHashMap;
+use std::collections::HashMap;
+use std::sync::Arc;
 
 fn create_program<'arena>(
     source: &str,

@@ -57,6 +57,7 @@ knowledge/
 /fuzz/corpus/
 /fuzz/artifacts/
 .typed-lua-cache/
+.luanext-cache/
 
 # Environment
 .env

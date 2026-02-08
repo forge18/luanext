@@ -17,8 +17,8 @@
 //!     .build();
 //! ```
 
-use std::sync::Arc;
 use luanext_parser::string_interner::StringInterner;
+use std::sync::Arc;
 
 use super::{CodeGenMode, CodeGenerator, LuaTarget, ReflectionMode};
 use crate::config::{OptimizationLevel, OutputFormat};

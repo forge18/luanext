@@ -1,6 +1,6 @@
+use luanext_parser::span::Span;
 use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
-use luanext_parser::span::Span;
 
 /// A source map builder following the Source Map v3 specification
 /// https://sourcemaps.info/spec.html

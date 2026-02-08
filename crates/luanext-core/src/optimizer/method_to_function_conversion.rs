@@ -3,11 +3,11 @@ use crate::MutableProgram;
 use bumpalo::Bump;
 
 use crate::optimizer::{StmtVisitor, WholeProgramPass};
-use std::sync::Arc;
 use luanext_parser::ast::expression::{Expression, ExpressionKind, ReceiverClassInfo};
 use luanext_parser::ast::statement::Statement;
 use luanext_parser::span::Span;
 use luanext_parser::string_interner::StringInterner;
+use std::sync::Arc;
 
 pub struct MethodToFunctionConversionPass {
     interner: Arc<StringInterner>,
@@ -311,10 +311,9 @@ impl MethodToFunctionConversionPass {
                     luanext_parser::ast::expression::ArrowBody::Expression(body_expr) => {
                         let mut new_body = (**body_expr).clone();
                         if self.convert_in_expression(&mut new_body, arena) {
-                            new_arrow.body =
-                                luanext_parser::ast::expression::ArrowBody::Expression(
-                                    arena.alloc(new_body),
-                                );
+                            new_arrow.body = luanext_parser::ast::expression::ArrowBody::Expression(
+                                arena.alloc(new_body),
+                            );
                             changed = true;
                         }
                     }
@@ -648,8 +647,7 @@ mod tests {
             is_static: false,
         });
 
-        let empty_args: &[luanext_parser::ast::expression::Argument] =
-            arena.alloc_slice_clone(&[]);
+        let empty_args: &[luanext_parser::ast::expression::Argument] = arena.alloc_slice_clone(&[]);
 
         let expr = Expression {
             kind: ExpressionKind::MethodCall(

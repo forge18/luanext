@@ -1,5 +1,4 @@
 use bumpalo::Bump;
-use std::sync::Arc;
 use luanext_core::{
     codegen::CodeGenerator,
     diagnostics::{CollectingDiagnosticHandler, DiagnosticHandler, DiagnosticLevel},
@@ -8,6 +7,7 @@ use luanext_core::{
 use luanext_parser::lexer::Lexer;
 use luanext_parser::parser::Parser;
 use luanext_parser::string_interner::StringInterner;
+use std::sync::Arc;
 
 #[test]
 fn test_parser_missing_paren() {

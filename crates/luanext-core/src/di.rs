@@ -6,12 +6,12 @@ use super::diagnostics::{
 use super::fs::{FileSystem, MockFileSystem, RealFileSystem};
 use super::optimizer::Optimizer;
 use bumpalo::Bump;
-use std::any::{Any, TypeId};
-use std::sync::Arc;
 use luanext_parser::diagnostics::CollectingDiagnosticHandler as ParserCollectingHandler;
 use luanext_parser::string_interner::StringInterner;
 use luanext_parser::{Lexer, Parser};
 use luanext_typechecker::TypeChecker;
+use std::any::{Any, TypeId};
+use std::sync::Arc;
 
 #[derive(Clone, Copy)]
 pub enum ServiceLifetime {

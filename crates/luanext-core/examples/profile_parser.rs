@@ -1,10 +1,10 @@
 // Profile parser allocation performance with arena allocator
 use bumpalo::Bump;
-use std::sync::Arc;
 use luanext_core::diagnostics::CollectingDiagnosticHandler;
 use luanext_parser::lexer::Lexer;
 use luanext_parser::parser::Parser;
 use luanext_parser::string_interner::StringInterner;
+use std::sync::Arc;
 
 fn main() {
     // Generate a medium-sized realistic program

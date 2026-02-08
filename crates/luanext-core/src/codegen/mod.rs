@@ -21,14 +21,14 @@ pub use sourcemap::{SourceMap, SourceMapBuilder};
 
 // Re-export types needed for builder API
 pub use super::config::OptimizationLevel;
-use rustc_hash::FxHashMap as HashMap;
-use std::sync::Arc;
 use luanext_parser::ast::pattern::Pattern;
 use luanext_parser::ast::statement::*;
 use luanext_parser::ast::Program;
 use luanext_parser::string_interner::{StringId, StringInterner};
 use luanext_runtime::module;
 use luanext_runtime::reflection;
+use rustc_hash::FxHashMap as HashMap;
+use std::sync::Arc;
 
 /// Reflection metadata generation mode
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -914,11 +914,11 @@ mod tests {
     use crate::diagnostics::CollectingDiagnosticHandler;
     use crate::MutableProgram;
     use bumpalo::Bump;
-    use std::sync::Arc;
     use luanext_parser::ast::expression::BinaryOp;
     use luanext_parser::lexer::Lexer;
     use luanext_parser::parser::Parser;
     use luanext_parser::string_interner::StringInterner;
+    use std::sync::Arc;
 
     fn generate_code(source: &str) -> String {
         let handler = Arc::new(CollectingDiagnosticHandler::new());

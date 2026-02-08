@@ -3,8 +3,6 @@ use crate::MutableProgram;
 use bumpalo::Bump;
 
 use crate::optimizer::{StmtVisitor, WholeProgramPass};
-use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
 use luanext_parser::ast::expression::{
     Argument, ArrowBody, Expression, ExpressionKind, MatchArmBody,
 };
@@ -16,6 +14,8 @@ use luanext_parser::ast::statement::{
 use luanext_parser::span::Span;
 use luanext_parser::string_interner::StringId;
 use luanext_parser::string_interner::StringInterner;
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use luanext_parser::ast::expression::ArrayElement;
 

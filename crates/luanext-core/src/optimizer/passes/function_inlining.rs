@@ -4,8 +4,6 @@
 use crate::optimizer::{PreAnalysisPass, StmtVisitor};
 use crate::MutableProgram;
 use bumpalo::Bump;
-use rustc_hash::FxHashMap as HashMap;
-use std::sync::Arc;
 use luanext_parser::ast::expression::{ArrowBody, Expression, ExpressionKind};
 use luanext_parser::ast::pattern::Pattern;
 use luanext_parser::ast::statement::{
@@ -14,6 +12,8 @@ use luanext_parser::ast::statement::{
 };
 use luanext_parser::span::Span;
 use luanext_parser::string_interner::{StringId, StringInterner};
+use rustc_hash::FxHashMap as HashMap;
+use std::sync::Arc;
 
 enum InlineResult<'arena> {
     /// Direct expression substitution - for simple single-return functions

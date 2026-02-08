@@ -6,13 +6,13 @@ use crate::config::OptimizationLevel;
 use crate::optimizer::{AstFeatures, WholeProgramPass};
 use crate::MutableProgram;
 use bumpalo::Bump;
-use std::collections::HashSet;
 use luanext_parser::ast::expression::{
     ArrayElement, BinaryOp, Expression, ExpressionKind, Literal, UnaryOp,
 };
 use luanext_parser::ast::pattern::Pattern;
 use luanext_parser::ast::statement::{Block, ForNumeric, ForStatement, Statement};
 use luanext_parser::string_interner::StringId;
+use std::collections::HashSet;
 
 /// Loop optimization pass
 /// 1. Hoists loop-invariant local variable declarations
@@ -372,9 +372,7 @@ impl LoopOptimizationPass {
                 for elem in array_pattern.elements.iter() {
                     match elem {
                         luanext_parser::ast::pattern::ArrayPatternElement::Pattern(
-                            luanext_parser::ast::pattern::PatternWithDefault {
-                                pattern: p, ..
-                            },
+                            luanext_parser::ast::pattern::PatternWithDefault { pattern: p, .. },
                         ) => {
                             self.collect_modified_in_pattern(p, modified);
                         }

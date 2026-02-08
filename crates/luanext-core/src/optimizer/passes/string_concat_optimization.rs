@@ -6,7 +6,6 @@ use crate::config::OptimizationLevel;
 use crate::optimizer::{ExprVisitor, WholeProgramPass};
 use crate::MutableProgram;
 use bumpalo::Bump;
-use std::sync::Arc;
 use luanext_parser::ast::expression::{
     Argument, ArrayElement, AssignmentOp, BinaryOp, Expression, ExpressionKind, Literal,
 };
@@ -17,6 +16,7 @@ use luanext_parser::ast::statement::{
 use luanext_parser::ast::Spanned;
 use luanext_parser::span::Span;
 use luanext_parser::string_interner::{StringId, StringInterner};
+use std::sync::Arc;
 
 const MIN_CONCAT_PARTS_FOR_OPTIMIZATION: usize = 3;
 

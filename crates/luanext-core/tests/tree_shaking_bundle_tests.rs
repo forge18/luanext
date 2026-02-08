@@ -1,13 +1,13 @@
 use bumpalo::Bump;
-use rustc_hash::FxHashMap as HashMap;
-use std::path::Path;
-use std::sync::Arc;
 use luanext_core::codegen::tree_shaking::{ReachabilityAnalysis, ReachableSet};
 use luanext_core::diagnostics::CollectingDiagnosticHandler;
 use luanext_parser::ast::Program;
 use luanext_parser::lexer::Lexer;
 use luanext_parser::parser::Parser;
 use luanext_parser::string_interner::StringInterner;
+use rustc_hash::FxHashMap as HashMap;
+use std::path::Path;
+use std::sync::Arc;
 
 fn create_program<'arena>(
     source: &str,
