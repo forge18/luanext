@@ -42,7 +42,7 @@ LuaNext security considerations include:
    - Extremely large or deeply nested structures (DoS)
 
 2. **Configuration Injection**
-   - Malicious `tlconfig.yaml` files
+   - Malicious `luanext.config.yaml` files
    - Command-line argument injection
    - Environment variable manipulation
 
@@ -121,6 +121,7 @@ The compiler never uses `eval`, `exec`, or similar constructs. All code generati
 ```
 
 **Key Points:**
+
 - Runs with user privileges (not elevated)
 - File access limited by OS permissions
 - No special capabilities required
@@ -160,6 +161,7 @@ fn validate_file_path(path: &Path) -> Result<(), SecurityError> {
 ```
 
 **Protections:**
+
 - ✅ Path traversal prevention (`../../etc/passwd`)
 - ✅ Symlink escape detection
 - ✅ File extension validation
@@ -167,7 +169,7 @@ fn validate_file_path(path: &Path) -> Result<(), SecurityError> {
 
 ### Configuration Validation
 
-**`tlconfig.yaml` is validated on load:**
+**`luanext.config.yaml` is validated on load:**
 
 ```rust
 fn load_config(path: &Path) -> Result<CompilerConfig, ConfigError> {
@@ -205,6 +207,7 @@ fn validate_config_values(config: &CompilerConfig) -> Result<(), ConfigError> {
 ```
 
 **Protections:**
+
 - ✅ File size limits (prevents DoS)
 - ✅ No arbitrary code execution in YAML
 - ✅ Path traversal in patterns rejected
@@ -222,6 +225,7 @@ const MAX_STRING_LITERAL_LENGTH: usize = 1_000_000;
 ```
 
 **Protections:**
+
 - ✅ File size limits (DoS prevention)
 - ✅ Nesting depth limits (stack overflow prevention)
 - ✅ Identifier length limits (buffer overflow prevention)
@@ -321,15 +325,15 @@ fn generate_source_map(&self, output: &str) -> SourceMap {
 
 **Current Dependencies:**
 
-| Crate | Purpose | Audit Status |
-|-------|---------|--------------|
-| `thiserror` | Error handling | ✅ Trusted |
-| `anyhow` | Error propagation | ✅ Trusted |
-| `serde` | Serialization | ✅ Trusted |
-| `serde_yaml` | Config parsing | ✅ Trusted |
-| `clap` | CLI parsing | ✅ Trusted |
-| `bumpalo` | Arena allocation | ✅ Trusted |
-| `lsp-server` | LSP protocol | ✅ Trusted |
+| Crate        | Purpose           | Audit Status |
+|--------------|-------------------|--------------|
+| `thiserror`  | Error handling    | ✅ Trusted    |
+| `anyhow`     | Error propagation | ✅ Trusted    |
+| `serde`      | Serialization     | ✅ Trusted    |
+| `serde_yaml` | Config parsing    | ✅ Trusted    |
+| `clap`       | CLI parsing       | ✅ Trusted    |
+| `bumpalo`    | Arena allocation  | ✅ Trusted    |
+| `lsp-server` | LSP protocol      | ✅ Trusted    |
 
 ### Supply Chain Protection
 
@@ -425,6 +429,7 @@ target/
 ```
 
 **Guidelines:**
+
 - ❌ Never commit API keys or passwords
 - ❌ Never commit private keys or certificates
 - ❌ Never commit credentials.json or .env files
@@ -444,7 +449,8 @@ target/
 
 ## Security Best Practices for Contributors
 
-### DO:
+### DO
+
 - ✅ Validate all external input (files, CLI args, env vars)
 - ✅ Use Result<T, E> for error handling (never panic)
 - ✅ Limit recursion depth (prevent stack overflow)
@@ -454,7 +460,8 @@ target/
 - ✅ Keep dependencies up to date
 - ✅ Review diffs carefully before committing
 
-### DON'T:
+### DON'T
+
 - ❌ Trust user input without validation
 - ❌ Use unsafe Rust without justification
 - ❌ Interpolate user input into generated code
@@ -472,6 +479,7 @@ target/
 **Issue:** Malicious input can cause excessive compilation time.
 
 **Example:**
+
 ```lua
 type T1 = [string, string]
 type T2 = [T1, T1]
@@ -481,6 +489,7 @@ type T20 = [T19, T19]  -- 2^20 = 1M elements
 ```
 
 **Mitigation:**
+
 - Type expansion depth limit: 128
 - Type complexity limit: 10,000 nodes
 - Compilation timeout: 60 seconds
@@ -490,6 +499,7 @@ type T20 = [T19, T19]  -- 2^20 = 1M elements
 **Issue:** Large files or deeply nested structures can exhaust memory.
 
 **Mitigation:**
+
 - File size limit: 5 MB
 - Nesting depth limit: 128
 - Arena size monitoring
@@ -500,6 +510,7 @@ type T20 = [T19, T19]  -- 2^20 = 1M elements
 **Issue:** Malicious config could access files outside project.
 
 **Mitigation:**
+
 - All paths validated before access
 - Symlinks resolved and checked
 - Output directory must be within project root
@@ -509,6 +520,7 @@ type T20 = [T19, T19]  -- 2^20 = 1M elements
 **Issue:** Error messages might reveal sensitive paths.
 
 **Mitigation:**
+
 - Use relative paths in diagnostics
 - Sanitize error messages before display
 - Option to redact file paths (`--no-file-paths`)
@@ -563,6 +575,7 @@ fuzz_target!(|data: &[u8]| {
 ```
 
 **Run fuzzing:**
+
 ```bash
 cargo fuzz run lexer -- -max_len=10000 -timeout=5
 ```
@@ -576,7 +589,7 @@ cargo fuzz run lexer -- -max_len=10000 -timeout=5
 **If you discover a security vulnerability in LuaNext:**
 
 1. **DO NOT** open a public GitHub issue
-2. **DO** email security@luanext.dev with:
+2. **DO** email <security@luanext.dev> with:
    - Description of the vulnerability
    - Steps to reproduce
    - Potential impact assessment
@@ -595,11 +608,13 @@ cargo fuzz run lexer -- -max_len=10000 -timeout=5
 ### Security Updates
 
 **Critical vulnerabilities:**
+
 - Patch released immediately
 - Security advisory published
 - All users notified via GitHub and mailing list
 
 **Non-critical vulnerabilities:**
+
 - Included in next regular release
 - Mentioned in changelog
 
@@ -631,9 +646,9 @@ Before each release:
 
 ## Appendix: Security Contact
 
-**Security Email:** security@luanext.dev
-**PGP Key:** Available at https://luanext.dev/security.asc
-**Security Policy:** https://github.com/forge18/luanext/security/policy
+**Security Email:** <security@luanext.dev>
+**PGP Key:** Available at <https://luanext.dev/security.asc>
+**Security Policy:** <https://github.com/forge18/luanext/security/policy>
 
 ---
 

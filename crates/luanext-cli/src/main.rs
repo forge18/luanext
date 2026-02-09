@@ -18,7 +18,7 @@ struct Cli {
     #[arg(value_name = "FILE")]
     files: Vec<PathBuf>,
 
-    /// Path to tlconfig.yaml configuration file
+    /// Path to luanext.config.yaml configuration file
     #[arg(short, long, value_name = "FILE")]
     project: Option<PathBuf>,
 
@@ -221,8 +221,8 @@ exclude:
   - "dist"
 "#;
 
-    std::fs::write("tlconfig.yaml", config)?;
-    println!("Created tlconfig.yaml");
+    std::fs::write("luanext.config.yaml", config)?;
+    println!("Created luanext.config.yaml");
 
     // Create src directory if it doesn't exist
     std::fs::create_dir_all("src")?;
@@ -321,11 +321,11 @@ fn load_config_and_files(
         CompilerConfig::from_file(project_path)
             .map_err(|e| anyhow::anyhow!("Failed to load config file: {}", e))?
     } else {
-        // Try to find tlconfig.yaml in current directory
-        let default_path = PathBuf::from("tlconfig.yaml");
+        // Try to find luanext.config.yaml in current directory
+        let default_path = PathBuf::from("luanext.config.yaml");
         if default_path.exists() {
             CompilerConfig::from_file(&default_path)
-                .map_err(|e| anyhow::anyhow!("Failed to load tlconfig.yaml: {}", e))?
+                .map_err(|e| anyhow::anyhow!("Failed to load luanext.config.yaml: {}", e))?
         } else {
             CompilerConfig::default()
         }

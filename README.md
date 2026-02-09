@@ -121,7 +121,7 @@ luanext "src/**/*.luax" --out-file bundle.lua
 
 ```
 project/
-├── tlconfig.yaml
+├── luanext.config.yaml
 ├── src/
 │   ├── utils.luax      # base utilities
 │   ├── models.luax     # imports utils
@@ -132,9 +132,9 @@ project/
 
 ### Configuration
 
-Create a `tlconfig.yaml` in your project root:
+Create a `luanext.config.yaml` in your project root:
 
-Create a `tlconfig.yaml` in your project root:
+Create a `luanext.config.yaml` in your project root:
 
 ```yaml
 compilerOptions:

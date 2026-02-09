@@ -195,11 +195,11 @@ impl CodeGenerator {
                 for (method_name, default_fn_name) in default_methods {
                     self.write_indent();
                     self.write(class_name);
-                    self.write(":");
+                    self.write(".");
                     self.write(&method_name);
                     self.write(" = ");
                     self.write(class_name);
-                    self.write(":");
+                    self.write(".");
                     self.write(&method_name);
                     self.write(" or ");
                     self.writeln(&default_fn_name);

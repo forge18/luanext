@@ -22,9 +22,9 @@ fn test_init_creates_config_file() {
         .arg("--init")
         .assert()
         .success()
-        .stdout(predicate::str::contains("tlconfig.yaml"));
+        .stdout(predicate::str::contains("luanext.config.yaml"));
 
-    assert!(temp_dir.path().join("tlconfig.yaml").exists());
+    assert!(temp_dir.path().join("luanext.config.yaml").exists());
     assert!(temp_dir.path().join("src").exists());
     assert!(temp_dir.path().join("src/main.luax").exists());
 }
@@ -40,7 +40,7 @@ fn test_init_creates_valid_config() {
         .assert()
         .success();
 
-    let config = fs::read_to_string(temp_dir.path().join("tlconfig.yaml")).unwrap();
+    let config = fs::read_to_string(temp_dir.path().join("luanext.config.yaml")).unwrap();
     assert!(config.contains("compilerOptions"));
     assert!(config.contains("target"));
     assert!(config.contains("outDir"));
@@ -64,7 +64,7 @@ compilerOptions:
   sourceMap: false
   strict: true
 "#;
-    fs::write(temp_dir.path().join("tlconfig.yaml"), config).unwrap();
+    fs::write(temp_dir.path().join("luanext.config.yaml"), config).unwrap();
 
     // Create source file
     let source = "const x: number = 42";
@@ -73,7 +73,7 @@ compilerOptions:
     luanext_cmd()
         .current_dir(&temp_dir)
         .arg("--project")
-        .arg("tlconfig.yaml")
+        .arg("luanext.config.yaml")
         .arg("test.luax")
         .assert()
         .success();
@@ -303,7 +303,7 @@ compilerOptions:
   strictNullChecks: true
   noEmit: true
 "#;
-    fs::write(temp_dir.path().join("tlconfig.yaml"), config).unwrap();
+    fs::write(temp_dir.path().join("luanext.config.yaml"), config).unwrap();
 
     // Code that might fail strict checking
     let source = r#"
@@ -317,7 +317,7 @@ compilerOptions:
     // This should fail or succeed depending on strict mode implementation
     luanext_cmd()
         .arg("--project")
-        .arg(temp_dir.path().join("tlconfig.yaml"))
+        .arg(temp_dir.path().join("luanext.config.yaml"))
         .arg(input_file)
         .assert()
         .code(predicate::in_iter(vec![0, 1])); // Accept either success or failure

@@ -16,8 +16,6 @@
 - [Technology Stack](#technology-stack)
 - [Architectural Decisions](#architectural-decisions)
 - [Design Patterns](#design-patterns)
-- [Future Considerations](#future-considerations)
-- [Architectural Refactoring Plans](#architectural-refactoring-plans)
 
 ---
 
@@ -35,19 +33,19 @@ LuaNext is a typed superset of Lua implemented in Rust, providing static type ch
 | **Code Generator** | ✅ Complete      | Lua 5.1-5.4 targets, bundling mode, source maps                               |
 | **Optimizer**      | ✅ O1 Complete   | 15 passes registered; All 5 O1 passes now implement transformations           |
 | **CLI**            | ✅ Complete      | Watch mode, config files, parallel compilation via rayon                      |
-| **LSP**            | ⚠️ Partial       | Core features working; member completion stubbed                              |
+| **LSP**            | ✅ Complete      | Full LSP implementation with member/method completion                         |
 
 ### Language Features Status
 
-| Feature                | Status         | Details                                             |
-|------------------------|----------------|-----------------------------------------------------|
-| Exception Handling     | ❌ Tokens only | try/catch/throw tokens exist, no AST/parser/codegen |
-| Safe Navigation (`?.`) | ❌ Tokens only | Token exists; tests disabled; no AST/parser/codegen |
-| Null Coalescing (`??`) | ❌ Tokens only | Token exists; tests ignored; no AST/parser/codegen  |
-| Operator Overloading   | ❌ Tokens only  | Token exists, no implementation                     |
-| Rich Enums             | ❌ Not started  | Basic enums only (name + value)                     |
-| Interface Defaults     | ❌ Not started  | No DefaultMethod in InterfaceMember                 |
-| File Namespaces        | ❌ Tokens only  | Only DeclareNamespace for .d.luax files               |
+| Feature                | Status | Details                                                            |
+|------------------------|--------|--------------------------------------------------------------------|
+| Exception Handling     | ✅      | Full try/catch/throw/finally with pcall/xpcall strategies          |
+| Safe Navigation (`?.`) | ✅      | OptionalMember/Index/Call with IIFE + O2+ optimization             |
+| Null Coalescing (`??`) | ✅      | BinaryOp::NullCoalesce with full codegen                           |
+| Operator Overloading   | ✅      | ClassMember::Operator with metatable generation                    |
+| Rich Enums             | ✅      | Enums with fields, constructors, methods, and interface implements |
+| File Namespaces        | ✅      | Both NamespaceDeclaration and DeclareNamespace implemented         |
+| Interface Defaults     | ✅      | MethodSignature.body generates InterfaceName__method functions     |
 
 ### Core Design Principles
 
@@ -103,6 +101,7 @@ LuaNext is a typed superset of Lua implemented in Rust, providing static type ch
 | Type Guards          | ✅      | `param is Type` predicates with narrowing                                   |
 | Type Narrowing       | ✅      | `typeof`, nil checks, truthiness, instanceof                                |
 | Utility Types (12)   | ✅      | Partial, Required, Readonly, Pick, Omit, Exclude, Extract, etc.             |
+| `keyof` Operator     | ✅      | Full support: objects, unions, intersections, arrays, tuples, recursive     |
 | Decorators           | ✅      | Class, property, method decorators with runtime support                     |
 | Enums (basic)        | ✅      | Numeric and string enums (name + value only)                                |
 | Rich Enums           | ❌      | No fields, constructors, or methods in EnumDeclaration                      |
@@ -125,24 +124,24 @@ LuaNext is a typed superset of Lua implemented in Rust, providing static type ch
 
 ### LSP Features
 
-| Feature               | Status | Notes                                      |
-|-----------------------|--------|--------------------------------------------|
-| Diagnostics           | ✅      | Full lex → parse → typecheck pipeline      |
-| Hover                 | ✅      | Type info with markdown documentation      |
-| Completion (keywords) | ✅      | Context-aware keyword suggestions          |
-| Completion (members)  | ⚠️      | Infrastructure exists but not populated    |
-| Go-to-definition      | ✅      | Local + cross-file via symbol index        |
-| Find references       | ✅      | Workspace-wide with cross-file support     |
-| Rename                | ✅      | Multi-file with export awareness           |
-| Document symbols      | ✅      | Nested outline with all declaration types  |
-| Workspace symbols     | ✅      | Case-insensitive search                    |
-| Formatting            | ✅      | Full document, range, and on-type          |
-| Signature help        | ✅      | Parameter hints with active parameter      |
-| Inlay hints           | ✅      | Type hints and parameter name hints        |
-| Code actions          | ✅      | Quick fixes, refactoring, organize imports |
-| Semantic tokens       | ✅      | 13 token types, 6 modifiers                |
-| Selection range       | ✅      | AST-based selection expansion              |
-| Folding range         | ✅      | Block-based folding                        |
+| Feature               | Status | Notes                                                                       |
+|-----------------------|--------|-----------------------------------------------------------------------------|
+| Diagnostics           | ✅      | Full lex → parse → typecheck pipeline                                       |
+| Hover                 | ✅      | Type info with markdown documentation                                       |
+| Completion (keywords) | ✅      | Context-aware keyword suggestions                                           |
+| Completion (members)  | ✅      | Type-aware member/method completion for `.` and `:`, primitive type methods |
+| Go-to-definition      | ✅      | Local + cross-file via symbol index                                         |
+| Find references       | ✅      | Workspace-wide with cross-file support                                      |
+| Rename                | ✅      | Multi-file with export awareness                                            |
+| Document symbols      | ✅      | Nested outline with all declaration types                                   |
+| Workspace symbols     | ✅      | Case-insensitive search                                                     |
+| Formatting            | ✅      | Full document, range, and on-type                                           |
+| Signature help        | ✅      | Parameter hints with active parameter                                       |
+| Inlay hints           | ✅      | Type hints and parameter name hints                                         |
+| Code actions          | ✅      | Quick fixes, refactoring, organize imports                                  |
+| Semantic tokens       | ✅      | 13 token types, 6 modifiers                                                 |
+| Selection range       | ✅      | AST-based selection expansion                                               |
+| Folding range         | ✅      | Block-based folding                                                         |
 
 ---
 
@@ -150,7 +149,7 @@ LuaNext is a typed superset of Lua implemented in Rust, providing static type ch
 
 ### High-Level Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                         CLI Layer                               │
 │  Entry point, argument parsing, configuration loading           │
@@ -374,12 +373,12 @@ pub trait OptimizationPass {
 
 The optimizer supports four levels, controlled by the `OptimizationLevel` enum:
 
-| Level | Description | Passes Run |
-|-------|-------------|------------|
-| **O0** | No optimizations | None |
-| **O1** | Basic | 5 passes - constant folding, dead code elimination, algebraic simplification, table pre-allocation, global localization |
-| **O2** | Standard | 5 additional passes - function inlining, loop optimization, string concatenation, dead store elimination, tail call optimization |
-| **O3** | Aggressive | 5 additional passes - aggressive inlining, operator inlining, interface method inlining, devirtualization, generic specialization |
+| Level  | Description      | Passes Run                                                                                                                        |
+|--------|------------------|-----------------------------------------------------------------------------------------------------------------------------------|
+| **O0** | No optimizations | None                                                                                                                              |
+| **O1** | Basic            | 5 passes - constant folding, dead code elimination, algebraic simplification, table pre-allocation, global localization           |
+| **O2** | Standard         | 5 additional passes - function inlining, loop optimization, string concatenation, dead store elimination, tail call optimization  |
+| **O3** | Aggressive       | 5 additional passes - aggressive inlining, operator inlining, interface method inlining, devirtualization, generic specialization |
 
 #### Pass Registration
 
@@ -430,28 +429,34 @@ impl Optimizer {
 #### Implemented O1 Passes
 
 **1. ConstantFoldingPass**
+
 - Evaluates constant expressions at compile time
 - Handles numeric literals, boolean expressions, simple arithmetic
 - Example: `const x = 1 + 2 * 3` → `const x = 7`
 
 **2. DeadCodeEliminationPass**
+
 - Removes code after return/break/continue statements
 - Truncates unreachable else blocks after early returns
 - Eliminates empty branches in conditionals
 
 **3. AlgebraicSimplificationPass**
+
 - Simplifies expressions using algebraic identities
 - Examples: `x + 0 → x`, `x * 1 → x`, `x * 0 → 0`, `true and x → x`
 
 **4. TablePreallocationPass**
+
 - Analyzes table constructors for size hints
 - Generates `table.create(array_size, object_size)` for Lua 5.2+
 - Helps Lua's memory allocator pre-size tables
 
 **5. GlobalLocalizationPass** *(Recently Implemented)*
+
 - Identifies frequently-used globals (>2 accesses)
 - Creates local references to reduce repeated table lookups
 - Example:
+
   ```lua
   -- Input
   local x = math.sin(1) + math.cos(2) + math.tan(3)
@@ -460,6 +465,7 @@ impl Optimizer {
   local _math = math
   local x = _math.sin(1) + _math.cos(2) + _math.tan(3)
   ```
+
 - Uses string interner to track global identifiers
 - Respects local variable scope (doesn't localize already-declared locals)
 
@@ -512,12 +518,12 @@ The optimizer receives a `Program` (typed AST) and returns a transformed `Progra
 
 #### Future Enhancements
 
-| Enhancement | Description |
-|-------------|-------------|
+| Enhancement                     | Description                                                |
+|---------------------------------|------------------------------------------------------------|
 | **Profile-Guided Optimization** | Use runtime profiling data to guide optimization decisions |
-| **Cross-Module Inlining** | Inline functions across module boundaries |
-| **Escape Analysis** | Determine when allocations can be stack-allocated |
-| **Constant Propagation** | Propagate known values through the program |
+| **Cross-Module Inlining**       | Inline functions across module boundaries                  |
+| **Escape Analysis**             | Determine when allocations can be stack-allocated          |
+| **Constant Propagation**        | Propagate known values through the program                 |
 
 ### Diagnostic System
 
@@ -578,16 +584,16 @@ LuaNext extends Lua with modern language features that don't exist in base Lua o
 
 Any feature beyond base Lua 5.1-5.4 specification requires runtime support:
 
-| Feature Category | Examples | Runtime Requirement |
-|------------------|----------|---------------------|
-| **Class System** | Classes, inheritance, `instanceof` | Constructor functions, prototype chains, type checking |
-| **Decorators** | `@readonly`, `@deprecated`, custom decorators | Decorator runtime with metadata handling |
-| **Advanced Operators** | Safe navigation (`?.`), null coalescing (`??`) | IIFE wrappers, nil-checking helpers |
-| **Exception Handling** | `try/catch/finally`, error chaining (`!!`) | pcall/xpcall wrappers, error type checking |
-| **Rich Enums** | Enums with fields, methods, constructors | Enum factories, lookup tables, metamethods |
-| **Reflection** | `Runtime.typeof()`, `Runtime.getFields()` | Type registry, metadata tables |
-| **Operator Overloading** | `operator +`, `operator ==` | Metatable setup, metamethod binding |
-| **Interface Defaults** | Default method implementations | Method copying, inheritance chains |
+| Feature Category         | Examples                                       | Runtime Requirement                                    |
+|--------------------------|------------------------------------------------|--------------------------------------------------------|
+| **Class System**         | Classes, inheritance, `instanceof`             | Constructor functions, prototype chains, type checking |
+| **Decorators**           | `@readonly`, `@deprecated`, custom decorators  | Decorator runtime with metadata handling               |
+| **Advanced Operators**   | Safe navigation (`?.`), null coalescing (`??`) | IIFE wrappers, nil-checking helpers                    |
+| **Exception Handling**   | `try/catch/finally`, error chaining (`!!`)     | pcall/xpcall wrappers, error type checking             |
+| **Rich Enums**           | Enums with fields, methods, constructors       | Enum factories, lookup tables, metamethods             |
+| **Reflection**           | `Runtime.typeof()`, `Runtime.getFields()`      | Type registry, metadata tables                         |
+| **Operator Overloading** | `operator +`, `operator ==`                    | Metatable setup, metamethod binding                    |
+| **Interface Defaults**   | Default method implementations                 | Method copying, inheritance chains                     |
 
 ### The `luanext-runtime` Crate
 
@@ -829,60 +835,15 @@ server_capabilities.new_feature_provider = Some(NewFeatureOptions { ... });
 
 ## Known Limitations
 
-### Language Features Not Implemented
-
-These features have lexer tokens but no AST, parser, type checker, or codegen support:
-
-| Feature                   | AST Types | Parser | TypeChecker | Codegen | Notes                                         |
-|---------------------------|-----------|--------|-------------|---------|-----------------------------------------------|
-| Exception Handling        | ❌         | ❌      | ❌           | ❌       | try/catch/throw/finally tokens only           |
-| Safe Navigation (`?.`)    | ❌         | ❌      | ❌           | ❌       | Tokens + tests exist; parser skips token      |
-| Null Coalescing (`??`)    | ❌         | ❌      | ❌           | ❌       | Tokens + tests exist; parser skips token      |
-| Operator Overloading      | ❌         | ❌      | ❌           | ❌       | `operator` token only                         |
-| Rich Enums                | ❌         | ❌      | ❌           | ❌       | Enum has name+value only, no methods          |
-| Interface Default Methods | ❌         | ❌      | ❌           | ❌       | No DefaultMethod in InterfaceMember           |
-| File Namespaces           | ❌         | ❌      | ❌           | ❌       | Only DeclareNamespace for .d.luax               |
-
-### Optimizer Limitations
-
-| Level | Status | Details                                                           |
-|-------|--------|-------------------------------------------------------------------|
-| O1    | ✅      | All 5 passes working: constant folding, DCE, algebraic, table pre-allocation, global localization |
-| O2    | ⚠️      | All 5 passes are analysis-only placeholders                       |
-| O3    | ⚠️      | All 5 passes are analysis-only placeholders                       |
-
-### LSP Limitations
-
-| Feature           | Status | Details                                         |
-|-------------------|--------|-------------------------------------------------|
-| Member completion | ❌      | Infrastructure exists but returns empty results |
-| Import completion | ❌      | Not implemented                                 |
-| Method completion | ❌      | Not implemented                                 |
-
 ### TypeScript Features Not Supported
 
-| Feature                         | Notes                                        |
-|---------------------------------|----------------------------------------------|
-| `any` type                      | By design - use `unknown` instead for safety |
-| `as const` assertions           | Not implemented                              |
-| `satisfies` operator            | Not implemented                              |
-| Variance modifiers (`in`/`out`) | Not implemented                              |
-| `keyof` (full)                  | Basic support only; no recursive resolution  |
-| Branded/nominal types           | Not implemented                              |
-
-### Infrastructure Not Implemented
-
-| Feature                 | Status         | Notes                                          |
-|-------------------------|----------------|------------------------------------------------|
-| Incremental compilation | Not started    | Full recompile on every change                 |
-| Arena allocation        | Not integrated | bumpalo exists but not used in parser pipeline |
-| salsa integration       | Not started    | No fine-grained caching                        |
-
-### Known Code Issues
-
-1. **Type alias resolution**: Aliases don't resolve to underlying types for compatibility checking
-2. **Panic in utility types**: Some edge cases use `panic!()` instead of `Result`
-3. **Integration test failures**: error_classes_tests.rs has 6 failing tests (features not implemented)
+| Feature                         | Notes                                                               |
+|---------------------------------|---------------------------------------------------------------------|
+| `any` type                      | By design - use `unknown` instead for safety                        |
+| `as const` assertions           | By design - limited value when compiling to dynamically-typed Lua   |
+| `satisfies` operator            | By design - redundant with existing type annotations in Lua context |
+| Variance modifiers (`in`/`out`) | By design - variance is inferred automatically by the type checker  |
+| Branded/nominal types           | By design - structural typing is more idiomatic for Lua             |
 
 ---
 
@@ -1069,252 +1030,6 @@ impl HoverProvider {
     }
 }
 ```
-
----
-
-## Future Considerations
-
-### Incremental Compilation
-
-**Status:** Not implemented
-
-**Plan:**
-
-- Cache type-checked modules
-- Track dependencies between files
-- Only recompile changed files + dependents
-- Persist cache to disk
-
-**Challenges:**
-
-- Invalidation strategy
-- Serializing typed AST
-- Cross-file type inference
-
-### Enhanced Cross-File Support
-
-**Status:** Foundation exists
-
-**Current State:**
-
-- Import/export statements parsed
-- Module registry tracks exports
-- Symbol index tracks cross-file references
-
-**Remaining Work:**
-
-- Full type resolution across files
-- Type-only imports
-- Re-exports
-- Better circular dependency handling
-
-### Member Completion
-
-**Status:** Stubbed in LSP
-
-**Plan:**
-
-- Use type checker's resolved types for `.` completion
-- Handle class members, interface properties, table fields
-- Support method completion with `:` syntax
-
-### Performance Optimization
-
-**Opportunities:**
-
-- Parallel type checking of independent modules
-- Lazy type resolution
-- Better caching in LSP
-- Incremental parsing
-
----
-
-## Architectural Refactoring Plans
-
-### Lua Target Strategy Pattern
-
-**Status:** Planned
-
-**Current Approach:**
-
-The code generator uses capability checks (`supports_bitwise_ops()`, `supports_goto()`) scattered throughout generation logic. This works but doesn't scale well as version-specific logic grows.
-
-**Proposed Architecture:**
-
-Implement the **Strategy Pattern** with a trait-based approach:
-
-```rust
-pub trait CodeGenStrategy {
-    fn generate_bitwise_op(&self, op: &str, lhs: &str, rhs: &str) -> String;
-    fn generate_integer_divide(&self, lhs: &str, rhs: &str) -> String;
-    fn generate_continue(&self, label: &str) -> String;
-    fn emit_preamble(&self) -> Option<String>; // For library includes
-}
-
-pub struct Lua51Strategy;
-pub struct Lua52Strategy;
-pub struct Lua53Strategy;
-pub struct Lua54Strategy;
-
-// CodeGenerator holds a strategy instance
-pub struct CodeGenerator<'a> {
-    strategy: Box<dyn CodeGenStrategy>,
-    // ... other fields
-}
-```
-
-**Benefits:**
-
-- Each Lua version isolated and independently testable
-- Adding Lua 5.5 or LuaJIT becomes trivial (just implement trait)
-- Removes conditional logic from main codegen
-- Clear contract for what differs between versions
-
-**Migration Path:**
-
-Incrementally extract version-specific logic from main codegen into strategy implementations.
-
----
-
-### Code Generator Modularization
-
-**Status:** Planned
-
-**Current State:**
-
-The [codegen/mod.rs](../crates/luanext-core/src/codegen/mod.rs) file is 3,120 lines - too large for easy maintenance.
-
-**Proposed Structure:**
-
-```text
-crates/luanext-core/src/codegen/
-├── mod.rs              # Orchestrator (300 lines)
-├── strategies/         # Lua version strategies
-│   ├── mod.rs
-│   ├── lua51.rs
-│   ├── lua52.rs
-│   ├── lua53.rs
-│   └── lua54.rs
-├── emitters/           # AST → Lua emitters
-│   ├── mod.rs
-│   ├── expressions.rs
-│   ├── statements.rs
-│   └── types.rs
-├── transforms/         # Pluggable transforms (pipeline pattern)
-│   ├── mod.rs
-│   ├── classes.rs      # Class → Lua table transformation
-│   ├── decorators.rs   # Decorator runtime emission
-│   ├── modules.rs      # Import/export handling
-│   └── sourcemaps.rs   # Source map generation
-└── sourcemap.rs        # Already exists
-```
-
-**Transform Pipeline Pattern:**
-
-Apply the same pattern used in the optimizer to code generation:
-
-```rust
-pub trait CodeGenTransform {
-    fn name(&self) -> &'static str;
-    fn transform(&mut self, output: &mut String, context: &mut GenContext) -> Result<(), Error>;
-    fn applies_to_target(&self, target: LuaTarget) -> bool;
-}
-
-// CodeGenerator becomes an orchestrator
-pub struct CodeGenerator<'a> {
-    transforms: Vec<Box<dyn CodeGenTransform>>,
-    // ... existing fields
-}
-```
-
-**Benefits:**
-
-- Each module has single, clear responsibility
-- Transforms are independently testable
-- Easy to add/remove features
-- Clear separation between orchestration and implementation
-
----
-
-### Type Checker Visitor Pattern
-
-**Status:** Planned
-
-**Current State:**
-
-The [type_checker.rs](../crates/luanext-core/src/typechecker/type_checker.rs) file is 3,544 lines with multiple concerns mixed together.
-
-**Proposed Architecture:**
-
-Extract specialized visitors for different type checking concerns:
-
-```rust
-pub trait TypeCheckVisitor {
-    fn visit_expression(&mut self, expr: &Expression) -> Type;
-    fn visit_statement(&mut self, stmt: &Statement) -> Result<(), Error>;
-}
-
-// Specialized visitors:
-pub struct NarrowingVisitor;     // Type narrowing logic
-pub struct GenericVisitor;        // Generic instantiation
-pub struct AccessControlVisitor;  // public/private checks
-pub struct InferenceVisitor;      // Type inference rules
-```
-
-**Structure:**
-
-```text
-crates/luanext-core/src/typechecker/
-├── type_checker.rs           # Main orchestrator
-├── visitors/
-│   ├── mod.rs
-│   ├── narrowing.rs          # Control flow narrowing
-│   ├── generics.rs           # Generic type handling
-│   ├── access_control.rs     # Visibility checks
-│   └── inference.rs          # Bidirectional inference
-├── type_environment.rs       # Already exists
-├── symbol_table.rs           # Already exists
-└── ...
-```
-
-**Benefits:**
-
-- Clear separation of concerns
-- Each visitor testable in isolation
-- Easier to understand individual type system features
-- Reduces cognitive load (smaller focused files)
-
----
-
-### Builder Pattern for CodeGenerator
-
-**Status:** Planned
-
-**Current API:**
-
-```rust
-let generator = CodeGenerator::new(interner);
-// Configuration happens via setters after construction
-```
-
-**Proposed API:**
-
-```rust
-let generator = CodeGenerator::builder()
-    .interner(interner)
-    .target(LuaTarget::Lua53)
-    .strategy(Lua53Strategy::new())
-    .enable_sourcemaps()
-    .bundle_mode("my/module")
-    .build();
-```
-
-**Benefits:**
-
-- Self-documenting configuration
-- Easier testing with partial configuration
-- Clear required vs optional parameters
-- Compile-time validation of configuration
 
 ---
 
