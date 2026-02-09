@@ -33,41 +33,77 @@
   - [x] Generic type argument handling foundation - Step 6 ✅ (apply_type_arguments helper)
   - [x] Runtime vs type-only import distinction - ✅ Fully working
 
-#### Phase 2: Type-Only Imports (Day 4)
+#### Phase 2: Type-Only Imports (Day 4) ✅ COMPLETE - 2026-02-09
 
-- [ ] **Codegen: Skip type-only imports**
-  - [ ] Update `generate_import()` to skip `ImportClause::TypeOnly`
-  - [ ] Ensure no `require()` calls generated for type-only imports
+- [x] **Codegen: Skip type-only imports** ✅
+  - [x] `generate_import()` already skips `ImportClause::TypeOnly` - empty body at line 24
+  - [x] No `require()` calls generated for type-only imports (verified)
   - Files: `crates/luanext-core/src/codegen/modules.rs:4-24`
 
-- [ ] **Type Checking: Validate type-only imports**
-  - [ ] Ensure type-only imports only reference types (not values)
-  - [ ] Report error if runtime value is imported as type-only
+- [x] **Type Checking: Validate type-only imports** ✅
+  - [x] Type-only imports register as `SymbolKind::TypeAlias` in symbol table (lines 324-354)
+  - [x] `validate_import_export_compatibility()` prevents runtime imports from using type-only exports
+  - [x] `is_type_only_import: true` parameter correctly threaded through resolve_import_type()
   - Files: `crates/luanext-typechecker/src/phases/module_phase.rs:310-370`
 
-- [ ] **LSP: Distinguish type vs value imports**
-  - [ ] Update completions to show type-only imports differently
-  - [ ] Update hover to indicate type-only imports
+- [x] **LSP: Distinguish type vs value imports** ✅
+  - [x] Completion provider shows "(type-only import)" suffix for type-only imported symbols
+  - [x] Hover provider shows "*Imported as type-only*" markdown note for type-only imported symbols
+  - [x] Added `get_type_only_imports()` helper to completion.rs
+  - [x] Added `is_type_only_import()` helper to hover.rs
+  - Files:
+    - `crates/luanext-lsp/src/features/edit/completion.rs` (lines 306-328)
+    - `crates/luanext-lsp/src/features/navigation/hover.rs` (lines 132-156)
+
+- [x] **Symbol Index: Track type-only imports/exports** ✅
+  - [x] Added `is_type_only: bool` field to `ExportInfo` struct
+  - [x] Added `is_type_only: bool` field to `ImportInfo` struct
+  - [x] Added `is_declaration_type_only()` helper to determine type-only exports
+  - [x] Implemented `ImportClause::TypeOnly` handling in `index_imports()`
+  - [x] Updated all 9 test creations of ExportInfo/ImportInfo with new fields
   - Files: `crates/luanext-lsp/src/core/analysis/symbol_index.rs`
 
-#### Phase 3: Circular Type Dependencies (Days 5-6)
+- [x] **Fixed all compiler warnings** ✅
+  - [x] Changed `arena` parameter to `_arena` and added `#[allow(dead_code)]` to `apply_type_arguments`
+  - [x] Removed all `needless_return` statements - replaced with expression-based returns
+  - [x] Fixed `needless_borrow` in validate_import_export_compatibility calls
+  - Files: `crates/luanext-typechecker/src/phases/module_phase.rs`
+  - **All 441 tests pass; zero clippy warnings; no regressions**
 
-- [ ] **Dependency Graph: Separate type and value edges**
-  - [ ] Add `EdgeKind` enum (TypeOnly, Value) to DependencyGraph
-  - [ ] Track which imports are type-only vs runtime
-  - [ ] Allow cycles in type-only imports
-  - [ ] Error only on runtime circular dependencies
-  - Files: `crates/luanext-typechecker/src/module_resolver/dependency_graph.rs`
+#### Phase 3: Circular Type Dependencies (Days 5-6) ✅ COMPLETE - 2026-02-09
 
-- [ ] **Forward Type Declarations**
+- [x] **Dependency Graph: Separate type and value edges** ✅
+  - [x] Add `EdgeKind` enum (TypeOnly, Value) to DependencyGraph
+  - [x] Track which imports are type-only vs runtime
+  - [x] Allow cycles in type-only imports
+  - [x] Error only on runtime circular dependencies
+  - [x] 10 comprehensive unit tests (type cycles, value cycles, mixed scenarios, filtering)
+  - Files: `crates/luanext-typechecker/src/module_resolver/dependency_graph.rs` ✅ Modified
+
+- [x] **Better Error Messages** ✅
+  - [x] Show full cycle path when runtime circular dependency detected
+  - [x] Suggest using `import type` to break cycles
+  - [x] Differentiate between type cycles (OK) and value cycles (ERROR)
+  - [x] Enhanced error shows actionable before/after example
+  - Files: `crates/luanext-typechecker/src/module_resolver/error.rs` ✅ Modified
+
+- [x] **CLI Integration** ✅
+  - [x] ImportScanner detects `type` keyword in import statements
+  - [x] parse_import_statement returns (String, EdgeKind) tuples
+  - [x] analyze_dependencies passes edge kinds to dependency graph
+  - Files: `crates/luanext-cli/src/main.rs` ✅ Modified
+
+- [x] **Type Checker Integration** ✅
+  - [x] TypedDependency struct tracks dependencies with edge kinds
+  - [x] check_import_statement uses Vec<TypedDependency>
+  - [x] resolve_import_type determines and tracks edge kinds
+  - [x] TypeCheckerState and TypeChecker updated
+  - Files: `crates/luanext-typechecker/src/phases/module_phase.rs`, `module_resolver/mod.rs`, `state/type_checker_state.rs`, `core/type_checker.rs` ✅ Modified
+
+- [ ] **Forward Type Declarations** (Future phase)
   - [ ] Implement forward declarations for mutual type references
   - [ ] Allow interfaces to reference each other across files
   - [ ] Handle class mutual references
-
-- [ ] **Better Error Messages**
-  - [ ] Show full cycle path when runtime circular dependency detected
-  - [ ] Suggest using `import type` to break cycles
-  - [ ] Differentiate between type cycles (OK) and value cycles (ERROR)
 
 #### Phase 4: Re-exports (Days 7-8)
 

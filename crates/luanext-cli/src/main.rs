@@ -1,6 +1,7 @@
 use clap::Parser;
 use glob::glob;
 use luanext_core::ParsedModule;
+use luanext_typechecker::module_resolver::dependency_graph::EdgeKind;
 use luanext_typechecker::{CompilationCache, IncrementalChecker};
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
@@ -490,6 +491,7 @@ fn is_excluded(path: &Path, exclude_patterns: &[String], base: &Path) -> bool {
 /// Represents a collected import
 struct CollectedImport {
     source: String,
+    kind: EdgeKind,
 }
 
 /// Import scanner that efficiently extracts import sources using lexer-only approach
@@ -512,8 +514,8 @@ impl<'a> ImportScanner<'a> {
     }
 
     /// Scan for import sources without full parsing
-    /// Returns a list of import source strings
-    fn scan_imports(&mut self) -> Vec<String> {
+    /// Returns a list of (import source string, edge kind) tuples
+    fn scan_imports(&mut self) -> Vec<(String, EdgeKind)> {
         let mut imports = Vec::with_capacity(10);
         let mut hit_non_import = false;
 
@@ -526,8 +528,8 @@ impl<'a> ImportScanner<'a> {
 
             // Check if we're at an import statement
             if self.peek_keyword("import") {
-                if let Some(source) = self.parse_import_statement() {
-                    imports.push(source);
+                if let Some(import_with_kind) = self.parse_import_statement() {
+                    imports.push(import_with_kind);
                 }
             } else if self.peek_keyword("export") {
                 // Export statements are valid at top level, continue
@@ -628,14 +630,24 @@ impl<'a> ImportScanner<'a> {
         }
     }
 
-    fn parse_import_statement(&mut self) -> Option<String> {
+    fn parse_import_statement(&mut self) -> Option<(String, EdgeKind)> {
         // Skip "import"
         self.position += 6;
         self.column += 6;
 
         self.skip_whitespace_and_comments();
 
-        // Parse import clause (default, named, namespace, type, or mixed)
+        // Check for "type" keyword
+        let is_type_only = if self.peek_keyword("type") {
+            self.position += 4;
+            self.column += 4;
+            self.skip_whitespace_and_comments();
+            true
+        } else {
+            false
+        };
+
+        // Parse import clause (default, named, namespace, or mixed)
         self.parse_import_clause()?;
 
         self.skip_whitespace_and_comments();
@@ -658,7 +670,13 @@ impl<'a> ImportScanner<'a> {
         self.skip_whitespace_and_comments();
         self.skip_statement_terminator();
 
-        Some(source)
+        let kind = if is_type_only {
+            EdgeKind::TypeOnly
+        } else {
+            EdgeKind::Value
+        };
+
+        Some((source, kind))
     }
 
     fn parse_import_clause(&mut self) -> Option<()> {
@@ -853,7 +871,7 @@ fn collect_imports(
 
     let imports: Vec<CollectedImport> = sources
         .into_iter()
-        .map(|source| CollectedImport { source })
+        .map(|(source, kind)| CollectedImport { source, kind })
         .collect();
 
     Ok(imports)
@@ -913,12 +931,12 @@ fn discover_dependencies(
 
         // Resolve imports to module IDs
         let module_id = ModuleId::new(canonical.clone());
-        let mut dependencies: Vec<ModuleId> = Vec::with_capacity(imports.len());
+        let mut dependencies: Vec<(ModuleId, EdgeKind)> = Vec::with_capacity(imports.len());
 
         for import in &imports {
             match resolver.resolve(&import.source, file_path) {
                 Ok(dep_id) => {
-                    dependencies.push(dep_id);
+                    dependencies.push((dep_id, import.kind));
                 }
                 Err(e) => {
                     warn!(
@@ -1365,8 +1383,11 @@ fn compile(
                 // Build cache entry to save after parallel section
                 let cache_entry = if use_cache {
                     // Get dependencies for cache invalidation
-                    let dependencies: Vec<PathBuf> =
-                        type_checker.get_module_dependencies().to_vec();
+                    let dependencies: Vec<PathBuf> = type_checker
+                        .get_module_dependencies()
+                        .iter()
+                        .map(|dep| dep.path.clone())
+                        .collect();
 
                     // Compute declaration hashes for incremental type checking
                     let declaration_hashes = type_checker.compute_declaration_hashes(
