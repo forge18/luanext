@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Fallback to default mdbook template -->
+        
+        <meta name="robots" content="noindex,follow">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta charset="utf-8">
+        <title>Standard Library - LuaNext Documentation</title>
+        <script>
+            var theme = localStorage.getItem("mdbook-theme");
+            if (theme === null || theme === undefined) { theme = "light"; }
+            var html = document.querySelector("html");
+            html.classList.remove("light");
+            html.classList.add(theme);
+        </script>
+        <meta name="description" content="A typed superset of Lua with gradual typing, inspired by TypeScript">
+        <link rel="icon" href="favicon.svg">
+        <link rel="apple-touch-icon" href="apple-touch-icon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/custom.css">
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+
+    </head>
+    <body>
+        <!-- Provide the book title to JavaScript -->
+        <script>
+            window.book = window.book || {};
+            window.book.language = "en";
+        </script>
+
+        <div id="book" class="book">
+            <div class="book-inner">
+
+            <nav role="navigation" aria-label="Table of contents" class="sidebar">
+                <ol class="chapter"><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="introduction.html">Introduction</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Language</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/basics.html"><strong aria-hidden="true">1.</strong> Basics</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/control-flow.html"><strong aria-hidden="true">2.</strong> Control Flow</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/functions.html"><strong aria-hidden="true">3.</strong> Functions</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/type-system.html"><strong aria-hidden="true">4.</strong> Type System</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/classes.html"><strong aria-hidden="true">5.</strong> Classes</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/interfaces.html"><strong aria-hidden="true">6.</strong> Interfaces</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/enums.html"><strong aria-hidden="true">7.</strong> Enums</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/modules.html"><strong aria-hidden="true">8.</strong> Modules</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/error-handling.html"><strong aria-hidden="true">9.</strong> Error Handling</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/pattern-matching.html"><strong aria-hidden="true">10.</strong> Pattern Matching</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/decorators.html"><strong aria-hidden="true">11.</strong> Decorators</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/advanced-types.html"><strong aria-hidden="true">12.</strong> Advanced Types</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/operators.html"><strong aria-hidden="true">13.</strong> Operators</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Guides</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="guides/migrating-from-lua.html"><strong aria-hidden="true">14.</strong> Migrating from Lua</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="guides/lua-targets.html"><strong aria-hidden="true">15.</strong> Lua Targets</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Reference</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/cli.html"><strong aria-hidden="true">16.</strong> CLI</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/configuration.html"><strong aria-hidden="true">17.</strong> Configuration</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/standard-library.html"><strong aria-hidden="true">18.</strong> Standard Library</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/utility-types.html"><strong aria-hidden="true">19.</strong> Utility Types</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/reflection.html"><strong aria-hidden="true">20.</strong> Reflection API</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/error-codes.html"><strong aria-hidden="true">21.</strong> Error Codes</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/grammar.html"><strong aria-hidden="true">22.</strong> Grammar</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/keywords.html"><strong aria-hidden="true">23.</strong> Keywords</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Contributing</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="contributing/setup.html"><strong aria-hidden="true">24.</strong> Getting Started</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">API Reference</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="api/index.html"><strong aria-hidden="true">25.</strong> Rust API Docs</a></span></li></ol>
+            </nav>
+
+            <div id="page-wrapper" class="page-wrapper">
+
+                <div class="page-inner">
+
+                <section class="normal" id="main">
+                    <h1 id="standard-library-reference"><a class="header" href="#standard-library-reference">Standard Library Reference</a></h1>
+<p>Complete reference for Lua standard library functions with LuaNext type annotations.</p>
+<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
+<p>LuaNext provides type definitions for the entire Lua standard library across all versions (5.1-5.4). These types enable autocomplete, type checking, and documentation in your editor.</p>
+<p><strong>Coverage:</strong></p>
+<ul>
+<li>Global functions (print, type, tostring, etc.)</li>
+<li>string module</li>
+<li>table module</li>
+<li>math module</li>
+<li>io module</li>
+<li>os module</li>
+<li>debug module</li>
+<li>coroutine module</li>
+<li>package module</li>
+<li>Version-specific modules (bit32, utf8, etc.)</li>
+</ul>
+<h2 id="global-functions"><a class="header" href="#global-functions">Global Functions</a></h2>
+<h3 id="output-functions"><a class="header" href="#output-functions">Output Functions</a></h3>
+<h4 id="printargs-unknown-void"><a class="header" href="#printargs-unknown-void"><code>print(...args: unknown): void</code></a></h4>
+<p>Prints values to standard output.</p>
+<pre><code class="language-lua">print("Hello, World!")
+print("Count:", 42)
+print(1, 2, 3, 4, 5)
+</code></pre>
+<p><strong>Automatically converts values using <code>tostring()</code>.</strong></p>
+<h3 id="type-functions"><a class="header" href="#type-functions">Type Functions</a></h3>
+<h4 id="typevalue-unknown-string"><a class="header" href="#typevalue-unknown-string"><code>type(value: unknown): string</code></a></h4>
+<p>Returns the type of a value as a string.</p>
+<p><strong>Possible return values:</strong></p>
+<ul>
+<li><code>"nil"</code> — nil value</li>
+<li><code>"boolean"</code> — true or false</li>
+<li><code>"number"</code> — numeric value</li>
+<li><code>"string"</code> — text value</li>
+<li><code>"function"</code> — function</li>
+<li><code>"table"</code> — table/object</li>
+<li><code>"thread"</code> — coroutine</li>
+<li><code>"userdata"</code> — C userdata</li>
+</ul>
+<pre><code class="language-lua">print(type(42))          -- "number"
+print(type("hello"))     -- "string"
+print(type({}))          -- "table"
+print(type(nil))         -- "nil"
+</code></pre>
+<h4 id="tostringvalue-unknown-string"><a class="header" href="#tostringvalue-unknown-string"><code>tostring(value: unknown): string</code></a></h4>
+<p>Converts a value to a string.</p>
+<pre><code class="language-lua">const str: string = tostring(42)        -- "42"
+const str2: string = tostring(true)     -- "true"
+const str3: string = tostring({x = 1})  -- "table: 0x..."
+</code></pre>
+<p><strong>Calls <code>__tostring</code> metamethod if available.</strong></p>
+<h4 id="tonumbervalue-string--number-base-number-number--nil"><a class="header" href="#tonumbervalue-string--number-base-number-number--nil"><code>tonumber(value: string | number, base?: number): number | nil</code></a></h4>
+<p>Converts a string or number to a number.</p>
+<pre><code class="language-lua">const num: number | nil = tonumber("42")      -- 42
+const hex: number | nil = tonumber("FF", 16)  -- 255
+const bin: number | nil = tonumber("1010", 2) -- 10
+const invalid: number | nil = tonumber("abc") -- nil
+</code></pre>
+<p><strong>Base:</strong> Optional base for conversion (2-36), default is 10.</p>
+<h3 id="error-handling"><a class="header" href="#error-handling">Error Handling</a></h3>
+<h4 id="errormessage-unknown-level-number-never"><a class="header" href="#errormessage-unknown-level-number-never"><code>error(message: unknown, level?: number): never</code></a></h4>
+<p>Raises an error with the given message.</p>
+<pre><code class="language-lua">if value &lt; 0 then
+    error("Value must be positive")
+end
+
+-- With stack level
+error("Invalid argument", 2)  -- Report error at caller
+</code></pre>
+<p><strong>Never returns</strong> — execution stops and error propagates.</p>
+<h4 id="asserttcondition-t-message-string-t"><a class="header" href="#asserttcondition-t-message-string-t"><code>assert&lt;T&gt;(condition: T, message?: string): T</code></a></h4>
+<p>Checks a condition, raises error if false.</p>
+<pre><code class="language-lua">const file = assert(io.open("data.txt"), "File not found")
+-- If open returns nil, raises error with message
+
+const value: number = assert(getValue())
+-- Narrows type: value is guaranteed non-nil after assert
+</code></pre>
+<p><strong>Returns the condition value if true.</strong></p>
+<h3 id="table-access"><a class="header" href="#table-access">Table Access</a></h3>
+<h4 id="rawgetk-vtable-k-v-key-k-v--nil"><a class="header" href="#rawgetk-vtable-k-v-key-k-v--nil"><code>rawget&lt;K, V&gt;(table: {[K]: V}, key: K): V | nil</code></a></h4>
+<p>Gets a table value, bypassing metamethods.</p>
+<pre><code class="language-lua">const value = rawget(obj, "key")  -- Ignores __index metamethod
+</code></pre>
+<h4 id="rawsetk-vtable-k-v-key-k-value-v-k-v"><a class="header" href="#rawsetk-vtable-k-v-key-k-value-v-k-v"><code>rawset&lt;K, V&gt;(table: {[K]: V}, key: K, value: V): {[K]: V}</code></a></h4>
+<p>Sets a table value, bypassing metamethods.</p>
+<pre><code class="language-lua">rawset(obj, "key", "value")  -- Ignores __newindex metamethod
+</code></pre>
+<h4 id="rawequaltv1-t-v2-t-boolean"><a class="header" href="#rawequaltv1-t-v2-t-boolean"><code>rawequal&lt;T&gt;(v1: T, v2: T): boolean</code></a></h4>
+<p>Compares values for equality, bypassing <code>__eq</code> metamethod.</p>
+<pre><code class="language-lua">const equal: boolean = rawequal(a, b)  -- True raw equality
+</code></pre>
+<h3 id="iteration"><a class="header" href="#iteration">Iteration</a></h3>
+<h4 id="pairsk-vtable-k-v-iterator"><a class="header" href="#pairsk-vtable-k-v-iterator"><code>pairs&lt;K, V&gt;(table: {[K]: V}): iterator</code></a></h4>
+<p>Returns an iterator for all key-value pairs.</p>
+<pre><code class="language-lua">const data = {x = 1, y = 2, z = 3}
+
+for key, value in pairs(data) do
+    print(key, value)
+end
+-- Output: x  1, y  2, z  3 (order not guaranteed)
+</code></pre>
+<h4 id="ipairsvtable-v-iterator"><a class="header" href="#ipairsvtable-v-iterator"><code>ipairs&lt;V&gt;(table: V[]): iterator</code></a></h4>
+<p>Returns an iterator for sequential integer keys.</p>
+<pre><code class="language-lua">const arr: number[] = {10, 20, 30, 40}
+
+for i, value in ipairs(arr) do
+    print(i, value)
+end
+-- Output: 1  10, 2  20, 3  30, 4  40
+</code></pre>
+<p><strong>Stops at first nil value.</strong></p>
+<h4 id="nextk-vtable-k-v-key-k-k--nil-v--nil"><a class="header" href="#nextk-vtable-k-v-key-k-k--nil-v--nil"><code>next&lt;K, V&gt;(table: {[K]: V}, key?: K): (K | nil, V | nil)</code></a></h4>
+<p>Returns the next key-value pair (used internally by <code>pairs</code>).</p>
+<pre><code class="language-lua">const t = {a = 1, b = 2, c = 3}
+const key, value = next(t, nil)  -- First pair
+</code></pre>
+<h3 id="metatables"><a class="header" href="#metatables">Metatables</a></h3>
+<h4 id="setmetatablet-mtable-t-metatable-m--nil-t"><a class="header" href="#setmetatablet-mtable-t-metatable-m--nil-t"><code>setmetatable&lt;T, M&gt;(table: T, metatable: M | nil): T</code></a></h4>
+<p>Sets or removes a metatable.</p>
+<pre><code class="language-lua">const obj = {}
+const mt = {
+    __index = function(t, key)
+        return "default"
+    end
+}
+
+setmetatable(obj, mt)
+print(obj.any_key)  -- "default"
+</code></pre>
+<h4 id="getmetatabletvalue-t-table--nil"><a class="header" href="#getmetatabletvalue-t-table--nil"><code>getmetatable&lt;T&gt;(value: T): table | nil</code></a></h4>
+<p>Gets the metatable of a value.</p>
+<pre><code class="language-lua">const mt = getmetatable(obj)
+
+if mt ~= nil then
+    print("Has metatable")
+end
+</code></pre>
+<p><strong>Returns <code>__metatable</code> field if set</strong> (metatable protection).</p>
+<h3 id="argument-handling"><a class="header" href="#argument-handling">Argument Handling</a></h3>
+<h4 id="selecttindex-number---args-t-unknown"><a class="header" href="#selecttindex-number---args-t-unknown"><code>select&lt;T&gt;(index: number | "#", ...args: T[]): unknown</code></a></h4>
+<p>Selects arguments from a variable argument list.</p>
+<pre><code class="language-lua">-- Get count of arguments
+const count: number = select("#", 1, 2, 3, 4, 5)  -- 5
+
+-- Get arguments from index 3 onward
+const a, b, c = select(3, 10, 20, 30, 40, 50)  -- 30, 40, 50
+</code></pre>
+<h4 id="unpacktlist-t-i-number-j-number-t"><a class="header" href="#unpacktlist-t-i-number-j-number-t"><code>unpack&lt;T&gt;(list: T[], i?: number, j?: number): ...T</code></a></h4>
+<p>Returns multiple values from a table (Lua 5.1 name for <code>table.unpack</code>).</p>
+<pre><code class="language-lua">const arr = {1, 2, 3, 4, 5}
+print(unpack(arr))        -- 1  2  3  4  5
+print(unpack(arr, 2, 4))  -- 2  3  4
+</code></pre>
+<h3 id="code-execution"><a class="header" href="#code-execution">Code Execution</a></h3>
+<h4 id="loadchunk-string----string--nil-chunkname-string-mode-t--b--bt-env-table---unknown--nil-string--nil"><a class="header" href="#loadchunk-string----string--nil-chunkname-string-mode-t--b--bt-env-table---unknown--nil-string--nil"><code>load(chunk: string | (() =&gt; string | nil), chunkname?: string, mode?: "t" | "b" | "bt", env?: table): (() =&gt; unknown) | nil, string | nil</code></a></h4>
+<p>Loads a chunk from a string or function.</p>
+<pre><code class="language-lua">const func, err = load("return 2 + 2")
+if func ~= nil then
+    print(func())  -- 4
+else
+    print("Error:", err)
+end
+</code></pre>
+<p><strong>Mode:</strong></p>
+<ul>
+<li><code>"t"</code> — Text only (Lua source)</li>
+<li><code>"b"</code> — Binary only (bytecode)</li>
+<li><code>"bt"</code> — Both (default)</li>
+</ul>
+<h4 id="loadfilefilename-string-mode-t--b--bt-env-table---unknown--nil-string--nil"><a class="header" href="#loadfilefilename-string-mode-t--b--bt-env-table---unknown--nil-string--nil"><code>loadfile(filename?: string, mode?: "t" | "b" | "bt", env?: table): (() =&gt; unknown) | nil, string | nil</code></a></h4>
+<p>Loads a chunk from a file.</p>
+<pre><code class="language-lua">const func, err = loadfile("script.lua")
+if func ~= nil then
+    func()  -- Execute the loaded script
+end
+</code></pre>
+<h4 id="dofilefilename-string-unknown"><a class="header" href="#dofilefilename-string-unknown"><code>dofile(filename?: string): ...unknown</code></a></h4>
+<p>Loads and executes a file.</p>
+<pre><code class="language-lua">dofile("init.lua")  -- Load and run init.lua
+</code></pre>
+<p><strong>Deprecated:</strong> Use <code>loadfile</code> for better error handling.</p>
+<h4 id="pcallt-rfunc-t--r-args-t-true-r--false-string"><a class="header" href="#pcallt-rfunc-t--r-args-t-true-r--false-string"><code>pcall&lt;T, R&gt;(func: (...T) =&gt; ...R, ...args: T): (true, ...R) | (false, string)</code></a></h4>
+<p>Calls a function in protected mode.</p>
+<pre><code class="language-lua">const success, result = pcall(function()
+    return riskyOperation()
+end)
+
+if success then
+    print("Result:", result)
+else
+    print("Error:", result)  -- result is error message
+end
+</code></pre>
+<p><strong>Returns:</strong> <code>true</code> + results on success, <code>false</code> + error message on failure.</p>
+<h4 id="xpcallt-rfunc-t--r-errorhandler-error-unknown--unknown-args-t-unknown"><a class="header" href="#xpcallt-rfunc-t--r-errorhandler-error-unknown--unknown-args-t-unknown"><code>xpcall&lt;T, R&gt;(func: (...T) =&gt; ...R, errorHandler: (error: unknown) =&gt; unknown, ...args: T): ...unknown</code></a></h4>
+<p>Calls a function with a custom error handler.</p>
+<pre><code class="language-lua">const result = xpcall(
+    function() return operation() end,
+    function(err)
+        print("Error occurred:", err)
+        print(debug.traceback())
+        return nil
+    end
+)
+</code></pre>
+<h3 id="garbage-collection"><a class="header" href="#garbage-collection">Garbage Collection</a></h3>
+<h4 id="collectgarbageopt-collect--stop--restart--count--step--setpause--setstepmul--isrunning-arg-number-unknown"><a class="header" href="#collectgarbageopt-collect--stop--restart--count--step--setpause--setstepmul--isrunning-arg-number-unknown"><code>collectgarbage(opt?: "collect" | "stop" | "restart" | "count" | "step" | "setpause" | "setstepmul" | "isrunning", arg?: number): unknown</code></a></h4>
+<p>Controls the garbage collector.</p>
+<pre><code class="language-lua">-- Force full collection
+collectgarbage("collect")
+
+-- Get memory usage in KB
+const memKB: number = collectgarbage("count")
+
+-- Stop garbage collection
+collectgarbage("stop")
+
+-- Restart garbage collection
+collectgarbage("restart")
+</code></pre>
+<h2 id="string-module"><a class="header" href="#string-module">String Module</a></h2>
+<h3 id="stringbytes-string-i-number-j-number-number"><a class="header" href="#stringbytes-string-i-number-j-number-number"><code>string.byte(s: string, i?: number, j?: number): ...number</code></a></h3>
+<p>Returns byte values of characters.</p>
+<pre><code class="language-lua">print(string.byte("ABC"))        -- 65 (A)
+print(string.byte("ABC", 2))     -- 66 (B)
+print(string.byte("ABC", 1, 3))  -- 65 66 67
+</code></pre>
+<h3 id="stringcharbytes-number-string"><a class="header" href="#stringcharbytes-number-string"><code>string.char(...bytes: number[]): string</code></a></h3>
+<p>Converts bytes to a string.</p>
+<pre><code class="language-lua">const s: string = string.char(65, 66, 67)  -- "ABC"
+</code></pre>
+<h3 id="stringfinds-string-pattern-string-init-number-plain-boolean-number--nil-number--nil-string"><a class="header" href="#stringfinds-string-pattern-string-init-number-plain-boolean-number--nil-number--nil-string"><code>string.find(s: string, pattern: string, init?: number, plain?: boolean): number | nil, number | nil, ...string</code></a></h3>
+<p>Finds a pattern in a string.</p>
+<pre><code class="language-lua">const start, end = string.find("hello world", "world")  -- 7, 11
+const i, j = string.find("test", "x")  -- nil, nil (not found)
+
+-- Plain search (no patterns)
+const pos = string.find("a.b.c", ".", 1, true)  -- 2 (finds literal dot)
+</code></pre>
+<h3 id="stringformatformat-string-args-unknown-string"><a class="header" href="#stringformatformat-string-args-unknown-string"><code>string.format(format: string, ...args: unknown[]): string</code></a></h3>
+<p>Formats a string (like C’s printf).</p>
+<pre><code class="language-lua">const s: string = string.format("Hello, %s!", "World")  -- "Hello, World!"
+const n: string = string.format("%d + %d = %d", 2, 3, 5)  -- "2 + 3 = 5"
+const f: string = string.format("%.2f", 3.14159)  -- "3.14"
+</code></pre>
+<p><strong>Format specifiers:</strong> <code>%s</code> (string), <code>%d</code> (integer), <code>%f</code> (float), <code>%x</code> (hex), etc.</p>
+<h3 id="stringgmatchs-string-pattern-string---string"><a class="header" href="#stringgmatchs-string-pattern-string---string"><code>string.gmatch(s: string, pattern: string): () =&gt; ...string</code></a></h3>
+<p>Returns an iterator for pattern matches.</p>
+<pre><code class="language-lua">const text = "one two three"
+
+for word in string.gmatch(text, "%w+") do
+    print(word)
+end
+-- Output: one, two, three
+</code></pre>
+<h3 id="stringgsubs-string-pattern-string-repl-string--table---string--string-n-number-string-number"><a class="header" href="#stringgsubs-string-pattern-string-repl-string--table---string--string-n-number-string-number"><code>string.gsub(s: string, pattern: string, repl: string | table | ((...: string) =&gt; string), n?: number): string, number</code></a></h3>
+<p>Global substitution.</p>
+<pre><code class="language-lua">-- String replacement
+const result = string.gsub("hello world", "world", "Lua")  -- "hello Lua", 1
+
+-- Function replacement
+const result2 = string.gsub("1 2 3", "%d", function(n)
+    return tostring(tonumber(n) * 2)
+end)  -- "2 4 6", 3
+
+-- Table replacement
+const replacements = {hello = "hi", world = "Lua"}
+const result3 = string.gsub("hello world", "%w+", replacements)  -- "hi Lua", 2
+</code></pre>
+<h3 id="stringlens-string-number"><a class="header" href="#stringlens-string-number"><code>string.len(s: string): number</code></a></h3>
+<p>Returns string length in bytes.</p>
+<pre><code class="language-lua">const length: number = string.len("hello")  -- 5
+</code></pre>
+<p><strong>Equivalent to <code>#s</code> operator.</strong></p>
+<h3 id="stringlowers-string-string"><a class="header" href="#stringlowers-string-string"><code>string.lower(s: string): string</code></a></h3>
+<p>Converts to lowercase.</p>
+<pre><code class="language-lua">const lower: string = string.lower("Hello World")  -- "hello world"
+</code></pre>
+<h3 id="stringuppers-string-string"><a class="header" href="#stringuppers-string-string"><code>string.upper(s: string): string</code></a></h3>
+<p>Converts to uppercase.</p>
+<pre><code class="language-lua">const upper: string = string.upper("Hello World")  -- "HELLO WORLD"
+</code></pre>
+<h3 id="stringmatchs-string-pattern-string-init-number-string--nil"><a class="header" href="#stringmatchs-string-pattern-string-init-number-string--nil"><code>string.match(s: string, pattern: string, init?: number): ...string | nil</code></a></h3>
+<p>Matches a pattern once.</p>
+<pre><code class="language-lua">const match: string | nil = string.match("abc123def", "%d+")  -- "123"
+const a, b, c = string.match("2024-01-15", "(%d+)-(%d+)-(%d+)")  -- "2024", "01", "15"
+</code></pre>
+<h3 id="stringreps-string-n-number-sep-string-string"><a class="header" href="#stringreps-string-n-number-sep-string-string"><code>string.rep(s: string, n: number, sep?: string): string</code></a></h3>
+<p>Repeats a string n times.</p>
+<pre><code class="language-lua">const repeated: string = string.rep("ab", 3)  -- "ababab"
+const with_sep: string = string.rep("x", 3, "-")  -- "x-x-x"
+</code></pre>
+<h3 id="stringreverses-string-string"><a class="header" href="#stringreverses-string-string"><code>string.reverse(s: string): string</code></a></h3>
+<p>Reverses a string.</p>
+<pre><code class="language-lua">const reversed: string = string.reverse("hello")  -- "olleh"
+</code></pre>
+<h3 id="stringsubs-string-i-number-j-number-string"><a class="header" href="#stringsubs-string-i-number-j-number-string"><code>string.sub(s: string, i: number, j?: number): string</code></a></h3>
+<p>Extracts a substring.</p>
+<pre><code class="language-lua">const sub: string = string.sub("hello", 2, 4)  -- "ell"
+const from_start: string = string.sub("hello", 1, 3)  -- "hel"
+const to_end: string = string.sub("hello", 3)  -- "llo"
+</code></pre>
+<p><strong>Negative indices count from the end:</strong> <code>string.sub("hello", -3)</code> is <code>"llo"</code>.</p>
+<h2 id="table-module"><a class="header" href="#table-module">Table Module</a></h2>
+<h3 id="tableconcatlist-string-sep-string-i-number-j-number-string"><a class="header" href="#tableconcatlist-string-sep-string-i-number-j-number-string"><code>table.concat(list: string[], sep?: string, i?: number, j?: number): string</code></a></h3>
+<p>Concatenates table elements into a string.</p>
+<pre><code class="language-lua">const arr = {"a", "b", "c", "d"}
+const str: string = table.concat(arr)           -- "abcd"
+const csv: string = table.concat(arr, ", ")     -- "a, b, c, d"
+const range: string = table.concat(arr, "-", 2, 3)  -- "b-c"
+</code></pre>
+<h3 id="tableinsertlist-t-pos-number-value-t-void"><a class="header" href="#tableinsertlist-t-pos-number-value-t-void"><code>table.insert(list: T[], pos?: number, value: T): void</code></a></h3>
+<p>Inserts an element into a table.</p>
+<pre><code class="language-lua">const arr: number[] = {1, 2, 3}
+
+table.insert(arr, 4)      -- {1, 2, 3, 4} (append)
+table.insert(arr, 2, 10)  -- {1, 10, 2, 3, 4} (insert at index 2)
+</code></pre>
+<h3 id="tableremovelist-t-pos-number-t--nil"><a class="header" href="#tableremovelist-t-pos-number-t--nil"><code>table.remove(list: T[], pos?: number): T | nil</code></a></h3>
+<p>Removes and returns an element.</p>
+<pre><code class="language-lua">const arr: number[] = {10, 20, 30, 40}
+
+const last = table.remove(arr)     -- Returns 40, arr is {10, 20, 30}
+const second = table.remove(arr, 2)  -- Returns 20, arr is {10, 30}
+</code></pre>
+<h3 id="tablesortlist-t-comp-a-t-b-t--boolean-void"><a class="header" href="#tablesortlist-t-comp-a-t-b-t--boolean-void"><code>table.sort(list: T[], comp?: (a: T, b: T) =&gt; boolean): void</code></a></h3>
+<p>Sorts a table in-place.</p>
+<pre><code class="language-lua">const arr: number[] = {3, 1, 4, 1, 5, 9, 2, 6}
+table.sort(arr)  -- {1, 1, 2, 3, 4, 5, 6, 9}
+
+-- Custom comparator (descending)
+table.sort(arr, function(a, b) return a &gt; b end)  -- {9, 6, 5, 4, 3, 2, 1, 1}
+</code></pre>
+<h3 id="tablepackargs-t-n-number-number-t-lua-52"><a class="header" href="#tablepackargs-t-n-number-number-t-lua-52"><code>table.pack(...args: T[]): {n: number, [number]: T}</code> (Lua 5.2+)</a></h3>
+<p>Packs arguments into a table with count.</p>
+<pre><code class="language-lua">const packed = table.pack(1, 2, 3, 4, 5)
+print(packed.n)     -- 5
+print(packed[3])    -- 3
+</code></pre>
+<h3 id="tableunpacklist-t-i-number-j-number-t-lua-52"><a class="header" href="#tableunpacklist-t-i-number-j-number-t-lua-52"><code>table.unpack(list: T[], i?: number, j?: number): ...T</code> (Lua 5.2+)</a></h3>
+<p>Unpacks a table into multiple values.</p>
+<pre><code class="language-lua">const arr = {10, 20, 30}
+const a, b, c = table.unpack(arr)  -- a=10, b=20, c=30
+</code></pre>
+<p><strong>In Lua 5.1:</strong> Use global <code>unpack()</code> function instead.</p>
+<h3 id="tablemovea1-t-f-number-e-number-t-number-a2-t-t-lua-53"><a class="header" href="#tablemovea1-t-f-number-e-number-t-number-a2-t-t-lua-53"><code>table.move(a1: T[], f: number, e: number, t: number, a2?: T[]): T[]</code> (Lua 5.3+)</a></h3>
+<p>Moves elements between tables.</p>
+<pre><code class="language-lua">const src = {1, 2, 3, 4, 5}
+const dst = {10, 20, 30}
+
+table.move(src, 1, 3, 2, dst)  -- dst becomes {10, 1, 2, 3, 30}
+</code></pre>
+<h2 id="math-module"><a class="header" href="#math-module">Math Module</a></h2>
+<h3 id="constants"><a class="header" href="#constants">Constants</a></h3>
+<ul>
+<li><code>math.pi</code> — π (3.14159265358979…)</li>
+<li><code>math.huge</code> — Infinity (positive)</li>
+<li><code>math.maxinteger</code> (5.3+) — Maximum integer value</li>
+<li><code>math.mininteger</code> (5.3+) — Minimum integer value</li>
+</ul>
+<h3 id="trigonometric"><a class="header" href="#trigonometric">Trigonometric</a></h3>
+<pre><code class="language-lua">math.sin(x: number): number      -- Sine
+math.cos(x: number): number      -- Cosine
+math.tan(x: number): number      -- Tangent
+math.asin(x: number): number     -- Arcsine
+math.acos(x: number): number     -- Arccosine
+math.atan(y: number, x?: number): number  -- Arctangent
+math.sinh(x: number): number     -- Hyperbolic sine (5.3+)
+math.cosh(x: number): number     -- Hyperbolic cosine (5.3+)
+math.tanh(x: number): number     -- Hyperbolic tangent (5.3+)
+math.deg(x: number): number      -- Radians to degrees
+math.rad(x: number): number      -- Degrees to radians
+</code></pre>
+<h3 id="exponentiallogarithmic"><a class="header" href="#exponentiallogarithmic">Exponential/Logarithmic</a></h3>
+<pre><code class="language-lua">math.exp(x: number): number      -- e^x
+math.log(x: number, base?: number): number  -- Logarithm
+math.sqrt(x: number): number     -- Square root
+math.pow(x: number, y: number): number  -- x^y (deprecated, use ^)
+</code></pre>
+<h3 id="rounding"><a class="header" href="#rounding">Rounding</a></h3>
+<pre><code class="language-lua">math.abs(x: number): number      -- Absolute value
+math.ceil(x: number): number     -- Round up
+math.floor(x: number): number    -- Round down
+math.modf(x: number): number, number  -- Integer and fractional parts
+</code></pre>
+<h3 id="minmax"><a class="header" href="#minmax">Min/Max</a></h3>
+<pre><code class="language-lua">math.max(...args: number[]): number  -- Maximum value
+math.min(...args: number[]): number  -- Minimum value
+</code></pre>
+<h3 id="random"><a class="header" href="#random">Random</a></h3>
+<pre><code class="language-lua">math.random(m?: number, n?: number): number  -- Random number
+math.randomseed(x: number): void             -- Set random seed
+</code></pre>
+<p><strong>Usage:</strong></p>
+<ul>
+<li><code>math.random()</code> → Float in [0, 1)</li>
+<li><code>math.random(n)</code> → Integer in [1, n]</li>
+<li><code>math.random(m, n)</code> → Integer in [m, n]</li>
+</ul>
+<h3 id="integer-operations-lua-53"><a class="header" href="#integer-operations-lua-53">Integer Operations (Lua 5.3+)</a></h3>
+<pre><code class="language-lua">math.tointeger(x: number): integer | nil  -- Convert to integer
+math.type(x: number): "integer" | "float" | nil  -- Check number type
+math.ult(m: integer, n: integer): boolean  -- Unsigned less than
+</code></pre>
+<h2 id="io-module"><a class="header" href="#io-module">IO Module</a></h2>
+<h3 id="file-operations"><a class="header" href="#file-operations">File Operations</a></h3>
+<pre><code class="language-lua">io.open(filename: string, mode?: string): file | nil, string | nil
+io.close(file?: file): boolean, string | nil
+io.read(...formats: string[]): ...string | number | nil
+io.write(...args: string[]): file | nil, string | nil
+io.flush(): void
+io.lines(filename?: string, ...formats: string[]): () =&gt; ...string | number | nil
+io.input(file?: string | file): file
+io.output(file?: string | file): file
+io.tmpfile(): file
+io.type(obj: unknown): "file" | "closed file" | nil
+</code></pre>
+<p><strong>File modes:</strong> <code>"r"</code> (read), <code>"w"</code> (write), <code>"a"</code> (append), <code>"r+"</code> (read/write), <code>"w+"</code>, <code>"a+"</code></p>
+<h3 id="example"><a class="header" href="#example">Example</a></h3>
+<pre><code class="language-lua">const file = io.open("data.txt", "r")
+if file ~= nil then
+    const content = file:read("*all")
+    file:close()
+    print(content)
+end
+</code></pre>
+<h2 id="os-module"><a class="header" href="#os-module">OS Module</a></h2>
+<pre><code class="language-lua">os.clock(): number                  -- CPU time used
+os.date(format?: string, time?: number): string | table  -- Format date/time
+os.difftime(t2: number, t1: number): number  -- Time difference
+os.execute(command?: string): boolean, string, number | nil  -- Execute shell command
+os.exit(code?: number | boolean, close?: boolean): never  -- Exit program
+os.getenv(varname: string): string | nil  -- Get environment variable
+os.remove(filename: string): boolean, string | nil  -- Delete file
+os.rename(oldname: string, newname: string): boolean, string | nil  -- Rename file
+os.setlocale(locale: string | nil, category?: string): string | nil  -- Set locale
+os.time(date?: table): number  -- Get time
+os.tmpname(): string  -- Generate temp filename
+</code></pre>
+<h2 id="coroutine-module"><a class="header" href="#coroutine-module">Coroutine Module</a></h2>
+<pre><code class="language-lua">coroutine.create(func: () =&gt; ...unknown): thread  -- Create coroutine
+coroutine.resume(co: thread, ...args: unknown[]): boolean, ...unknown  -- Resume
+coroutine.yield(...args: unknown[]): ...unknown  -- Yield
+coroutine.status(co: thread): "running" | "suspended" | "normal" | "dead"  -- Status
+coroutine.running(): thread | nil, boolean  -- Current coroutine
+coroutine.wrap(func: () =&gt; ...unknown): (...args: unknown[]) =&gt; ...unknown  -- Wrap as function
+coroutine.isyieldable(): boolean  -- Check if can yield (5.3+)
+coroutine.close(co: thread): boolean, string | nil  -- Close coroutine (5.4+)
+</code></pre>
+<h2 id="version-specific-modules"><a class="header" href="#version-specific-modules">Version-Specific Modules</a></h2>
+<h3 id="bit32-module-lua-52-53-only"><a class="header" href="#bit32-module-lua-52-53-only">bit32 Module (Lua 5.2-5.3 only)</a></h3>
+<p>Bitwise operations library (deprecated in 5.3, use bitwise operators instead).</p>
+<pre><code class="language-lua">bit32.band(...args: number[]): number  -- Bitwise AND
+bit32.bor(...args: number[]): number   -- Bitwise OR
+bit32.bxor(...args: number[]): number  -- Bitwise XOR
+bit32.bnot(x: number): number          -- Bitwise NOT
+bit32.lshift(x: number, disp: number): number  -- Left shift
+bit32.rshift(x: number, disp: number): number  -- Right shift
+bit32.arshift(x: number, disp: number): number  -- Arithmetic right shift
+</code></pre>
+<h3 id="utf8-module-lua-53"><a class="header" href="#utf8-module-lua-53">utf8 Module (Lua 5.3+)</a></h3>
+<p>UTF-8 string handling.</p>
+<pre><code class="language-lua">utf8.char(...codepoints: number[]): string  -- Codepoints to string
+utf8.codes(s: string): () =&gt; number, number  -- Iterator over codepoints
+utf8.codepoint(s: string, i?: number, j?: number): ...number  -- Extract codepoints
+utf8.len(s: string, i?: number, j?: number): number | nil, number  -- UTF-8 length
+utf8.offset(s: string, n: number, i?: number): number | nil  -- Byte offset of character
+utf8.charpattern: string  -- Pattern matching single UTF-8 character
+</code></pre>
+<h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
+<ul>
+<li><a href="../language/type-system.html">Type System</a> — Using standard library with types</li>
+<li><a href="../language/modules.html">Modules</a> — Importing and using modules</li>
+<li><a href="../guides/lua-targets.html">Lua Targets</a> — Version-specific standard library features</li>
+</ul>
+
+                </section>
+
+                </div><!-- page-inner -->
+
+            </div><!-- page-wrapper -->
+
+            </div><!-- book-inner -->
+
+            <!-- Version Selector -->
+            <nav class="nav-wide-wrapper" aria-label="More">
+                <a href="javascript:void(0)" id="menu-bar-wide" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                    <i class="fa fa-bars"></i>
+                </a>
+            </nav>
+
+            <!-- Version selector dropdown -->
+            <div id="version-selector" class="version-selector">
+                <select id="version-picker" onchange="switchVersion(this.value)" aria-label="Documentation version">
+                    <option value="latest">Latest</option>
+                </select>
+            </div>
+
+        </div><!-- book -->
+
+        <!-- Custom scripts -->
+        <script>
+            // Version selector functionality
+            function switchVersion(version) {
+                const base = window.location.origin + '/luanext/';
+                if (version === 'latest') {
+                    window.location.href = base;
+                } else {
+                    window.location.href = base + version + '/';
+                }
+            }
+
+            // Load versions.json and populate selector if it exists
+            fetch('/luanext/versions.json')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.versions && data.versions.length > 1) {
+                        const selector = document.getElementById('version-picker');
+                        data.versions.forEach(v => {
+                            if (v.version !== 'latest') {
+                                const option = document.createElement('option');
+                                option.value = 'v' + v.version;
+                                option.textContent = 'v' + v.version;
+                                selector.appendChild(option);
+                            }
+                        });
+                    }
+                })
+                .catch(() => {
+                    // versions.json not found (expected during initial setup)
+                    // Selector will only show "Latest"
+                });
+        </script>
+
+        <!-- mdBook scripts and content scripts -->
+        <script src="js/clipboard.min.js" type="text/javascript"></script>
+        <script src="js/highlight.js" type="text/javascript"></script>
+        <script src="js/book.js" type="text/javascript"></script>
+
+        <!-- Custom theme script -->
+        <script src="js/custom-theme.js" type="text/javascript"></script>
+
+        <script src="js/elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/lunr-en.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/search.js" type="text/javascript" charset="utf-8"></script>
+
+    </body>
+</html>

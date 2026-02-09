@@ -281,10 +281,55 @@ Include:
 
 ## Documentation
 
-- Update relevant READMEs
-- Add doc comments for public APIs
-- Update [TODO.md](TODO.md) for tasks
-- Update [CHANGELOG.md](CHANGELOG.md) for changes
+### Content Contribution
+
+LuaNext uses a hybrid documentation structure:
+
+**Technical Documentation** (`/docs` directory)
+- Architecture, implementation details, design decisions
+- For contributors and maintainers
+- Edit directly when updating technical content
+- Examples: `ARCHITECTURE.md`, `IMPLEMENTATION.md`, design documents
+
+**User-Facing Guides** (`/docs-site/src` directory)
+- Installation, tutorials, language reference, CLI docs
+- For end users
+- Organized by sections: `getting-started/`, `language/`, `guides/`, `reference/`
+- Each new page must be added to `src/SUMMARY.md`
+
+### Preview Documentation Locally
+
+```bash
+# Install mdBook (one-time)
+cargo install mdbook mdbook-mermaid mdbook-linkcheck
+
+# Preview documentation
+cd docs-site
+mdbook serve --open
+
+# Check for broken links
+mdbook-linkcheck
+```
+
+### Documentation Guidelines
+
+1. **Before submitting PR:**
+   - Run `mdbook-linkcheck` to validate all links
+   - Preview changes locally with `mdbook serve`
+   - Ensure SUMMARY.md is updated for new pages
+
+2. **Writing style:**
+   - Clear and concise
+   - Use code examples where helpful
+   - Target end users (not just maintainers)
+   - Keep technical docs in `/docs`, guides in `docs-site/src`
+
+3. **Update requirements:**
+   - Update relevant READMEs when adding features
+   - Add doc comments for public APIs (`///` in Rust)
+   - Update [TODO.md](TODO.md) for tasks
+   - Update [CHANGELOG.md](CHANGELOG.md) for changes
+   - Update language/CLI documentation for user-facing changes
 
 ---
 

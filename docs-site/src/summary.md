@@ -42,7 +42,12 @@
 
 ---
 
-# Resources
+# Contributing
 
-- [GitHub Repository](https://github.com/forge18/luanext)
-- [Issue Tracker](https://github.com/forge18/luanext/issues)
+- [Getting Started](contributing/setup.md)
+
+---
+
+# API Reference
+
+- [Rust API Docs](api/index.md)

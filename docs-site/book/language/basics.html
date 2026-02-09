@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Fallback to default mdbook template -->
+        
+        <meta name="robots" content="noindex,follow">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta charset="utf-8">
+        <title>Basics - LuaNext Documentation</title>
+        <script>
+            var theme = localStorage.getItem("mdbook-theme");
+            if (theme === null || theme === undefined) { theme = "light"; }
+            var html = document.querySelector("html");
+            html.classList.remove("light");
+            html.classList.add(theme);
+        </script>
+        <meta name="description" content="A typed superset of Lua with gradual typing, inspired by TypeScript">
+        <link rel="icon" href="favicon.svg">
+        <link rel="apple-touch-icon" href="apple-touch-icon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/custom.css">
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+
+    </head>
+    <body>
+        <!-- Provide the book title to JavaScript -->
+        <script>
+            window.book = window.book || {};
+            window.book.language = "en";
+        </script>
+
+        <div id="book" class="book">
+            <div class="book-inner">
+
+            <nav role="navigation" aria-label="Table of contents" class="sidebar">
+                <ol class="chapter"><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="introduction.html">Introduction</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Language</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/basics.html"><strong aria-hidden="true">1.</strong> Basics</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/control-flow.html"><strong aria-hidden="true">2.</strong> Control Flow</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/functions.html"><strong aria-hidden="true">3.</strong> Functions</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/type-system.html"><strong aria-hidden="true">4.</strong> Type System</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/classes.html"><strong aria-hidden="true">5.</strong> Classes</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/interfaces.html"><strong aria-hidden="true">6.</strong> Interfaces</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/enums.html"><strong aria-hidden="true">7.</strong> Enums</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/modules.html"><strong aria-hidden="true">8.</strong> Modules</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/error-handling.html"><strong aria-hidden="true">9.</strong> Error Handling</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/pattern-matching.html"><strong aria-hidden="true">10.</strong> Pattern Matching</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/decorators.html"><strong aria-hidden="true">11.</strong> Decorators</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/advanced-types.html"><strong aria-hidden="true">12.</strong> Advanced Types</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/operators.html"><strong aria-hidden="true">13.</strong> Operators</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Guides</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="guides/migrating-from-lua.html"><strong aria-hidden="true">14.</strong> Migrating from Lua</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="guides/lua-targets.html"><strong aria-hidden="true">15.</strong> Lua Targets</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Reference</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/cli.html"><strong aria-hidden="true">16.</strong> CLI</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/configuration.html"><strong aria-hidden="true">17.</strong> Configuration</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/standard-library.html"><strong aria-hidden="true">18.</strong> Standard Library</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/utility-types.html"><strong aria-hidden="true">19.</strong> Utility Types</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/reflection.html"><strong aria-hidden="true">20.</strong> Reflection API</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/error-codes.html"><strong aria-hidden="true">21.</strong> Error Codes</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/grammar.html"><strong aria-hidden="true">22.</strong> Grammar</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/keywords.html"><strong aria-hidden="true">23.</strong> Keywords</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Contributing</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="contributing/setup.html"><strong aria-hidden="true">24.</strong> Getting Started</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">API Reference</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="api/index.html"><strong aria-hidden="true">25.</strong> Rust API Docs</a></span></li></ol>
+            </nav>
+
+            <div id="page-wrapper" class="page-wrapper">
+
+                <div class="page-inner">
+
+                <section class="normal" id="main">
+                    <h1 id="basics"><a class="header" href="#basics">Basics</a></h1>
+<p>LuaNext extends Lua with type annotations while preserving Lua’s simplicity. This guide covers variables, primitive types, and basic syntax.</p>
+<h2 id="variable-declarations"><a class="header" href="#variable-declarations">Variable Declarations</a></h2>
+<p>LuaNext provides two keywords for variable declarations: <code>const</code> for immutable variables and <code>local</code> for mutable variables.</p>
+<h3 id="const--immutable-variables"><a class="header" href="#const--immutable-variables"><code>const</code> — Immutable Variables</a></h3>
+<p>Variables declared with <code>const</code> cannot be reassigned after initialization:</p>
+<pre><code class="language-lua">const PI: number = 3.14159
+const status: string = "active"
+
+-- Error: Cannot reassign const variable
+PI = 3.14  -- ❌ Type error
+</code></pre>
+<p>Compiles to:</p>
+<pre><code class="language-lua">local PI = 3.14159
+local status = "active"
+</code></pre>
+<h3 id="local--mutable-variables"><a class="header" href="#local--mutable-variables"><code>local</code> — Mutable Variables</a></h3>
+<p>Variables declared with <code>local</code> can be reassigned:</p>
+<pre><code class="language-lua">local count: number = 0
+local name: string = "Alice"
+
+count = 5        -- ✅ OK
+name = "Bob"     -- ✅ OK
+</code></pre>
+<p>Compiles to:</p>
+<pre><code class="language-lua">local count = 0
+local name = "Alice"
+
+count = 5
+name = "Bob"
+</code></pre>
+<h3 id="why-both"><a class="header" href="#why-both">Why Both?</a></h3>
+<ul>
+<li><strong>Type Safety</strong> — Immutability checking catches bugs at compile time</li>
+<li><strong>Clear Intent</strong> — Code readers know which values change</li>
+<li><strong>Better Inference</strong> — Immutable values enable more precise type inference</li>
+<li><strong>Zero Cost</strong> — Both compile to <code>local</code>, no runtime overhead</li>
+</ul>
+<h2 id="primitive-types"><a class="header" href="#primitive-types">Primitive Types</a></h2>
+<p>LuaNext includes all Lua primitive types plus additional type safety primitives.</p>
+<h3 id="nil"><a class="header" href="#nil"><code>nil</code></a></h3>
+<p>Represents the absence of a value:</p>
+<pre><code class="language-lua">const x: nil = nil
+local optional: string | nil = nil
+</code></pre>
+<h3 id="boolean"><a class="header" href="#boolean"><code>boolean</code></a></h3>
+<p>True or false values:</p>
+<pre><code class="language-lua">const isActive: boolean = true
+const hasPermission: boolean = false
+</code></pre>
+<h3 id="number"><a class="header" href="#number"><code>number</code></a></h3>
+<p>Lua’s numeric type (double-precision float):</p>
+<pre><code class="language-lua">const pi: number = 3.14159
+const count: number = 42
+const negative: number = -10.5
+</code></pre>
+<h3 id="integer"><a class="header" href="#integer"><code>integer</code></a></h3>
+<p>Subset of <code>number</code> for whole numbers (useful for Lua 5.3+ and array indices):</p>
+<pre><code class="language-lua">const index: integer = 1
+const count: integer = 100
+
+-- Error: Not an integer
+const wrong: integer = 3.14  -- ❌ Type error
+</code></pre>
+<p>In Lua 5.3+, integers are stored more efficiently than floats. In earlier versions, <code>integer</code> is type-checked but compiles to <code>number</code>.</p>
+<h3 id="string"><a class="header" href="#string"><code>string</code></a></h3>
+<p>Text values:</p>
+<pre><code class="language-lua">const name: string = "Alice"
+const message: string = 'Hello, World!'
+const multiline: string = [[
+  This is a
+  multiline string
+]]
+</code></pre>
+<h3 id="table"><a class="header" href="#table"><code>table</code></a></h3>
+<p>Generic table type (base for all tables/objects):</p>
+<pre><code class="language-lua">const data: table = {x = 1, y = 2}
+const array: table = {1, 2, 3, 4}
+</code></pre>
+<p>Use interfaces for typed table shapes (see <a href="interfaces.html">Interfaces</a>).</p>
+<h3 id="coroutine--thread"><a class="header" href="#coroutine--thread"><code>coroutine</code> / <code>thread</code></a></h3>
+<p>Lua coroutines:</p>
+<pre><code class="language-lua">const co: coroutine = coroutine.create(function()
+    print("Hello from coroutine")
+end)
+</code></pre>
+<p>Both <code>coroutine</code> and <code>thread</code> are synonyms for the same type.</p>
+<h2 id="special-types"><a class="header" href="#special-types">Special Types</a></h2>
+<h3 id="unknown"><a class="header" href="#unknown"><code>unknown</code></a></h3>
+<p>Type-safe unknown value. Must be narrowed before use:</p>
+<pre><code class="language-lua">const data: unknown = getExternalData()
+
+-- Error: Cannot use unknown value directly
+print(data.name)  -- ❌ Type error
+
+-- Narrow with type guards
+if type(data) == "table" then
+    -- data is now table
+    print(data.name)  -- ✅ OK
+end
+</code></pre>
+<p>Unlike TypeScript’s <code>any</code>, <code>unknown</code> is strict and requires type narrowing.</p>
+<h3 id="never"><a class="header" href="#never"><code>never</code></a></h3>
+<p>Bottom type representing impossible values. Used for exhaustiveness checking:</p>
+<pre><code class="language-lua">type Status = "active" | "inactive" | "pending"
+
+function handleStatus(status: Status): void
+    if status == "active" then
+        print("Active")
+    elseif status == "inactive" then
+        print("Inactive")
+    elseif status == "pending" then
+        print("Pending")
+    else
+        -- status is never here (exhaustive check)
+        const _exhaustive: never = status
+    end
+end
+</code></pre>
+<h3 id="void"><a class="header" href="#void"><code>void</code></a></h3>
+<p>Indicates functions that return nothing:</p>
+<pre><code class="language-lua">function log(message: string): void
+    print(message)
+end
+</code></pre>
+<h2 id="type-annotations"><a class="header" href="#type-annotations">Type Annotations</a></h2>
+<p>Use <code>:</code> to annotate types (same as TypeScript):</p>
+<pre><code class="language-lua">-- Variables
+const name: string = "Alice"
+local count: number = 0
+
+-- Function parameters and return type
+function greet(name: string): string
+    return "Hello, " .. name
+end
+
+-- Inline table types
+const point: {x: number, y: number} = {x = 1, y = 2}
+</code></pre>
+<h2 id="type-inference"><a class="header" href="#type-inference">Type Inference</a></h2>
+<p>LuaNext infers types when not explicitly provided:</p>
+<pre><code class="language-lua">-- Inferred as number
+const x = 42
+
+-- Inferred as string
+const message = "Hello"
+
+-- Inferred as (number, number) -&gt; number
+function add(a, b)
+    return a + b
+end
+
+-- Inferred as number
+const sum = add(5, 10)
+</code></pre>
+<p>Type inference works for:</p>
+<ul>
+<li>Literals (<code>const x = 42</code> → <code>number</code>)</li>
+<li>Function return types (from return expressions)</li>
+<li>Variable assignments (from RHS type)</li>
+</ul>
+<p>For complex types, explicit annotations improve readability.</p>
+<h2 id="string-templates"><a class="header" href="#string-templates">String Templates</a></h2>
+<p>LuaNext supports template strings with embedded expressions:</p>
+<pre><code class="language-lua">const name: string = "Alice"
+const age: number = 30
+
+const message: string = `Hello, ${name}! You are ${age} years old.`
+print(message)  -- Hello, Alice! You are 30 years old.
+</code></pre>
+<p>Compiles to string concatenation:</p>
+<pre><code class="language-lua">local name = "Alice"
+local age = 30
+
+local message = "Hello, " .. tostring(name) .. "! You are " .. tostring(age) .. " years old."
+print(message)
+</code></pre>
+<p>Multi-line template strings:</p>
+<pre><code class="language-lua">const user: string = "Alice"
+const html: string = `
+    &lt;div&gt;
+        &lt;h1&gt;Welcome, ${user}!&lt;/h1&gt;
+        &lt;p&gt;This is a multi-line template.&lt;/p&gt;
+    &lt;/div&gt;
+`
+</code></pre>
+<h2 id="comments"><a class="header" href="#comments">Comments</a></h2>
+<p>LuaNext supports Lua’s comment syntax:</p>
+<pre><code class="language-lua">-- Single-line comment
+
+--[[
+  Multi-line
+  comment
+]]
+
+---
+--- Triple-dash comments are used for documentation
+--- @param name The user's name
+---
+function greet(name: string): void
+    print("Hello, " .. name)
+end
+</code></pre>
+<h2 id="blocks"><a class="header" href="#blocks">Blocks</a></h2>
+<p>Use <code>do ... end</code> to create scoped blocks:</p>
+<pre><code class="language-lua">do
+    const x: number = 10
+    print(x)  -- 10
+end
+
+-- Error: x is not in scope
+print(x)  -- ❌ Not defined
+</code></pre>
+<h2 id="type-assertions"><a class="header" href="#type-assertions">Type Assertions</a></h2>
+<p>Use <code>as</code> to assert a type:</p>
+<pre><code class="language-lua">const data: unknown = getData()
+const user = data as {name: string, age: number}
+
+print(user.name)  -- ✅ OK
+</code></pre>
+<p>Use with caution — type assertions bypass type checking.</p>
+<h2 id="nullable-types"><a class="header" href="#nullable-types">Nullable Types</a></h2>
+<p>Use <code>| nil</code> for nullable values:</p>
+<pre><code class="language-lua">const optional: string | nil = nil
+local name: string | nil = "Alice"
+
+name = nil  -- ✅ OK
+</code></pre>
+<p>Check for nil before use:</p>
+<pre><code class="language-lua">if name ~= nil then
+    print(name)  -- name is string here
+end
+</code></pre>
+<h2 id="literal-types"><a class="header" href="#literal-types">Literal Types</a></h2>
+<p>Values can be types:</p>
+<pre><code class="language-lua">type Status = "active" | "inactive"
+
+const status: Status = "active"  -- ✅ OK
+const wrong: Status = "pending"  -- ❌ Type error
+</code></pre>
+<p>Number and boolean literals:</p>
+<pre><code class="language-lua">type One = 1
+type Zero = 0
+type True = true
+
+const x: One = 1       -- ✅ OK
+const y: Zero = 0      -- ✅ OK
+const z: True = true   -- ✅ OK
+</code></pre>
+<h2 id="arrays"><a class="header" href="#arrays">Arrays</a></h2>
+<p>Two syntaxes for array types:</p>
+<pre><code class="language-lua">-- Preferred syntax
+const numbers: number[] = {1, 2, 3, 4, 5}
+
+-- Generic syntax (equivalent)
+const strings: Array&lt;string&gt; = {"a", "b", "c"}
+</code></pre>
+<p>Both compile to plain Lua tables:</p>
+<pre><code class="language-lua">local numbers = {1, 2, 3, 4, 5}
+local strings = {"a", "b", "c"}
+</code></pre>
+<h2 id="tuples"><a class="header" href="#tuples">Tuples</a></h2>
+<p>Fixed-length arrays with per-element types:</p>
+<pre><code class="language-lua">-- [type1, type2, ...]
+const pair: [string, number] = {"Alice", 30}
+const triple: [boolean, string, number] = {true, "test", 42}
+
+-- Access by index
+const name: string = pair[1]   -- "Alice"
+const age: number = pair[2]    -- 30
+</code></pre>
+<h2 id="next-steps"><a class="header" href="#next-steps">Next Steps</a></h2>
+<ul>
+<li><a href="control-flow.html">Control Flow</a> — if, while, for, match</li>
+<li><a href="functions.html">Functions</a> — Function declarations and types</li>
+<li><a href="type-system.html">Type System</a> — Advanced type features</li>
+<li><a href="interfaces.html">Interfaces</a> — Defining table shapes</li>
+</ul>
+<h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
+<ul>
+<li><a href="type-system.html">Type System</a> — Union, intersection, generics</li>
+<li><a href="../reference/standard-library.html">Standard Library</a> — Global functions and namespaces</li>
+</ul>
+
+                </section>
+
+                </div><!-- page-inner -->
+
+            </div><!-- page-wrapper -->
+
+            </div><!-- book-inner -->
+
+            <!-- Version Selector -->
+            <nav class="nav-wide-wrapper" aria-label="More">
+                <a href="javascript:void(0)" id="menu-bar-wide" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                    <i class="fa fa-bars"></i>
+                </a>
+            </nav>
+
+            <!-- Version selector dropdown -->
+            <div id="version-selector" class="version-selector">
+                <select id="version-picker" onchange="switchVersion(this.value)" aria-label="Documentation version">
+                    <option value="latest">Latest</option>
+                </select>
+            </div>
+
+        </div><!-- book -->
+
+        <!-- Custom scripts -->
+        <script>
+            // Version selector functionality
+            function switchVersion(version) {
+                const base = window.location.origin + '/luanext/';
+                if (version === 'latest') {
+                    window.location.href = base;
+                } else {
+                    window.location.href = base + version + '/';
+                }
+            }
+
+            // Load versions.json and populate selector if it exists
+            fetch('/luanext/versions.json')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.versions && data.versions.length > 1) {
+                        const selector = document.getElementById('version-picker');
+                        data.versions.forEach(v => {
+                            if (v.version !== 'latest') {
+                                const option = document.createElement('option');
+                                option.value = 'v' + v.version;
+                                option.textContent = 'v' + v.version;
+                                selector.appendChild(option);
+                            }
+                        });
+                    }
+                })
+                .catch(() => {
+                    // versions.json not found (expected during initial setup)
+                    // Selector will only show "Latest"
+                });
+        </script>
+
+        <!-- mdBook scripts and content scripts -->
+        <script src="js/clipboard.min.js" type="text/javascript"></script>
+        <script src="js/highlight.js" type="text/javascript"></script>
+        <script src="js/book.js" type="text/javascript"></script>
+
+        <!-- Custom theme script -->
+        <script src="js/custom-theme.js" type="text/javascript"></script>
+
+        <script src="js/elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/lunr-en.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/search.js" type="text/javascript" charset="utf-8"></script>
+
+    </body>
+</html>
