@@ -25,7 +25,7 @@ fn test_simple_function_inlining() {
         print(x)
     "#;
 
-    let output = compile_with_stdlib_optimization(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_stdlib_optimization(source, OptimizationLevel::Moderate).unwrap();
     println!("Generated output (O2):\n{}", output);
 }
 
@@ -43,7 +43,7 @@ fn test_large_function_not_inlined() {
         const x = large(1, 2)
     "#;
 
-    let output = compile_with_optimization(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_optimization(source, OptimizationLevel::Moderate).unwrap();
     println!("Large function output:\n{}", output);
 }
 
@@ -60,7 +60,7 @@ fn test_recursive_function_not_inlined() {
         const x = factorial(5)
     "#;
 
-    let output = compile_with_optimization(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_optimization(source, OptimizationLevel::Moderate).unwrap();
     println!("Recursive function output:\n{}", output);
     assert!(
         output.contains("function"),
@@ -78,7 +78,7 @@ fn test_single_use_function_inlined() {
         const x = id(42)
     "#;
 
-    let output = compile_with_optimization(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_optimization(source, OptimizationLevel::Moderate).unwrap();
     println!("Single use output:\n{}", output);
     // O2 inlining of single-use functions is not currently implemented
     // Verify compilation succeeds and function structure is preserved

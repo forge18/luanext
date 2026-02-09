@@ -10,11 +10,11 @@ fn compile_with_optimization_level(
 }
 
 fn compile_with_o2(source: &str) -> Result<String, String> {
-    compile_with_optimization_level(source, OptimizationLevel::O2)
+    compile_with_optimization_level(source, OptimizationLevel::Moderate)
 }
 
 fn compile_with_o1(source: &str) -> Result<String, String> {
-    compile_with_optimization_level(source, OptimizationLevel::O1)
+    compile_with_optimization_level(source, OptimizationLevel::Minimal)
 }
 
 // =============================================================================
@@ -93,7 +93,7 @@ fn test_optional_method_call_not_converted() {
         end
     "#;
 
-    let output = compile_with_optimization_level(source, OptimizationLevel::O0).unwrap();
+    let output = compile_with_optimization_level(source, OptimizationLevel::None).unwrap();
     println!("Output:\n{}", output);
     // Verify the class and its method are generated correctly
     assert!(
@@ -354,7 +354,7 @@ fn test_method_call_in_loop() {
         const result = acc:getTotal()
     "#;
 
-    let output = compile_with_optimization_level(source, OptimizationLevel::O0).unwrap();
+    let output = compile_with_optimization_level(source, OptimizationLevel::None).unwrap();
     println!("Output:\n{}", output);
     // Verify the class and its methods are generated correctly
     assert!(
@@ -398,7 +398,7 @@ fn test_method_call_in_conditional() {
         end
     "#;
 
-    let output = compile_with_optimization_level(source, OptimizationLevel::O0).unwrap();
+    let output = compile_with_optimization_level(source, OptimizationLevel::None).unwrap();
     println!("Output:\n{}", output);
     // Verify class, method, and usage code are generated
     assert!(

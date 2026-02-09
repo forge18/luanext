@@ -177,7 +177,7 @@ impl CodeGenerator {
             import_map: Default::default(),
             current_source_index: 0,
             interner,
-            optimization_level: crate::config::OptimizationLevel::O0,
+            optimization_level: crate::config::OptimizationLevel::None,
             interface_default_methods: Default::default(),
             current_namespace: None,
             namespace_exports: Vec::new(),

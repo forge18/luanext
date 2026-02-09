@@ -24,7 +24,7 @@ impl<'arena> WholeProgramPass<'arena> for AlgebraicSimplificationPass {
     }
 
     fn min_level(&self) -> OptimizationLevel {
-        OptimizationLevel::O1
+        OptimizationLevel::Minimal
     }
 
     fn run(

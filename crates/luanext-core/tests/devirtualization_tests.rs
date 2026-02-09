@@ -10,7 +10,7 @@ fn compile_with_optimization_level(
 }
 
 fn compile_with_o3(source: &str) -> Result<String, String> {
-    compile_with_optimization_level(source, OptimizationLevel::O3)
+    compile_with_optimization_level(source, OptimizationLevel::Aggressive)
 }
 
 #[test]

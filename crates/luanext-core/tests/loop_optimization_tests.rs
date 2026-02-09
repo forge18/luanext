@@ -19,7 +19,7 @@ fn test_while_false_body_cleared() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         !output.contains("never"),
         "Dead while loop body should be cleared. Got:\n{}",
@@ -40,7 +40,7 @@ fn test_for_zero_iterations_body_cleared() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         !output.contains("print"),
         "Zero-iteration for loop body should be cleared. Got:\n{}",
@@ -61,7 +61,7 @@ fn test_for_negative_step_zero_iterations_body_cleared() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         !output.contains("print"),
         "Zero-iteration for loop body with negative step should be cleared. Got:\n{}",
@@ -82,7 +82,7 @@ fn test_repeat_until_true_body_cleared() {
         until true
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         !output.contains("once"),
         "Repeat-until-true body should be cleared. Got:\n{}",
@@ -103,7 +103,7 @@ fn test_preserve_while_true() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("while true do"),
         "Infinite while loop should be preserved for debugger compatibility. Got:\n{}",
@@ -124,8 +124,8 @@ fn test_dead_loop_body_cleared_at_o2_not_o1() {
         end
     "#;
 
-    let o1_output = compile_with_opt_level(source, OptimizationLevel::O1).unwrap();
-    let o2_output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let o1_output = compile_with_opt_level(source, OptimizationLevel::Minimal).unwrap();
+    let o2_output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
 
     assert!(
         o1_output.contains("never"),
@@ -152,7 +152,7 @@ fn test_repeat_until_false_preserved() {
         until count >= 10
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("repeat"),
         "Repeat loop should be preserved. Got:\n{}",
@@ -176,7 +176,7 @@ fn test_repeat_nested() {
         until false
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("repeat"),
         "Nested repeat loops should be preserved. Got:\n{}",
@@ -203,7 +203,7 @@ fn test_loop_processing_at_o2() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("for"),
         "For loop should be processed at O2. Got:\n{}",
@@ -220,7 +220,7 @@ fn test_while_loop_processing_at_o2() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("while"),
         "While loop should be processed at O2. Got:\n{}",
@@ -239,7 +239,7 @@ fn test_function_with_loops() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("while"),
         "While loop in function should be processed. Got:\n{}",
@@ -258,7 +258,7 @@ fn test_nested_loops() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     let for_count = output.matches("for").count();
     let while_count = output.matches("while").count();
     assert!(
@@ -279,7 +279,7 @@ fn test_if_with_loops() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("for"),
         "Loop in if-branch should be processed. Got:\n{}",

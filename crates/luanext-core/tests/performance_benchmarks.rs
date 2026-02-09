@@ -432,9 +432,9 @@ fn generate_optimizable_code(target_lines: usize) -> String {
 fn test_o0_vs_o1_optimization_time() {
     let source = generate_optimizable_code(2000);
 
-    let (o0_time, o0_size) = benchmark_optimization_level(&source, OptimizationLevel::O0)
+    let (o0_time, o0_size) = benchmark_optimization_level(&source, OptimizationLevel::None)
         .expect("O0 compilation should succeed");
-    let (o1_time, o1_size) = benchmark_optimization_level(&source, OptimizationLevel::O1)
+    let (o1_time, o1_size) = benchmark_optimization_level(&source, OptimizationLevel::Minimal)
         .expect("O1 compilation should succeed");
 
     println!("O0 optimization: {:?}, size: {} bytes", o0_time, o0_size);
@@ -461,9 +461,9 @@ fn test_o0_vs_o1_optimization_time() {
 fn test_o1_vs_o2_optimization_time() {
     let source = generate_optimizable_code(2000);
 
-    let (o1_time, o1_size) = benchmark_optimization_level(&source, OptimizationLevel::O1)
+    let (o1_time, o1_size) = benchmark_optimization_level(&source, OptimizationLevel::Minimal)
         .expect("O1 compilation should succeed");
-    let (o2_time, o2_size) = benchmark_optimization_level(&source, OptimizationLevel::O2)
+    let (o2_time, o2_size) = benchmark_optimization_level(&source, OptimizationLevel::Moderate)
         .expect("O2 compilation should succeed");
 
     println!("O1 optimization: {:?}, size: {} bytes", o1_time, o1_size);
@@ -490,9 +490,9 @@ fn test_o1_vs_o2_optimization_time() {
 fn test_o2_vs_o3_optimization_time() {
     let source = generate_optimizable_code(2000);
 
-    let (o2_time, o2_size) = benchmark_optimization_level(&source, OptimizationLevel::O2)
+    let (o2_time, o2_size) = benchmark_optimization_level(&source, OptimizationLevel::Moderate)
         .expect("O2 compilation should succeed");
-    let (o3_time, o3_size) = benchmark_optimization_level(&source, OptimizationLevel::O3)
+    let (o3_time, o3_size) = benchmark_optimization_level(&source, OptimizationLevel::Aggressive)
         .expect("O3 compilation should succeed");
 
     println!("O2 optimization: {:?}, size: {} bytes", o2_time, o2_size);
@@ -519,13 +519,13 @@ fn test_o2_vs_o3_optimization_time() {
 fn test_code_size_reduction_at_each_level() {
     let source = generate_optimizable_code(3000);
 
-    let (_, o0_size) = benchmark_optimization_level(&source, OptimizationLevel::O0)
+    let (_, o0_size) = benchmark_optimization_level(&source, OptimizationLevel::None)
         .expect("O0 compilation should succeed");
-    let (_, o1_size) = benchmark_optimization_level(&source, OptimizationLevel::O1)
+    let (_, o1_size) = benchmark_optimization_level(&source, OptimizationLevel::Minimal)
         .expect("O1 compilation should succeed");
-    let (_, o2_size) = benchmark_optimization_level(&source, OptimizationLevel::O2)
+    let (_, o2_size) = benchmark_optimization_level(&source, OptimizationLevel::Moderate)
         .expect("O2 compilation should succeed");
-    let (_, o3_size) = benchmark_optimization_level(&source, OptimizationLevel::O3)
+    let (_, o3_size) = benchmark_optimization_level(&source, OptimizationLevel::Aggressive)
         .expect("O3 compilation should succeed");
 
     println!(
@@ -577,13 +577,13 @@ fn test_optimization_preserves_correctness() {
     "#;
 
     let (_, o0_size) =
-        benchmark_optimization_level(source, OptimizationLevel::O0).expect("O0 should succeed");
-    let (_, o1_size) =
-        benchmark_optimization_level(source, OptimizationLevel::O1).expect("O1 should succeed");
-    let (_, o2_size) =
-        benchmark_optimization_level(source, OptimizationLevel::O2).expect("O2 should succeed");
-    let (_, o3_size) =
-        benchmark_optimization_level(source, OptimizationLevel::O3).expect("O3 should succeed");
+        benchmark_optimization_level(source, OptimizationLevel::None).expect("O0 should succeed");
+    let (_, o1_size) = benchmark_optimization_level(source, OptimizationLevel::Minimal)
+        .expect("O1 should succeed");
+    let (_, o2_size) = benchmark_optimization_level(source, OptimizationLevel::Moderate)
+        .expect("O2 should succeed");
+    let (_, o3_size) = benchmark_optimization_level(source, OptimizationLevel::Aggressive)
+        .expect("O3 should succeed");
 
     println!(
         "Correctness test sizes - O0: {}, O1: {}, O2: {}, O3: {}",
@@ -654,9 +654,9 @@ fn generate_o3_test_code() -> String {
 fn test_o3_with_optimizable_code() {
     let source = generate_o3_test_code();
 
-    let (o2_time, o2_size) = benchmark_optimization_level(&source, OptimizationLevel::O2)
+    let (o2_time, o2_size) = benchmark_optimization_level(&source, OptimizationLevel::Moderate)
         .expect("O2 compilation should succeed");
-    let (o3_time, o3_size) = benchmark_optimization_level(&source, OptimizationLevel::O3)
+    let (o3_time, o3_size) = benchmark_optimization_level(&source, OptimizationLevel::Aggressive)
         .expect("O3 compilation should succeed");
 
     println!("With optimizable code:");

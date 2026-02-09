@@ -27,7 +27,7 @@ fn create_optimizer(level: OptimizationLevel) -> Optimizer<'static> {
 
 #[test]
 fn test_optimizer_registration() {
-    let optimizer = create_optimizer(OptimizationLevel::O1);
+    let optimizer = create_optimizer(OptimizationLevel::Minimal);
 
     let pass_count = optimizer.pass_count();
     assert!(
@@ -65,7 +65,7 @@ fn test_optimizer_auto_level() {
 
 #[test]
 fn test_optimizer_o0_level() {
-    let optimizer = create_optimizer(OptimizationLevel::O0);
+    let optimizer = create_optimizer(OptimizationLevel::None);
 
     let pass_count = optimizer.pass_count();
     assert!(
@@ -77,7 +77,7 @@ fn test_optimizer_o0_level() {
 
 #[test]
 fn test_optimizer_o2_level() {
-    let optimizer = create_optimizer(OptimizationLevel::O2);
+    let optimizer = create_optimizer(OptimizationLevel::Moderate);
 
     let pass_count = optimizer.pass_count();
     assert!(
@@ -103,7 +103,7 @@ fn test_optimizer_o2_level() {
 
 #[test]
 fn test_optimizer_o3_level() {
-    let optimizer = create_optimizer(OptimizationLevel::O3);
+    let optimizer = create_optimizer(OptimizationLevel::Aggressive);
 
     let pass_count = optimizer.pass_count();
     assert!(
@@ -129,9 +129,9 @@ fn test_optimizer_o3_level() {
 
 #[test]
 fn test_optimizer_level_ordering() {
-    let o1_optimizer = create_optimizer(OptimizationLevel::O1);
-    let o2_optimizer = create_optimizer(OptimizationLevel::O2);
-    let o3_optimizer = create_optimizer(OptimizationLevel::O3);
+    let o1_optimizer = create_optimizer(OptimizationLevel::Minimal);
+    let o2_optimizer = create_optimizer(OptimizationLevel::Moderate);
+    let o3_optimizer = create_optimizer(OptimizationLevel::Aggressive);
 
     assert!(
         o3_optimizer.pass_count() >= o2_optimizer.pass_count(),
@@ -147,36 +147,45 @@ fn test_optimizer_level_ordering() {
 fn test_optimization_level_auto() {
     let level = OptimizationLevel::Auto;
     let effective = level.effective();
-    assert_eq!(effective, OptimizationLevel::O1);
+    assert_eq!(effective, OptimizationLevel::Minimal);
 }
 
 #[test]
 fn test_optimization_level_o0() {
-    assert_eq!(OptimizationLevel::O0.effective(), OptimizationLevel::O0);
+    assert_eq!(OptimizationLevel::None.effective(), OptimizationLevel::None);
 }
 
 #[test]
 fn test_optimization_level_o1() {
-    assert_eq!(OptimizationLevel::O1.effective(), OptimizationLevel::O1);
+    assert_eq!(
+        OptimizationLevel::Minimal.effective(),
+        OptimizationLevel::Minimal
+    );
 }
 
 #[test]
 fn test_optimization_level_o2() {
-    assert_eq!(OptimizationLevel::O2.effective(), OptimizationLevel::O2);
+    assert_eq!(
+        OptimizationLevel::Moderate.effective(),
+        OptimizationLevel::Moderate
+    );
 }
 
 #[test]
 fn test_optimization_level_o3() {
-    assert_eq!(OptimizationLevel::O3.effective(), OptimizationLevel::O3);
+    assert_eq!(
+        OptimizationLevel::Aggressive.effective(),
+        OptimizationLevel::Aggressive
+    );
 }
 
 #[test]
 fn test_optimization_level_comparison() {
-    assert!(OptimizationLevel::O0 < OptimizationLevel::O1);
-    assert!(OptimizationLevel::O1 < OptimizationLevel::O2);
-    assert!(OptimizationLevel::O2 < OptimizationLevel::O3);
-    assert!(OptimizationLevel::O0 < OptimizationLevel::Auto);
-    assert!(OptimizationLevel::O1 <= OptimizationLevel::Auto);
+    assert!(OptimizationLevel::None < OptimizationLevel::Minimal);
+    assert!(OptimizationLevel::Minimal < OptimizationLevel::Moderate);
+    assert!(OptimizationLevel::Moderate < OptimizationLevel::Aggressive);
+    assert!(OptimizationLevel::None < OptimizationLevel::Auto);
+    assert!(OptimizationLevel::Minimal <= OptimizationLevel::Auto);
 }
 
 #[test]
@@ -184,7 +193,7 @@ fn test_global_localization_creates_local_references() {
     let interner = Arc::new(StringInterner::new());
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let arena = Bump::new();
-    let mut optimizer = Optimizer::new(OptimizationLevel::O1, handler, interner.clone());
+    let mut optimizer = Optimizer::new(OptimizationLevel::Minimal, handler, interner.clone());
 
     let math_id = interner.get_or_intern("math");
     let sin_id = interner.get_or_intern("sin");
@@ -241,7 +250,7 @@ fn test_table_preallocation_hint() {
     let interner = Arc::new(StringInterner::new());
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let arena = Bump::new();
-    let mut optimizer = Optimizer::new(OptimizationLevel::O1, handler, interner.clone());
+    let mut optimizer = Optimizer::new(OptimizationLevel::Minimal, handler, interner.clone());
     let span = Span::dummy();
     let x_id = interner.get_or_intern("x");
     let y_id = interner.get_or_intern("y");
@@ -275,7 +284,7 @@ fn test_constant_folding() {
     let interner = Arc::new(StringInterner::new());
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let arena = Bump::new();
-    let mut optimizer = Optimizer::new(OptimizationLevel::O1, handler, interner.clone());
+    let mut optimizer = Optimizer::new(OptimizationLevel::Minimal, handler, interner.clone());
     let span = Span::dummy();
     let a_id = interner.get_or_intern("a");
     let b_id = interner.get_or_intern("b");

@@ -32,7 +32,7 @@ impl<'arena> WholeProgramPass<'arena> for LoopOptimizationPass {
     }
 
     fn min_level(&self) -> OptimizationLevel {
-        OptimizationLevel::O2
+        OptimizationLevel::Moderate
     }
 
     fn required_features(&self) -> AstFeatures {

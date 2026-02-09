@@ -75,7 +75,7 @@ impl<'arena> WholeProgramPass<'arena> for TailCallOptimizationPass {
     }
 
     fn min_level(&self) -> OptimizationLevel {
-        OptimizationLevel::O2
+        OptimizationLevel::Moderate
     }
 
     fn run(

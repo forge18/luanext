@@ -2,7 +2,7 @@ use luanext_core::config::OptimizationLevel;
 use luanext_core::di::DiContainer;
 
 fn compile_with_optimization(source: &str) -> Result<String, String> {
-    compile_with_optimization_level(source, OptimizationLevel::O1)
+    compile_with_optimization_level(source, OptimizationLevel::Minimal)
 }
 
 fn compile_with_optimization_level(

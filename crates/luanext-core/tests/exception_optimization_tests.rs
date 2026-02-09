@@ -2,7 +2,7 @@ use luanext_core::config::OptimizationLevel;
 use luanext_core::di::DiContainer;
 
 fn compile_and_check(source: &str) -> Result<String, String> {
-    compile_with_level(source, OptimizationLevel::O0)
+    compile_with_level(source, OptimizationLevel::None)
 }
 
 fn compile_with_level(source: &str, level: OptimizationLevel) -> Result<String, String> {
@@ -155,10 +155,10 @@ fn test_try_catch_at_all_optimization_levels() {
 
     // Try/catch block should compile at all optimization levels
     for level in [
-        OptimizationLevel::O0,
-        OptimizationLevel::O1,
-        OptimizationLevel::O2,
-        OptimizationLevel::O3,
+        OptimizationLevel::None,
+        OptimizationLevel::Minimal,
+        OptimizationLevel::Moderate,
+        OptimizationLevel::Aggressive,
         OptimizationLevel::Auto,
     ] {
         let result = compile_with_level(source, level);
@@ -183,7 +183,7 @@ fn test_try_catch_finally_compiles() {
         end
     "#;
 
-    let result = compile_with_level(source, OptimizationLevel::O0);
+    let result = compile_with_level(source, OptimizationLevel::None);
     assert!(
         result.is_ok(),
         "Try/catch/finally should compile: {:?}",

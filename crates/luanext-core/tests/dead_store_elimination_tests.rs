@@ -10,12 +10,12 @@ fn compile_with_optimization_level(
 }
 
 fn compile_with_o2(source: &str) -> Result<String, String> {
-    compile_with_optimization_level(source, OptimizationLevel::O2)
+    compile_with_optimization_level(source, OptimizationLevel::Moderate)
 }
 
 fn compile_with_o2_stdlib(source: &str) -> Result<String, String> {
     let mut container = DiContainer::test_default();
-    container.compile_with_stdlib_and_optimization(source, OptimizationLevel::O2)
+    container.compile_with_stdlib_and_optimization(source, OptimizationLevel::Moderate)
 }
 
 #[test]

@@ -3,7 +3,7 @@ use luanext_core::di::DiContainer;
 
 fn compile_with_o1(source: &str) -> Result<String, String> {
     let mut container = DiContainer::test_default();
-    container.compile_with_stdlib_and_optimization(source, OptimizationLevel::O1)
+    container.compile_with_stdlib_and_optimization(source, OptimizationLevel::Minimal)
 }
 
 // ============================================================================

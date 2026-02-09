@@ -25,7 +25,7 @@ fn test_simple_concat_chain_optimization() {
         return result
     "#;
 
-    let output = compile_with_optimization_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_optimization_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("table.concat"),
         "Should use table.concat for 3+ concatenations. Output:\n{}",
@@ -40,7 +40,7 @@ fn test_four_part_concat_chain() {
         return result
     "#;
 
-    let output = compile_with_optimization_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_optimization_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("table.concat"),
         "Should use table.concat for 4 concatenations. Output:\n{}",
@@ -54,7 +54,7 @@ fn test_no_optimization_for_two_parts() {
         return "hello" .. "world"
     "#;
 
-    let output = compile_with_optimization_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_optimization_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         !output.contains("table.concat"),
         "Should NOT use table.concat for 2 concatenations. Output:\n{}",
@@ -74,7 +74,7 @@ fn test_no_optimization_at_o1() {
         return result
     "#;
 
-    let output = compile_with_optimization_level(source, OptimizationLevel::O1).unwrap();
+    let output = compile_with_optimization_level(source, OptimizationLevel::Minimal).unwrap();
     assert!(
         !output.contains("table.concat"),
         "Should NOT use table.concat at O1. Output:\n{}",
@@ -93,7 +93,7 @@ fn test_nested_concat_optimization() {
         return result
     "#;
 
-    let output = compile_with_optimization_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_optimization_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("table.concat"),
         "Should use table.concat for nested concatenations that flatten to 4 parts. Output:\n{}",
@@ -112,7 +112,7 @@ fn test_concat_in_function_return() {
         end
     "#;
 
-    let output = compile_with_optimization_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_optimization_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("table.concat"),
         "Should use table.concat in function return. Output:\n{}",
@@ -130,7 +130,7 @@ fn test_concat_in_variable_declaration() {
         return result
     "#;
 
-    let output = compile_with_optimization_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_optimization_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("table.concat"),
         "Should use table.concat in const declaration. Output:\n{}",
@@ -145,7 +145,7 @@ fn test_concat_in_expression_statement() {
         return result
     "#;
 
-    let output = compile_with_optimization_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_optimization_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("table.concat"),
         "Should use table.concat in expression statement. Output:\n{}",
@@ -163,7 +163,7 @@ fn test_three_part_concat() {
         return result
     "#;
 
-    let output = compile_with_optimization_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_optimization_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("table.concat"),
         "Should use table.concat for 3 part concatenation. Output:\n{}",
@@ -181,7 +181,7 @@ fn test_mixed_concat_optimization() {
         return line
     "#;
 
-    let output = compile_with_optimization_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_optimization_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("table.concat"),
         "Should use table.concat for mixed literals and variables. Output:\n{}",

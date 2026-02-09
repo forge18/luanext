@@ -175,7 +175,7 @@ impl DiContainer {
     }
 
     pub fn compile(&mut self, source: &str) -> Result<String, String> {
-        self.compile_with_optimization(source, OptimizationLevel::O0)
+        self.compile_with_optimization(source, OptimizationLevel::None)
     }
 
     pub fn compile_with_optimization(
@@ -231,7 +231,7 @@ impl DiContainer {
     }
 
     pub fn compile_with_stdlib(&mut self, source: &str) -> Result<String, String> {
-        self.compile_with_stdlib_and_optimization(source, OptimizationLevel::O0)
+        self.compile_with_stdlib_and_optimization(source, OptimizationLevel::None)
     }
 
     pub fn compile_with_stdlib_and_optimization(
@@ -395,7 +395,7 @@ mod tests {
         let config = CompilerConfig::default();
         let mut container = DiContainer::production(config);
 
-        let result = container.compile_with_optimization(source, OptimizationLevel::O2);
+        let result = container.compile_with_optimization(source, OptimizationLevel::Moderate);
         assert!(result.is_ok());
     }
 
@@ -425,7 +425,8 @@ mod tests {
         let config = CompilerConfig::default();
         let mut container = DiContainer::production(config);
 
-        let result = container.compile_with_stdlib_and_optimization(source, OptimizationLevel::O2);
+        let result =
+            container.compile_with_stdlib_and_optimization(source, OptimizationLevel::Moderate);
         assert!(result.is_ok());
     }
 

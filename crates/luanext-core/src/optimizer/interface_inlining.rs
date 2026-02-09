@@ -1030,7 +1030,7 @@ impl<'arena> WholeProgramPass<'arena> for InterfaceMethodInliningPass {
     }
 
     fn min_level(&self) -> OptimizationLevel {
-        OptimizationLevel::O3
+        OptimizationLevel::Aggressive
     }
 
     fn run(

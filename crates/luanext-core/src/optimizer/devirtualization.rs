@@ -1082,7 +1082,7 @@ impl<'arena> WholeProgramPass<'arena> for DevirtualizationPass {
     }
 
     fn min_level(&self) -> OptimizationLevel {
-        OptimizationLevel::O3
+        OptimizationLevel::Aggressive
     }
 
     fn required_features(&self) -> AstFeatures {

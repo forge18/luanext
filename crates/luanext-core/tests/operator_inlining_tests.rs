@@ -31,7 +31,7 @@ fn test_simple_add_operator() {
         const v3 = v1 + v2
     "#;
 
-    let result = compile_with_optimization(source, OptimizationLevel::O3);
+    let result = compile_with_optimization(source, OptimizationLevel::Aggressive);
     assert!(result.is_ok(), "Failed to compile: {:?}", result.err());
     let output = result.unwrap();
 
@@ -64,7 +64,7 @@ fn test_operator_multiply() {
         const result = v * 2
     "#;
 
-    let result = compile_with_optimization(source, OptimizationLevel::O3);
+    let result = compile_with_optimization(source, OptimizationLevel::Aggressive);
     assert!(result.is_ok(), "Failed to compile: {:?}", result.err());
     let output = result.unwrap();
 
@@ -101,7 +101,7 @@ fn test_comparison_operators() {
         const equal = p1 == p2
     "#;
 
-    let result = compile_with_optimization(source, OptimizationLevel::O3);
+    let result = compile_with_optimization(source, OptimizationLevel::Aggressive);
     assert!(result.is_ok(), "Failed to compile: {:?}", result.err());
     let output = result.unwrap();
 
@@ -148,7 +148,7 @@ fn test_multiple_operators() {
         const c = a + b - a * b
     "#;
 
-    let result = compile_with_optimization(source, OptimizationLevel::O3);
+    let result = compile_with_optimization(source, OptimizationLevel::Aggressive);
     assert!(result.is_ok(), "Failed to compile: {:?}", result.err());
     let output = result.unwrap();
 
@@ -188,7 +188,7 @@ fn test_no_inline_at_o1() {
         const v3 = v1 + v2
     "#;
 
-    let result = compile_with_optimization(source, OptimizationLevel::O1);
+    let result = compile_with_optimization(source, OptimizationLevel::Minimal);
     assert!(result.is_ok(), "Failed to compile: {:?}", result.err());
     let output = result.unwrap();
 
@@ -220,7 +220,7 @@ fn test_unary_minus_operator() {
         const neg = -v
     "#;
 
-    let result = compile_with_optimization(source, OptimizationLevel::O3);
+    let result = compile_with_optimization(source, OptimizationLevel::Aggressive);
     assert!(result.is_ok(), "Failed to compile: {:?}", result.err());
     let output = result.unwrap();
 
@@ -255,7 +255,7 @@ fn test_chained_operators() {
         const result = a + b * c + a
     "#;
 
-    let result = compile_with_optimization(source, OptimizationLevel::O3);
+    let result = compile_with_optimization(source, OptimizationLevel::Aggressive);
     assert!(result.is_ok(), "Failed to compile: {:?}", result.err());
     let output = result.unwrap();
 
@@ -291,7 +291,7 @@ fn test_complex_operator() {
         }
     "#;
 
-    let result = compile_with_optimization(source, OptimizationLevel::O3);
+    let result = compile_with_optimization(source, OptimizationLevel::Aggressive);
     assert!(result.is_ok(), "Failed to compile: {:?}", result.err());
     let output = result.unwrap();
 
@@ -328,7 +328,7 @@ fn test_operator_call_in_loop() {
         end
     "#;
 
-    let result = compile_with_optimization(source, OptimizationLevel::O3);
+    let result = compile_with_optimization(source, OptimizationLevel::Aggressive);
     assert!(result.is_ok(), "Failed to compile: {:?}", result.err());
     let output = result.unwrap();
 

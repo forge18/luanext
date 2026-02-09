@@ -13,7 +13,7 @@
 //! let generator = CodeGeneratorBuilder::new(interner)
 //!     .target(LuaTarget::Lua54)
 //!     .source_map("main.luax".to_string())
-//!     .optimization_level(luanext_core::config::OptimizationLevel::O2)
+//!     .optimization_level(luanext_core::config::OptimizationLevel::Moderate)
 //!     .build();
 //! ```
 
@@ -83,7 +83,7 @@ impl CodeGeneratorBuilder {
     ///     .target(LuaTarget::Lua53)
     ///     .source_map("input.luax".to_string())
     ///     .bundle_mode("main".to_string())
-    ///     .optimization_level(OptimizationLevel::O2)
+    ///     .optimization_level(OptimizationLevel::Moderate)
     ///     .build();
     /// ```
     pub fn new(interner: Arc<StringInterner>) -> Self {
@@ -92,7 +92,7 @@ impl CodeGeneratorBuilder {
             target: LuaTarget::default(),
             source_map: None,
             mode: CodeGenMode::Require,
-            optimization_level: OptimizationLevel::O0,
+            optimization_level: OptimizationLevel::None,
             output_format: OutputFormat::Readable,
             whole_program_analysis: None,
             reachable_exports: None,
@@ -211,7 +211,7 @@ impl CodeGeneratorBuilder {
     ///
     /// let interner = Arc::new(StringInterner::new());
     /// let generator = CodeGeneratorBuilder::new(interner)
-    ///     .optimization_level(OptimizationLevel::O2)
+    ///     .optimization_level(OptimizationLevel::Moderate)
     ///     .build();
     /// ```
     pub fn optimization_level(mut self, level: OptimizationLevel) -> Self {
@@ -263,9 +263,9 @@ impl CodeGeneratorBuilder {
     ///
     /// let interner = Arc::new(StringInterner::new());
     /// // Assume analysis was built from all checked modules
-    /// // let analysis = WholeProgramAnalysis::build(&programs, OptimizationLevel::O3);
+    /// // let analysis = WholeProgramAnalysis::build(&programs, OptimizationLevel::Aggressive);
     /// // let generator = CodeGeneratorBuilder::new(interner)
-    /// //     .optimization_level(OptimizationLevel::O3)
+    /// //     .optimization_level(OptimizationLevel::Aggressive)
     /// //     .with_whole_program_analysis(analysis)
     /// //     .build();
     /// ```
@@ -331,7 +331,7 @@ impl CodeGeneratorBuilder {
     /// let interner = Arc::new(StringInterner::new());
     /// let generator = CodeGeneratorBuilder::new(interner)
     ///     .target(LuaTarget::Lua54)
-    ///     .optimization_level(OptimizationLevel::O1)
+    ///     .optimization_level(OptimizationLevel::Minimal)
     ///     .build();
     /// ```
     pub fn build(self) -> CodeGenerator {

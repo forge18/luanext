@@ -31,7 +31,7 @@ impl WholeProgramAnalysis {
         optimization_level: OptimizationLevel,
     ) -> Self {
         // Only build expensive analysis if O3+ optimization is enabled
-        let class_hierarchy = if optimization_level >= OptimizationLevel::O3 {
+        let class_hierarchy = if optimization_level >= OptimizationLevel::Aggressive {
             ClassHierarchy::build_multi_module(programs)
         } else {
             ClassHierarchy::default()

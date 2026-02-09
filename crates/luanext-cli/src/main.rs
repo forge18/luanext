@@ -162,12 +162,16 @@ fn main() -> anyhow::Result<()> {
         std::process::exit(1);
     }
 
-    // Parse target Lua version from config
-    let target = match config.compiler_options.target {
+    // Parse target Lua version from config (resolve Auto to detected version)
+    let target = match config.compiler_options.target.effective() {
         luanext_core::config::LuaVersion::Lua51 => luanext_core::codegen::LuaTarget::Lua51,
         luanext_core::config::LuaVersion::Lua52 => luanext_core::codegen::LuaTarget::Lua52,
         luanext_core::config::LuaVersion::Lua53 => luanext_core::codegen::LuaTarget::Lua53,
         luanext_core::config::LuaVersion::Lua54 => luanext_core::codegen::LuaTarget::Lua54,
+        luanext_core::config::LuaVersion::Auto => {
+            // Should never hit this case after effective(), but fallback to 5.4
+            luanext_core::codegen::LuaTarget::Lua54
+        }
     };
 
     info!(
@@ -192,9 +196,9 @@ fn main() -> anyhow::Result<()> {
     resolved_cli.copy_lua_to_output = config.compiler_options.copy_lua_to_output;
 
     if cli.watch {
-        watch_mode(resolved_cli)?;
+        watch_mode(resolved_cli, config)?;
     } else {
-        compile(resolved_cli, target)?;
+        compile(resolved_cli, target, config)?;
     }
 
     Ok(())
@@ -271,30 +275,6 @@ fn parse_lua_target(target: &str) -> anyhow::Result<luanext_core::codegen::LuaTa
             "Invalid Lua target '{}'. Supported targets: 5.1, 5.2, 5.3, 5.4",
             target
         )),
-    }
-}
-
-/// Parse optimization level from CLI flags
-fn parse_optimization_level(
-    optimize: bool,
-    no_optimize: bool,
-) -> anyhow::Result<luanext_core::config::OptimizationLevel> {
-    use luanext_core::config::OptimizationLevel;
-
-    // Check for conflicting flags
-    if optimize && no_optimize {
-        return Err(anyhow::anyhow!(
-            "Cannot use both --optimize and --no-optimize flags"
-        ));
-    }
-
-    // Map flags to optimization levels
-    if no_optimize {
-        Ok(OptimizationLevel::O0) // Raw transpilation, no optimizations
-    } else if optimize {
-        Ok(OptimizationLevel::O3) // Aggressive with whole-program analysis
-    } else {
-        Ok(OptimizationLevel::O1) // Default: basic optimizations
     }
 }
 
@@ -1058,7 +1038,11 @@ fn parse_single_file<'arena>(
 }
 
 /// Compile the input files
-fn compile(cli: Cli, target: luanext_core::codegen::LuaTarget) -> anyhow::Result<()> {
+fn compile(
+    cli: Cli,
+    target: luanext_core::codegen::LuaTarget,
+    config: luanext_core::config::CompilerConfig,
+) -> anyhow::Result<()> {
     use luanext_core::cache::{CacheManager, CachedModule};
     use luanext_core::codegen::CodeGeneratorBuilder;
     use luanext_core::config::{CompilerConfig, CompilerOptions};
@@ -1476,11 +1460,18 @@ fn compile(cli: Cli, target: luanext_core::codegen::LuaTarget) -> anyhow::Result
 
     // --- Phase 1.5: Whole-program analysis (for O3+ optimizations) ---
     // Build cross-module analysis before parallel codegen
-    let optimization_level = parse_optimization_level(cli.optimize, cli.no_optimize)?;
+    // Use config optimization_level, but allow CLI flags to override
+    let optimization_level = if cli.optimize {
+        luanext_core::config::OptimizationLevel::Aggressive
+    } else if cli.no_optimize {
+        luanext_core::config::OptimizationLevel::None
+    } else {
+        config.compiler_options.optimization_level.effective()
+    };
     info!("Optimization level: {:?}", optimization_level);
     let wpa_start = Instant::now();
     let whole_program_analysis =
-        if optimization_level >= luanext_core::config::OptimizationLevel::O3 {
+        if optimization_level >= luanext_core::config::OptimizationLevel::Aggressive {
             info!("Building whole-program analysis for O3 optimizations...");
             let ast_refs: Vec<&luanext_parser::ast::Program> =
                 checked_modules.iter().map(|m| &m.ast).collect();
@@ -1905,7 +1896,7 @@ fn print_diagnostics_from_vec(
 }
 
 /// Watch mode - recompile on file changes
-fn watch_mode(cli: Cli) -> anyhow::Result<()> {
+fn watch_mode(cli: Cli, config: luanext_core::config::CompilerConfig) -> anyhow::Result<()> {
     use notify::{
         event::{EventKind, ModifyKind},
         Event, RecursiveMode, Watcher,
@@ -1919,7 +1910,7 @@ fn watch_mode(cli: Cli) -> anyhow::Result<()> {
 
     // Initial compilation
     println!("\nInitial compilation:");
-    let _ = compile(cli.clone(), target);
+    let _ = compile(cli.clone(), target, config.clone());
 
     // Create a channel to receive file system events
     let (tx, rx) = channel();
@@ -1966,7 +1957,7 @@ fn watch_mode(cli: Cli) -> anyhow::Result<()> {
                         let now = std::time::Instant::now();
                         if now.duration_since(last_compile) >= debounce_duration {
                             println!("\n\nFile changed, recompiling...");
-                            let _ = compile(cli.clone(), target);
+                            let _ = compile(cli.clone(), target, config.clone());
                             last_compile = now;
                         }
                     }

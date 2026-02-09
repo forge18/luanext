@@ -246,7 +246,7 @@ pub trait WholeProgramPass<'arena> {
     fn name(&self) -> &'static str;
 
     fn min_level(&self) -> OptimizationLevel {
-        OptimizationLevel::O1
+        OptimizationLevel::Minimal
     }
 
     fn required_features(&self) -> AstFeatures {
@@ -1087,7 +1087,7 @@ impl<'arena> Optimizer<'arena> {
         let level = self.level;
 
         // O1 passes - Expression transformations
-        if level >= OptimizationLevel::O1 {
+        if level >= OptimizationLevel::Minimal {
             let mut expr_pass = ExpressionCompositePass::new("expression-transforms");
             expr_pass.add_visitor(Box::new(ConstantFoldingPass::new()));
             expr_pass.add_visitor(Box::new(AlgebraicSimplificationPass::new()));
@@ -1095,14 +1095,14 @@ impl<'arena> Optimizer<'arena> {
         }
 
         // O1 passes - Dead code elimination (block-level: truncates after return)
-        if level >= OptimizationLevel::O1 {
+        if level >= OptimizationLevel::Minimal {
             let mut elim_pass = StatementCompositePass::new("elimination-transforms");
             elim_pass.add_block_visitor(Box::new(DeadCodeEliminationPass::new()));
             self.elim_pass = Some(elim_pass);
         }
 
         // O2 passes - Elimination and data structure transforms
-        if level >= OptimizationLevel::O2 {
+        if level >= OptimizationLevel::Moderate {
             // Dead store elimination (block-level: reverse liveness analysis)
             if let Some(ref mut elim_pass) = self.elim_pass {
                 elim_pass.add_block_visitor(Box::new(DeadStoreEliminationPass::new()));
@@ -1131,7 +1131,7 @@ impl<'arena> Optimizer<'arena> {
         }
 
         // O3 passes - Aggressive optimizations
-        if level >= OptimizationLevel::O3 {
+        if level >= OptimizationLevel::Aggressive {
             if let Some(ref mut expr_pass) = self.expr_pass {
                 expr_pass.add_visitor(Box::new(OperatorInliningPass::new(interner.clone())));
             }
@@ -1249,9 +1249,9 @@ impl<'arena> Optimizer<'arena> {
     ) -> Result<(), String> {
         use std::time::Instant;
 
-        let effective_level = self.level.effective();
+        let effective_level = self.level;
 
-        if effective_level == OptimizationLevel::O0 {
+        if effective_level == OptimizationLevel::None {
             return Ok(());
         }
 
@@ -1272,7 +1272,7 @@ impl<'arena> Optimizer<'arena> {
             }
 
             if let Some(ref mut pass) = self.expr_pass {
-                if effective_level >= OptimizationLevel::O1 {
+                if effective_level >= OptimizationLevel::Minimal {
                     let required = pass.required_features();
                     if required.is_empty() || features.contains(required) {
                         let start = Instant::now();
@@ -1288,7 +1288,7 @@ impl<'arena> Optimizer<'arena> {
             }
 
             if let Some(ref mut pass) = self.elim_pass {
-                if effective_level >= OptimizationLevel::O1 {
+                if effective_level >= OptimizationLevel::Minimal {
                     let required = pass.required_features();
                     if required.is_empty() || features.contains(required) {
                         let start = Instant::now();
@@ -1304,7 +1304,7 @@ impl<'arena> Optimizer<'arena> {
             }
 
             if let Some(ref mut pass) = self.func_pass {
-                if effective_level >= OptimizationLevel::O2 {
+                if effective_level >= OptimizationLevel::Moderate {
                     let required = pass.required_features();
                     if required.is_empty() || features.contains(required) {
                         let start = Instant::now();
@@ -1320,7 +1320,7 @@ impl<'arena> Optimizer<'arena> {
             }
 
             if let Some(ref mut pass) = self.data_pass {
-                if effective_level >= OptimizationLevel::O2 {
+                if effective_level >= OptimizationLevel::Moderate {
                     let required = pass.required_features();
                     if required.is_empty() || features.contains(required) {
                         let start = Instant::now();

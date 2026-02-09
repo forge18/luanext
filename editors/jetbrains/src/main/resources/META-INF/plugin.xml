@@ -1,0 +1,103 @@
+<idea-plugin>
+    <id>com.luanext.plugin</id>
+    <name>LuaNext</name>
+    <vendor email="support@luanext.dev" url="https://github.com/yourusername/luanext">LuaNext Team</vendor>
+
+    <description><![CDATA[
+        Language support for LuaNext - a statically typed dialect of Lua with TypeScript-inspired syntax.
+
+        Features:
+        - Syntax highlighting for .luax files
+        - LSP integration with luanext-lsp
+        - Auto-completion and code navigation
+        - Real-time type checking and diagnostics
+        - Code formatting
+        - Quick fixes and refactoring support
+    ]]></description>
+
+    <!-- Product and plugin compatibility requirements -->
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.redhat.devtools.lsp4ij</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- File Type -->
+        <fileType
+                name="LuaNext"
+                implementationClass="com.luanext.plugin.LuaNextFileType"
+                fieldName="INSTANCE"
+                language="LuaNext"
+                extensions="luax"/>
+
+        <!-- Language -->
+        <lang.parserDefinition
+                language="LuaNext"
+                implementationClass="com.luanext.plugin.LuaNextParserDefinition"/>
+
+        <!-- Syntax Highlighter -->
+        <lang.syntaxHighlighterFactory
+                language="LuaNext"
+                implementationClass="com.luanext.plugin.LuaNextSyntaxHighlighterFactory"/>
+
+        <!-- Commenter -->
+        <lang.commenter
+                language="LuaNext"
+                implementationClass="com.luanext.plugin.LuaNextCommenter"/>
+
+        <!-- Bracket Matcher -->
+        <lang.bracketMatcher
+                language="LuaNext"
+                implementationClass="com.luanext.plugin.LuaNextBracketMatcher"/>
+
+        <!-- Code Folding -->
+        <lang.foldingBuilder
+                language="LuaNext"
+                implementationClass="com.luanext.plugin.LuaNextFoldingBuilder"/>
+
+        <!-- File Templates -->
+        <internalFileTemplate name="LuaNext Module"/>
+        <internalFileTemplate name="LuaNext Interface"/>
+        <internalFileTemplate name="LuaNext Type"/>
+
+        <!-- Project Configuration -->
+        <projectConfigurable
+                parentId="language"
+                instance="com.luanext.plugin.settings.LuaNextSettingsConfigurable"
+                id="com.luanext.plugin.settings.LuaNextSettingsConfigurable"
+                displayName="LuaNext"
+                nonDefaultProject="false"/>
+
+        <projectService
+                serviceImplementation="com.luanext.plugin.settings.LuaNextSettings"/>
+
+        <!-- LSP Server Descriptor -->
+        <platform.lsp.serverSupportProvider
+                implementation="com.luanext.plugin.lsp.LuaNextLspServerSupportProvider"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="com.redhat.devtools.lsp4ij">
+        <server
+                id="luanext"
+                name="LuaNext Language Server"
+                factoryClass="com.luanext.plugin.lsp.LuaNextLspServerFactory">
+            <description><![CDATA[
+                LuaNext Language Server provides type checking, auto-completion,
+                and other IDE features for LuaNext files (.luax).
+            ]]></description>
+        </server>
+
+        <languageMapping
+                language="LuaNext"
+                serverId="luanext"/>
+    </extensions>
+
+    <actions>
+        <!-- Add your actions here -->
+        <action
+                id="LuaNext.RestartLSP"
+                class="com.luanext.plugin.actions.RestartLspAction"
+                text="Restart LuaNext Language Server"
+                description="Restart the LuaNext language server">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

@@ -87,7 +87,7 @@ impl<'arena> WholeProgramPass<'arena> for TablePreallocationPass {
     }
 
     fn min_level(&self) -> OptimizationLevel {
-        OptimizationLevel::O1
+        OptimizationLevel::Minimal
     }
 
     fn run(

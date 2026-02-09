@@ -8,12 +8,12 @@ fn compile_with_level(source: &str, level: OptimizationLevel) -> Result<String, 
 
 /// Use O1 for pattern tests (no aggressive DCE)
 fn compile_o1(source: &str) -> Result<String, String> {
-    compile_with_level(source, OptimizationLevel::O1)
+    compile_with_level(source, OptimizationLevel::Minimal)
 }
 
 /// Use O2 for optimization-specific tests
 fn compile_o2(source: &str) -> Result<String, String> {
-    compile_with_level(source, OptimizationLevel::O2)
+    compile_with_level(source, OptimizationLevel::Moderate)
 }
 
 // ============================================================================

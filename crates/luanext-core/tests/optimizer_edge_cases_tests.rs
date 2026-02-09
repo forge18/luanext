@@ -21,7 +21,7 @@ fn test_dead_store_multiple_assignments() {
         return a
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("return a"),
         "Should compile. Got:\n{}",
@@ -38,7 +38,7 @@ fn test_dead_store_with_dependency() {
         return y
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("y"),
         "Should handle dead store with dependency. Got:\n{}",
@@ -58,7 +58,7 @@ fn test_dead_store_in_loop() {
         return sum
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("for i = 1, 10 do"),
         "Should compile loop. Got:\n{}",
@@ -77,7 +77,7 @@ fn test_algebraic_simplification_multiplication() {
         return x
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O1).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Minimal).unwrap();
     assert!(
         output.contains("return 0") || output.contains("local x = 0"),
         "Should simplify 5 * 0 = 0. Got:\n{}",
@@ -93,7 +93,7 @@ fn test_algebraic_simplification_addition() {
         return x + y
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O1).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Minimal).unwrap();
     assert!(
         output.contains("15") || output.contains("local x = 5") && output.contains("local y = 10"),
         "Should simplify x + 0 and 0 + y. Got:\n{}",
@@ -108,7 +108,7 @@ fn test_algebraic_simplification_subtraction() {
         return x
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O1).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Minimal).unwrap();
     assert!(
         output.contains("0"),
         "Should simplify 10 - 10 = 0. Got:\n{}",
@@ -123,7 +123,7 @@ fn test_algebraic_simplification_division() {
         return x
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O1).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Minimal).unwrap();
     assert!(
         output.contains("20"),
         "Should simplify 20 / 1 = 20. Got:\n{}",
@@ -142,7 +142,7 @@ fn test_constant_folding_nested_expressions() {
         return x
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O1).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Minimal).unwrap();
     assert!(
         output.contains("return"),
         "Should compile. Got:\n{}",
@@ -160,7 +160,7 @@ fn test_constant_folding_string_concat() {
         return greeting
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O1).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Minimal).unwrap();
     eprintln!("Output:\n{}", output);
 }
 
@@ -175,7 +175,7 @@ fn test_string_concat_single_string() {
         return result
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("hello"),
         "Single string should not use table.concat. Got:\n{}",
@@ -190,7 +190,7 @@ fn test_string_concat_two_parts() {
         return result
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains(".."),
         "Two parts should use .. operator, not table.concat. Got:\n{}",
@@ -205,7 +205,7 @@ fn test_string_concat_three_parts() {
         return result
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("table.concat"),
         "Three or more parts should use table.concat. Got:\n{}",
@@ -223,7 +223,7 @@ fn test_string_concat_variable_parts() {
         return result
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("table.concat"),
         "Variable parts should use table.concat. Got:\n{}",
@@ -238,7 +238,7 @@ fn test_string_concat_mixed() {
         return result
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("table.concat"),
         "Mixed string concat should use table.concat. Got:\n{}",
@@ -257,7 +257,7 @@ fn test_table_preallocation_empty() {
         return arr
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("{"),
         "Should generate table literal. Got:\n{}",
@@ -272,7 +272,7 @@ fn test_table_preallocation_with_initial_values() {
         return obj
     "#;
 
-    let result = compile_with_opt_level(source, OptimizationLevel::O2);
+    let result = compile_with_opt_level(source, OptimizationLevel::Moderate);
     eprintln!("Table result: {:?}", result);
     assert!(result.is_ok() || result.unwrap_err().contains("error"));
 }
@@ -292,7 +292,7 @@ fn test_tail_call_simple_recursion() {
         return result
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("function factorial"),
         "Should generate factorial function. Got:\n{}",
@@ -315,7 +315,7 @@ fn test_tail_call_mutual_recursion() {
         return result
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("isEven") && output.contains("isOdd"),
         "Should generate both functions. Got:\n{}",
@@ -333,7 +333,7 @@ fn test_tail_call_not_optimized_when_not_tail() {
         return result
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("function bad"),
         "Should generate the function. Got:\n{}",
@@ -356,7 +356,7 @@ fn test_loop_while_true_preserved() {
         return count
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("while true do"),
         "Infinite-looking loop with break should be preserved. Got:\n{}",
@@ -373,7 +373,7 @@ fn test_loop_constant_condition_false() {
         print("done")
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         !output.contains("never"),
         "Dead while loop body should be eliminated. Got:\n{}",
@@ -395,7 +395,7 @@ fn test_loop_repeat_until_true() {
         print("after")
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("repeat"),
         "Should compile repeat-until loop. Got:\n{}",
@@ -412,7 +412,7 @@ fn test_loop_for_zero_iterations() {
         print("done")
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         !output.contains("print(i)"),
         "Zero-iteration for loop body should be eliminated. Got:\n{}",
@@ -437,7 +437,7 @@ fn test_global_to_local_simple() {
         return y
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("local"),
         "Should localize globals. Got:\n{}",
@@ -455,7 +455,7 @@ fn test_global_to_local_multiple_uses() {
         return a + b + c
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     let local_count = output.matches("local ").count();
     assert!(
         local_count >= 3,
@@ -479,7 +479,7 @@ fn test_generic_type_inference() {
         return num
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O3).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Aggressive).unwrap();
     assert!(
         output.contains("function"),
         "Should generate generic function. Got:\n{}",

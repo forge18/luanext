@@ -74,7 +74,7 @@ impl<'arena> WholeProgramPass<'arena> for AggressiveInliningPass {
     }
 
     fn min_level(&self) -> OptimizationLevel {
-        OptimizationLevel::O3
+        OptimizationLevel::Aggressive
     }
 
     fn run(

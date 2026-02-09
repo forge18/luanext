@@ -140,7 +140,7 @@ impl CodeGenerator {
         }
         self.writeln("}");
 
-        let is_o2_or_higher = self.optimization_level.effective() >= OptimizationLevel::O2;
+        let is_o2_or_higher = self.optimization_level >= OptimizationLevel::Moderate;
 
         for (i, member) in enum_decl.members.iter().enumerate() {
             self.writeln("");
@@ -203,7 +203,7 @@ impl CodeGenerator {
         self.write_indent();
         self.writeln(&format!("setmetatable({}, {})", enum_name, mt_name));
 
-        let is_o3 = self.optimization_level.effective() >= OptimizationLevel::O3;
+        let is_o3 = self.optimization_level >= OptimizationLevel::Aggressive;
 
         // O3: Add inline hints for built-in methods
         self.writeln("");

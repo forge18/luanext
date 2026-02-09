@@ -16,8 +16,8 @@ fn test_small_function_inlines_o3() {
         const result = add(1, 2)
     "#;
 
-    let o2_output = compile_with_optimization(source, OptimizationLevel::O2).unwrap();
-    let o3_output = compile_with_optimization(source, OptimizationLevel::O3).unwrap();
+    let o2_output = compile_with_optimization(source, OptimizationLevel::Moderate).unwrap();
+    let o3_output = compile_with_optimization(source, OptimizationLevel::Aggressive).unwrap();
 
     println!("O2 output:\n{}", o2_output);
     println!("O3 output:\n{}", o3_output);
@@ -51,7 +51,7 @@ fn test_medium_function_inlines_o3() {
         const result = mediumFunc(10, 5)
     "#;
 
-    let output = compile_with_optimization(source, OptimizationLevel::O3).unwrap();
+    let output = compile_with_optimization(source, OptimizationLevel::Aggressive).unwrap();
     println!("O3 output:\n{}", output);
 }
 
@@ -68,7 +68,7 @@ fn test_recursive_function_not_inlined() {
         const result = factorial(5)
     "#;
 
-    let output = compile_with_optimization(source, OptimizationLevel::O3).unwrap();
+    let output = compile_with_optimization(source, OptimizationLevel::Aggressive).unwrap();
     println!("Recursive function output:\n{}", output);
     assert!(
         output.contains("function"),
@@ -96,7 +96,7 @@ fn test_large_function_not_inlined() {
         const result = largeFunc(1)
     "#;
 
-    let o3_output = compile_with_optimization(source, OptimizationLevel::O3).unwrap();
+    let o3_output = compile_with_optimization(source, OptimizationLevel::Aggressive).unwrap();
     println!("Large function O3 output:\n{}", o3_output);
     assert!(
         o3_output.contains("largeFunc"),

@@ -435,7 +435,7 @@ impl CodeGenerator {
                 self.generate_expression(expr);
             }
             ExpressionKind::OptionalMember(object, member) => {
-                if self.optimization_level.effective() >= OptimizationLevel::O2
+                if self.optimization_level >= OptimizationLevel::Moderate
                     && self.is_guaranteed_non_nil(object)
                 {
                     self.generate_expression(object);
@@ -462,7 +462,7 @@ impl CodeGenerator {
                 }
             }
             ExpressionKind::OptionalIndex(object, index) => {
-                if self.optimization_level.effective() >= OptimizationLevel::O2
+                if self.optimization_level >= OptimizationLevel::Moderate
                     && self.is_guaranteed_non_nil(object)
                 {
                     self.generate_expression(object);
@@ -487,7 +487,7 @@ impl CodeGenerator {
                 }
             }
             ExpressionKind::OptionalCall(callee, _args, _) => {
-                if self.optimization_level.effective() >= OptimizationLevel::O2
+                if self.optimization_level >= OptimizationLevel::Moderate
                     && self.is_guaranteed_non_nil(callee)
                 {
                     self.generate_expression(callee);
@@ -505,7 +505,7 @@ impl CodeGenerator {
                 }
             }
             ExpressionKind::OptionalMethodCall(object, method, args, _) => {
-                if self.optimization_level.effective() >= OptimizationLevel::O2
+                if self.optimization_level >= OptimizationLevel::Moderate
                     && self.is_guaranteed_non_nil(object)
                 {
                     self.generate_expression(object);
@@ -576,7 +576,7 @@ impl CodeGenerator {
     }
 
     pub fn generate_null_coalesce(&mut self, left: &Expression, right: &Expression) {
-        if self.optimization_level.effective() >= OptimizationLevel::O2
+        if self.optimization_level >= OptimizationLevel::Moderate
             && self.is_guaranteed_non_nil(left)
         {
             self.generate_expression(left);

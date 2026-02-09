@@ -21,7 +21,7 @@ fn test_factorial_tail_recursive() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("function"),
         "Function should be generated. Got:\n{}",
@@ -50,7 +50,7 @@ fn test_tail_call_preserves_syntax() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("return sum"),
         "Tail call should be preserved exactly. Got:\n{}",
@@ -69,7 +69,7 @@ fn test_tail_call_with_multiple_args() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("return gcd"),
         "Tail call with multiple args should be preserved. Got:\n{}",
@@ -92,7 +92,7 @@ fn test_non_tail_recursion_preserved() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("fib"),
         "Non-tail recursive function should be preserved. Got:\n{}",
@@ -114,7 +114,7 @@ fn test_non_tail_call_with_computation() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("*") && output.contains("+"),
         "Computation before call should be preserved. Got:\n{}",
@@ -137,7 +137,7 @@ fn test_tail_call_in_if_branch() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("if"),
         "If statement should be preserved. Got:\n{}",
@@ -162,7 +162,7 @@ fn test_tail_call_in_if_else() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     let return_count = output.matches("return").count();
     assert!(
         return_count >= 2,
@@ -185,7 +185,7 @@ fn test_tail_call_chain_in_else_if() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("elseif") || output.contains("else if"),
         "Elseif should be preserved. Got:\n{}",
@@ -205,7 +205,7 @@ fn test_tail_call_multiple_values() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("return get_values"),
         "Tail call with multiple value returns should be preserved. Got:\n{}",
@@ -235,7 +235,7 @@ fn test_mutual_tail_recursion() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("step_down"),
         "step_down should be in output. Got:\n{}",
@@ -263,7 +263,7 @@ fn test_arrow_function_compiles() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("return sum"),
         "Tail recursive function should be preserved. Got:\n{}",
@@ -283,7 +283,7 @@ fn test_tail_call_multiple_returns() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("return get_pair"),
         "Tail call with multiple value returns should be preserved. Got:\n{}",
@@ -307,10 +307,10 @@ fn test_tail_call_preserved_at_all_levels() {
     "#;
 
     for level in [
-        OptimizationLevel::O0,
-        OptimizationLevel::O1,
-        OptimizationLevel::O2,
-        OptimizationLevel::O3,
+        OptimizationLevel::None,
+        OptimizationLevel::Minimal,
+        OptimizationLevel::Moderate,
+        OptimizationLevel::Aggressive,
     ] {
         let output = compile_with_opt_level(source, level).unwrap();
         assert!(
@@ -336,8 +336,8 @@ fn test_no_regression_in_tail_position() {
         end
     "#;
 
-    let o1_output = compile_with_opt_level(source, OptimizationLevel::O1).unwrap();
-    let o2_output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let o1_output = compile_with_opt_level(source, OptimizationLevel::Minimal).unwrap();
+    let o2_output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
 
     let o1_returns = o1_output.matches("return").count();
     let o2_returns = o2_output.matches("return").count();
@@ -364,7 +364,7 @@ fn test_deep_recursion_function_structure() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("function count_down"),
         "Deep recursion function should compile. Got:\n{}",
@@ -385,7 +385,7 @@ fn test_tree_depth_recursion() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("tree_height"),
         "Tree traversal function should compile. Got:\n{}",
@@ -408,7 +408,7 @@ fn test_continuation_passing_tail_call() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("factorial_cps"),
         "CPS tail call should be preserved. Got:\n{}",
@@ -428,7 +428,7 @@ fn test_tail_call_no_args() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("return get_one()"),
         "Zero-arg tail call should be preserved. Got:\n{}",
@@ -444,7 +444,7 @@ fn test_tail_call_constant_return() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("return 42"),
         "Constant return should be preserved. Got:\n{}",
@@ -459,7 +459,7 @@ fn test_empty_function() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("function empty"),
         "Empty function should compile. Got:\n{}",
@@ -478,7 +478,7 @@ fn test_tail_call_after_condition() {
         end
     "#;
 
-    let output = compile_with_opt_level(source, OptimizationLevel::O2).unwrap();
+    let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         output.contains("return n"),
         "Final return after conditional should be preserved. Got:\n{}",

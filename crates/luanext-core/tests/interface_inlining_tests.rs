@@ -31,7 +31,7 @@ mod interface_inlining_tests {
             user.greet()
         "#;
 
-        let result = compile_with_optimizer(source, OptimizationLevel::O3);
+        let result = compile_with_optimizer(source, OptimizationLevel::Aggressive);
         match &result {
             Ok(output) => {
                 println!("O3 output:\n{}", output);
@@ -69,7 +69,7 @@ mod interface_inlining_tests {
             eng.greet()
         "#;
 
-        let result = compile_with_optimizer(source, OptimizationLevel::O3);
+        let result = compile_with_optimizer(source, OptimizationLevel::Aggressive);
         match &result {
             Ok(output) => {
                 println!("O3 output:\n{}", output);
@@ -99,7 +99,7 @@ mod interface_inlining_tests {
             logger.log()
         "#;
 
-        let result = compile_with_optimizer(source, OptimizationLevel::O3);
+        let result = compile_with_optimizer(source, OptimizationLevel::Aggressive);
         match &result {
             Ok(output) => {
                 println!("O3 output:\n{}", output);
@@ -131,7 +131,7 @@ mod interface_inlining_tests {
             p.process()
         "#;
 
-        let result = compile_with_optimizer(source, OptimizationLevel::O3);
+        let result = compile_with_optimizer(source, OptimizationLevel::Aggressive);
         match &result {
             Ok(output) => {
                 println!("O3 output:\n{}", output);
@@ -156,7 +156,7 @@ mod interface_inlining_tests {
             const user = new User()
         "#;
 
-        let o1_result = compile_with_optimizer(source, OptimizationLevel::O1);
+        let o1_result = compile_with_optimizer(source, OptimizationLevel::Minimal);
         match o1_result {
             Ok(_) => {}
             Err(e) => {
@@ -179,7 +179,7 @@ mod interface_inlining_tests {
             const user = new User()
         "#;
 
-        let o2_result = compile_with_optimizer(source, OptimizationLevel::O2);
+        let o2_result = compile_with_optimizer(source, OptimizationLevel::Moderate);
         match o2_result {
             Ok(_) => {}
             Err(e) => {
@@ -203,7 +203,7 @@ mod interface_inlining_tests {
             converter.convert(42)
         "#;
 
-        let result = compile_with_optimizer(source, OptimizationLevel::O3);
+        let result = compile_with_optimizer(source, OptimizationLevel::Aggressive);
         match &result {
             Ok(output) => {
                 println!("O3 output:\n{}", output);

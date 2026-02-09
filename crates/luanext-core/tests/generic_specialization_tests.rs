@@ -66,7 +66,7 @@ fn test_simple_identity_specialization() {
     let interner = Arc::new(StringInterner::new());
     let handler = Arc::new(CollectingDiagnosticHandler::new());
     let arena = Bump::new();
-    let mut optimizer = Optimizer::new(OptimizationLevel::O3, handler, interner.clone());
+    let mut optimizer = Optimizer::new(OptimizationLevel::Aggressive, handler, interner.clone());
     let span = Span::dummy();
 
     // Intern identifiers

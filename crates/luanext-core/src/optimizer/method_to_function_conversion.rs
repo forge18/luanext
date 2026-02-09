@@ -502,7 +502,7 @@ impl<'arena> WholeProgramPass<'arena> for MethodToFunctionConversionPass {
     }
 
     fn min_level(&self) -> OptimizationLevel {
-        OptimizationLevel::O2
+        OptimizationLevel::Moderate
     }
 
     fn run(

@@ -527,7 +527,7 @@ impl CodeGenerator {
         let needs_xpcall = has_typed_catches || has_finally;
         let prefer_xpcall = matches!(
             self.optimization_level,
-            OptimizationLevel::O2 | OptimizationLevel::O3 | OptimizationLevel::Auto
+            OptimizationLevel::Moderate | OptimizationLevel::Aggressive
         );
 
         if needs_xpcall || prefer_xpcall {
@@ -592,7 +592,7 @@ impl CodeGenerator {
 
         let use_debug_traceback = matches!(
             self.optimization_level,
-            OptimizationLevel::O2 | OptimizationLevel::O3 | OptimizationLevel::Auto
+            OptimizationLevel::Moderate | OptimizationLevel::Aggressive
         ) && !has_typed_catches;
 
         if use_debug_traceback {
