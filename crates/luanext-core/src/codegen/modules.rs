@@ -248,9 +248,15 @@ impl CodeGenerator {
     }
 
     pub fn generate_export_all(&mut self, source: &str) {
-        // export * from './module' generates:
-        // local _mod = require('./module')
-        // for k, v in pairs(_mod) do exports[k] = v end
+        // When tree shaking is enabled and no exports are reachable, skip entirely
+        if self.tree_shaking_enabled {
+            if let Some(reachable) = self.reachable_exports.as_ref() {
+                if reachable.is_empty() {
+                    // No reachable exports from this export *, skip the entire export
+                    return;
+                }
+            }
+        }
 
         let (require_fn, module_path) = match &self.mode {
             CodeGenMode::Bundle { .. } => {
@@ -271,6 +277,43 @@ impl CodeGenerator {
         self.write(&module_path);
         self.writeln("\")");
 
+        // When tree shaking is enabled, selectively copy only reachable exports
+        if self.tree_shaking_enabled {
+            if let Some(reachable) = self.reachable_exports.as_ref() {
+                // We already checked for empty above, so we know reachable is non-empty here
+                // Clone to avoid borrow issues during mutation
+                let reachable_exports: Vec<String> =
+                    reachable.iter().cloned().collect::<Vec<_>>();
+
+                // Generate individual assignments for each reachable export
+                self.write_indent();
+                self.write("local ");
+                for (i, export_name) in reachable_exports.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(export_name);
+                }
+                self.write(" = ");
+                for (i, export_name) in reachable_exports.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write("_mod.");
+                    self.write(export_name);
+                }
+                self.writeln("");
+            } else {
+                // Tree shaking enabled but no reachable_exports set, use for-loop as fallback
+                self.generate_export_all_fallback();
+            }
+        } else {
+            // Tree shaking disabled, copy all exports at runtime
+            self.generate_export_all_fallback();
+        }
+    }
+
+    fn generate_export_all_fallback(&mut self) {
         // Generate: for k, v in pairs(_mod) do exports[k] = v end
         self.write_indent();
         self.writeln("for k, v in pairs(_mod) do");
@@ -282,10 +325,6 @@ impl CodeGenerator {
 
         self.write_indent();
         self.writeln("end");
-
-        // Note: We don't know which specific symbols are being exported at code generation time
-        // (that depends on the source module's exports), so we can't track them individually.
-        // The exports will be properly registered by the for-loop at runtime.
     }
 
     pub fn generate_namespace_declaration(

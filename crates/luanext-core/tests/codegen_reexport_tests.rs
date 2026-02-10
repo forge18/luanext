@@ -405,3 +405,110 @@ fn test_codegen_export_all_with_named_reexports() {
     );
     assert!(lua.contains("_mod."), "Should have named re-export");
 }
+
+#[test]
+fn test_codegen_export_all_tree_shaking_selective_copy() {
+    let source = r#"
+        export * from './module'
+    "#;
+    let arena = bumpalo::Bump::new();
+    let handler = Arc::new(CollectingDiagnosticHandler::new());
+    let (interner, common) = StringInterner::new_with_common_identifiers();
+    let interner = Arc::new(interner);
+
+    let mut lexer = Lexer::new(source, handler.clone(), &interner);
+    let tokens = lexer.tokenize().expect("Lexing failed");
+
+    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common, &arena);
+    let program = parser.parse().expect("Parsing failed");
+
+    let mutable = MutableProgram::from_program(&program);
+    let mut codegen = CodeGenerator::new(interner.clone());
+
+    // Enable tree shaking with specific reachable exports
+    let mut reachable = std::collections::HashSet::new();
+    reachable.insert("foo".to_string());
+    reachable.insert("bar".to_string());
+    codegen = codegen.with_tree_shaking(reachable);
+
+    let lua = codegen.generate(&mutable);
+
+    // With tree shaking, should generate individual assignments instead of for-loop
+    assert!(
+        !lua.contains("for k, v in pairs(_mod)"),
+        "Should not use for-loop with tree shaking enabled"
+    );
+    assert!(
+        lua.contains("local foo, bar = _mod.foo, _mod.bar"),
+        "Should generate individual assignments for reachable exports"
+    );
+}
+
+#[test]
+fn test_codegen_export_all_tree_shaking_empty_reachable() {
+    let source = r#"
+        export * from './module'
+    "#;
+    let arena = bumpalo::Bump::new();
+    let handler = Arc::new(CollectingDiagnosticHandler::new());
+    let (interner, common) = StringInterner::new_with_common_identifiers();
+    let interner = Arc::new(interner);
+
+    let mut lexer = Lexer::new(source, handler.clone(), &interner);
+    let tokens = lexer.tokenize().expect("Lexing failed");
+
+    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common, &arena);
+    let program = parser.parse().expect("Parsing failed");
+
+    let mutable = MutableProgram::from_program(&program);
+    let mut codegen = CodeGenerator::new(interner.clone());
+
+    // Enable tree shaking with no reachable exports
+    let reachable = std::collections::HashSet::new();
+    codegen = codegen.with_tree_shaking(reachable);
+
+    let lua = codegen.generate(&mutable);
+
+    // With empty reachable set, export * should be skipped entirely
+    assert!(
+        !lua.contains("require"),
+        "Should skip export * when no exports are reachable"
+    );
+    assert!(
+        !lua.contains("for k, v in pairs"),
+        "Should not generate for-loop when no exports are reachable"
+    );
+}
+
+#[test]
+fn test_codegen_export_all_no_tree_shaking() {
+    let source = r#"
+        export * from './module'
+    "#;
+    let arena = bumpalo::Bump::new();
+    let handler = Arc::new(CollectingDiagnosticHandler::new());
+    let (interner, common) = StringInterner::new_with_common_identifiers();
+    let interner = Arc::new(interner);
+
+    let mut lexer = Lexer::new(source, handler.clone(), &interner);
+    let tokens = lexer.tokenize().expect("Lexing failed");
+
+    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common, &arena);
+    let program = parser.parse().expect("Parsing failed");
+
+    let mutable = MutableProgram::from_program(&program);
+    let mut codegen = CodeGenerator::new(interner.clone());
+    // Tree shaking NOT enabled
+
+    let lua = codegen.generate(&mutable);
+
+    // Without tree shaking, should use for-loop to copy all exports
+    assert!(
+        lua.contains("for k, v in pairs(_mod)"),
+        "Should use for-loop without tree shaking"
+    );
+    assert!(
+        lua.contains("exports[k] = v"),
+        "Should copy all exports with runtime loop"
+    );
+}
