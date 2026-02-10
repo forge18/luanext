@@ -118,7 +118,7 @@
   - [x] Protection: modifiers (abstract, final), decorators, inheritance prevent forward declaration
   - [x] All 446 typechecker tests pass; zero clippy warnings
 
-#### Phase 4: Re-exports (Days 7-15) 🎯 IN PROGRESS - Phase 4.1-4.2 COMPLETE, 4.3-4.5 PLANNED - 2026-02-09
+#### Phase 4: Re-exports (Days 7-15) 🎯 IN PROGRESS - Phase 4.1-4.4 COMPLETE, 4.5 PLANNED - 2026-02-09
 
 **Phase 4.1-4.2 Summary (2026-02-09) ✅ COMPLETE:**
 
@@ -133,15 +133,36 @@
 
 - `170dc32` feat: Phase 4.1-4.2 - Robust re-export resolution and critical codegen bug fix
 
-**Comprehensive Implementation Plan (4.3-4.5):** Detailed plan created in `/Users/forge18/.claude/plans/immutable-puzzling-octopus.md`
-- Addresses all TODO.md gaps: go-to-definition, hover, completion, export *, caching, tree-shaking
-- Estimated timeline: 4-6 days for complete Phase 4 delivery
+**Phase 4.4 Summary (2026-02-09) ✅ COMPLETE:**
+
+- ✅ Parser: Added `ExportKind::All { source, is_type_only }` variant
+- ✅ Parser: Implemented `export * from './module'` and `export type * from './module'` syntax
+- ✅ Type Checker: Created `handle_export_all()` function to resolve all exports from source module
+- ✅ Type Checker: Proper filtering of type-only exports (export type * only copies type exports)
+- ✅ Codegen: Generates `for k,v in pairs(_mod) do exports[k]=v end` for export *
+- ✅ Codegen: export type * generates no code (type-only exports)
+- ✅ LSP Symbol Index: Extended to track re-exported symbols from export *
+- ✅ 9 comprehensive unit tests (4 typechecker + 5 codegen) - all passing
+- ✅ All 446 lib tests pass; zero regressions; zero new clippy warnings
+
+**Commits:**
+
+- `87d4796` feat: Phase 4.4 Step 1 - Parser support for export * syntax
+- `5706516` feat: Phase 4.4 Step 2-3 - Type checker and test support for export *
+- `74c6cb1` feat: Phase 4.4 Step 4-5 - Codegen and scope analysis for export *
+- `2d35eef` feat: Phase 4.4 Step 6 - LSP symbol index support for export *
+
+**Remaining Work (4.5):**
+
+- Cache re-export resolution to avoid redundant lookups
+- Optimize export * for bundler (inline re-exports)
+- Tree-shaking improvements for export *
 
 - [x] **Transitive Type Resolution**
   - [x] Resolve types through re-export chains via `resolve_re_export()`
   - [x] Handle `export { Foo } from './module'` (named re-exports) ✅
   - [x] Handle `export type { Bar } from './module'` (type-only re-exports) ✅
-  - [ ] Handle `export * from './module'` (export all, both values and types) - Phase 4.4
+  - [x] Handle `export * from './module'` (export all, both values and types) ✅ Phase 4.4
   - [x] Prevent circular re-exports (detect cycles during resolution) ✅
   - [ ] Cache re-export resolution to avoid redundant lookups - Phase 4.5
   - Files: `crates/luanext-typechecker/src/phases/module_phase.rs:227-295` ✅
