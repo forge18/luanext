@@ -80,7 +80,7 @@
   - Files: `crates/luanext-typechecker/src/phases/module_phase.rs`
   - **All 441 tests pass; zero clippy warnings; no regressions**
 
-#### Phase 3: Circular Type Dependencies (Days 5-6) ✅ COMPLETE - 2026-02-09
+#### Phase 3: Circular Type Dependencies & Forward Declarations (Days 5-6) ✅ COMPLETE - 2026-02-09
 
 - [x] **Dependency Graph: Separate type and value edges** ✅
   - [x] Add `EdgeKind` enum (TypeOnly, Value) to DependencyGraph
@@ -110,10 +110,13 @@
   - [x] TypeCheckerState and TypeChecker updated
   - Files: `crates/luanext-typechecker/src/phases/module_phase.rs`, `module_resolver/mod.rs`, `state/type_checker_state.rs`, `core/type_checker.rs` ✅ Modified
 
-- [ ] **Forward Type Declarations** (Future phase)
-  - [ ] Implement forward declarations for mutual type references
-  - [ ] Allow interfaces to reference each other across files
-  - [ ] Handle class mutual references
+- [x] **Forward Type Declarations** ✅ COMPLETE - 2026-02-09
+  - [x] Implement forward declarations for interfaces (empty interface body)
+  - [x] Implement forward declarations for classes (empty class body, no modifiers)
+  - [x] Parser detects: `interface Foo {}` and `class Bar {}`
+  - [x] Type checker registers forward-declared names for mutual references
+  - [x] Protection: modifiers (abstract, final), decorators, inheritance prevent forward declaration
+  - [x] All 446 typechecker tests pass; zero clippy warnings
 
 #### Phase 4: Re-exports (Days 7-8) 🔄 IN PROGRESS
 
