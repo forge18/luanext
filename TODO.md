@@ -118,7 +118,7 @@
   - [x] Protection: modifiers (abstract, final), decorators, inheritance prevent forward declaration
   - [x] All 446 typechecker tests pass; zero clippy warnings
 
-#### Phase 4: Re-exports (Days 7-15) 🎯 IN PROGRESS - Phase 4.1-4.4 COMPLETE, 4.5 PLANNED - 2026-02-09
+#### Phase 4: Re-exports (Days 7-15) ✅ COMPLETE - 2026-02-09
 
 **Phase 4.1-4.2 Summary (2026-02-09) ✅ COMPLETE:**
 
@@ -132,6 +132,16 @@
 **Commits:**
 
 - `170dc32` feat: Phase 4.1-4.2 - Robust re-export resolution and critical codegen bug fix
+
+**Phase 4.3 Summary (2026-02-09) ✅ COMPLETE:**
+
+- ✅ Extended ExportInfo with re-export tracking (4 new fields)
+- ✅ Implemented resolve_reexport_chain() with cycle detection
+- ✅ LSP go-to-definition follows chains to original definition
+- ✅ LSP hover shows re-export provenance
+- ✅ LSP completion shows source module info
+- ✅ Symbol index properly tracks re-exported exports
+- ✅ All tests pass; zero regressions
 
 **Phase 4.4 Summary (2026-02-09) ✅ COMPLETE:**
 
@@ -152,11 +162,17 @@
 - `74c6cb1` feat: Phase 4.4 Step 4-5 - Codegen and scope analysis for export *
 - `2d35eef` feat: Phase 4.4 Step 6 - LSP symbol index support for export *
 
-**Remaining Work (4.5):**
+**Phase 4.5 Summary (2026-02-09) ✅ COMPLETE:**
 
-- Cache re-export resolution to avoid redundant lookups
-- Optimize export * for bundler (inline re-exports)
-- Tree-shaking improvements for export *
+- ✅ **Cache re-export chain resolution** - RefCell-wrapped HashMap in SymbolIndex eliminates redundant traversals
+- ✅ **Tree-shaking for export *** - Selective compilation of only reachable exports (reduces bundle size)
+- ✅ **3 comprehensive tree-shaking tests** - All passing (empty reachable, selective copy, no tree-shaking fallback)
+- ✅ **Bundler inlining deferred** - Requires architectural changes to AST/codegen (separate enhancement)
+- ✅ All 446 lib tests pass; zero regressions; zero new clippy warnings
+
+**Commits:**
+
+- `bdcf045` feat: Phase 4.5 - Performance optimizations for re-exports
 
 - [x] **Transitive Type Resolution**
   - [x] Resolve types through re-export chains via `resolve_re_export()`
@@ -164,7 +180,7 @@
   - [x] Handle `export type { Bar } from './module'` (type-only re-exports) ✅
   - [x] Handle `export * from './module'` (export all, both values and types) ✅ Phase 4.4
   - [x] Prevent circular re-exports (detect cycles during resolution) ✅
-  - [ ] Cache re-export resolution to avoid redundant lookups - Phase 4.5
+  - [x] Cache re-export resolution to avoid redundant lookups ✅ Phase 4.5
   - Files: `crates/luanext-typechecker/src/phases/module_phase.rs:227-295` ✅
 
 - [x] **Type Checker Integration**
@@ -181,12 +197,14 @@
   - [x] Generate proper re-export code in bundle mode ✅
   - [x] Handle re-exports in require mode (passthrough to source module) ✅
   - [x] **CRITICAL FIX**: Add re-exported symbols to self.exports (was missing) ✅
-  - [x] 24 comprehensive unit tests for codegen re-exports (19 original + 5 export * tests) ✅
+  - [x] 27 comprehensive unit tests for codegen re-exports (19 original + 8 total: 5 export * + 3 tree-shaking) ✅
   - [x] Generate `for k,v in pairs(_mod) do exports[k]=v end` for export * ✅
   - [x] export type * generates no code ✅
-  - [ ] Inline re-exports for bundler optimization - Phase 4.5
-  - Files: `crates/luanext-core/src/codegen/modules.rs:171-238` ✅
-  - Test file: `crates/luanext-core/tests/codegen_reexport_tests.rs` ✅ (24 tests)
+  - [x] Tree-shaking: Selective export copying when reachable_exports set ✅ Phase 4.5
+  - [x] Tree-shaking: Skip entire export * when no exports reachable ✅ Phase 4.5
+  - [ ] Inline re-exports for bundler optimization - Future enhancement (architectural change needed)
+  - Files: `crates/luanext-core/src/codegen/modules.rs:250-310` ✅
+  - Test file: `crates/luanext-core/tests/codegen_reexport_tests.rs` ✅ (27 tests)
 
 - [x] **LSP Support** - Phase 4.3 ✅
   - [x] Go-to-definition follows re-export chains to original definition ✅
