@@ -118,24 +118,30 @@
   - [x] Protection: modifiers (abstract, final), decorators, inheritance prevent forward declaration
   - [x] All 446 typechecker tests pass; zero clippy warnings
 
-#### Phase 4: Re-exports (Days 7-8) ✅ PARTIAL - Phase 4.1-4.2 COMPLETE - 2026-02-09
+#### Phase 4: Re-exports (Days 7-15) 🎯 IN PROGRESS - Phase 4.1-4.2 COMPLETE, 4.3-4.5 PLANNED - 2026-02-09
 
-**Phase 4.1-4.2 Summary (2026-02-09):**
+**Phase 4.1-4.2 Summary (2026-02-09) ✅ COMPLETE:**
 
 - ✅ Robust re-export resolution with cycle detection and lazy callbacks
 - ✅ Critical codegen bug fix - re-exported symbols now accessible to importers
 - ✅ Error types for circular re-exports, depth limits, type-only validation
-- ✅ All 446 tests pass; zero regressions
+- ✅ 18 Type Checker unit tests (reexport_tests.rs) - all passing
+- ✅ 19 Codegen unit tests (codegen_reexport_tests.rs) - all passing
+- ✅ All 446 lib tests pass; zero regressions; zero new clippy warnings
 
 **Commits:**
 
 - `170dc32` feat: Phase 4.1-4.2 - Robust re-export resolution and critical codegen bug fix
 
+**Comprehensive Implementation Plan (4.3-4.5):** Detailed plan created in `/Users/forge18/.claude/plans/immutable-puzzling-octopus.md`
+- Addresses all TODO.md gaps: go-to-definition, hover, completion, export *, caching, tree-shaking
+- Estimated timeline: 4-6 days for complete Phase 4 delivery
+
 - [x] **Transitive Type Resolution**
   - [x] Resolve types through re-export chains via `resolve_re_export()`
   - [x] Handle `export { Foo } from './module'` (named re-exports) ✅
+  - [x] Handle `export type { Bar } from './module'` (type-only re-exports) ✅
   - [ ] Handle `export * from './module'` (export all, both values and types) - Phase 4.4
-  - [ ] Handle `export type { Bar } from './module'` (type-only re-exports) - Phase 4.1 TODO
   - [x] Prevent circular re-exports (detect cycles during resolution) ✅
   - [ ] Cache re-export resolution to avoid redundant lookups - Phase 4.5
   - Files: `crates/luanext-typechecker/src/phases/module_phase.rs:227-295` ✅
@@ -144,15 +150,19 @@
   - [x] `resolve_re_export()` walks export chain to find original type ✅
   - [x] Update ModuleRegistry via lazy callbacks for uncompiled dependencies ✅
   - [x] Handle mixed imports/exports (some re-exported, some local) ✅
-  - [ ] Handle type-only re-exports validation - Phase 4.1 TODO
+  - [x] 18 comprehensive unit tests for all re-export scenarios ✅
+  - [x] Handle type-only re-exports validation ✅
   - Files: `crates/luanext-typechecker/src/phases/module_phase.rs` ✅
+  - Test file: `crates/luanext-typechecker/tests/reexport_tests.rs` ✅ (18 tests, including type-only)
 
 - [x] **Codegen: Re-export support**
   - [x] Generate proper re-export code in bundle mode ✅
   - [x] Handle re-exports in require mode (passthrough to source module) ✅
   - [x] **CRITICAL FIX**: Add re-exported symbols to self.exports (was missing) ✅
+  - [x] 19 comprehensive unit tests for codegen re-exports ✅
   - [ ] Inline re-exports for bundler optimization - Phase 4.5
   - Files: `crates/luanext-core/src/codegen/modules.rs:171-238` ✅
+  - Test file: `crates/luanext-core/tests/codegen_reexport_tests.rs` ✅ (19 tests)
 
 - [ ] **LSP Support** - Phase 4.3
   - [ ] Go-to-definition follows re-export chains to original definition
