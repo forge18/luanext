@@ -194,11 +194,14 @@ impl CodeGenerator {
 
         self.write_indent();
         self.write("local ");
+        let mut extracted_symbols = Vec::new();
         for (i, spec) in specifiers.iter().enumerate() {
             if i > 0 {
                 self.write(", ");
             }
-            self.write(&self.resolve(spec.local.node));
+            let local_name = self.resolve(spec.local.node);
+            self.write(&local_name);
+            extracted_symbols.push(local_name);
         }
         self.write(" = ");
         for (i, spec) in specifiers.iter().enumerate() {
@@ -215,6 +218,23 @@ impl CodeGenerator {
             self.write(&self.resolve(export_name));
         }
         self.writeln("");
+
+        // CRITICAL FIX: Track re-exported symbols so they appear in the module exports table
+        for spec in specifiers.iter() {
+            // Determine the exported name (may be aliased with 'as')
+            let export_name = if let Some(exported) = &spec.exported {
+                self.resolve(exported.node)
+            } else {
+                self.resolve(spec.local.node)
+            };
+
+            // Apply tree shaking if enabled
+            if self.tree_shaking_enabled && !self.is_export_reachable(&export_name) {
+                continue;
+            }
+
+            self.exports.push(export_name);
+        }
     }
 
     pub fn generate_namespace_declaration(
