@@ -6,17 +6,27 @@
 
 **Rationale:** Core requirement for TypeScript-inspired type system. TypeScript does full cross-file type resolution, and it's fundamental to the value proposition.
 
-**Estimated Effort:** 7-10 days
+**Estimated Effort:** 7-10 days (Phases 1-3 completed in 2 days - 2026-02-08 to 2026-02-09)
 
-**Progress:** Phase 1 (Steps 1-6) ✅ COMPLETE - 2026-02-09
+**Progress:** Phases 1, 2, 3 ✅ COMPLETE - 2026-02-09
 
-- ModuleRegistry depth tracking implemented
-- 4 new error types added: TypeCheckInProgress, ExportTypeMismatch, RuntimeImportOfTypeOnly
-- LazyTypeCheckCallback trait defined (Send + Sync)
-- Lazy resolution logic in resolve_import_type() with circuit breaker (MAX_LAZY_DEPTH=10)
-- Type validation: runtime imports can't reference type-only exports
-- Generic type argument handling foundation (placeholder for future full implementation)
-- All 441 typechecker tests pass (6 new generic type tests); no regressions
+**Phase 3 Summary (2026-02-09):**
+
+- ✅ Dependency graph with EdgeKind enum (TypeOnly vs Value)
+- ✅ Type-only cycles allowed, value cycles rejected with enhanced errors
+- ✅ Lazy type resolution with circuit breaker prevents infinite recursion
+- ✅ Type validation: runtime imports can't reference type-only exports
+- ✅ Full CLI integration: ImportScanner detects `type` keyword
+- ✅ LSP support: completion shows "(type-only import)", hover shows note
+- ✅ Symbol index tracking: is_type_only field on ExportInfo/ImportInfo
+- ✅ 10+ comprehensive tests covering all circular dependency scenarios
+- ✅ All 446 typechecker tests pass; zero clippy warnings
+
+**Commits:**
+
+- `625f1cc` feat: Complete Phase 3 - Circular Type Dependencies (typechecker)
+- `988ba91` feat: Phase 3 LSP Support - Type-Only Imports Visibility (lsp)
+- `1f266d6` chore: Update subproject commits and main.rs (main repo)
 
 #### Phase 1: Full Type Resolution Across Files (Days 1-3) ✅
 
@@ -105,20 +115,38 @@
   - [ ] Allow interfaces to reference each other across files
   - [ ] Handle class mutual references
 
-#### Phase 4: Re-exports (Days 7-8)
+#### Phase 4: Re-exports (Days 7-8) 🔄 IN PROGRESS
+
+**Estimated Start:** 2026-02-10
 
 - [ ] **Transitive Type Resolution**
-  - [ ] Resolve types through re-export chains
-  - [ ] Handle `export { Foo } from './module'`
-  - [ ] Handle `export * from './module'` (export all)
-  - [ ] Handle `export type { Bar } from './module'`
+  - [ ] Resolve types through re-export chains (walk export declaration → resolve source module)
+  - [ ] Handle `export { Foo } from './module'` (named re-exports)
+  - [ ] Handle `export * from './module'` (export all, both values and types)
+  - [ ] Handle `export type { Bar } from './module'` (type-only re-exports)
+  - [ ] Prevent circular re-exports (detect cycles during resolution)
+  - [ ] Cache re-export resolution to avoid redundant lookups
   - Files: `crates/luanext-typechecker/src/phases/module_phase.rs:212-234`
+
+- [ ] **Type Checker Integration**
+  - [ ] `check_export_statement()` determines re-export source and edge kind
+  - [ ] `resolve_re_export()` walks export chain to find original type
+  - [ ] Update ModuleRegistry to track re-exports as transitive dependencies
+  - [ ] Handle mixed imports/exports (some re-exported, some local)
+  - Files: `crates/luanext-typechecker/src/phases/module_phase.rs`
 
 - [ ] **Codegen: Re-export support**
   - [ ] Generate proper re-export code in bundle mode
-  - [ ] Handle re-exports in require mode
+  - [ ] Handle re-exports in require mode (passthrough to source module)
   - [ ] Ensure re-exported types don't duplicate code
+  - [ ] Inline re-exports for bundler optimization
   - Files: `crates/luanext-core/src/codegen/modules.rs:171-218`
+
+- [ ] **LSP Support**
+  - [ ] Go-to-definition follows re-export chains to original definition
+  - [ ] Hover shows original module name with re-export note
+  - [ ] Completion includes re-exported symbols with source info
+  - [ ] Find references finds uses of re-exported symbols
 
 #### Phase 5: Integration & Testing (Days 9-10)
 
@@ -126,25 +154,28 @@
   - [ ] Multi-file project with complex type dependencies
   - [ ] Circular type reference tests (should pass)
   - [ ] Circular value reference tests (should error)
-  - [ ] Re-export chain tests
+  - [ ] Re-export chain tests (single level, multi-level, circular)
   - [ ] Type-only import/export tests
+  - [ ] Mixed scenarios (import, re-export, import again)
 
 - [ ] **LSP Testing**
   - [ ] Go-to-definition across files with type resolution
   - [ ] Hover shows correct types for cross-file imports
-  - [ ] Completion works for cross-file types
-  - [ ] Find references across files
-  - [ ] Rename refactoring across files
+  - [ ] Completion works for cross-file types (including re-exported)
+  - [ ] Find references across files through re-exports
+  - [ ] Rename refactoring across files and re-exports
 
 - [ ] **Performance Testing**
-  - [ ] Large projects (100+ files) compile in reasonable time
-  - [ ] LSP remains responsive with many cross-file references
+  - [ ] Large projects (100+ files) compile in reasonable time (<5 seconds for clean build)
+  - [ ] LSP remains responsive with many cross-file references (<100ms for hover/completion)
   - [ ] Incremental compilation works with cross-file changes
+  - [ ] Deep re-export chains don't cause performance degradation
 
 - [ ] **Documentation**
   - [ ] Document cross-file type resolution in ARCHITECTURE.md
-  - [ ] Add examples of type-only imports
+  - [ ] Add examples of type-only imports and re-exports
   - [ ] Document circular dependency handling
+  - [ ] Explain re-export resolution strategy
   - [ ] Add migration guide for existing code
 
 ---
