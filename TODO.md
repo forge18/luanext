@@ -118,34 +118,43 @@
   - [x] Protection: modifiers (abstract, final), decorators, inheritance prevent forward declaration
   - [x] All 446 typechecker tests pass; zero clippy warnings
 
-#### Phase 4: Re-exports (Days 7-8) 🔄 IN PROGRESS
+#### Phase 4: Re-exports (Days 7-8) ✅ PARTIAL - Phase 4.1-4.2 COMPLETE - 2026-02-09
 
-**Estimated Start:** 2026-02-10
+**Phase 4.1-4.2 Summary (2026-02-09):**
 
-- [ ] **Transitive Type Resolution**
-  - [ ] Resolve types through re-export chains (walk export declaration → resolve source module)
-  - [ ] Handle `export { Foo } from './module'` (named re-exports)
-  - [ ] Handle `export * from './module'` (export all, both values and types)
-  - [ ] Handle `export type { Bar } from './module'` (type-only re-exports)
-  - [ ] Prevent circular re-exports (detect cycles during resolution)
-  - [ ] Cache re-export resolution to avoid redundant lookups
-  - Files: `crates/luanext-typechecker/src/phases/module_phase.rs:212-234`
+- ✅ Robust re-export resolution with cycle detection and lazy callbacks
+- ✅ Critical codegen bug fix - re-exported symbols now accessible to importers
+- ✅ Error types for circular re-exports, depth limits, type-only validation
+- ✅ All 446 tests pass; zero regressions
 
-- [ ] **Type Checker Integration**
-  - [ ] `check_export_statement()` determines re-export source and edge kind
-  - [ ] `resolve_re_export()` walks export chain to find original type
-  - [ ] Update ModuleRegistry to track re-exports as transitive dependencies
-  - [ ] Handle mixed imports/exports (some re-exported, some local)
-  - Files: `crates/luanext-typechecker/src/phases/module_phase.rs`
+**Commits:**
 
-- [ ] **Codegen: Re-export support**
-  - [ ] Generate proper re-export code in bundle mode
-  - [ ] Handle re-exports in require mode (passthrough to source module)
-  - [ ] Ensure re-exported types don't duplicate code
-  - [ ] Inline re-exports for bundler optimization
-  - Files: `crates/luanext-core/src/codegen/modules.rs:171-218`
+- `170dc32` feat: Phase 4.1-4.2 - Robust re-export resolution and critical codegen bug fix
 
-- [ ] **LSP Support**
+- [x] **Transitive Type Resolution**
+  - [x] Resolve types through re-export chains via `resolve_re_export()`
+  - [x] Handle `export { Foo } from './module'` (named re-exports) ✅
+  - [ ] Handle `export * from './module'` (export all, both values and types) - Phase 4.4
+  - [ ] Handle `export type { Bar } from './module'` (type-only re-exports) - Phase 4.1 TODO
+  - [x] Prevent circular re-exports (detect cycles during resolution) ✅
+  - [ ] Cache re-export resolution to avoid redundant lookups - Phase 4.5
+  - Files: `crates/luanext-typechecker/src/phases/module_phase.rs:227-295` ✅
+
+- [x] **Type Checker Integration**
+  - [x] `resolve_re_export()` walks export chain to find original type ✅
+  - [x] Update ModuleRegistry via lazy callbacks for uncompiled dependencies ✅
+  - [x] Handle mixed imports/exports (some re-exported, some local) ✅
+  - [ ] Handle type-only re-exports validation - Phase 4.1 TODO
+  - Files: `crates/luanext-typechecker/src/phases/module_phase.rs` ✅
+
+- [x] **Codegen: Re-export support**
+  - [x] Generate proper re-export code in bundle mode ✅
+  - [x] Handle re-exports in require mode (passthrough to source module) ✅
+  - [x] **CRITICAL FIX**: Add re-exported symbols to self.exports (was missing) ✅
+  - [ ] Inline re-exports for bundler optimization - Phase 4.5
+  - Files: `crates/luanext-core/src/codegen/modules.rs:171-238` ✅
+
+- [ ] **LSP Support** - Phase 4.3
   - [ ] Go-to-definition follows re-export chains to original definition
   - [ ] Hover shows original module name with re-export note
   - [ ] Completion includes re-exported symbols with source info
