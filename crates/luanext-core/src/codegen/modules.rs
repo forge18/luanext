@@ -165,6 +165,16 @@ impl CodeGenerator {
                 self.writeln("");
                 self.has_default_export = true;
             }
+            luanext_parser::ast::statement::ExportKind::All { source, is_type_only } => {
+                // export * from './module' - copy all exports from source
+                // export type * from './module' - copy all type exports from source
+                if *is_type_only {
+                    // export type * generates no code
+                    return;
+                }
+
+                self.generate_export_all(source);
+            }
         }
     }
 
@@ -235,6 +245,47 @@ impl CodeGenerator {
 
             self.exports.push(export_name);
         }
+    }
+
+    pub fn generate_export_all(&mut self, source: &str) {
+        // export * from './module' generates:
+        // local _mod = require('./module')
+        // for k, v in pairs(_mod) do exports[k] = v end
+
+        let (require_fn, module_path) = match &self.mode {
+            CodeGenMode::Bundle { .. } => {
+                let resolved_id = self
+                    .import_map
+                    .get(source)
+                    .cloned()
+                    .unwrap_or_else(|| source.to_string());
+                ("__require", resolved_id)
+            }
+            CodeGenMode::Require => ("require", source.to_string()),
+        };
+
+        self.write_indent();
+        self.write("local _mod = ");
+        self.write(require_fn);
+        self.write("(\"");
+        self.write(&module_path);
+        self.writeln("\")");
+
+        // Generate: for k, v in pairs(_mod) do exports[k] = v end
+        self.write_indent();
+        self.writeln("for k, v in pairs(_mod) do");
+
+        self.indent();
+        self.write_indent();
+        self.writeln("exports[k] = v");
+        self.dedent();
+
+        self.write_indent();
+        self.writeln("end");
+
+        // Note: We don't know which specific symbols are being exported at code generation time
+        // (that depends on the source module's exports), so we can't track them individually.
+        // The exports will be properly registered by the for-loop at runtime.
     }
 
     pub fn generate_namespace_declaration(

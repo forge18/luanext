@@ -321,3 +321,87 @@ fn test_reexport_chain_loads_module_once() {
         "Should extract symbols from loaded module"
     );
 }
+
+#[test]
+fn test_codegen_export_all() {
+    let source = r#"
+        export * from './module'
+    "#;
+    let lua = generate_lua(source);
+
+    // Verify that we generate the for-loop pattern
+    assert!(
+        lua.contains("for k, v in pairs(_mod)"),
+        "Should generate for-loop to copy all exports"
+    );
+    assert!(
+        lua.contains("exports[k] = v"),
+        "Should assign exports in for-loop"
+    );
+
+    // Verify module is loaded
+    assert!(lua.contains("_mod = require"), "Should load module");
+}
+
+#[test]
+fn test_codegen_export_all_type_only() {
+    let source = r#"
+        export type * from './module'
+    "#;
+    let lua = generate_lua(source);
+
+    // Verify no code is generated for export type *
+    assert!(
+        !lua.contains("_mod") && !lua.contains("for k, v"),
+        "export type * should not generate any code"
+    );
+}
+
+#[test]
+fn test_codegen_export_all_with_declarations() {
+    let source = r#"
+        export * from './module'
+        export interface Local {
+            x: number
+        }
+    "#;
+    let lua = generate_lua(source);
+
+    // Verify both export * and local declarations are present
+    assert!(lua.contains("for k, v in pairs(_mod)"), "Should have export * loop");
+}
+
+#[test]
+fn test_codegen_multiple_export_all() {
+    let source = r#"
+        export * from './module_a'
+        export * from './module_b'
+    "#;
+    let lua = generate_lua(source);
+
+    // Verify both modules are loaded and copied
+    let for_loop_count = lua.matches("for k, v in pairs(_mod)").count();
+    assert!(for_loop_count >= 2, "Should have for-loops for each export *");
+
+    // Both modules should be loaded
+    assert!(
+        lua.matches("_mod =").count() >= 2,
+        "Both modules should be loaded"
+    );
+}
+
+#[test]
+fn test_codegen_export_all_with_named_reexports() {
+    let source = r#"
+        export * from './module_a'
+        export { foo } from './module_b'
+    "#;
+    let lua = generate_lua(source);
+
+    // Verify both export * and named re-exports are present
+    assert!(
+        lua.contains("for k, v in pairs(_mod)"),
+        "Should have export * loop"
+    );
+    assert!(lua.contains("_mod."), "Should have named re-export");
+}

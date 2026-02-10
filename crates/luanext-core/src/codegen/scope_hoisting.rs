@@ -126,6 +126,10 @@ impl<'a> EscapeAnalysis<'a> {
                     ExportKind::Default(_) => {
                         self.exported_names.insert("default".to_string());
                     }
+                    ExportKind::All { .. } => {
+                        // export * from './module' - we don't know the specific names at parse time
+                        // The runtime for-loop will handle adding to exports
+                    }
                 }
             }
         }

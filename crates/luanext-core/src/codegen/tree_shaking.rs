@@ -138,6 +138,10 @@ impl<'a> ReachabilityAnalysis<'a> {
                         let default_id = self.interner.get_or_intern("default");
                         exports.insert((default_id, "default".to_string()));
                     }
+                    ExportKind::All { .. } => {
+                        // export * from './module' - we don't know the specific names at parse time
+                        // So we can't track them for tree-shaking purposes
+                    }
                 },
                 Statement::Function(decl) => {
                     let id = decl.name.node;
