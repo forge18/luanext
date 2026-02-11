@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Fallback to default mdbook template -->
+        
+        <meta name="robots" content="noindex,follow">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta charset="utf-8">
+        <title>Type System - LuaNext Documentation</title>
+        <script>
+            var theme = localStorage.getItem("mdbook-theme");
+            if (theme === null || theme === undefined) { theme = "light"; }
+            var html = document.querySelector("html");
+            html.classList.remove("light");
+            html.classList.add(theme);
+        </script>
+        <meta name="description" content="A typed superset of Lua with gradual typing, inspired by TypeScript">
+        <link rel="icon" href="favicon.svg">
+        <link rel="apple-touch-icon" href="apple-touch-icon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/custom.css">
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+
+    </head>
+    <body>
+        <!-- Provide the book title to JavaScript -->
+        <script>
+            window.book = window.book || {};
+            window.book.language = "en";
+        </script>
+
+        <div id="book" class="book">
+            <div class="book-inner">
+
+            <nav role="navigation" aria-label="Table of contents" class="sidebar">
+                <ol class="chapter"><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="introduction.html">Introduction</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Language</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/basics.html"><strong aria-hidden="true">1.</strong> Basics</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/control-flow.html"><strong aria-hidden="true">2.</strong> Control Flow</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/functions.html"><strong aria-hidden="true">3.</strong> Functions</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/type-system.html"><strong aria-hidden="true">4.</strong> Type System</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/classes.html"><strong aria-hidden="true">5.</strong> Classes</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/interfaces.html"><strong aria-hidden="true">6.</strong> Interfaces</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/enums.html"><strong aria-hidden="true">7.</strong> Enums</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/modules.html"><strong aria-hidden="true">8.</strong> Modules</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/error-handling.html"><strong aria-hidden="true">9.</strong> Error Handling</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/pattern-matching.html"><strong aria-hidden="true">10.</strong> Pattern Matching</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/decorators.html"><strong aria-hidden="true">11.</strong> Decorators</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/advanced-types.html"><strong aria-hidden="true">12.</strong> Advanced Types</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/operators.html"><strong aria-hidden="true">13.</strong> Operators</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Guides</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="guides/migrating-from-lua.html"><strong aria-hidden="true">14.</strong> Migrating from Lua</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="guides/lua-targets.html"><strong aria-hidden="true">15.</strong> Lua Targets</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Reference</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/cli.html"><strong aria-hidden="true">16.</strong> CLI</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/configuration.html"><strong aria-hidden="true">17.</strong> Configuration</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/standard-library.html"><strong aria-hidden="true">18.</strong> Standard Library</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/utility-types.html"><strong aria-hidden="true">19.</strong> Utility Types</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/reflection.html"><strong aria-hidden="true">20.</strong> Reflection API</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/error-codes.html"><strong aria-hidden="true">21.</strong> Error Codes</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/grammar.html"><strong aria-hidden="true">22.</strong> Grammar</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/keywords.html"><strong aria-hidden="true">23.</strong> Keywords</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Contributing</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="contributing/setup.html"><strong aria-hidden="true">24.</strong> Getting Started</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">API Reference</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="api/index.html"><strong aria-hidden="true">25.</strong> Rust API Docs</a></span></li></ol>
+            </nav>
+
+            <div id="page-wrapper" class="page-wrapper">
+
+                <div class="page-inner">
+
+                <section class="normal" id="main">
+                    <h1 id="type-system"><a class="header" href="#type-system">Type System</a></h1>
+<p>LuaNext provides a rich type system inspired by TypeScript, with unions, intersections, generics, and advanced type features.</p>
+<h2 id="type-aliases"><a class="header" href="#type-aliases">Type Aliases</a></h2>
+<p>Create named types with <code>type</code>:</p>
+<pre><code class="language-lua">type UserId = number
+type Status = "active" | "inactive" | "pending"
+type Point = {x: number, y: number}  -- Error: use interface for table shapes
+
+const id: UserId = 123
+const status: Status = "active"
+</code></pre>
+<p><strong>Important:</strong> Type aliases cannot define table shapes. Use <code>interface</code> instead.</p>
+<h2 id="union-types"><a class="header" href="#union-types">Union Types</a></h2>
+<p>A value can be one of several types:</p>
+<pre><code class="language-lua">type Result = number | string | nil
+
+const value: Result = 42        -- OK
+const text: Result = "hello"    -- OK
+const none: Result = nil        -- OK
+</code></pre>
+<h3 id="type-narrowing"><a class="header" href="#type-narrowing">Type Narrowing</a></h3>
+<p>Use conditionals to narrow union types:</p>
+<pre><code class="language-lua">function process(value: string | number): void
+    if type(value) == "string" then
+        -- value is string here
+        print(value:upper())
+    else
+        -- value is number here
+        print(value * 2)
+    end
+end
+</code></pre>
+<p>Common type guards:</p>
+<ul>
+<li><code>type(x) == "string"</code> — Narrows to string</li>
+<li><code>type(x) == "number"</code> — Narrows to number</li>
+<li><code>type(x) == "table"</code> — Narrows to table</li>
+<li><code>x ~= nil</code> — Removes nil from union</li>
+</ul>
+<h3 id="discriminated-unions"><a class="header" href="#discriminated-unions">Discriminated Unions</a></h3>
+<p>Use a common field to discriminate:</p>
+<pre><code class="language-lua">type Shape =
+    | {kind: "circle", radius: number}
+    | {kind: "rectangle", width: number, height: number}
+
+function area(shape: Shape): number
+    if shape.kind == "circle" then
+        return math.pi * shape.radius * shape.radius
+    else
+        return shape.width * shape.height
+    end
+end
+</code></pre>
+<h2 id="intersection-types"><a class="header" href="#intersection-types">Intersection Types</a></h2>
+<p>Combine multiple types:</p>
+<pre><code class="language-lua">interface Named {
+    name: string
+}
+
+interface Aged {
+    age: number
+}
+
+type Person = Named &amp; Aged
+
+const person: Person = {
+    name = "Alice",
+    age = 30
+}
+</code></pre>
+<p><strong>Note:</strong> Intersections work for combining interfaces. Type aliases cannot use <code>&amp;</code> directly.</p>
+<h2 id="literal-types"><a class="header" href="#literal-types">Literal Types</a></h2>
+<p>Values as types:</p>
+<pre><code class="language-lua">type Direction = "north" | "south" | "east" | "west"
+type DiceRoll = 1 | 2 | 3 | 4 | 5 | 6
+type Enabled = true
+
+const dir: Direction = "north"  -- OK
+const roll: DiceRoll = 3        -- OK
+const flag: Enabled = true      -- OK
+</code></pre>
+<h2 id="nullable-types"><a class="header" href="#nullable-types">Nullable Types</a></h2>
+<p>Explicitly allow nil:</p>
+<pre><code class="language-lua">type MaybeString = string | nil
+
+const value: MaybeString = "hello"
+const none: MaybeString = nil
+</code></pre>
+<p>Shorthand (if available):</p>
+<pre><code class="language-lua">type MaybeString = string?
+</code></pre>
+<h2 id="generics"><a class="header" href="#generics">Generics</a></h2>
+<p>Type-safe parameterized types:</p>
+<pre><code class="language-lua">type Box&lt;T&gt; = {
+    value: T,
+    get: () -&gt; T,
+    set: (value: T) -&gt; void
+}
+
+const numberBox: Box&lt;number&gt; = {
+    value = 42,
+    get = function() return 42 end,
+    set = function(v) end
+}
+</code></pre>
+<h3 id="generic-constraints"><a class="header" href="#generic-constraints">Generic Constraints</a></h3>
+<p>Restrict type parameters:</p>
+<pre><code class="language-lua">interface HasLength {
+    length: number
+}
+
+type LengthGetter&lt;T extends HasLength&gt; = (value: T) -&gt; number
+
+const getLength: LengthGetter&lt;string&gt; = (s) =&gt; s.length
+</code></pre>
+<h3 id="multiple-type-parameters"><a class="header" href="#multiple-type-parameters">Multiple Type Parameters</a></h3>
+<pre><code class="language-lua">type Pair&lt;K, V&gt; = {
+    key: K,
+    value: V
+}
+
+const entry: Pair&lt;string, number&gt; = {
+    key = "count",
+    value = 10
+}
+</code></pre>
+<h3 id="generic-defaults"><a class="header" href="#generic-defaults">Generic Defaults</a></h3>
+<pre><code class="language-lua">type Result&lt;T = string, E = Error&gt; =
+    | {ok: true, value: T}
+    | {ok: false, error: E}
+
+const success: Result = {ok = true, value = "done"}  -- Uses defaults
+const failure: Result&lt;number&gt; = {ok = false, error = {message = "failed"}}
+</code></pre>
+<h2 id="type-inference"><a class="header" href="#type-inference">Type Inference</a></h2>
+<p>LuaNext infers types in many contexts:</p>
+<pre><code class="language-lua">-- Variable initialization
+const x = 42               -- number
+const name = "Alice"       -- string
+const items = {1, 2, 3}    -- number[]
+
+-- Function returns
+function double(x: number)
+    return x * 2  -- Return type inferred as number
+end
+
+-- Generic instantiation
+function identity&lt;T&gt;(x: T): T
+    return x
+end
+
+const num = identity(42)  -- T inferred as number
+</code></pre>
+<h2 id="type-assertions"><a class="header" href="#type-assertions">Type Assertions</a></h2>
+<p>Override type inference with <code>as</code>:</p>
+<pre><code class="language-lua">const data: unknown = getData()
+const user = data as {name: string, age: number}
+
+print(user.name)  -- OK (assumes data is the right shape)
+</code></pre>
+<p><strong>Warning:</strong> Type assertions bypass type checking. Use with caution.</p>
+<h2 id="type-queries"><a class="header" href="#type-queries">Type Queries</a></h2>
+<p>Get the type of a value with <code>typeof</code>:</p>
+<pre><code class="language-lua">const config = {
+    host = "localhost",
+    port = 8080
+}
+
+type Config = typeof config  -- {host: string, port: number}
+</code></pre>
+<h2 id="index-access-types"><a class="header" href="#index-access-types">Index Access Types</a></h2>
+<p>Extract property types:</p>
+<pre><code class="language-lua">interface User {
+    id: number,
+    name: string,
+    email: string
+}
+
+type UserId = User["id"]        -- number
+type UserField = User["name" | "email"]  -- string
+</code></pre>
+<h2 id="keyof-types"><a class="header" href="#keyof-types">Keyof Types</a></h2>
+<p>Get all keys as a union:</p>
+<pre><code class="language-lua">interface User {
+    id: number,
+    name: string,
+    email: string
+}
+
+type UserKey = keyof User  -- "id" | "name" | "email"
+</code></pre>
+<h2 id="conditional-types"><a class="header" href="#conditional-types">Conditional Types</a></h2>
+<p>Types that depend on conditions:</p>
+<pre><code class="language-lua">type IsString&lt;T&gt; = T extends string ? true : false
+
+type A = IsString&lt;string&gt;  -- true
+type B = IsString&lt;number&gt;  -- false
+</code></pre>
+<p>More practical example:</p>
+<pre><code class="language-lua">type Awaited&lt;T&gt; = T extends Promise&lt;infer U&gt; ? U : T
+
+type Value = Awaited&lt;Promise&lt;number&gt;&gt;  -- number
+</code></pre>
+<h2 id="mapped-types"><a class="header" href="#mapped-types">Mapped Types</a></h2>
+<p>Transform object types:</p>
+<pre><code class="language-lua">type Readonly&lt;T&gt; = {
+    readonly [K in keyof T]: T[K]
+}
+
+interface User {
+    name: string,
+    age: number
+}
+
+type ReadonlyUser = Readonly&lt;User&gt;
+-- {readonly name: string, readonly age: number}
+</code></pre>
+<p>Add or remove modifiers:</p>
+<pre><code class="language-lua">type Mutable&lt;T&gt; = {
+    -readonly [K in keyof T]: T[K]
+}
+
+type Optional&lt;T&gt; = {
+    [K in keyof T]?: T[K]
+}
+
+type Required&lt;T&gt; = {
+    [K in keyof T]-?: T[K]
+}
+</code></pre>
+<h2 id="template-literal-types"><a class="header" href="#template-literal-types">Template Literal Types</a></h2>
+<p>String types with interpolation:</p>
+<pre><code class="language-lua">type EventName = "click" | "focus" | "blur"
+type Handler = `on${Capitalize&lt;EventName&gt;}`  -- "onClick" | "onFocus" | "onBlur"
+</code></pre>
+<h2 id="type-predicates"><a class="header" href="#type-predicates">Type Predicates</a></h2>
+<p>Functions that narrow types:</p>
+<pre><code class="language-lua">function isString(value: unknown): value is string
+    return type(value) == "string"
+end
+
+const data: unknown = getData()
+
+if isString(data) then
+    -- data is string here
+    print(data:upper())
+end
+</code></pre>
+<h2 id="variadic-types"><a class="header" href="#variadic-types">Variadic Types</a></h2>
+<p>Rest elements in tuples:</p>
+<pre><code class="language-lua">type Nums = [number, ...number[]]  -- At least one number
+
+const valid: Nums = {1, 2, 3, 4}   -- OK
+const invalid: Nums = {}           -- Error: needs at least one
+</code></pre>
+<h2 id="infer-keyword"><a class="header" href="#infer-keyword">Infer Keyword</a></h2>
+<p>Extract types in conditional types:</p>
+<pre><code class="language-lua">type ReturnType&lt;T&gt; = T extends (...args: any[]) -&gt; infer R ? R : never
+
+function getUser(): {name: string, age: number}
+    return {name = "Alice", age = 30}
+end
+
+type User = ReturnType&lt;typeof getUser&gt;  -- {name: string, age: number}
+</code></pre>
+<h2 id="never-type"><a class="header" href="#never-type">Never Type</a></h2>
+<p>Type for impossible values:</p>
+<pre><code class="language-lua">type Result = "success" | "error"
+
+function handle(result: Result): void
+    if result == "success" then
+        print("OK")
+    elseif result == "error" then
+        print("Failed")
+    else
+        -- result is never here
+        const _exhaustive: never = result
+    end
+end
+</code></pre>
+<h2 id="unknown-type"><a class="header" href="#unknown-type">Unknown Type</a></h2>
+<p>Type-safe alternative to <code>any</code>:</p>
+<pre><code class="language-lua">const data: unknown = getExternalData()
+
+-- Error: Cannot use unknown directly
+print(data.name)  -- ❌
+
+-- OK: Narrow the type first
+if type(data) == "table" then
+    print(data.name)  -- ✅
+end
+</code></pre>
+<h2 id="type-compatibility"><a class="header" href="#type-compatibility">Type Compatibility</a></h2>
+<p>LuaNext uses structural typing:</p>
+<pre><code class="language-lua">interface Point {
+    x: number,
+    y: number
+}
+
+interface Vector {
+    x: number,
+    y: number
+}
+
+const p: Point = {x = 1, y = 2}
+const v: Vector = p  -- OK: shapes match
+</code></pre>
+<p>Excess properties are allowed in assignments:</p>
+<pre><code class="language-lua">interface User {
+    name: string
+}
+
+const user: User = {
+    name = "Alice",
+    age = 30  -- OK: excess property ignored
+}
+</code></pre>
+<h2 id="type-narrowing-patterns"><a class="header" href="#type-narrowing-patterns">Type Narrowing Patterns</a></h2>
+<h3 id="truthiness"><a class="header" href="#truthiness">Truthiness</a></h3>
+<pre><code class="language-lua">function process(value: string | nil): void
+    if value then
+        -- value is string here
+        print(value:upper())
+    end
+end
+</code></pre>
+<h3 id="equality"><a class="header" href="#equality">Equality</a></h3>
+<pre><code class="language-lua">function compare(x: string | number, y: string | number): void
+    if x == y then
+        -- Both have the same type here (string | number, narrowed to intersection)
+    end
+end
+</code></pre>
+<h3 id="instanceof"><a class="header" href="#instanceof"><code>instanceof</code></a></h3>
+<pre><code class="language-lua">class Animal {}
+class Dog extends Animal {}
+
+function handle(animal: Animal): void
+    if animal instanceof Dog then
+        -- animal is Dog here
+    end
+end
+</code></pre>
+<h2 id="next-steps"><a class="header" href="#next-steps">Next Steps</a></h2>
+<ul>
+<li><a href="interfaces.html">Interfaces</a> — Define table shapes</li>
+<li><a href="advanced-types.html">Advanced Types</a> — Conditional, mapped, template literal types</li>
+<li><a href="../reference/utility-types.html">Utility Types</a> — Built-in type helpers</li>
+</ul>
+<h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
+<ul>
+<li><a href="basics.html">Basics</a> — Primitive types</li>
+<li><a href="functions.html">Functions</a> — Generic functions</li>
+<li><a href="classes.html">Classes</a> — Generic classes</li>
+</ul>
+
+                </section>
+
+                </div><!-- page-inner -->
+
+            </div><!-- page-wrapper -->
+
+            </div><!-- book-inner -->
+
+            <!-- Version Selector -->
+            <nav class="nav-wide-wrapper" aria-label="More">
+                <a href="javascript:void(0)" id="menu-bar-wide" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                    <i class="fa fa-bars"></i>
+                </a>
+            </nav>
+
+            <!-- Version selector dropdown -->
+            <div id="version-selector" class="version-selector">
+                <select id="version-picker" onchange="switchVersion(this.value)" aria-label="Documentation version">
+                    <option value="latest">Latest</option>
+                </select>
+            </div>
+
+        </div><!-- book -->
+
+        <!-- Custom scripts -->
+        <script>
+            // Version selector functionality
+            function switchVersion(version) {
+                const base = window.location.origin + '/luanext/';
+                if (version === 'latest') {
+                    window.location.href = base;
+                } else {
+                    window.location.href = base + version + '/';
+                }
+            }
+
+            // Load versions.json and populate selector if it exists
+            fetch('/luanext/versions.json')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.versions && data.versions.length > 1) {
+                        const selector = document.getElementById('version-picker');
+                        data.versions.forEach(v => {
+                            if (v.version !== 'latest') {
+                                const option = document.createElement('option');
+                                option.value = 'v' + v.version;
+                                option.textContent = 'v' + v.version;
+                                selector.appendChild(option);
+                            }
+                        });
+                    }
+                })
+                .catch(() => {
+                    // versions.json not found (expected during initial setup)
+                    // Selector will only show "Latest"
+                });
+        </script>
+
+        <!-- mdBook scripts and content scripts -->
+        <script src="js/clipboard.min.js" type="text/javascript"></script>
+        <script src="js/highlight.js" type="text/javascript"></script>
+        <script src="js/book.js" type="text/javascript"></script>
+
+        <!-- Custom theme script -->
+        <script src="js/custom-theme.js" type="text/javascript"></script>
+
+        <script src="js/elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/lunr-en.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/search.js" type="text/javascript" charset="utf-8"></script>
+
+    </body>
+</html>

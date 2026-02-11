@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Fallback to default mdbook template -->
+        
+        <meta name="robots" content="noindex,follow">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta charset="utf-8">
+        <title>Error Codes - LuaNext Documentation</title>
+        <script>
+            var theme = localStorage.getItem("mdbook-theme");
+            if (theme === null || theme === undefined) { theme = "light"; }
+            var html = document.querySelector("html");
+            html.classList.remove("light");
+            html.classList.add(theme);
+        </script>
+        <meta name="description" content="A typed superset of Lua with gradual typing, inspired by TypeScript">
+        <link rel="icon" href="favicon.svg">
+        <link rel="apple-touch-icon" href="apple-touch-icon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/custom.css">
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+
+    </head>
+    <body>
+        <!-- Provide the book title to JavaScript -->
+        <script>
+            window.book = window.book || {};
+            window.book.language = "en";
+        </script>
+
+        <div id="book" class="book">
+            <div class="book-inner">
+
+            <nav role="navigation" aria-label="Table of contents" class="sidebar">
+                <ol class="chapter"><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="introduction.html">Introduction</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Language</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/basics.html"><strong aria-hidden="true">1.</strong> Basics</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/control-flow.html"><strong aria-hidden="true">2.</strong> Control Flow</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/functions.html"><strong aria-hidden="true">3.</strong> Functions</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/type-system.html"><strong aria-hidden="true">4.</strong> Type System</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/classes.html"><strong aria-hidden="true">5.</strong> Classes</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/interfaces.html"><strong aria-hidden="true">6.</strong> Interfaces</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/enums.html"><strong aria-hidden="true">7.</strong> Enums</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/modules.html"><strong aria-hidden="true">8.</strong> Modules</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/error-handling.html"><strong aria-hidden="true">9.</strong> Error Handling</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/pattern-matching.html"><strong aria-hidden="true">10.</strong> Pattern Matching</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/decorators.html"><strong aria-hidden="true">11.</strong> Decorators</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/advanced-types.html"><strong aria-hidden="true">12.</strong> Advanced Types</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/operators.html"><strong aria-hidden="true">13.</strong> Operators</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Guides</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="guides/migrating-from-lua.html"><strong aria-hidden="true">14.</strong> Migrating from Lua</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="guides/lua-targets.html"><strong aria-hidden="true">15.</strong> Lua Targets</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Reference</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/cli.html"><strong aria-hidden="true">16.</strong> CLI</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/configuration.html"><strong aria-hidden="true">17.</strong> Configuration</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/standard-library.html"><strong aria-hidden="true">18.</strong> Standard Library</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/utility-types.html"><strong aria-hidden="true">19.</strong> Utility Types</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/reflection.html"><strong aria-hidden="true">20.</strong> Reflection API</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/error-codes.html"><strong aria-hidden="true">21.</strong> Error Codes</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/grammar.html"><strong aria-hidden="true">22.</strong> Grammar</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/keywords.html"><strong aria-hidden="true">23.</strong> Keywords</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Contributing</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="contributing/setup.html"><strong aria-hidden="true">24.</strong> Getting Started</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">API Reference</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="api/index.html"><strong aria-hidden="true">25.</strong> Rust API Docs</a></span></li></ol>
+            </nav>
+
+            <div id="page-wrapper" class="page-wrapper">
+
+                <div class="page-inner">
+
+                <section class="normal" id="main">
+                    <h1 id="error-codes-reference"><a class="header" href="#error-codes-reference">Error Codes Reference</a></h1>
+<p>Complete reference for LuaNext compiler error codes and diagnostics.</p>
+<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
+<p>LuaNext error codes follow the format <code>E####</code> where <code>####</code> is a four-digit number. Errors are categorized by type.</p>
+<p>Enable error codes in output:</p>
+<pre><code class="language-bash">luanext --diagnostics main.luax
+</code></pre>
+<p>Or in configuration:</p>
+<pre><code class="language-yaml">compilerOptions:
+  diagnostics: true
+</code></pre>
+<h2 id="type-errors-e0001-e0999"><a class="header" href="#type-errors-e0001-e0999">Type Errors (E0001-E0999)</a></h2>
+<h3 id="e0001-type-mismatch"><a class="header" href="#e0001-type-mismatch">E0001: Type Mismatch</a></h3>
+<p><strong>Description:</strong> Expected one type, found another.</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-lua">const x: number = "hello"  -- E0001: Type mismatch
+</code></pre>
+<p><strong>Fix:</strong> Ensure types match or use type assertion:</p>
+<pre><code class="language-lua">const x: number = 42  -- ✅ OK
+const y = "hello" as unknown as number  -- Type assertion (use with caution)
+</code></pre>
+<h3 id="e0002-undefined-variable"><a class="header" href="#e0002-undefined-variable">E0002: Undefined Variable</a></h3>
+<p><strong>Description:</strong> Variable used before declaration.</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-lua">print(x)  -- E0002: Undefined variable 'x'
+const x = 5
+</code></pre>
+<p><strong>Fix:</strong> Declare before use:</p>
+<pre><code class="language-lua">const x = 5
+print(x)  -- ✅ OK
+</code></pre>
+<h3 id="e0003-cannot-assign-to-const"><a class="header" href="#e0003-cannot-assign-to-const">E0003: Cannot Assign to Const</a></h3>
+<p><strong>Description:</strong> Attempting to reassign an immutable variable.</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-lua">const PI = 3.14
+PI = 3  -- E0003: Cannot assign to const variable
+</code></pre>
+<p><strong>Fix:</strong> Use <code>local</code> for mutable variables:</p>
+<pre><code class="language-lua">local count = 0
+count = 5  -- ✅ OK
+</code></pre>
+<h3 id="e0004-null-reference"><a class="header" href="#e0004-null-reference">E0004: Null Reference</a></h3>
+<p><strong>Description:</strong> Possible nil access without check (strict null checks enabled).</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-lua">function findUser(id: string): User | nil
+    return users[id]
+end
+
+const user = findUser("123")
+print(user.name)  -- E0004: Possible nil reference
+</code></pre>
+<p><strong>Fix:</strong> Check for nil first:</p>
+<pre><code class="language-lua">const user = findUser("123")
+if user ~= nil then
+    print(user.name)  -- ✅ OK
+end
+</code></pre>
+<h3 id="e0005-property-does-not-exist"><a class="header" href="#e0005-property-does-not-exist">E0005: Property Does Not Exist</a></h3>
+<p><strong>Description:</strong> Accessing non-existent property on a type.</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-lua">interface User
+    name: string
+end
+
+const user: User = {name = "Alice"}
+print(user.age)  -- E0005: Property 'age' does not exist on type 'User'
+</code></pre>
+<p><strong>Fix:</strong> Add property to interface or check existence:</p>
+<pre><code class="language-lua">interface User
+    name: string
+    age?: number  -- Optional property
+end
+</code></pre>
+<h2 id="function-errors-e1000-e1999"><a class="header" href="#function-errors-e1000-e1999">Function Errors (E1000-E1999)</a></h2>
+<h3 id="e1001-argument-count-mismatch"><a class="header" href="#e1001-argument-count-mismatch">E1001: Argument Count Mismatch</a></h3>
+<p><strong>Description:</strong> Wrong number of arguments passed to function.</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-lua">function add(a: number, b: number): number
+    return a + b
+end
+
+add(5)  -- E1001: Expected 2 arguments, got 1
+</code></pre>
+<p><strong>Fix:</strong> Provide correct number of arguments:</p>
+<pre><code class="language-lua">add(5, 3)  -- ✅ OK
+</code></pre>
+<h3 id="e1002-invalid-return-type"><a class="header" href="#e1002-invalid-return-type">E1002: Invalid Return Type</a></h3>
+<p><strong>Description:</strong> Function returns wrong type.</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-lua">function getName(): string
+    return 42  -- E1002: Cannot return number from function returning string
+end
+</code></pre>
+<p><strong>Fix:</strong> Return correct type:</p>
+<pre><code class="language-lua">function getName(): string
+    return "Alice"  -- ✅ OK
+end
+</code></pre>
+<h3 id="e1003-missing-return-statement"><a class="header" href="#e1003-missing-return-statement">E1003: Missing Return Statement</a></h3>
+<p><strong>Description:</strong> Function with non-void return type doesn’t always return.</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-lua">function divide(a: number, b: number): number
+    if b ~= 0 then
+        return a / b
+    end
+    -- E1003: Not all code paths return a value
+end
+</code></pre>
+<p><strong>Fix:</strong> Ensure all paths return:</p>
+<pre><code class="language-lua">function divide(a: number, b: number): number
+    if b ~= 0 then
+        return a / b
+    end
+    return 0  -- ✅ OK
+end
+</code></pre>
+<h2 id="class-errors-e2000-e2999"><a class="header" href="#class-errors-e2000-e2999">Class Errors (E2000-E2999)</a></h2>
+<h3 id="e2001-cannot-extend-sealed-class"><a class="header" href="#e2001-cannot-extend-sealed-class">E2001: Cannot Extend Sealed Class</a></h3>
+<p><strong>Description:</strong> Attempting to extend a class marked as sealed.</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-lua">@sealed
+class FinalClass end
+
+class Derived extends FinalClass end  -- E2001: Cannot extend sealed class
+</code></pre>
+<p><strong>Fix:</strong> Don’t extend sealed classes or remove <code>@sealed</code>.</p>
+<h3 id="e2002-property-already-declared"><a class="header" href="#e2002-property-already-declared">E2002: Property Already Declared</a></h3>
+<p><strong>Description:</strong> Duplicate property in class.</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-lua">class User
+    name: string
+    name: string  -- E2002: Property 'name' already declared
+end
+</code></pre>
+<p><strong>Fix:</strong> Remove duplicate:</p>
+<pre><code class="language-lua">class User
+    name: string  -- ✅ OK
+end
+</code></pre>
+<h3 id="e2003-must-override"><a class="header" href="#e2003-must-override">E2003: Must Override</a></h3>
+<p><strong>Description:</strong> Abstract method not implemented.</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-lua">abstract class Animal
+    abstract function speak(): void
+end
+
+class Dog extends Animal end  -- E2003: Must override abstract method 'speak'
+</code></pre>
+<p><strong>Fix:</strong> Implement abstract methods:</p>
+<pre><code class="language-lua">class Dog extends Animal
+    override function speak(): void
+        print("Woof!")
+    end
+end
+</code></pre>
+<h2 id="module-errors-e3000-e3999"><a class="header" href="#module-errors-e3000-e3999">Module Errors (E3000-E3999)</a></h2>
+<h3 id="e3001-module-not-found"><a class="header" href="#e3001-module-not-found">E3001: Module Not Found</a></h3>
+<p><strong>Description:</strong> Cannot find imported module.</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-lua">import {helper} from "./missing"  -- E3001: Module './missing' not found
+</code></pre>
+<p><strong>Fix:</strong> Check file path and ensure file exists:</p>
+<pre><code class="language-lua">import {helper} from "./utils"  -- ✅ OK (if utils.luax exists)
+</code></pre>
+<h3 id="e3002-circular-dependency"><a class="header" href="#e3002-circular-dependency">E3002: Circular Dependency</a></h3>
+<p><strong>Description:</strong> Modules import each other, creating a cycle.</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-lua">-- a.luax
+import {b} from "./b"
+
+-- b.luax
+import {a} from "./a"  -- E3002: Circular dependency detected
+</code></pre>
+<p><strong>Fix:</strong> Refactor to break cycle:</p>
+<pre><code class="language-lua">-- Create shared.luax with common code
+-- a.luax imports shared
+-- b.luax imports shared
+</code></pre>
+<h3 id="e3003-export-not-found"><a class="header" href="#e3003-export-not-found">E3003: Export Not Found</a></h3>
+<p><strong>Description:</strong> Trying to import non-existent export.</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-lua">-- utils.luax
+export function add(a: number, b: number): number
+    return a + b
+end
+
+-- main.luax
+import {multiply} from "./utils"  -- E3003: Export 'multiply' not found
+</code></pre>
+<p><strong>Fix:</strong> Import existing exports:</p>
+<pre><code class="language-lua">import {add} from "./utils"  -- ✅ OK
+</code></pre>
+<h2 id="generic-errors-e4000-e4999"><a class="header" href="#generic-errors-e4000-e4999">Generic Errors (E4000-E4999)</a></h2>
+<h3 id="e4001-type-argument-mismatch"><a class="header" href="#e4001-type-argument-mismatch">E4001: Type Argument Mismatch</a></h3>
+<p><strong>Description:</strong> Wrong type arguments for generic.</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-lua">type Box&lt;T extends number&gt; = {value: T}
+
+type StringBox = Box&lt;string&gt;  -- E4001: string doesn't satisfy constraint 'extends number'
+</code></pre>
+<p><strong>Fix:</strong> Use compatible type:</p>
+<pre><code class="language-lua">type NumberBox = Box&lt;number&gt;  -- ✅ OK
+</code></pre>
+<h3 id="e4002-cannot-infer-type-argument"><a class="header" href="#e4002-cannot-infer-type-argument">E4002: Cannot Infer Type Argument</a></h3>
+<p><strong>Description:</strong> Generic type argument cannot be inferred.</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-lua">function identity&lt;T&gt;(x: T): T
+    return x
+end
+
+const result = identity()  -- E4002: Cannot infer type argument for T
+</code></pre>
+<p><strong>Fix:</strong> Provide explicit type or argument:</p>
+<pre><code class="language-lua">const result = identity&lt;number&gt;(42)  -- ✅ OK
+const result2 = identity(42)  -- ✅ OK (infers number)
+</code></pre>
+<h2 id="pattern-matching-errors-e5000-e5999"><a class="header" href="#pattern-matching-errors-e5000-e5999">Pattern Matching Errors (E5000-E5999)</a></h2>
+<h3 id="e5001-non-exhaustive-match"><a class="header" href="#e5001-non-exhaustive-match">E5001: Non-Exhaustive Match</a></h3>
+<p><strong>Description:</strong> Match expression doesn’t handle all cases.</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-lua">enum Status { Pending, Active, Completed }
+
+function handle(status: Status): string
+    return match status
+        | Status.Pending -&gt; "waiting"
+        | Status.Active -&gt; "processing"
+        -- E5001: Non-exhaustive match, missing Status.Completed
+    end
+end
+</code></pre>
+<p><strong>Fix:</strong> Handle all cases or add wildcard:</p>
+<pre><code class="language-lua">function handle(status: Status): string
+    return match status
+        | Status.Pending -&gt; "waiting"
+        | Status.Active -&gt; "processing"
+        | Status.Completed -&gt; "done"  -- ✅ OK
+    end
+end
+</code></pre>
+<h3 id="e5002-unreachable-pattern"><a class="header" href="#e5002-unreachable-pattern">E5002: Unreachable Pattern</a></h3>
+<p><strong>Description:</strong> Pattern will never be matched.</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-lua">match x
+    | _ -&gt; "any"
+    | 42 -&gt; "forty-two"  -- E5002: Unreachable pattern
+end
+</code></pre>
+<p><strong>Fix:</strong> Reorder patterns (specific before general):</p>
+<pre><code class="language-lua">match x
+    | 42 -&gt; "forty-two"
+    | _ -&gt; "any"  -- ✅ OK
+end
+</code></pre>
+<h2 id="decorator-errors-e6000-e6999"><a class="header" href="#decorator-errors-e6000-e6999">Decorator Errors (E6000-E6999)</a></h2>
+<h3 id="e6001-invalid-decorator-target"><a class="header" href="#e6001-invalid-decorator-target">E6001: Invalid Decorator Target</a></h3>
+<p><strong>Description:</strong> Decorator applied to invalid target.</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-lua">@decorator
+const x = 5  -- E6001: Cannot apply decorator to const variable
+</code></pre>
+<p><strong>Fix:</strong> Apply decorators to valid targets (classes, methods, properties):</p>
+<pre><code class="language-lua">class User
+    @decorator
+    name: string  -- ✅ OK
+end
+</code></pre>
+<h2 id="naming-convention-errors-e7000-e7999"><a class="header" href="#naming-convention-errors-e7000-e7999">Naming Convention Errors (E7000-E7999)</a></h2>
+<h3 id="e7001-invalid-constant-name"><a class="header" href="#e7001-invalid-constant-name">E7001: Invalid Constant Name</a></h3>
+<p><strong>Description:</strong> Const doesn’t follow UPPER_SNAKE_CASE.</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-lua">const maxSize = 100  -- E7001: Const 'maxSize' should be UPPER_SNAKE_CASE
+</code></pre>
+<p><strong>Fix:</strong> Use correct naming:</p>
+<pre><code class="language-lua">const MAX_SIZE = 100  -- ✅ OK
+</code></pre>
+<h3 id="e7002-invalid-type-name"><a class="header" href="#e7002-invalid-type-name">E7002: Invalid Type Name</a></h3>
+<p><strong>Description:</strong> Type/interface doesn’t follow PascalCase.</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-lua">interface user_data end  -- E7002: Type 'user_data' should be PascalCase
+</code></pre>
+<p><strong>Fix:</strong> Use PascalCase:</p>
+<pre><code class="language-lua">interface UserData end  -- ✅ OK
+</code></pre>
+<h2 id="error-severity-levels"><a class="header" href="#error-severity-levels">Error Severity Levels</a></h2>
+<p>Errors have different severity levels:</p>
+<ul>
+<li><strong>Error</strong> — Compilation fails</li>
+<li><strong>Warning</strong> — Compilation succeeds, but issue flagged</li>
+<li><strong>Info</strong> — Informational message</li>
+</ul>
+<p>Control severity with <code>strictNaming</code>:</p>
+<pre><code class="language-yaml">compilerOptions:
+  strictNaming: "error"    # Naming violations are errors
+  # OR
+  strictNaming: "warning"  # Naming violations are warnings
+  # OR
+  strictNaming: "off"      # No naming enforcement
+</code></pre>
+<h2 id="suppressing-errors"><a class="header" href="#suppressing-errors">Suppressing Errors</a></h2>
+<h3 id="type-assertions"><a class="header" href="#type-assertions">Type Assertions</a></h3>
+<p>Bypass type checking (use sparingly):</p>
+<pre><code class="language-lua">const data = externalCall() as User  -- Suppresses type errors
+</code></pre>
+<h3 id="unknown-type"><a class="header" href="#unknown-type">Unknown Type</a></h3>
+<p>Use <code>unknown</code> for truly dynamic data:</p>
+<pre><code class="language-lua">const data: unknown = getData()
+
+-- Must narrow type before use
+if type(data) == "table" then
+    print(data.value)  -- ✅ OK after narrowing
+end
+</code></pre>
+<h2 id="debugging-errors"><a class="header" href="#debugging-errors">Debugging Errors</a></h2>
+<h3 id="pretty-diagnostics"><a class="header" href="#pretty-diagnostics">Pretty Diagnostics</a></h3>
+<p>Enable for better error messages:</p>
+<pre><code class="language-bash">luanext --pretty main.luax
+</code></pre>
+<pre><code>error[E0001]: Type mismatch
+  ┌─ main.luax:5:10
+  │
+5 │     const x: number = "hello"
+  │              ^^^^^^   ^^^^^^^ expected number, found string
+  │              │
+  │              type annotation
+</code></pre>
+<h3 id="error-codes"><a class="header" href="#error-codes">Error Codes</a></h3>
+<p>Show error codes for lookup:</p>
+<pre><code class="language-bash">luanext --diagnostics main.luax
+</code></pre>
+<pre><code>main.luax:5:10: error[E0001]: Type mismatch
+</code></pre>
+<h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
+<ul>
+<li><a href="cli.html">CLI Reference</a> — Diagnostic options</li>
+<li><a href="configuration.html">Configuration</a> — Error configuration</li>
+<li><a href="../language/type-system.html">Type System</a> — Type checking rules</li>
+</ul>
+
+                </section>
+
+                </div><!-- page-inner -->
+
+            </div><!-- page-wrapper -->
+
+            </div><!-- book-inner -->
+
+            <!-- Version Selector -->
+            <nav class="nav-wide-wrapper" aria-label="More">
+                <a href="javascript:void(0)" id="menu-bar-wide" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                    <i class="fa fa-bars"></i>
+                </a>
+            </nav>
+
+            <!-- Version selector dropdown -->
+            <div id="version-selector" class="version-selector">
+                <select id="version-picker" onchange="switchVersion(this.value)" aria-label="Documentation version">
+                    <option value="latest">Latest</option>
+                </select>
+            </div>
+
+        </div><!-- book -->
+
+        <!-- Custom scripts -->
+        <script>
+            // Version selector functionality
+            function switchVersion(version) {
+                const base = window.location.origin + '/luanext/';
+                if (version === 'latest') {
+                    window.location.href = base;
+                } else {
+                    window.location.href = base + version + '/';
+                }
+            }
+
+            // Load versions.json and populate selector if it exists
+            fetch('/luanext/versions.json')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.versions && data.versions.length > 1) {
+                        const selector = document.getElementById('version-picker');
+                        data.versions.forEach(v => {
+                            if (v.version !== 'latest') {
+                                const option = document.createElement('option');
+                                option.value = 'v' + v.version;
+                                option.textContent = 'v' + v.version;
+                                selector.appendChild(option);
+                            }
+                        });
+                    }
+                })
+                .catch(() => {
+                    // versions.json not found (expected during initial setup)
+                    // Selector will only show "Latest"
+                });
+        </script>
+
+        <!-- mdBook scripts and content scripts -->
+        <script src="js/clipboard.min.js" type="text/javascript"></script>
+        <script src="js/highlight.js" type="text/javascript"></script>
+        <script src="js/book.js" type="text/javascript"></script>
+
+        <!-- Custom theme script -->
+        <script src="js/custom-theme.js" type="text/javascript"></script>
+
+        <script src="js/elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/lunr-en.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/search.js" type="text/javascript" charset="utf-8"></script>
+
+    </body>
+</html>
