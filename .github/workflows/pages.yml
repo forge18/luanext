@@ -1,4 +1,4 @@
-name: Deploy Astro Starlight to GitHub Pages
+name: Deploy mdBook to GitHub Pages
 
 on:
   push:
@@ -7,7 +7,8 @@ on:
 
 permissions:
   contents: read
-  deployments: write
+  pages: write
+  id-token: write
 
 concurrency:
   group: "pages"
@@ -19,6 +20,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: withastro/action@v2
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install mdBook
+        run: cargo install mdbook
+
+      - name: Build mdBook
+        run: cd docs-source && mdbook build --dest-dir ../docs
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          path: ./docs
+          path: 'docs'
+
+  deploy:
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
