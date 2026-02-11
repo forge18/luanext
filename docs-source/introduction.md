@@ -169,14 +169,15 @@ These crates are published separately so ecosystem tools can depend on them with
 
 ## Project Status
 
-**Current Status: Beta**
+**Current Status: Pre-Alpha**
 
-The compiler is feature-complete and ready for testing. All core features are implemented and functional.
+The compiler is actively in development with core features implemented. We're refining the type system, improving performance, and expanding the ecosystem.
 
-**Next Steps: v1.0 Release**
+**Next Steps: Beta Release**
 
+- Type system refinements and edge case handling
 - Performance optimization and profiling
-- Documentation improvements
+- Expanded documentation and examples
 - Community feedback and testing
 
 ## Community
