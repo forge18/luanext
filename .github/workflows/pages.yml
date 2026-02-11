@@ -8,6 +8,8 @@ on:
 permissions:
   contents: read
   deployments: write
+  pages: write
+  id-token: write
 
 concurrency:
   group: "pages"
@@ -22,3 +24,4 @@ jobs:
       - uses: withastro/action@v2
         with:
           path: ./docs
+          node-version: 20
