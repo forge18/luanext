@@ -10,6 +10,7 @@ build-dir = "../docs"
 create-missing = true
 
 [output.html]
+theme = "theme"
 default-theme = "light"
 preferred-dark-theme = "ayu"
 git-repository-url = "https://github.com/forge18/luanext"
