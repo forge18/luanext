@@ -30,11 +30,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          sparse-checkout: |
-            docs-site
-            book
-          sparse-checkout-cone-mode: false
-          fetch-depth: 0
+          filter: blob:none
+          fetch-depth: 1
           submodules: false
 
       - name: Install mdBook
