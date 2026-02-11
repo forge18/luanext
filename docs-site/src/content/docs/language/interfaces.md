@@ -1,3 +1,7 @@
+---
+title: Interfaces
+---
+
 # Interfaces
 
 Interfaces define the shape of objects without providing implementation. They enable structural typing, contracts for classes, and reusable type definitions.

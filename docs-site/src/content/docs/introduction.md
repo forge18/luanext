@@ -1,4 +1,7 @@
-# Introduction
+---
+title: Introduction
+description: A typed superset of Lua with gradual typing, inspired by TypeScript
+---
 
 LuaNext is a typed superset of Lua with gradual typing, inspired by TypeScript's approach to JavaScript. It brings static type checking to Lua while maintaining its simplicity and allowing gradual adoption. Write type-safe Lua code that compiles to plain Lua, with zero runtime overhead.
 

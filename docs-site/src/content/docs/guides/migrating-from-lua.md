@@ -1,3 +1,7 @@
+---
+title: Migrating from Lua
+---
+
 # Migrating from Lua
 
 This guide helps you migrate existing Lua code to LuaNext, taking advantage of static typing and modern features while maintaining compatibility.

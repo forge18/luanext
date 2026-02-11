@@ -1,3 +1,7 @@
+---
+title: Functions
+---
+
 # Functions
 
 Functions in LuaNext support type annotations, generics, default parameters, rest parameters, and more.

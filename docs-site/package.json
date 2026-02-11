@@ -7,8 +7,8 @@
     "@astrojs/starlight": "latest"
   },
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
+    "dev": "node add-frontmatter.js && astro dev",
+    "build": "node add-frontmatter.js && astro build",
     "preview": "astro preview"
   }
 }

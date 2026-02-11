@@ -1,3 +1,7 @@
+---
+title: Configuration Reference
+---
+
 # Configuration Reference
 
 Complete reference for `luanext.config.yaml` configuration file.

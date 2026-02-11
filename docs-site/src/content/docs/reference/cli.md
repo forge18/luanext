@@ -1,3 +1,7 @@
+---
+title: CLI Reference
+---
+
 # CLI Reference
 
 Complete command-line interface reference for the LuaNext compiler.

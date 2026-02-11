@@ -1,3 +1,7 @@
+---
+title: Error Handling
+---
+
 # Error Handling
 
 LuaNext provides structured exception handling with try/catch/finally blocks, typed error handling, error chaining, and try expressions. This goes beyond Lua's traditional `pcall`/`xpcall` approach.

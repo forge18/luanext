@@ -1,3 +1,7 @@
+---
+title: Advanced Types
+---
+
 # Advanced Types
 
 LuaNext provides advanced type system features inspired by TypeScript, including conditional types, mapped types, template literal types, type predicates, and more.

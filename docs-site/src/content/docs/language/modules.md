@@ -1,3 +1,7 @@
+---
+title: Modules
+---
+
 # Modules
 
 LuaNext provides a modern module system with ES6-style imports and exports. Each file is a module, and you can import/export values, types, and declarations between files.

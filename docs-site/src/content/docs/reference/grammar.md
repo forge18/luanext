@@ -1,3 +1,7 @@
+---
+title: Grammar Reference
+---
+
 # Grammar Reference
 
 Formal grammar specification for LuaNext syntax in EBNF notation.

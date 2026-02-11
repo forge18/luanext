@@ -1,3 +1,7 @@
+---
+title: Reflection API Reference
+---
+
 # Reflection API Reference
 
 Runtime reflection utilities for inspecting types, classes, and metadata in LuaNext.

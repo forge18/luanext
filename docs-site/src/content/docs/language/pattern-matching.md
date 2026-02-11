@@ -1,3 +1,7 @@
+---
+title: Pattern Matching
+---
+
 # Pattern Matching
 
 Pattern matching provides a powerful way to destructure and test values. LuaNext supports match expressions with identifier, literal, array, object, wildcard, and or patterns, along with guards for conditional matching.

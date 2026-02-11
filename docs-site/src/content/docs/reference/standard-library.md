@@ -1,3 +1,7 @@
+---
+title: Standard Library Reference
+---
+
 # Standard Library Reference
 
 Complete reference for Lua standard library functions with LuaNext type annotations.

@@ -1,3 +1,7 @@
+---
+title: Targeting Different Lua Versions
+---
+
 # Targeting Different Lua Versions
 
 LuaNext can target Lua versions 5.1, 5.2, 5.3, and 5.4. This guide explains the differences, compatibility patterns, and how to choose the right target for your project.

@@ -1,3 +1,7 @@
+---
+title: Decorators
+---
+
 # Decorators
 
 Decorators provide a way to annotate and modify classes and their members. They enable meta-programming patterns like logging, validation, dependency injection, and more.

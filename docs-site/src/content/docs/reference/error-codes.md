@@ -1,3 +1,7 @@
+---
+title: Error Codes Reference
+---
+
 # Error Codes Reference
 
 Complete reference for LuaNext compiler error codes and diagnostics.

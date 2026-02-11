@@ -1,3 +1,7 @@
+---
+title: Getting Started as a Contributor
+---
+
 # Getting Started as a Contributor
 
 Welcome to LuaNext! This guide will help you set up your development environment and get started contributing to the project.

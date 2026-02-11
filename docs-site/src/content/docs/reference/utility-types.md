@@ -1,3 +1,7 @@
+---
+title: Utility Types Reference
+---
+
 # Utility Types Reference
 
 Complete reference for LuaNext's built-in utility types. These types transform and manipulate other types.

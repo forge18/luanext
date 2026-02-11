@@ -1,3 +1,7 @@
+---
+title: Basics
+---
+
 # Basics
 
 LuaNext extends Lua with type annotations while preserving Lua's simplicity. This guide covers variables, primitive types, and basic syntax.

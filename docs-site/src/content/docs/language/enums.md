@@ -1,3 +1,7 @@
+---
+title: Enums
+---
+
 # Enums
 
 LuaNext provides rich enums that go beyond simple value sets. Enums can have string or number values, fields, constructors, methods, and can implement interfaces.

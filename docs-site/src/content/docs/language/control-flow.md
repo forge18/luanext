@@ -1,3 +1,7 @@
+---
+title: Control Flow
+---
+
 # Control Flow
 
 LuaNext supports all Lua control flow constructs plus additional features like `continue`.

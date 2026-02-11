@@ -1,3 +1,7 @@
+---
+title: Classes
+---
+
 # Classes
 
 LuaNext provides object-oriented programming features through classes with full type safety. Classes support inheritance, interfaces, access modifiers, operator overloading, and more.

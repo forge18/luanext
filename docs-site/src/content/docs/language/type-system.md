@@ -1,3 +1,7 @@
+---
+title: Type System
+---
+
 # Type System
 
 LuaNext provides a rich type system inspired by TypeScript, with unions, intersections, generics, and advanced type features.

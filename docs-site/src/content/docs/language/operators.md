@@ -1,3 +1,7 @@
+---
+title: Operators
+---
+
 # Operators
 
 LuaNext provides a comprehensive set of operators for arithmetic, comparison, logical operations, bitwise operations, and special operators like optional chaining, null coalescing, and more.
