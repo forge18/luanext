@@ -11,10 +11,10 @@ create-missing = true
 
 [output.html]
 default-theme = "light"
-preferred-dark-theme = "navy"
+preferred-dark-theme = "ayu"
 git-repository-url = "https://github.com/forge18/luanext"
-git-repository-icon = "fa-github"
-edit-url-template = "https://github.com/forge18/luanext/edit/main/docs-site/src/{path}"
+git-repository-icon = "fab-github"
+edit-url-template = "https://github.com/forge18/luanext/edit/main/docs-source/{path}"
 site-url = "/luanext/"
 
 [output.html.search]
