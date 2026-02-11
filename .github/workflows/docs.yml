@@ -27,12 +27,14 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
+      - name: Remove .gitmodules to avoid submodule fetch
+        run: rm -f .gitmodules
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           filter: blob:none
           fetch-depth: 1
-          submodules: false
 
       - name: Install mdBook
         run: |
