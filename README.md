@@ -1,16 +1,16 @@
 # LuaNext
 
-[![Alpha](https://img.shields.io/badge/status-alpha-orange.svg)](https://github.com/forge18/luanext)
-[![codecov](https://codecov.io/gh/forge18/luanext/branch/main/graph/badge.svg)](https://codecov.io/gh/forge18/luanext)
-[![CI](https://github.com/forge18/luanext/actions/workflows/ci.yml/badge.svg)](https://github.com/forge18/luanext/actions/workflows/ci.yml)
+[![Pre-Alpha](https://img.shields.io/badge/status-pre--alpha-red.svg)](https://github.com/forge18/luanext)
 
 A typed superset of Lua with gradual typing, inspired by TypeScript's approach to JavaScript.
 
 ## Overview
 
-LuaNext brings static type checking to Lua while maintaining its simplicity and allowing gradual adoption. Write type-safe Lua code that compiles to plain Lua, with zero runtime overhead.
+LuaNext aims to bring static type checking to Lua while maintaining its simplicity and allowing gradual adoption. Write type-safe Lua code that compiles to plain Lua, with zero runtime overhead.
 
-## Features
+**Warning: This project is in pre-alpha development. The code is not ready for production use.**
+
+## Features (Planned)
 
 - **Gradual Typing** - Add types at your own pace, from none to full coverage
 - **TypeScript-Inspired** - Familiar syntax for developers coming from TypeScript
@@ -25,134 +25,9 @@ LuaNext brings static type checking to Lua while maintaining its simplicity and 
 
 ## Project Status
 
-**Current Status: Beta**
+**Current Status: Pre-Alpha**
 
-The compiler is feature-complete and ready for testing:
-
-- ✅ Full lexer with 40+ token types, template strings, string interning
-- ✅ Complete parser with 15 statement types, 13 expression kinds, error recovery
-- ✅ Type checker with generics, narrowing, 12 utility types, decorators
-- ✅ Code generator targeting Lua 5.1-5.4 with source maps and bundling
-- ✅ CLI with watch mode, multi-file compilation, dependency ordering, configuration files
-- ✅ LSP with hover, completion, go-to-definition, references, rename, formatting
-- ✅ VS Code extension
-
-**Remaining Work: Polish & Release** (In Progress)
-
-## Installation
-
-```bash
-# Build from source
-git clone https://github.com/forge18/luanext
-cd luanext
-cargo build --release
-
-# The binary will be at target/release/luanext
-```
-
-## Quick Start
-
-### Example LuaNext Code
-
-```lua
--- Variable declarations with types
-const PI: number = 3.14159
-local radius: number = 5
-
--- Interfaces for table shapes
-interface Point {
-    x: number,
-    y: number
-}
-
--- Functions with type signatures
-function calculateArea(r: number): number
-    return PI * r * r
-end
-
--- Type inference
-const area = calculateArea(radius)  -- inferred as number
-
-print("Area:", area)
-```
-
-### Compiles to Clean Lua
-
-```lua
-local PI = 3.14159
-local radius = 5
-
-local function calculateArea(r)
-    return PI * r * r
-end
-
-local area = calculateArea(radius)
-
-print("Area:", area)
-```
-
-## Multi-File Compilation
-
-LuaNext supports compiling entire projects with automatic dependency ordering:
-
-### Compiling Multiple Files
-
-```bash
-# Compile individual files (order determined by imports)
-luanext file1.luax file2.luax file3.luax
-
-# Compile with glob patterns
-luanext "src/**/*.luax"
-luanext "src/*.luax" "tests/*.luax"
-
-# Bundle all files into single output
-luanext "src/**/*.luax" --out-file bundle.lua
-```
-
-### How It Works
-
-1. **File Discovery** - LuaNext expands glob patterns and discovers all `.luax` files
-2. **Import Analysis** - Parses imports to build a dependency graph
-3. **Topological Sort** - Determines compilation order (dependencies first)
-4. **Sequential Compilation** - Files compile one-by-one, exporting types for dependents
-5. **Cycle Detection** - Circular dependencies are caught and reported with clear error messages
-
-### Project Structure Example
-
-```
-project/
-├── luanext.config.yaml
-├── src/
-│   ├── utils.luax      # base utilities
-│   ├── models.luax     # imports utils
-│   └── main.luax       # imports models & utils
-└── dist/
-    └── (compiled Lua files)
-```
-
-### Configuration
-
-Create a `luanext.config.yaml` in your project root:
-
-Create a `luanext.config.yaml` in your project root:
-
-```yaml
-compilerOptions:
-  target: "5.4"           # Lua version: 5.1, 5.2, 5.3, 5.4
-  strictNullChecks: true  # Enforce null safety
-  enableOop: true         # Enable class syntax
-  enableFp: true          # Enable pattern matching, pipe operators
-  enableDecorators: true  # Enable decorator syntax
-  outDir: "dist"          # Output directory
-  sourceMap: true         # Generate source maps
-
-include:
-  - "src/**/*.luax"
-
-exclude:
-  - "**/node_modules/**"
-  - "**/dist/**"
-```
+This project is in early development. Core infrastructure is being built.
 
 ## Architecture
 
@@ -203,66 +78,7 @@ cargo test --all
 
 # Run tests for specific crate
 cargo test -p luanext-core
-
-# Run with coverage
-cargo tarpaulin --all-features --workspace
 ```
-
-## Type System
-
-LuaNext provides a rich type system inspired by TypeScript:
-
-### Primitive Types
-- `nil`, `boolean`, `number`, `integer`, `string`
-- `unknown` (type-safe, must narrow before use)
-- `never` (for exhaustiveness checking)
-- `void` (for functions with no return)
-
-### Composite Types
-- Arrays: `number[]` or `Array<number>`
-- Tuples: `[string, number]`
-- Functions: `(x: number) -> boolean`
-- Unions: `string | number`
-- Interfaces: table shapes only
-- Type aliases: everything except table shapes
-
-See [docs/designs/LuaNext-Design.md](docs/designs/LuaNext-Design.md) for complete type system documentation.
-
-## Language Features
-
-LuaNext includes powerful OOP features for building robust applications:
-
-- **`override` keyword** - Explicit method overriding with compile-time validation
-- **`final` keyword** - Prevent inheritance and method overriding
-- Classes, interfaces, and inheritance
-- Access modifiers (public, private, protected)
-- Decorators and metadata
-- Pattern matching and destructuring
-
-See [docs/LANGUAGE_FEATURES.md](docs/LANGUAGE_FEATURES.md) for detailed documentation and examples.
-
-## Roadmap
-
-### Completed
-
-- [x] **Phase 0: Foundation** - Project setup, DI, configuration, CI/CD
-- [x] **Phase 1: Lexer & Parser** - Tokenization and AST construction
-- [x] **Phase 2: Type System** - Type checking and inference
-- [x] **Phase 3: Code Generation** - Lua output with source maps
-- [x] **Phase 4: CLI** - Command-line interface and watch mode
-- [x] **Phase 5: Advanced Features** - Generics, utility types, narrowing
-- [x] **Phase 6: OOP** - Classes, inheritance, access modifiers
-- [x] **Phase 7: FP** - Pattern matching, destructuring, pipe operators
-- [x] **Phase 8: Decorators** - Decorator syntax and built-ins
-- [x] **Phase 9: LSP** - Full language server with VS Code extension
-- [x] **Phase 10: Standard Library** - Type definitions for Lua stdlib
-
-### In Progress
-
-- [ ] **Phase 11: Polish** - Performance optimization, incremental compilation, error messages
-- [ ] **Phase 12: Release** - v1.0.0 launch
-
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed implementation status.
 
 ## Contributing
 
@@ -291,6 +107,6 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-**Status:** 🚀 Beta - Core Features Complete, Polishing for v1.0
+**Status:** 🔧 Pre-Alpha - Under Development
 
 Built with ❤️ by the LuaNext team

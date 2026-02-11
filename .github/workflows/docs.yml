@@ -71,13 +71,14 @@ jobs:
 
       - name: Build mdBook
         run: |
+          mkdir -p ../book
           cd docs-site
-          mdbook build
+          mdbook build --dest-dir ../book
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs-site/book
+          path: book
 
   deploy:
     name: Deploy to GitHub Pages
