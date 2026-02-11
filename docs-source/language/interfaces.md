@@ -5,7 +5,7 @@ Interfaces define the shape of objects without providing implementation. They en
 ## Syntax
 
 ```lua
-interface InterfaceName[<TypeParams>] [extends Interface1, Interface2]
+interface InterfaceName[<TypeParams>] [extends Interface1, Interface2] {
     -- Property signatures
     [readonly] propertyName[?]: Type
 
@@ -14,24 +14,26 @@ interface InterfaceName[<TypeParams>] [extends Interface1, Interface2]
 
     -- Index signatures
     [key: string | number]: ValueType
-end
+}
 ```
+
+Note: Interfaces can use either braces `{}` or `end`.
 
 ## Examples
 
 ### Basic Interface
 
 ```lua
-interface Point
+interface Point {
     x: number
     y: number
-end
+}
 
 function distance(p1: Point, p2: Point): number
     const dx = p2.x - p1.x
     const dy = p2.y - p1.y
     return math.sqrt(dx * dx + dy * dy)
-end
+}
 
 const p1: Point = {x = 0, y = 0}
 const p2: Point = {x = 3, y = 4}
@@ -45,7 +47,7 @@ local function distance(p1, p2)
     local dx = p2.x - p1.x
     local dy = p2.y - p1.y
     return math.sqrt(dx * dx + dy * dy)
-end
+}
 
 local p1 = {x = 0, y = 0}
 local p2 = {x = 3, y = 4}
@@ -61,13 +63,13 @@ interface Logger
     function log(message: string): void
     function warn(message: string): void
     function error(message: string): void
-end
+}
 
 function setupLogging(logger: Logger): void
     logger:log("System started")
     logger:warn("Low memory")
     logger:error("Fatal error")
-end
+}
 
 -- Implementing with a table
 const consoleLogger: Logger = {
@@ -95,7 +97,7 @@ interface Config
     port: number
     ssl?: boolean
     timeout?: number
-end
+}
 
 const config1: Config = {
     host = "localhost",
@@ -119,7 +121,7 @@ interface User
     readonly id: string
     name: string
     email: string
-end
+}
 
 const user: User = {
     id = "user-123",
@@ -140,7 +142,7 @@ Index signatures allow dynamic property access:
 ```lua
 interface Dictionary
     [key: string]: number
-end
+}
 
 const scores: Dictionary = {
     alice = 95,
@@ -159,7 +161,7 @@ Array-like interfaces use number index:
 interface NumberArray
     [index: number]: number
     length: number
-end
+}
 
 const numbers: NumberArray = {1, 2, 3, 4, 5, length = 5}
 print(numbers[1])  -- 1
@@ -173,15 +175,15 @@ Interfaces can extend other interfaces:
 ```lua
 interface Named
     name: string
-end
+}
 
 interface Aged
     age: number
-end
+}
 
 interface Person extends Named, Aged
     email: string
-end
+}
 
 const person: Person = {
     name = "Alice",
@@ -199,7 +201,7 @@ interface Box<T>
     value: T
     function get(): T
     function set(value: T): void
-end
+}
 
 const numberBox: Box<number> = {
     value = 42,
@@ -229,30 +231,30 @@ Classes can implement interfaces:
 ```lua
 interface Drawable
     function draw(): void
-end
+}
 
 interface Resizable
     function resize(width: number, height: number): void
-end
+}
 
-class Rectangle implements Drawable, Resizable
+class Rectangle implements Drawable, Resizable {
     private width: number
     private height: number
 
-    constructor(width: number, height: number)
+    constructor(width: number, height: number) {
         self.width = width
         self.height = height
-    end
+    }
 
-    function draw(): void
+    function draw(): void {
         print(`Drawing rectangle: ${self.width}x${self.height}`)
-    end
+    }
 
-    function resize(width: number, height: number): void
+    function resize(width: number, height: number): void {
         self.width = width
         self.height = height
-    end
-end
+    }
+}
 
 const rect = Rectangle.new(100, 50)
 rect:draw()           -- Drawing rectangle: 100x50
@@ -267,7 +269,7 @@ Interfaces can define function types:
 ```lua
 interface Comparator<T>
     compare: (a: T, b: T) => number
-end
+}
 
 const numberComparator: Comparator<number> = {
     compare = function(a, b)
@@ -278,7 +280,7 @@ const numberComparator: Comparator<number> = {
 function sort<T>(array: T[], comparator: Comparator<T>): T[]
     -- Sort implementation
     return array
-end
+}
 
 const numbers: number[] = {5, 2, 8, 1, 9}
 sort(numbers, numberComparator)
@@ -301,7 +303,7 @@ interface Logger
     function error(message: string): void
         self:log("ERROR: " .. message)
     end
-end
+}
 
 -- Use default implementations
 const logger: Logger = {}
@@ -328,7 +330,7 @@ interface Counter
     count: number
     function increment(): void
     () => number  -- Call signature
-end
+}
 
 const counter: Counter = setmetatable({
     count = 0,
@@ -352,14 +354,14 @@ print(counter.count)  -- 2 (property access)
 LuaNext uses structural typing—any object matching the interface shape is compatible:
 
 ```lua
-interface Point
+interface Point {
     x: number
     y: number
-end
+}
 
 function printPoint(p: Point): void
     print(`(${p.x}, ${p.y})`)
-end
+}
 
 -- All of these work (structural compatibility)
 printPoint({x = 1, y = 2})
@@ -373,11 +375,11 @@ Combine multiple interfaces using `&`:
 ```lua
 interface Named
     name: string
-end
+}
 
 interface Aged
     age: number
-end
+}
 
 type Person = Named & Aged
 
@@ -392,10 +394,10 @@ const person: Person = {
 Direct object literals are strictly checked:
 
 ```lua
-interface Point
+interface Point {
     x: number
     y: number
-end
+}
 
 -- Error: Object literal may only specify known properties
 -- const p: Point = {x = 1, y = 2, z = 3}  -- ❌ Type error
@@ -414,11 +416,11 @@ Multiple interface declarations with the same name merge:
 ```lua
 interface User
     name: string
-end
+}
 
 interface User
     email: string
-end
+}
 
 -- Merged: User has both name and email
 const user: User = {
@@ -438,7 +440,7 @@ interface Example
 
     -- Function property signature (preferred for callbacks)
     onComplete: (result: string) => void
-end
+}
 ```
 
 Both are functionally equivalent, but the convention is:
@@ -455,7 +457,7 @@ Both are functionally equivalent, but the convention is:
 interface StringMap
     [key: string]: string
     count: number  -- ❌ Error: 'number' not assignable to 'string'
-end
+}
 ```
 
 ### Generic Constraints
@@ -465,12 +467,12 @@ Generic interfaces can have type constraints:
 ```lua
 interface Comparable<T extends {id: number}>
     function compareTo(other: T): number
-end
+}
 
 interface User
     id: number
     name: string
-end
+}
 
 const userComparator: Comparable<User> = {
     compareTo = function(self, other)

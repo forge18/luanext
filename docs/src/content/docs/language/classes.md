@@ -1,7 +1,3 @@
----
-title: Classes
----
-
 # Classes
 
 LuaNext provides object-oriented programming features through classes with full type safety. Classes support inheritance, interfaces, access modifiers, operator overloading, and more.
@@ -9,34 +5,34 @@ LuaNext provides object-oriented programming features through classes with full 
 ## Syntax
 
 ```lua
-[abstract | final] class ClassName[<TypeParams>][(ConstructorParams)] [extends ParentClass] [implements Interface1, Interface2]
+[abstract | final] class ClassName[<TypeParams>][(ConstructorParams)] [extends ParentClass] [implements Interface1, Interface2] {
     -- Properties
     [access] [static] [readonly] propertyName: Type [= initializer]
 
     -- Constructor
-    constructor(parameters)
+    constructor(parameters) {
         -- initialization
-    end
+    }
 
     -- Methods
-    [access] [static] [abstract | final] [override] function methodName(parameters): ReturnType
+    [access] [static] [abstract | final] [override] function methodName(parameters): ReturnType {
         -- body
-    end
+    }
 
     -- Getters and Setters
-    [access] [static] get propertyName(): Type
+    [access] [static] get propertyName(): Type {
         -- body
-    end
+    }
 
-    [access] [static] set propertyName(value: Type)
+    [access] [static] set propertyName(value: Type) {
         -- body
-    end
+    }
 
     -- Operator Overloading
-    operator [+|-|*|/|etc](parameters): ReturnType
+    operator [+|-|*|/|etc](parameters): ReturnType {
         -- body
-    end
-end
+    }
+}
 ```
 
 ## Examples
@@ -44,19 +40,19 @@ end
 ### Basic Class
 
 ```lua
-class Person
+class Person {
     name: string
     age: number
 
-    constructor(name: string, age: number)
+    constructor(name: string, age: number) {
         self.name = name
         self.age = age
-    end
+    }
 
-    function greet(): string
+    function greet(): string {
         return `Hello, I'm ${self.name} and I'm ${self.age} years old.`
-    end
-end
+    }
+}
 
 const alice = Person.new("Alice", 30)
 print(alice:greet())  -- Hello, I'm Alice and I'm 30 years old.
@@ -88,11 +84,11 @@ print(alice:greet())
 Primary constructors provide a compact syntax for declaring properties:
 
 ```lua
-class Point(public x: number, public y: number)
-    function distance(): number
+class Point(public x: number, public y: number) {
+    function distance(): number {
         return math.sqrt(self.x * self.x + self.y * self.y)
-    end
-end
+    }
+}
 
 const p = Point.new(3, 4)
 print(p:distance())  -- 5.0
@@ -128,19 +124,19 @@ LuaNext supports three access modifiers:
 - `protected` — Accessible within the class and subclasses
 
 ```lua
-class BankAccount(private balance: number)
-    public function deposit(amount: number): void
+class BankAccount(private balance: number) {
+    public function deposit(amount: number): void {
         self.balance = self.balance + amount
-    end
+    }
 
-    public function getBalance(): number
+    public function getBalance(): number {
         return self.balance
-    end
+    }
 
-    private function validateAmount(amount: number): boolean
+    private function validateAmount(amount: number): boolean {
         return amount > 0
-    end
-end
+    }
+}
 
 const account = BankAccount.new(100)
 account:deposit(50)
@@ -155,17 +151,17 @@ print(account:getBalance())  -- 150
 Static members belong to the class itself, not instances:
 
 ```lua
-class MathUtils
+class MathUtils {
     static PI: number = 3.14159
 
-    static function square(x: number): number
+    static function square(x: number): number {
         return x * x
-    end
+    }
 
-    static function circleArea(radius: number): number
+    static function circleArea(radius: number): number {
         return MathUtils.PI * radius * radius
-    end
-end
+    }
+}
 
 print(MathUtils.square(5))          -- 25
 print(MathUtils.circleArea(10))     -- 314.159
@@ -176,19 +172,19 @@ print(MathUtils.circleArea(10))     -- 314.159
 Readonly properties can only be assigned in the constructor:
 
 ```lua
-class User(public readonly id: string, public name: string)
-    constructor(id: string, name: string)
+class User(public readonly id: string, public name: string) {
+    constructor(id: string, name: string) {
         self.id = id
         self.name = name
-    end
+    }
 
-    function rename(newName: string): void
+    function rename(newName: string): void {
         self.name = newName  -- ✅ OK
 
         -- Error: Cannot assign to readonly property
         -- self.id = "new-id"  -- ❌ Type error
-    end
-end
+    }
+}
 ```
 
 ### Getters and Setters
@@ -196,21 +192,21 @@ end
 Computed properties with custom logic:
 
 ```lua
-class Temperature
+class Temperature {
     private celsius: number
 
-    constructor(celsius: number)
+    constructor(celsius: number) {
         self.celsius = celsius
-    end
+    }
 
-    get fahrenheit(): number
+    get fahrenheit(): number {
         return self.celsius * 9 / 5 + 32
-    end
+    }
 
-    set fahrenheit(value: number)
+    set fahrenheit(value: number) {
         self.celsius = (value - 32) * 5 / 9
-    end
-end
+    }
+}
 
 const temp = Temperature.new(0)
 print(temp.fahrenheit)  -- 32
@@ -223,28 +219,28 @@ print(temp.celsius)     -- 37.777...
 Classes can extend other classes:
 
 ```lua
-class Animal(public name: string)
-    function speak(): string
+class Animal(public name: string) {
+    function speak(): string {
         return `${self.name} makes a sound`
-    end
-end
+    }
+}
 
-class Dog extends Animal(name)
+class Dog extends Animal(name) {
     private breed: string
 
-    constructor(name: string, breed: string)
+    constructor(name: string, breed: string) {
         super(name)  -- Call parent constructor
         self.breed = breed
-    end
+    }
 
-    override function speak(): string
+    override function speak(): string {
         return `${self.name} barks`
-    end
+    }
 
-    function getBreed(): string
+    function getBreed(): string {
         return self.breed
-    end
-end
+    }
+}
 
 const dog = Dog.new("Rex", "Labrador")
 print(dog:speak())      -- Rex barks
@@ -256,24 +252,24 @@ print(dog:getBreed())   -- Labrador
 Abstract classes cannot be instantiated directly:
 
 ```lua
-abstract class Shape
+abstract class Shape {
     abstract function area(): number
     abstract function perimeter(): number
 
-    function describe(): string
+    function describe(): string {
         return `Area: ${self:area()}, Perimeter: ${self:perimeter()}`
-    end
-end
+    }
+}
 
-class Circle extends Shape(private radius: number)
-    override function area(): number
+class Circle extends Shape(private radius: number) {
+    override function area(): number {
         return 3.14159 * self.radius * self.radius
-    end
+    }
 
-    override function perimeter(): number
+    override function perimeter(): number {
         return 2 * 3.14159 * self.radius
-    end
-end
+    }
+}
 
 -- Error: Cannot instantiate abstract class
 -- const shape = Shape.new()  -- ❌ Type error
@@ -287,22 +283,22 @@ print(circle:describe())  -- Area: 78.53975, Perimeter: 31.4159
 Final classes cannot be extended, final methods cannot be overridden:
 
 ```lua
-final class String
+final class String {
     -- Cannot be extended
-end
+}
 
-class Base
-    final function important(): void
+class Base {
+    final function important(): void {
         print("Important logic")
-    end
-end
+    }
+}
 
-class Derived extends Base
+class Derived extends Base {
     -- Error: Cannot override final method
     -- override function important(): void  -- ❌ Type error
     --     print("Modified")
-    -- end
-end
+    -- }
+}
 ```
 
 ### Implementing Interfaces
@@ -310,31 +306,31 @@ end
 Classes can implement one or more interfaces:
 
 ```lua
-interface Serializable
+interface Serializable {
     function serialize(): string
-end
+}
 
-interface Comparable<T>
+interface Comparable<T> {
     function compareTo(other: T): number
-end
+}
 
-class User implements Serializable, Comparable<User>
+class User implements Serializable, Comparable<User> {
     name: string
     age: number
 
-    constructor(name: string, age: number)
+    constructor(name: string, age: number) {
         self.name = name
         self.age = age
-    end
+    }
 
-    function serialize(): string
+    function serialize(): string {
         return `{"name":"${self.name}","age":${self.age}}`
-    end
+    }
 
-    function compareTo(other: User): number
+    function compareTo(other: User): number {
         return self.age - other.age
-    end
-end
+    }
+}
 ```
 
 ### Operator Overloading
@@ -352,27 +348,27 @@ LuaNext supports overloading 24 operators:
 **Unary:** `-` (negate)
 
 ```lua
-class Vector(public x: number, public y: number)
-    operator +(other: Vector): Vector
+class Vector(public x: number, public y: number) {
+    operator +(other: Vector): Vector {
         return Vector.new(self.x + other.x, self.y + other.y)
-    end
+    }
 
-    operator *(scalar: number): Vector
+    operator *(scalar: number): Vector {
         return Vector.new(self.x * scalar, self.y * scalar)
-    end
+    }
 
-    operator ==(other: Vector): boolean
+    operator ==(other: Vector): boolean {
         return self.x == other.x and self.y == other.y
-    end
+    }
 
-    operator #(): number
+    operator #(): number {
         return math.sqrt(self.x * self.x + self.y * self.y)
-    end
+    }
 
-    operator ...(other: Vector): string
+    operator ...(other: Vector): string {
         return `(${self.x}, ${self.y}) + (${other.x}, ${other.y})`
-    end
-end
+    }
+}
 
 const v1 = Vector.new(1, 2)
 const v2 = Vector.new(3, 4)
@@ -388,21 +384,21 @@ const str = v1 .. v2            -- "(1, 2) + (3, 4)"
 Classes can be generic over type parameters:
 
 ```lua
-class Box<T>
+class Box<T> {
     private value: T
 
-    constructor(value: T)
+    constructor(value: T) {
         self.value = value
-    end
+    }
 
-    function get(): T
+    function get(): T {
         return self.value
-    end
+    }
 
-    function set(value: T): void
+    function set(value: T): void {
         self.value = value
-    end
-end
+    }
+}
 
 const numberBox = Box<number>.new(42)
 const stringBox = Box<string>.new("hello")

@@ -1,7 +1,3 @@
----
-title: Enums
----
-
 # Enums
 
 LuaNext provides rich enums that go beyond simple value sets. Enums can have string or number values, fields, constructors, methods, and can implement interfaces.
@@ -9,7 +5,7 @@ LuaNext provides rich enums that go beyond simple value sets. Enums can have str
 ## Syntax
 
 ```lua
-enum EnumName [implements Interface1, Interface2]
+enum EnumName [implements Interface1, Interface2] {
     -- Simple members
     Member1,
     Member2 = value,
@@ -18,16 +14,18 @@ enum EnumName [implements Interface1, Interface2]
     fieldName: Type,
 
     -- Constructor
-    constructor(parameters)
+    constructor(parameters) {
         -- initialization logic for fields
-    end
+    }
 
     -- Methods
-    function methodName(parameters): ReturnType
+    function methodName(parameters): ReturnType {
         -- body
-    end
-end
+    }
+}
 ```
+
+Note: Enums can use either braces `{}` or `end`.
 
 ## Examples
 
