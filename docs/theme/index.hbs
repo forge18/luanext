@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="{{ language }}" class="sidebar-visible no-js {{ default_theme }}">
+    <head>
+        <!-- Fallback to default mdbook template -->
+        {{{default_resources}}}
+        <meta name="robots" content="noindex,follow">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta charset="utf-8">
+        <title>{{ title }}</title>
+        <script>
+            var theme = localStorage.getItem("mdbook-theme");
+            if (theme === null || theme === undefined) { theme = "{{ default_theme }}"; }
+            var html = document.querySelector("html");
+            html.classList.remove("{{ default_theme }}");
+            html.classList.add(theme);
+        </script>
+        <meta name="description" content="{{ description }}">
+        <link rel="icon" href="{{ root_path }}favicon.svg">
+        <link rel="apple-touch-icon" href="{{ root_path }}apple-touch-icon.png">
+        <link rel="stylesheet" href="{{ root_path }}css/variables.css">
+        <link rel="stylesheet" href="{{ root_path }}css/general.css">
+        <link rel="stylesheet" href="{{ root_path }}css/chrome.css">
+        {{#if print_on}}
+        <link rel="stylesheet" href="{{ root_path }}css/print.css">
+        {{/if}}
+        <link rel="stylesheet" href="{{ root_path }}css/custom.css">
+        <link rel="stylesheet" href="{{ root_path }}highlight.css">
+        <link rel="stylesheet" href="{{ root_path }}tomorrow-night.css">
+        {{#each additional_css}}
+        <link rel="stylesheet" href="{{ root_path }}{{ this }}">
+        {{/each}}
+
+        {{#if mathjax_support}}
+        <script async type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        {{/if}}
+    </head>
+    <body>
+        <!-- Provide the book title to JavaScript -->
+        <script>
+            window.book = window.book || {};
+            window.book.language = "{{ language }}";
+        </script>
+
+        <div id="book" class="book">
+            <div class="book-inner">
+
+            <nav role="navigation" aria-label="Table of contents" class="sidebar">
+                {{#toc}}{{/toc}}
+            </nav>
+
+            <div id="page-wrapper" class="page-wrapper">
+
+                <div class="page-inner">
+
+                <section class="normal" id="main">
+                    {{{content}}}
+                </section>
+
+                </div><!-- page-inner -->
+
+            </div><!-- page-wrapper -->
+
+            </div><!-- book-inner -->
+
+            <!-- Version Selector -->
+            <nav class="nav-wide-wrapper" aria-label="More">
+                <a href="javascript:void(0)" id="menu-bar-wide" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                    <i class="fa fa-bars"></i>
+                </a>
+            </nav>
+
+            <!-- Version selector dropdown -->
+            <div id="version-selector" class="version-selector">
+                <select id="version-picker" onchange="switchVersion(this.value)" aria-label="Documentation version">
+                    <option value="latest">Latest</option>
+                </select>
+            </div>
+
+        </div><!-- book -->
+
+        <!-- Custom scripts -->
+        <script>
+            // Version selector functionality
+            function switchVersion(version) {
+                const base = window.location.origin + '/luanext/';
+                if (version === 'latest') {
+                    window.location.href = base;
+                } else {
+                    window.location.href = base + version + '/';
+                }
+            }
+
+            // Load versions.json and populate selector if it exists
+            fetch('/luanext/versions.json')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.versions && data.versions.length > 1) {
+                        const selector = document.getElementById('version-picker');
+                        data.versions.forEach(v => {
+                            if (v.version !== 'latest') {
+                                const option = document.createElement('option');
+                                option.value = 'v' + v.version;
+                                option.textContent = 'v' + v.version;
+                                selector.appendChild(option);
+                            }
+                        });
+                    }
+                })
+                .catch(() => {
+                    // versions.json not found (expected during initial setup)
+                    // Selector will only show "Latest"
+                });
+        </script>
+
+        <!-- mdBook scripts and content scripts -->
+        {{#each additional_js}}
+        <script src="{{ root_path }}{{ this }}" type="text/javascript"></script>
+        {{/each}}
+        <script src="{{ root_path }}js/clipboard.min.js" type="text/javascript"></script>
+        <script src="{{ root_path }}js/highlight.js" type="text/javascript"></script>
+        <script src="{{ root_path }}js/book.js" type="text/javascript"></script>
+
+        <!-- Custom theme script -->
+        <script src="{{ root_path }}js/custom-theme.js" type="text/javascript"></script>
+
+        {{#if search_js}}
+        <script src="{{ root_path }}js/elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="{{ root_path }}js/mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="{{ root_path }}js/lunr-en.js" type="text/javascript" charset="utf-8"></script>
+        <script src="{{ root_path }}js/search.js" type="text/javascript" charset="utf-8"></script>
+        {{/if}}
+
+        {{#if mermaid_js}}
+        <script src="{{ root_path }}mermaid.min.js" type="text/javascript"></script>
+        <script src="{{ root_path }}mermaid-init.js" type="text/javascript"></script>
+        {{/if}}
+    </body>
+</html>
