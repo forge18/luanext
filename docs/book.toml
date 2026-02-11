@@ -16,7 +16,6 @@ git-repository-url = "https://github.com/forge18/luanext"
 git-repository-icon = "fa-github"
 edit-url-template = "https://github.com/forge18/luanext/edit/main/docs-site/src/{path}"
 site-url = "/luanext/"
-theme = "theme"
 
 [output.html.search]
 enable = true
