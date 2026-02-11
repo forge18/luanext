@@ -38,8 +38,10 @@ CLAUDE.md
 /**/CLAUDE.md
 
 # Documentation build
-/docs/_build
-/docs/.doctrees
+book/
+
+# Technical documentation
+technical/
 
 # Temporary files
 *.tmp
