@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Fallback to default mdbook template -->
+        
+        <meta name="robots" content="noindex,follow">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta charset="utf-8">
+        <title>Operators - LuaNext Documentation</title>
+        <script>
+            var theme = localStorage.getItem("mdbook-theme");
+            if (theme === null || theme === undefined) { theme = "light"; }
+            var html = document.querySelector("html");
+            html.classList.remove("light");
+            html.classList.add(theme);
+        </script>
+        <meta name="description" content="A typed superset of Lua with gradual typing, inspired by TypeScript">
+        <link rel="icon" href="favicon.svg">
+        <link rel="apple-touch-icon" href="apple-touch-icon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/custom.css">
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+
+    </head>
+    <body>
+        <!-- Provide the book title to JavaScript -->
+        <script>
+            window.book = window.book || {};
+            window.book.language = "en";
+        </script>
+
+        <div id="book" class="book">
+            <div class="book-inner">
+
+            <nav role="navigation" aria-label="Table of contents" class="sidebar">
+                <ol class="chapter"><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="introduction.html">Introduction</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Language</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/basics.html"><strong aria-hidden="true">1.</strong> Basics</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/control-flow.html"><strong aria-hidden="true">2.</strong> Control Flow</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/functions.html"><strong aria-hidden="true">3.</strong> Functions</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/type-system.html"><strong aria-hidden="true">4.</strong> Type System</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/classes.html"><strong aria-hidden="true">5.</strong> Classes</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/interfaces.html"><strong aria-hidden="true">6.</strong> Interfaces</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/enums.html"><strong aria-hidden="true">7.</strong> Enums</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/modules.html"><strong aria-hidden="true">8.</strong> Modules</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/error-handling.html"><strong aria-hidden="true">9.</strong> Error Handling</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/pattern-matching.html"><strong aria-hidden="true">10.</strong> Pattern Matching</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/decorators.html"><strong aria-hidden="true">11.</strong> Decorators</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/advanced-types.html"><strong aria-hidden="true">12.</strong> Advanced Types</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/operators.html"><strong aria-hidden="true">13.</strong> Operators</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Guides</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="guides/migrating-from-lua.html"><strong aria-hidden="true">14.</strong> Migrating from Lua</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="guides/lua-targets.html"><strong aria-hidden="true">15.</strong> Lua Targets</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Reference</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/cli.html"><strong aria-hidden="true">16.</strong> CLI</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/configuration.html"><strong aria-hidden="true">17.</strong> Configuration</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/standard-library.html"><strong aria-hidden="true">18.</strong> Standard Library</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/utility-types.html"><strong aria-hidden="true">19.</strong> Utility Types</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/reflection.html"><strong aria-hidden="true">20.</strong> Reflection API</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/error-codes.html"><strong aria-hidden="true">21.</strong> Error Codes</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/grammar.html"><strong aria-hidden="true">22.</strong> Grammar</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/keywords.html"><strong aria-hidden="true">23.</strong> Keywords</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Contributing</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="contributing/setup.html"><strong aria-hidden="true">24.</strong> Getting Started</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">API Reference</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="api/index.html"><strong aria-hidden="true">25.</strong> Rust API Docs</a></span></li></ol>
+            </nav>
+
+            <div id="page-wrapper" class="page-wrapper">
+
+                <div class="page-inner">
+
+                <section class="normal" id="main">
+                    <h1 id="operators"><a class="header" href="#operators">Operators</a></h1>
+<p>LuaNext provides a comprehensive set of operators for arithmetic, comparison, logical operations, bitwise operations, and special operators like optional chaining, null coalescing, and more.</p>
+<h2 id="arithmetic-operators"><a class="header" href="#arithmetic-operators">Arithmetic Operators</a></h2>
+<h3 id="basic-arithmetic"><a class="header" href="#basic-arithmetic">Basic Arithmetic</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Operator</th><th>Description</th><th>Example</th><th>Result</th></tr>
+</thead>
+<tbody>
+<tr><td><code>+</code></td><td>Addition</td><td><code>5 + 3</code></td><td><code>8</code></td></tr>
+<tr><td><code>-</code></td><td>Subtraction</td><td><code>10 - 4</code></td><td><code>6</code></td></tr>
+<tr><td><code>*</code></td><td>Multiplication</td><td><code>6 * 7</code></td><td><code>42</code></td></tr>
+<tr><td><code>/</code></td><td>Division</td><td><code>15 / 3</code></td><td><code>5.0</code></td></tr>
+<tr><td><code>%</code></td><td>Modulo</td><td><code>17 % 5</code></td><td><code>2</code></td></tr>
+<tr><td><code>^</code></td><td>Exponentiation</td><td><code>2 ^ 10</code></td><td><code>1024</code></td></tr>
+<tr><td><code>//</code></td><td>Floor division</td><td><code>17 // 5</code></td><td><code>3</code></td></tr>
+</tbody>
+</table>
+</div>
+<pre><code class="language-lua">const a: number = 10 + 5   -- 15
+const b: number = 20 - 7   -- 13
+const c: number = 6 * 4    -- 24
+const d: number = 15 / 3   -- 5.0
+const e: number = 17 % 5   -- 2
+const f: number = 2 ^ 10   -- 1024
+const g: number = 17 // 5  -- 3 (floor division)
+</code></pre>
+<h3 id="unary-arithmetic"><a class="header" href="#unary-arithmetic">Unary Arithmetic</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Operator</th><th>Description</th><th>Example</th><th>Result</th></tr>
+</thead>
+<tbody>
+<tr><td><code>-</code></td><td>Negation</td><td><code>-5</code></td><td><code>-5</code></td></tr>
+<tr><td><code>#</code></td><td>Length</td><td><code>#{1,2,3}</code></td><td><code>3</code></td></tr>
+</tbody>
+</table>
+</div>
+<pre><code class="language-lua">const x: number = 10
+const negated: number = -x  -- -10
+
+const arr: number[] = {1, 2, 3, 4, 5}
+const length: number = #arr  -- 5
+
+const str: string = "hello"
+const strLen: number = #str  -- 5
+</code></pre>
+<h2 id="comparison-operators"><a class="header" href="#comparison-operators">Comparison Operators</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Operator</th><th>Description</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td><code>==</code></td><td>Equal</td><td><code>5 == 5</code></td></tr>
+<tr><td><code>~=</code></td><td>Not equal</td><td><code>5 ~= 3</code></td></tr>
+<tr><td><code>&lt;</code></td><td>Less than</td><td><code>3 &lt; 5</code></td></tr>
+<tr><td><code>&lt;=</code></td><td>Less than or equal</td><td><code>5 &lt;= 5</code></td></tr>
+<tr><td><code>&gt;</code></td><td>Greater than</td><td><code>7 &gt; 3</code></td></tr>
+<tr><td><code>&gt;=</code></td><td>Greater than or equal</td><td><code>5 &gt;= 5</code></td></tr>
+</tbody>
+</table>
+</div>
+<pre><code class="language-lua">const isEqual: boolean = 5 == 5          -- true
+const notEqual: boolean = 5 ~= 3         -- true
+const lessThan: boolean = 3 &lt; 5          -- true
+const lessOrEqual: boolean = 5 &lt;= 5      -- true
+const greaterThan: boolean = 7 &gt; 3       -- true
+const greaterOrEqual: boolean = 5 &gt;= 5   -- true
+</code></pre>
+<h2 id="logical-operators"><a class="header" href="#logical-operators">Logical Operators</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Operator</th><th>Description</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td><code>and</code></td><td>Logical AND</td><td><code>true and false</code></td></tr>
+<tr><td><code>or</code></td><td>Logical OR</td><td><code>true or false</code></td></tr>
+<tr><td><code>not</code></td><td>Logical NOT</td><td><code>not true</code></td></tr>
+</tbody>
+</table>
+</div>
+<pre><code class="language-lua">const result1: boolean = true and false   -- false
+const result2: boolean = true or false    -- true
+const result3: boolean = not true         -- false
+
+-- Short-circuit evaluation
+const value = x &gt; 0 and x or 0  -- Returns x if x &gt; 0, else 0
+</code></pre>
+<h2 id="bitwise-operators"><a class="header" href="#bitwise-operators">Bitwise Operators</a></h2>
+<p>Available in Lua 5.3+:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Operator</th><th>Description</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td><code>&amp;</code></td><td>Bitwise AND</td><td><code>12 &amp; 10</code></td></tr>
+<tr><td>`</td><td>`</td><td>Bitwise OR</td></tr>
+<tr><td><code>~</code> (unary)</td><td>Bitwise NOT</td><td><code>~5</code></td></tr>
+<tr><td><code>~</code> (binary)</td><td>Bitwise XOR</td><td><code>12 ~ 10</code></td></tr>
+<tr><td><code>&lt;&lt;</code></td><td>Left shift</td><td><code>1 &lt;&lt; 3</code></td></tr>
+<tr><td><code>&gt;&gt;</code></td><td>Right shift</td><td><code>8 &gt;&gt; 2</code></td></tr>
+</tbody>
+</table>
+</div>
+<pre><code class="language-lua">const a: integer = 12       -- 1100 in binary
+const b: integer = 10       -- 1010 in binary
+
+const bitwiseAnd: integer = a &amp; b   -- 8 (1000)
+const bitwiseOr: integer = a | b    -- 14 (1110)
+const bitwiseXor: integer = a ~ b   -- 6 (0110)
+const bitwiseNot: integer = ~a      -- -13
+const leftShift: integer = 1 &lt;&lt; 3   -- 8 (1 * 2^3)
+const rightShift: integer = 8 &gt;&gt; 2  -- 2 (8 / 2^2)
+</code></pre>
+<h2 id="string-concatenation"><a class="header" href="#string-concatenation">String Concatenation</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Operator</th><th>Description</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td><code>..</code></td><td>Concatenate</td><td><code>"Hello" .. " World"</code></td></tr>
+</tbody>
+</table>
+</div>
+<pre><code class="language-lua">const greeting: string = "Hello" .. " " .. "World"  -- "Hello World"
+const message: string = "Count: " .. tostring(42)    -- "Count: 42"
+</code></pre>
+<h2 id="compound-assignment"><a class="header" href="#compound-assignment">Compound Assignment</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Operator</th><th>Equivalent</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>+=</code></td><td><code>x = x + y</code></td><td>Add and assign</td></tr>
+<tr><td><code>-=</code></td><td><code>x = x - y</code></td><td>Subtract and assign</td></tr>
+<tr><td><code>*=</code></td><td><code>x = x * y</code></td><td>Multiply and assign</td></tr>
+<tr><td><code>/=</code></td><td><code>x = x / y</code></td><td>Divide and assign</td></tr>
+<tr><td><code>%=</code></td><td><code>x = x % y</code></td><td>Modulo and assign</td></tr>
+<tr><td><code>^=</code></td><td><code>x = x ^ y</code></td><td>Exponentiate and assign</td></tr>
+<tr><td><code>//=</code></td><td><code>x = x // y</code></td><td>Floor divide and assign</td></tr>
+<tr><td><code>..=</code></td><td><code>x = x .. y</code></td><td>Concatenate and assign</td></tr>
+<tr><td><code>&amp;=</code></td><td><code>x = x &amp; y</code></td><td>Bitwise AND and assign</td></tr>
+<tr><td>`</td><td>=`</td><td>`x = x</td></tr>
+<tr><td><code>&lt;&lt;=</code></td><td><code>x = x &lt;&lt; y</code></td><td>Left shift and assign</td></tr>
+<tr><td><code>&gt;&gt;=</code></td><td><code>x = x &gt;&gt; y</code></td><td>Right shift and assign</td></tr>
+</tbody>
+</table>
+</div>
+<pre><code class="language-lua">local x: number = 10
+x += 5   -- x = 15
+x -= 3   -- x = 12
+x *= 2   -- x = 24
+x /= 4   -- x = 6.0
+x %= 5   -- x = 1.0
+x ^= 3   -- x = 1.0
+
+local s: string = "Hello"
+s ..= " World"  -- s = "Hello World"
+
+local flags: integer = 0b1100
+flags &amp;= 0b1010  -- flags = 0b1000
+</code></pre>
+<h2 id="optional-chaining"><a class="header" href="#optional-chaining">Optional Chaining</a></h2>
+<p>Safely access nested properties that might be nil:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Operator</th><th>Description</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td><code>?.</code></td><td>Optional member access</td><td><code>obj?.property</code></td></tr>
+<tr><td><code>?[]</code></td><td>Optional index access</td><td><code>arr?[1]</code></td></tr>
+<tr><td><code>?()</code></td><td>Optional call</td><td><code>func?()</code></td></tr>
+<tr><td><code>?:</code></td><td>Optional method call</td><td><code>obj?:method()</code></td></tr>
+</tbody>
+</table>
+</div>
+<pre><code class="language-lua">interface User
+    name: string
+    address?: {
+        street: string
+        city: string
+    }
+end
+
+const user: User | nil = getUser()
+
+-- Without optional chaining (verbose)
+const city1 = user ~= nil and user.address ~= nil and user.address.city or nil
+
+-- With optional chaining (concise)
+const city2 = user?.address?.city  -- nil if user or address is nil
+
+-- Optional method call
+const result = obj?:method()  -- Only calls if obj is not nil
+
+-- Optional function call
+const value = func?()  -- Only calls if func is not nil
+
+-- Optional index
+const item = array?[1]  -- nil if array is nil
+</code></pre>
+<h2 id="null-coalescing"><a class="header" href="#null-coalescing">Null Coalescing</a></h2>
+<p>Provide default values for nil:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Operator</th><th>Description</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td><code>??</code></td><td>Null coalesce</td><td><code>value ?? default</code></td></tr>
+</tbody>
+</table>
+</div>
+<pre><code class="language-lua">const name: string = user?.name ?? "Anonymous"
+const port: number = config?.port ?? 8080
+const items: string[] = data?.items ?? {}
+
+-- Chaining
+const value = a ?? b ?? c ?? defaultValue
+</code></pre>
+<p>Difference from <code>or</code>:</p>
+<pre><code class="language-lua">-- or returns right side for any falsy value (nil, false)
+const x = false or "default"  -- "default"
+
+-- ?? only returns right side for nil
+const y = false ?? "default"  -- false
+</code></pre>
+<h2 id="ternary-operator"><a class="header" href="#ternary-operator">Ternary Operator</a></h2>
+<p>Conditional expression:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Operator</th><th>Description</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td><code>? :</code></td><td>Ternary</td><td><code>condition ? trueValue : falseValue</code></td></tr>
+</tbody>
+</table>
+</div>
+<pre><code class="language-lua">const max = a &gt; b ? a : b
+const status = isActive ? "Active" : "Inactive"
+const message = count &gt; 0 ? `${count} items` : "No items"
+
+-- Nested ternary
+const category = score &gt;= 90 ? "A" :
+                 score &gt;= 80 ? "B" :
+                 score &gt;= 70 ? "C" : "F"
+</code></pre>
+<h2 id="pipe-operator"><a class="header" href="#pipe-operator">Pipe Operator</a></h2>
+<p>Chain function calls:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Operator</th><th>Description</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td>`</td><td>&gt;`</td><td>Pipe</td></tr>
+</tbody>
+</table>
+</div>
+<pre><code class="language-lua">const result = data
+    |&gt; parseJSON
+    |&gt; validateData
+    |&gt; transform
+    |&gt; stringify
+
+-- Equivalent to:
+const result = stringify(transform(validateData(parseJSON(data))))
+
+-- With arguments
+const result = data
+    |&gt; trim
+    |&gt; split(_, ",")
+    |&gt; map(_, parseInt)
+    |&gt; filter(_, isPositive)
+</code></pre>
+<h2 id="error-chain-operator"><a class="header" href="#error-chain-operator">Error Chain Operator</a></h2>
+<p>Shorthand for try-catch:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Operator</th><th>Description</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td><code>!!</code></td><td>Error chain</td><td><code>operation() !! fallback</code></td></tr>
+</tbody>
+</table>
+</div>
+<pre><code class="language-lua">const data = fetchData() !! defaultData
+const config = loadConfig() !! getDefaultConfig()
+
+-- Equivalent to:
+const data = try fetchData() catch _ =&gt; defaultData
+</code></pre>
+<h2 id="instanceof-operator"><a class="header" href="#instanceof-operator">Instanceof Operator</a></h2>
+<p>Check instance types:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Operator</th><th>Description</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td><code>instanceof</code></td><td>Type check</td><td><code>obj instanceof ClassName</code></td></tr>
+</tbody>
+</table>
+</div>
+<pre><code class="language-lua">if user instanceof AdminUser then
+    print("User is an admin")
+end
+
+function handleAnimal(animal: Animal): void
+    if animal instanceof Dog then
+        animal:bark()
+    elseif animal instanceof Cat then
+        animal:meow()
+    end
+end
+</code></pre>
+<h2 id="type-assertion"><a class="header" href="#type-assertion">Type Assertion</a></h2>
+<p>Cast types:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Operator</th><th>Description</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td><code>as</code></td><td>Type assertion</td><td><code>value as Type</code></td></tr>
+</tbody>
+</table>
+</div>
+<pre><code class="language-lua">const data: unknown = getData()
+const user = data as User
+
+const num = someValue as number
+const str = someValue as string
+
+-- Use with caution—bypasses type checking
+</code></pre>
+<h2 id="spread-and-rest"><a class="header" href="#spread-and-rest">Spread and Rest</a></h2>
+<h3 id="spread-operator"><a class="header" href="#spread-operator">Spread Operator</a></h3>
+<p>Expand arrays or objects:</p>
+<pre><code class="language-lua">-- Array spread
+const arr1 = {1, 2, 3}
+const arr2 = {4, 5, 6}
+const combined = {...arr1, ...arr2}  -- {1, 2, 3, 4, 5, 6}
+
+-- Object spread
+const obj1 = {x = 1, y = 2}
+const obj2 = {y = 3, z = 4}
+const merged = {...obj1, ...obj2}  -- {x = 1, y = 3, z = 4}
+</code></pre>
+<h3 id="rest-operator"><a class="header" href="#rest-operator">Rest Operator</a></h3>
+<p>Collect remaining elements:</p>
+<pre><code class="language-lua">-- Function parameters
+function sum(...numbers: number[]): number
+    local total = 0
+    for _, n in ipairs(numbers) do
+        total += n
+    end
+    return total
+end
+
+print(sum(1, 2, 3, 4, 5))  -- 15
+
+-- Array destructuring
+const [first, ...rest] = {1, 2, 3, 4, 5}
+-- first = 1, rest = {2, 3, 4, 5}
+
+-- Object destructuring
+const {x, ...remaining} = {x = 1, y = 2, z = 3}
+-- x = 1, remaining = {y = 2, z = 3}
+</code></pre>
+<h2 id="precedence"><a class="header" href="#precedence">Precedence</a></h2>
+<p>Operators listed from highest to lowest precedence:</p>
+<ol>
+<li><strong>Member access</strong>: <code>.</code>, <code>[]</code>, <code>:</code></li>
+<li><strong>Function call</strong>: <code>()</code></li>
+<li><strong>Unary</strong>: <code>not</code>, <code>-</code>, <code>#</code>, <code>~</code></li>
+<li><strong>Exponentiation</strong>: <code>^</code></li>
+<li><strong>Multiplicative</strong>: <code>*</code>, <code>/</code>, <code>%</code>, <code>//</code></li>
+<li><strong>Additive</strong>: <code>+</code>, <code>-</code></li>
+<li><strong>Concatenation</strong>: <code>..</code></li>
+<li><strong>Bitwise shift</strong>: <code>&lt;&lt;</code>, <code>&gt;&gt;</code></li>
+<li><strong>Bitwise AND</strong>: <code>&amp;</code></li>
+<li><strong>Bitwise XOR</strong>: <code>~</code></li>
+<li><strong>Bitwise OR</strong>: <code>|</code></li>
+<li><strong>Comparison</strong>: <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code>, <code>==</code>, <code>~=</code>, <code>instanceof</code></li>
+<li><strong>Logical AND</strong>: <code>and</code></li>
+<li><strong>Logical OR</strong>: <code>or</code></li>
+<li><strong>Null coalesce</strong>: <code>??</code></li>
+<li><strong>Ternary</strong>: <code>? :</code></li>
+<li><strong>Pipe</strong>: <code>|&gt;</code></li>
+<li><strong>Error chain</strong>: <code>!!</code></li>
+<li><strong>Assignment</strong>: <code>=</code>, <code>+=</code>, <code>-=</code>, etc.</li>
+</ol>
+<p>Use parentheses for clarity:</p>
+<pre><code class="language-lua">const result = (a + b) * c     -- Explicit grouping
+const value = x &gt; 0 and y or z  -- Can be ambiguous, use parens
+const value = (x &gt; 0) and y or z  -- Clear precedence
+</code></pre>
+<h2 id="operator-overloading"><a class="header" href="#operator-overloading">Operator Overloading</a></h2>
+<p>Classes can overload operators:</p>
+<pre><code class="language-lua">class Vector(public x: number, public y: number)
+    operator +(other: Vector): Vector
+        return Vector.new(self.x + other.x, self.y + other.y)
+    end
+
+    operator -(other: Vector): Vector
+        return Vector.new(self.x - other.x, self.y - other.y)
+    end
+
+    operator *(scalar: number): Vector
+        return Vector.new(self.x * scalar, self.y * scalar)
+    end
+
+    operator ==(other: Vector): boolean
+        return self.x == other.x and self.y == other.y
+    end
+
+    operator #(): number
+        return math.sqrt(self.x * self.x + self.y * self.y)
+    end
+end
+
+const v1 = Vector.new(1, 2)
+const v2 = Vector.new(3, 4)
+const v3 = v1 + v2          -- Vector(4, 6)
+const v4 = v1 * 2           -- Vector(2, 4)
+const equal = v1 == v2      -- false
+const length = #v1          -- 2.236...
+</code></pre>
+<h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
+<ul>
+<li><a href="classes.html">Classes</a> — Operator overloading</li>
+<li><a href="error-handling.html">Error Handling</a> — Error chain operator</li>
+<li><a href="type-system.html">Type System</a> — Type assertions and instanceof</li>
+<li><a href="advanced-types.html">Advanced Types</a> — Type operators</li>
+</ul>
+
+                </section>
+
+                </div><!-- page-inner -->
+
+            </div><!-- page-wrapper -->
+
+            </div><!-- book-inner -->
+
+            <!-- Version Selector -->
+            <nav class="nav-wide-wrapper" aria-label="More">
+                <a href="javascript:void(0)" id="menu-bar-wide" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                    <i class="fa fa-bars"></i>
+                </a>
+            </nav>
+
+            <!-- Version selector dropdown -->
+            <div id="version-selector" class="version-selector">
+                <select id="version-picker" onchange="switchVersion(this.value)" aria-label="Documentation version">
+                    <option value="latest">Latest</option>
+                </select>
+            </div>
+
+        </div><!-- book -->
+
+        <!-- Custom scripts -->
+        <script>
+            // Version selector functionality
+            function switchVersion(version) {
+                const base = window.location.origin + '/luanext/';
+                if (version === 'latest') {
+                    window.location.href = base;
+                } else {
+                    window.location.href = base + version + '/';
+                }
+            }
+
+            // Load versions.json and populate selector if it exists
+            fetch('/luanext/versions.json')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.versions && data.versions.length > 1) {
+                        const selector = document.getElementById('version-picker');
+                        data.versions.forEach(v => {
+                            if (v.version !== 'latest') {
+                                const option = document.createElement('option');
+                                option.value = 'v' + v.version;
+                                option.textContent = 'v' + v.version;
+                                selector.appendChild(option);
+                            }
+                        });
+                    }
+                })
+                .catch(() => {
+                    // versions.json not found (expected during initial setup)
+                    // Selector will only show "Latest"
+                });
+        </script>
+
+        <!-- mdBook scripts and content scripts -->
+        <script src="js/clipboard.min.js" type="text/javascript"></script>
+        <script src="js/highlight.js" type="text/javascript"></script>
+        <script src="js/book.js" type="text/javascript"></script>
+
+        <!-- Custom theme script -->
+        <script src="js/custom-theme.js" type="text/javascript"></script>
+
+        <script src="js/elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/lunr-en.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/search.js" type="text/javascript" charset="utf-8"></script>
+
+    </body>
+</html>

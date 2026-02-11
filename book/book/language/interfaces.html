@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Fallback to default mdbook template -->
+        
+        <meta name="robots" content="noindex,follow">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta charset="utf-8">
+        <title>Interfaces - LuaNext Documentation</title>
+        <script>
+            var theme = localStorage.getItem("mdbook-theme");
+            if (theme === null || theme === undefined) { theme = "light"; }
+            var html = document.querySelector("html");
+            html.classList.remove("light");
+            html.classList.add(theme);
+        </script>
+        <meta name="description" content="A typed superset of Lua with gradual typing, inspired by TypeScript">
+        <link rel="icon" href="favicon.svg">
+        <link rel="apple-touch-icon" href="apple-touch-icon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/custom.css">
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+
+    </head>
+    <body>
+        <!-- Provide the book title to JavaScript -->
+        <script>
+            window.book = window.book || {};
+            window.book.language = "en";
+        </script>
+
+        <div id="book" class="book">
+            <div class="book-inner">
+
+            <nav role="navigation" aria-label="Table of contents" class="sidebar">
+                <ol class="chapter"><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="introduction.html">Introduction</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Language</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/basics.html"><strong aria-hidden="true">1.</strong> Basics</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/control-flow.html"><strong aria-hidden="true">2.</strong> Control Flow</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/functions.html"><strong aria-hidden="true">3.</strong> Functions</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/type-system.html"><strong aria-hidden="true">4.</strong> Type System</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/classes.html"><strong aria-hidden="true">5.</strong> Classes</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/interfaces.html"><strong aria-hidden="true">6.</strong> Interfaces</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/enums.html"><strong aria-hidden="true">7.</strong> Enums</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/modules.html"><strong aria-hidden="true">8.</strong> Modules</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/error-handling.html"><strong aria-hidden="true">9.</strong> Error Handling</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/pattern-matching.html"><strong aria-hidden="true">10.</strong> Pattern Matching</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/decorators.html"><strong aria-hidden="true">11.</strong> Decorators</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/advanced-types.html"><strong aria-hidden="true">12.</strong> Advanced Types</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/operators.html"><strong aria-hidden="true">13.</strong> Operators</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Guides</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="guides/migrating-from-lua.html"><strong aria-hidden="true">14.</strong> Migrating from Lua</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="guides/lua-targets.html"><strong aria-hidden="true">15.</strong> Lua Targets</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Reference</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/cli.html"><strong aria-hidden="true">16.</strong> CLI</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/configuration.html"><strong aria-hidden="true">17.</strong> Configuration</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/standard-library.html"><strong aria-hidden="true">18.</strong> Standard Library</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/utility-types.html"><strong aria-hidden="true">19.</strong> Utility Types</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/reflection.html"><strong aria-hidden="true">20.</strong> Reflection API</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/error-codes.html"><strong aria-hidden="true">21.</strong> Error Codes</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/grammar.html"><strong aria-hidden="true">22.</strong> Grammar</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/keywords.html"><strong aria-hidden="true">23.</strong> Keywords</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Contributing</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="contributing/setup.html"><strong aria-hidden="true">24.</strong> Getting Started</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">API Reference</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="api/index.html"><strong aria-hidden="true">25.</strong> Rust API Docs</a></span></li></ol>
+            </nav>
+
+            <div id="page-wrapper" class="page-wrapper">
+
+                <div class="page-inner">
+
+                <section class="normal" id="main">
+                    <h1 id="interfaces"><a class="header" href="#interfaces">Interfaces</a></h1>
+<p>Interfaces define the shape of objects without providing implementation. They enable structural typing, contracts for classes, and reusable type definitions.</p>
+<h2 id="syntax"><a class="header" href="#syntax">Syntax</a></h2>
+<pre><code class="language-lua">interface InterfaceName[&lt;TypeParams&gt;] [extends Interface1, Interface2]
+    -- Property signatures
+    [readonly] propertyName[?]: Type
+
+    -- Method signatures
+    methodName[&lt;TypeParams&gt;](parameters): ReturnType
+
+    -- Index signatures
+    [key: string | number]: ValueType
+end
+</code></pre>
+<h2 id="examples"><a class="header" href="#examples">Examples</a></h2>
+<h3 id="basic-interface"><a class="header" href="#basic-interface">Basic Interface</a></h3>
+<pre><code class="language-lua">interface Point
+    x: number
+    y: number
+end
+
+function distance(p1: Point, p2: Point): number
+    const dx = p2.x - p1.x
+    const dy = p2.y - p1.y
+    return math.sqrt(dx * dx + dy * dy)
+end
+
+const p1: Point = {x = 0, y = 0}
+const p2: Point = {x = 3, y = 4}
+print(distance(p1, p2))  -- 5.0
+</code></pre>
+<p>Compiles to:</p>
+<pre><code class="language-lua">local function distance(p1, p2)
+    local dx = p2.x - p1.x
+    local dy = p2.y - p1.y
+    return math.sqrt(dx * dx + dy * dy)
+end
+
+local p1 = {x = 0, y = 0}
+local p2 = {x = 3, y = 4}
+print(distance(p1, p2))
+</code></pre>
+<h3 id="method-signatures"><a class="header" href="#method-signatures">Method Signatures</a></h3>
+<p>Interfaces can declare method signatures:</p>
+<pre><code class="language-lua">interface Logger
+    function log(message: string): void
+    function warn(message: string): void
+    function error(message: string): void
+end
+
+function setupLogging(logger: Logger): void
+    logger:log("System started")
+    logger:warn("Low memory")
+    logger:error("Fatal error")
+end
+
+-- Implementing with a table
+const consoleLogger: Logger = {
+    log = function(self, message)
+        print("[LOG] " .. message)
+    end,
+    warn = function(self, message)
+        print("[WARN] " .. message)
+    end,
+    error = function(self, message)
+        print("[ERROR] " .. message)
+    end
+}
+
+setupLogging(consoleLogger)
+</code></pre>
+<h3 id="optional-properties"><a class="header" href="#optional-properties">Optional Properties</a></h3>
+<p>Properties marked with <code>?</code> are optional:</p>
+<pre><code class="language-lua">interface Config
+    host: string
+    port: number
+    ssl?: boolean
+    timeout?: number
+end
+
+const config1: Config = {
+    host = "localhost",
+    port = 8080
+}
+
+const config2: Config = {
+    host = "example.com",
+    port = 443,
+    ssl = true,
+    timeout = 5000
+}
+</code></pre>
+<h3 id="readonly-properties"><a class="header" href="#readonly-properties">Readonly Properties</a></h3>
+<p>Readonly properties cannot be reassigned:</p>
+<pre><code class="language-lua">interface User
+    readonly id: string
+    name: string
+    email: string
+end
+
+const user: User = {
+    id = "user-123",
+    name = "Alice",
+    email = "alice@example.com"
+}
+
+user.name = "Bob"  -- ✅ OK
+
+-- Error: Cannot assign to readonly property
+-- user.id = "user-456"  -- ❌ Type error
+</code></pre>
+<h3 id="index-signatures"><a class="header" href="#index-signatures">Index Signatures</a></h3>
+<p>Index signatures allow dynamic property access:</p>
+<pre><code class="language-lua">interface Dictionary
+    [key: string]: number
+end
+
+const scores: Dictionary = {
+    alice = 95,
+    bob = 87,
+    charlie = 92
+}
+
+print(scores.alice)       -- 95
+print(scores["bob"])      -- 87
+scores.diana = 89         -- ✅ OK
+</code></pre>
+<p>Array-like interfaces use number index:</p>
+<pre><code class="language-lua">interface NumberArray
+    [index: number]: number
+    length: number
+end
+
+const numbers: NumberArray = {1, 2, 3, 4, 5, length = 5}
+print(numbers[1])  -- 1
+print(numbers.length)  -- 5
+</code></pre>
+<h3 id="extending-interfaces"><a class="header" href="#extending-interfaces">Extending Interfaces</a></h3>
+<p>Interfaces can extend other interfaces:</p>
+<pre><code class="language-lua">interface Named
+    name: string
+end
+
+interface Aged
+    age: number
+end
+
+interface Person extends Named, Aged
+    email: string
+end
+
+const person: Person = {
+    name = "Alice",
+    age = 30,
+    email = "alice@example.com"
+}
+</code></pre>
+<h3 id="generic-interfaces"><a class="header" href="#generic-interfaces">Generic Interfaces</a></h3>
+<p>Interfaces can be parameterized with type variables:</p>
+<pre><code class="language-lua">interface Box&lt;T&gt;
+    value: T
+    function get(): T
+    function set(value: T): void
+end
+
+const numberBox: Box&lt;number&gt; = {
+    value = 42,
+    get = function(self)
+        return self.value
+    end,
+    set = function(self, value)
+        self.value = value
+    end
+}
+
+const stringBox: Box&lt;string&gt; = {
+    value = "hello",
+    get = function(self)
+        return self.value
+    end,
+    set = function(self, value)
+        self.value = value
+    end
+}
+</code></pre>
+<h3 id="implementing-interfaces-in-classes"><a class="header" href="#implementing-interfaces-in-classes">Implementing Interfaces in Classes</a></h3>
+<p>Classes can implement interfaces:</p>
+<pre><code class="language-lua">interface Drawable
+    function draw(): void
+end
+
+interface Resizable
+    function resize(width: number, height: number): void
+end
+
+class Rectangle implements Drawable, Resizable
+    private width: number
+    private height: number
+
+    constructor(width: number, height: number)
+        self.width = width
+        self.height = height
+    end
+
+    function draw(): void
+        print(`Drawing rectangle: ${self.width}x${self.height}`)
+    end
+
+    function resize(width: number, height: number): void
+        self.width = width
+        self.height = height
+    end
+end
+
+const rect = Rectangle.new(100, 50)
+rect:draw()           -- Drawing rectangle: 100x50
+rect:resize(200, 100)
+rect:draw()           -- Drawing rectangle: 200x100
+</code></pre>
+<h3 id="function-types-in-interfaces"><a class="header" href="#function-types-in-interfaces">Function Types in Interfaces</a></h3>
+<p>Interfaces can define function types:</p>
+<pre><code class="language-lua">interface Comparator&lt;T&gt;
+    compare: (a: T, b: T) =&gt; number
+end
+
+const numberComparator: Comparator&lt;number&gt; = {
+    compare = function(a, b)
+        return a - b
+    end
+}
+
+function sort&lt;T&gt;(array: T[], comparator: Comparator&lt;T&gt;): T[]
+    -- Sort implementation
+    return array
+end
+
+const numbers: number[] = {5, 2, 8, 1, 9}
+sort(numbers, numberComparator)
+</code></pre>
+<h3 id="default-implementations"><a class="header" href="#default-implementations">Default Implementations</a></h3>
+<p>Interfaces can provide default method implementations:</p>
+<pre><code class="language-lua">interface Logger
+    function log(message: string): void
+        print("[LOG] " .. message)
+    end
+
+    function warn(message: string): void
+        print("[WARN] " .. message)
+    end
+
+    function error(message: string): void
+        self:log("ERROR: " .. message)
+    end
+end
+
+-- Use default implementations
+const logger: Logger = {}
+logger:log("Hello")        -- [LOG] Hello
+logger:warn("Warning")     -- [WARN] Warning
+logger:error("Failed")     -- [LOG] ERROR: Failed
+
+-- Override specific methods
+const customLogger: Logger = {
+    log = function(self, message)
+        print("[CUSTOM] " .. message)
+    end
+}
+customLogger:log("Test")    -- [CUSTOM] Test
+customLogger:error("Fail")  -- [CUSTOM] ERROR: Fail
+</code></pre>
+<h3 id="hybrid-types"><a class="header" href="#hybrid-types">Hybrid Types</a></h3>
+<p>Interfaces can be both callable and have properties:</p>
+<pre><code class="language-lua">interface Counter
+    count: number
+    function increment(): void
+    () =&gt; number  -- Call signature
+end
+
+const counter: Counter = setmetatable({
+    count = 0,
+    increment = function(self)
+        self.count = self.count + 1
+    end
+}, {
+    __call = function(self)
+        return self.count
+    end
+})
+
+counter:increment()
+counter:increment()
+print(counter())  -- 2 (callable)
+print(counter.count)  -- 2 (property access)
+</code></pre>
+<h3 id="structural-typing"><a class="header" href="#structural-typing">Structural Typing</a></h3>
+<p>LuaNext uses structural typing—any object matching the interface shape is compatible:</p>
+<pre><code class="language-lua">interface Point
+    x: number
+    y: number
+end
+
+function printPoint(p: Point): void
+    print(`(${p.x}, ${p.y})`)
+end
+
+-- All of these work (structural compatibility)
+printPoint({x = 1, y = 2})
+printPoint({x = 3, y = 4, z = 5})  -- Extra property OK
+</code></pre>
+<h3 id="intersection-types"><a class="header" href="#intersection-types">Intersection Types</a></h3>
+<p>Combine multiple interfaces using <code>&amp;</code>:</p>
+<pre><code class="language-lua">interface Named
+    name: string
+end
+
+interface Aged
+    age: number
+end
+
+type Person = Named &amp; Aged
+
+const person: Person = {
+    name = "Alice",
+    age = 30
+}
+</code></pre>
+<h3 id="excess-property-checking"><a class="header" href="#excess-property-checking">Excess Property Checking</a></h3>
+<p>Direct object literals are strictly checked:</p>
+<pre><code class="language-lua">interface Point
+    x: number
+    y: number
+end
+
+-- Error: Object literal may only specify known properties
+-- const p: Point = {x = 1, y = 2, z = 3}  -- ❌ Type error
+
+-- But this works (assigned to variable first)
+const obj = {x = 1, y = 2, z = 3}
+const p: Point = obj  -- ✅ OK (structural typing)
+</code></pre>
+<h2 id="details"><a class="header" href="#details">Details</a></h2>
+<h3 id="interface-merging"><a class="header" href="#interface-merging">Interface Merging</a></h3>
+<p>Multiple interface declarations with the same name merge:</p>
+<pre><code class="language-lua">interface User
+    name: string
+end
+
+interface User
+    email: string
+end
+
+-- Merged: User has both name and email
+const user: User = {
+    name = "Alice",
+    email = "alice@example.com"
+}
+</code></pre>
+<h3 id="method-vs-function-property"><a class="header" href="#method-vs-function-property">Method vs Function Property</a></h3>
+<p>Two syntaxes for methods:</p>
+<pre><code class="language-lua">interface Example
+    -- Method signature (preferred for methods)
+    function greet(name: string): string
+
+    -- Function property signature (preferred for callbacks)
+    onComplete: (result: string) =&gt; void
+end
+</code></pre>
+<p>Both are functionally equivalent, but the convention is:</p>
+<ul>
+<li>Use <code>function</code> for object methods called with <code>:</code></li>
+<li>Use <code>=&gt;</code> for function properties/callbacks</li>
+</ul>
+<h3 id="index-signature-restrictions"><a class="header" href="#index-signature-restrictions">Index Signature Restrictions</a></h3>
+<ul>
+<li>Only <code>string</code> and <code>number</code> are valid index key types</li>
+<li>Cannot have both string and number index signatures with different value types</li>
+<li>Named properties must be compatible with index signature:</li>
+</ul>
+<pre><code class="language-lua">interface StringMap
+    [key: string]: string
+    count: number  -- ❌ Error: 'number' not assignable to 'string'
+end
+</code></pre>
+<h3 id="generic-constraints"><a class="header" href="#generic-constraints">Generic Constraints</a></h3>
+<p>Generic interfaces can have type constraints:</p>
+<pre><code class="language-lua">interface Comparable&lt;T extends {id: number}&gt;
+    function compareTo(other: T): number
+end
+
+interface User
+    id: number
+    name: string
+end
+
+const userComparator: Comparable&lt;User&gt; = {
+    compareTo = function(self, other)
+        return self.id - other.id
+    end
+}
+</code></pre>
+<h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
+<ul>
+<li><a href="classes.html">Classes</a> — Implementing interfaces with classes</li>
+<li><a href="type-system.html">Type System</a> — Advanced type features</li>
+<li><a href="advanced-types.html">Advanced Types</a> — Conditional and mapped types</li>
+</ul>
+
+                </section>
+
+                </div><!-- page-inner -->
+
+            </div><!-- page-wrapper -->
+
+            </div><!-- book-inner -->
+
+            <!-- Version Selector -->
+            <nav class="nav-wide-wrapper" aria-label="More">
+                <a href="javascript:void(0)" id="menu-bar-wide" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                    <i class="fa fa-bars"></i>
+                </a>
+            </nav>
+
+            <!-- Version selector dropdown -->
+            <div id="version-selector" class="version-selector">
+                <select id="version-picker" onchange="switchVersion(this.value)" aria-label="Documentation version">
+                    <option value="latest">Latest</option>
+                </select>
+            </div>
+
+        </div><!-- book -->
+
+        <!-- Custom scripts -->
+        <script>
+            // Version selector functionality
+            function switchVersion(version) {
+                const base = window.location.origin + '/luanext/';
+                if (version === 'latest') {
+                    window.location.href = base;
+                } else {
+                    window.location.href = base + version + '/';
+                }
+            }
+
+            // Load versions.json and populate selector if it exists
+            fetch('/luanext/versions.json')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.versions && data.versions.length > 1) {
+                        const selector = document.getElementById('version-picker');
+                        data.versions.forEach(v => {
+                            if (v.version !== 'latest') {
+                                const option = document.createElement('option');
+                                option.value = 'v' + v.version;
+                                option.textContent = 'v' + v.version;
+                                selector.appendChild(option);
+                            }
+                        });
+                    }
+                })
+                .catch(() => {
+                    // versions.json not found (expected during initial setup)
+                    // Selector will only show "Latest"
+                });
+        </script>
+
+        <!-- mdBook scripts and content scripts -->
+        <script src="js/clipboard.min.js" type="text/javascript"></script>
+        <script src="js/highlight.js" type="text/javascript"></script>
+        <script src="js/book.js" type="text/javascript"></script>
+
+        <!-- Custom theme script -->
+        <script src="js/custom-theme.js" type="text/javascript"></script>
+
+        <script src="js/elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/lunr-en.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/search.js" type="text/javascript" charset="utf-8"></script>
+
+    </body>
+</html>
