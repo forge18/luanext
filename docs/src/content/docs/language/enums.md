@@ -4,6 +4,9 @@ LuaNext provides rich enums that go beyond simple value sets. Enums can have str
 
 ## Syntax
 
+Enums can use either braces `{}` or `end` to delimit the body:
+
+**Braces syntax (preferred):**
 ```lua
 enum EnumName [implements Interface1, Interface2] {
     -- Simple members
@@ -25,7 +28,12 @@ enum EnumName [implements Interface1, Interface2] {
 }
 ```
 
-Note: Enums can use either braces `{}` or `end`.
+**End syntax:**
+```lua
+enum EnumName [implements Interface1, Interface2]
+    -- Members and methods
+end
+```
 
 ## Examples
 

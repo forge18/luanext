@@ -4,6 +4,9 @@ LuaNext provides object-oriented programming features through classes with full 
 
 ## Syntax
 
+Classes can use either braces `{}` or `end` to delimit the body:
+
+**Braces syntax (preferred):**
 ```lua
 [abstract | final] class ClassName[<TypeParams>][(ConstructorParams)] [extends ParentClass] [implements Interface1, Interface2] {
     -- Properties
@@ -18,21 +21,14 @@ LuaNext provides object-oriented programming features through classes with full 
     [access] [static] [abstract | final] [override] function methodName(parameters): ReturnType {
         -- body
     }
-
-    -- Getters and Setters
-    [access] [static] get propertyName(): Type {
-        -- body
-    }
-
-    [access] [static] set propertyName(value: Type) {
-        -- body
-    }
-
-    -- Operator Overloading
-    operator [+|-|*|/|etc](parameters): ReturnType {
-        -- body
-    }
 }
+```
+
+**End syntax:**
+```lua
+[abstract | final] class ClassName[<TypeParams>][(ConstructorParams)] [extends ParentClass] [implements Interface1, Interface2]
+    -- Properties and methods
+end
 ```
 
 ## Examples

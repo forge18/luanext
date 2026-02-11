@@ -4,6 +4,9 @@ Interfaces define the shape of objects without providing implementation. They en
 
 ## Syntax
 
+Interfaces can use either braces `{}` or `end` to delimit the body:
+
+**Braces syntax (preferred):**
 ```lua
 interface InterfaceName[<TypeParams>] [extends Interface1, Interface2] {
     -- Property signatures
@@ -17,7 +20,12 @@ interface InterfaceName[<TypeParams>] [extends Interface1, Interface2] {
 }
 ```
 
-Note: Interfaces can use either braces `{}` or `end`.
+**End syntax:**
+```lua
+interface InterfaceName[<TypeParams>] [extends Interface1, Interface2]
+    -- Property signatures and method signatures
+end
+```
 
 ## Examples
 
