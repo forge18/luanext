@@ -133,7 +133,15 @@ impl CodeGenerator {
                     self.generate_statement(stmt);
                 }
             }
-            luanext_parser::ast::statement::ExportKind::Named { specifiers, source } => {
+            luanext_parser::ast::statement::ExportKind::Named {
+                specifiers,
+                source,
+                is_type_only,
+            } => {
+                if *is_type_only {
+                    // export type { ... } - generates no code
+                    return;
+                }
                 if let Some(source_path) = source {
                     self.generate_re_export(specifiers, source_path);
                 } else {

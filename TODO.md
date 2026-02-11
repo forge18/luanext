@@ -202,9 +202,6 @@
   - [x] export type * generates no code ✅
   - [x] Tree-shaking: Selective export copying when reachable_exports set ✅ Phase 4.5
   - [x] Tree-shaking: Skip entire export * when no exports reachable ✅ Phase 4.5
-  - [ ] Inline re-exports for bundler optimization - Future enhancement (architectural change needed)
-  - Files: `crates/luanext-core/src/codegen/modules.rs:250-310` ✅
-  - Test file: `crates/luanext-core/tests/codegen_reexport_tests.rs` ✅ (27 tests)
 
 - [x] **LSP Support** - Phase 4.3 ✅
   - [x] Go-to-definition follows re-export chains to original definition ✅
@@ -214,19 +211,33 @@
 
 #### Phase 5: Integration & Testing (Days 9-10)
 
+**Phase 5.1 Summary (2026-02-10) - Test Infrastructure ✅ COMPLETE:**
+
+- ✅ **MultiModuleTestHarness** - Foundation for all 23+ integration tests
+  - ✅ Manages multiple modules with shared arena allocation
+  - ✅ Centralized parsing, type-checking, and registry management
+  - ✅ 8 unit tests covering harness functionality - all passing
+  - ✅ File: `crates/luanext-typechecker/tests/test_utils.rs`
+
+- ✅ **LspTestWorkspace** - Multi-file LSP workspace simulation
+  - ✅ Simulates LSP workspace with multiple open documents
+  - ✅ Convenient URI/path management for workspace files
+  - ✅ 10 unit tests covering workspace operations - all passing
+  - ✅ File: `crates/luanext-lsp/tests/test_utils.rs`
+
 - [ ] **End-to-End Tests**
-  - [ ] Multi-file project with complex type dependencies
-  - [ ] Circular type reference tests (should pass)
+  - [ ] Multi-file project with complex type dependencies (15 tests)
+  - [ ] Circular type reference tests (should pass) (8 tests)
   - [ ] Circular value reference tests (should error)
   - [ ] Re-export chain tests (single level, multi-level, circular)
   - [ ] Type-only import/export tests
   - [ ] Mixed scenarios (import, re-export, import again)
 
 - [ ] **LSP Testing**
-  - [ ] Go-to-definition across files with type resolution
-  - [ ] Hover shows correct types for cross-file imports
-  - [ ] Completion works for cross-file types (including re-exported)
-  - [ ] Find references across files through re-exports
+  - [ ] Go-to-definition across files with type resolution (10 tests)
+  - [ ] Hover shows correct types for cross-file imports (8 tests)
+  - [ ] Completion works for cross-file types (including re-exported) (8 tests)
+  - [ ] Find references across files through re-exports (6 tests)
   - [ ] Rename refactoring across files and re-exports
 
 - [ ] **Performance Testing**
@@ -241,6 +252,10 @@
   - [ ] Document circular dependency handling
   - [ ] Explain re-export resolution strategy
   - [ ] Add migration guide for existing code
+
+**Commits:**
+
+- `<pending>` feat: Phase 5.1 - Test Infrastructure (test harnesses)
 
 ---
 
