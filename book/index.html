@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Fallback to default mdbook template -->
+        
+        <meta name="robots" content="noindex,follow">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta charset="utf-8">
+        <title>Introduction - LuaNext Documentation</title>
+        <script>
+            var theme = localStorage.getItem("mdbook-theme");
+            if (theme === null || theme === undefined) { theme = "light"; }
+            var html = document.querySelector("html");
+            html.classList.remove("light");
+            html.classList.add(theme);
+        </script>
+        <meta name="description" content="A typed superset of Lua with gradual typing, inspired by TypeScript">
+        <link rel="icon" href="favicon.svg">
+        <link rel="apple-touch-icon" href="apple-touch-icon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/custom.css">
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+
+    </head>
+    <body>
+        <!-- Provide the book title to JavaScript -->
+        <script>
+            window.book = window.book || {};
+            window.book.language = "en";
+        </script>
+
+        <div id="book" class="book">
+            <div class="book-inner">
+
+            <nav role="navigation" aria-label="Table of contents" class="sidebar">
+                <ol class="chapter"><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="introduction.html">Introduction</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Language</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/basics.html"><strong aria-hidden="true">1.</strong> Basics</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/control-flow.html"><strong aria-hidden="true">2.</strong> Control Flow</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/functions.html"><strong aria-hidden="true">3.</strong> Functions</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/type-system.html"><strong aria-hidden="true">4.</strong> Type System</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/classes.html"><strong aria-hidden="true">5.</strong> Classes</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/interfaces.html"><strong aria-hidden="true">6.</strong> Interfaces</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/enums.html"><strong aria-hidden="true">7.</strong> Enums</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/modules.html"><strong aria-hidden="true">8.</strong> Modules</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/error-handling.html"><strong aria-hidden="true">9.</strong> Error Handling</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/pattern-matching.html"><strong aria-hidden="true">10.</strong> Pattern Matching</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/decorators.html"><strong aria-hidden="true">11.</strong> Decorators</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/advanced-types.html"><strong aria-hidden="true">12.</strong> Advanced Types</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/operators.html"><strong aria-hidden="true">13.</strong> Operators</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Guides</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="guides/migrating-from-lua.html"><strong aria-hidden="true">14.</strong> Migrating from Lua</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="guides/lua-targets.html"><strong aria-hidden="true">15.</strong> Lua Targets</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Reference</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/cli.html"><strong aria-hidden="true">16.</strong> CLI</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/configuration.html"><strong aria-hidden="true">17.</strong> Configuration</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/standard-library.html"><strong aria-hidden="true">18.</strong> Standard Library</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/utility-types.html"><strong aria-hidden="true">19.</strong> Utility Types</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/reflection.html"><strong aria-hidden="true">20.</strong> Reflection API</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/error-codes.html"><strong aria-hidden="true">21.</strong> Error Codes</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/grammar.html"><strong aria-hidden="true">22.</strong> Grammar</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/keywords.html"><strong aria-hidden="true">23.</strong> Keywords</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Contributing</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="contributing/setup.html"><strong aria-hidden="true">24.</strong> Getting Started</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">API Reference</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="api/index.html"><strong aria-hidden="true">25.</strong> Rust API Docs</a></span></li></ol>
+            </nav>
+
+            <div id="page-wrapper" class="page-wrapper">
+
+                <div class="page-inner">
+
+                <section class="normal" id="main">
+                    <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
+<p>LuaNext is a typed superset of Lua with gradual typing, inspired by TypeScript’s approach to JavaScript. It brings static type checking to Lua while maintaining its simplicity and allowing gradual adoption. Write type-safe Lua code that compiles to plain Lua, with zero runtime overhead.</p>
+<h2 id="what-is-luanext"><a class="header" href="#what-is-luanext">What is LuaNext?</a></h2>
+<p>LuaNext extends Lua with optional type annotations, interfaces, generics, and modern language features. The type system is erased at compile time, producing clean, readable Lua code that runs on any Lua 5.1–5.4 interpreter.</p>
+<h2 id="key-features"><a class="header" href="#key-features">Key Features</a></h2>
+<ul>
+<li><strong>Gradual Typing</strong> — Add types at your own pace, from none to full coverage</li>
+<li><strong>Zero Runtime Cost</strong> — Types are erased at compile time</li>
+<li><strong>Lua Compatibility</strong> — Compiles to clean, readable Lua (5.1-5.4)</li>
+<li><strong>Rich Type System</strong> — Interfaces, unions, generics, conditional types, and more</li>
+<li><strong>Optional Features</strong> — Enable OOP, functional programming, or decorators as needed</li>
+<li><strong>LSP Support</strong> — Full language server with autocomplete, diagnostics, and more</li>
+<li><strong>Multi-File Compilation</strong> — Compile entire projects with automatic dependency ordering</li>
+<li><strong>Circular Dependency Detection</strong> — Catch import cycles before compilation</li>
+<li><strong>Incremental Compilation</strong> — Fast rebuilds with intelligent caching</li>
+<li><strong>Source Maps</strong> — Debug compiled Lua with original LuaNext source</li>
+<li><strong>Optional Optimizations</strong> — Enable performance optimizations like constant folding, dead code elimination, and tail call optimization</li>
+</ul>
+<h2 id="example"><a class="header" href="#example">Example</a></h2>
+<p>LuaNext code:</p>
+<pre><code class="language-lua">-- Variable declarations with types
+const PI: number = 3.14159
+local radius: number = 5
+
+-- Interfaces for table shapes
+interface Point {
+    x: number,
+    y: number
+}
+
+-- Functions with type signatures
+function calculateArea(r: number): number
+    return PI * r * r
+end
+
+-- Type inference
+const area = calculateArea(radius)  -- inferred as number
+
+print("Area:", area)
+</code></pre>
+<p>Compiles to clean Lua:</p>
+<pre><code class="language-lua">local PI = 3.14159
+local radius = 5
+
+local function calculateArea(r)
+    return PI * r * r
+end
+
+local area = calculateArea(radius)
+
+print("Area:", area)
+</code></pre>
+<h2 id="why-luanext"><a class="header" href="#why-luanext">Why LuaNext?</a></h2>
+<p><strong>Catch bugs before runtime</strong> — The type checker finds type errors, nil access, and mismatched function signatures before your code runs.</p>
+<p><strong>Better IDE support</strong> — Autocomplete, go-to-definition, inline documentation, and refactoring powered by the LSP.</p>
+<p><strong>Gradual adoption</strong> — Start with plain Lua and add types incrementally. No need to rewrite everything at once.</p>
+<p><strong>No runtime cost</strong> — Types are stripped during compilation. Your Lua code runs exactly as fast as hand-written Lua.</p>
+<p><strong>Modern language features</strong> — Classes, interfaces, enums, pattern matching, decorators, generics, and more.</p>
+<h2 id="optional-optimizations"><a class="header" href="#optional-optimizations">Optional Optimizations</a></h2>
+<p>LuaNext includes optional compiler optimizations that can improve runtime performance while maintaining correctness. These are disabled by default but can be enabled per-project:</p>
+<p><strong>Constant Folding &amp; Propagation</strong> — Evaluate constant expressions at compile time and propagate known values through the code.</p>
+<p><strong>Dead Code Elimination</strong> — Remove unreachable code, unused variables, and redundant operations.</p>
+<p><strong>Tail Call Optimization</strong> — Transform tail-recursive calls into loops to prevent stack overflow.</p>
+<p><strong>Table Preallocation</strong> — Pre-size tables when the number of elements is known at compile time.</p>
+<p><strong>Rich Enum Optimization</strong> — Optimize enum value representations and eliminate unnecessary type checks.</p>
+<p><strong>Function Inlining</strong> — Inline small functions to reduce call overhead (configurable threshold).</p>
+<p>These optimizations are carefully designed to preserve your code’s semantics while improving performance. Enable them with the <code>--optimize</code> flag or configure individual passes in your project settings.</p>
+<h2 id="the-luanext-ecosystem"><a class="header" href="#the-luanext-ecosystem">The LuaNext Ecosystem</a></h2>
+<p>LuaNext is part of a broader ecosystem of Lua/LuaNext developer tools. Each tool works standalone on plain Lua but gains capabilities when used together.</p>
+<h3 id="developer-tools"><a class="header" href="#developer-tools">Developer Tools</a></h3>
+<p><strong><a href="https://github.com/forge18/depot">Depot</a></strong> — Lua Package Manager</p>
+<ul>
+<li>Local, project-scoped dependency management (like npm/cargo for Lua)</li>
+<li>Lua version manager (manage 5.1, 5.3, 5.4 installs)</li>
+<li>Lockfile support for reproducible builds</li>
+<li>SemVer version resolution</li>
+<li>LuaRocks compatible upstream package source</li>
+<li>Supply chain security (BLAKE3 checksums, sandboxed builds)</li>
+<li>Watch mode for automatic rebuilds on file changes</li>
+</ul>
+<p><strong><a href="https://github.com/forge18/lintomatic">Lintomatic</a></strong> — Linter for Lua and LuaNext</p>
+<ul>
+<li>100+ built-in rules across 8 categories</li>
+<li>Rust backend for performance</li>
+<li>Lua plugin API for custom rules</li>
+<li>Type-aware linting when used with LuaNext</li>
+<li>Auto-fix support</li>
+<li>Works with both plain Lua and LuaNext</li>
+</ul>
+<p><strong><a href="https://github.com/forge18/canary">Canary</a></strong> — Test Framework</p>
+<ul>
+<li>Rust-powered test runner with Vitest-inspired API</li>
+<li>Built-in mocking and spying</li>
+<li>Snapshot testing</li>
+<li>Coverage collection</li>
+<li>Parallel test execution</li>
+<li>Works with both plain Lua and LuaNext</li>
+</ul>
+<p><strong><a href="https://github.com/forge18/wayfinder">Wayfinder</a></strong> — Debugger (DAP)</p>
+<ul>
+<li>Debug Adapter Protocol implementation for Lua</li>
+<li>Works with PUC Lua 5.1-5.4 and LuaNext</li>
+<li>Source map support for LuaNext debugging</li>
+<li>Breakpoints, stepping, stack inspection, variable watches</li>
+<li>IDE integration (VS Code, Neovim, JetBrains)</li>
+<li>Works with both plain Lua and LuaNext</li>
+</ul>
+<h3 id="core-libraries"><a class="header" href="#core-libraries">Core Libraries</a></h3>
+<p>These standalone crates are available for building ecosystem tools:</p>
+<p><strong><a href="https://github.com/forge18/luanext-parser">luanext-parser</a></strong> — Parser Library</p>
+<ul>
+<li>Lexer and parser for LuaNext (.luax) files</li>
+<li>Arena-allocated AST (<code>bumpalo::Bump</code>)</li>
+<li>String interner for efficient symbol handling</li>
+<li>Full error recovery and span tracking</li>
+</ul>
+<p><strong><a href="https://github.com/forge18/luanext-typechecker">luanext-typechecker</a></strong> — Type Checker Library</p>
+<ul>
+<li>Complete type checking for LuaNext</li>
+<li>Type inference, generics, conditional types</li>
+<li>Diagnostic reporting</li>
+<li>Module resolution and dependency tracking</li>
+</ul>
+<p><strong><a href="https://github.com/forge18/luanext-sourcemap">luanext-sourcemap</a></strong> — Source Map Library</p>
+<ul>
+<li>Source map generation and consumption</li>
+<li>Maps compiled Lua positions back to LuaNext source</li>
+<li>Used by Wayfinder for debug source mapping</li>
+</ul>
+<p><strong><a href="https://github.com/forge18/luanext-lsp">luanext-lsp</a></strong> — Language Server Protocol</p>
+<ul>
+<li>Full LSP implementation for LuaNext</li>
+<li>Completion, hover, go-to-definition, references, rename, formatting, diagnostics</li>
+<li>Semantic tokens, inlay hints, code actions</li>
+<li>Powers the VS Code extension</li>
+</ul>
+<p>These crates are published separately so ecosystem tools can depend on them without pulling in the full compiler.</p>
+<h2 id="project-status"><a class="header" href="#project-status">Project Status</a></h2>
+<p><strong>Current Status: Beta</strong></p>
+<p>The compiler is feature-complete and ready for testing. All core features are implemented and functional.</p>
+<p><strong>Next Steps: v1.0 Release</strong></p>
+<ul>
+<li>Performance optimization and profiling</li>
+<li>Documentation improvements</li>
+<li>Community feedback and testing</li>
+</ul>
+<h2 id="community"><a class="header" href="#community">Community</a></h2>
+<ul>
+<li><strong>GitHub:</strong> <a href="https://github.com/forge18/luanext">github.com/forge18/luanext</a></li>
+<li><strong>Issues:</strong> <a href="https://github.com/forge18/luanext/issues">Report bugs and feature requests</a></li>
+<li><strong>Discussions:</strong> <a href="https://github.com/forge18/luanext/discussions">Ask questions and share ideas</a></li>
+</ul>
+<h2 id="license"><a class="header" href="#license">License</a></h2>
+<p>LuaNext is open source software released under the MIT License.</p>
+
+                </section>
+
+                </div><!-- page-inner -->
+
+            </div><!-- page-wrapper -->
+
+            </div><!-- book-inner -->
+
+            <!-- Version Selector -->
+            <nav class="nav-wide-wrapper" aria-label="More">
+                <a href="javascript:void(0)" id="menu-bar-wide" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                    <i class="fa fa-bars"></i>
+                </a>
+            </nav>
+
+            <!-- Version selector dropdown -->
+            <div id="version-selector" class="version-selector">
+                <select id="version-picker" onchange="switchVersion(this.value)" aria-label="Documentation version">
+                    <option value="latest">Latest</option>
+                </select>
+            </div>
+
+        </div><!-- book -->
+
+        <!-- Custom scripts -->
+        <script>
+            // Version selector functionality
+            function switchVersion(version) {
+                const base = window.location.origin + '/luanext/';
+                if (version === 'latest') {
+                    window.location.href = base;
+                } else {
+                    window.location.href = base + version + '/';
+                }
+            }
+
+            // Load versions.json and populate selector if it exists
+            fetch('/luanext/versions.json')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.versions && data.versions.length > 1) {
+                        const selector = document.getElementById('version-picker');
+                        data.versions.forEach(v => {
+                            if (v.version !== 'latest') {
+                                const option = document.createElement('option');
+                                option.value = 'v' + v.version;
+                                option.textContent = 'v' + v.version;
+                                selector.appendChild(option);
+                            }
+                        });
+                    }
+                })
+                .catch(() => {
+                    // versions.json not found (expected during initial setup)
+                    // Selector will only show "Latest"
+                });
+        </script>
+
+        <!-- mdBook scripts and content scripts -->
+        <script src="js/clipboard.min.js" type="text/javascript"></script>
+        <script src="js/highlight.js" type="text/javascript"></script>
+        <script src="js/book.js" type="text/javascript"></script>
+
+        <!-- Custom theme script -->
+        <script src="js/custom-theme.js" type="text/javascript"></script>
+
+        <script src="js/elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/lunr-en.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/search.js" type="text/javascript" charset="utf-8"></script>
+
+    </body>
+</html>

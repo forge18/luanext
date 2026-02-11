@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Fallback to default mdbook template -->
+        
+        <meta name="robots" content="noindex,follow">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta charset="utf-8">
+        <title>Error Handling - LuaNext Documentation</title>
+        <script>
+            var theme = localStorage.getItem("mdbook-theme");
+            if (theme === null || theme === undefined) { theme = "light"; }
+            var html = document.querySelector("html");
+            html.classList.remove("light");
+            html.classList.add(theme);
+        </script>
+        <meta name="description" content="A typed superset of Lua with gradual typing, inspired by TypeScript">
+        <link rel="icon" href="favicon.svg">
+        <link rel="apple-touch-icon" href="apple-touch-icon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/custom.css">
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+
+    </head>
+    <body>
+        <!-- Provide the book title to JavaScript -->
+        <script>
+            window.book = window.book || {};
+            window.book.language = "en";
+        </script>
+
+        <div id="book" class="book">
+            <div class="book-inner">
+
+            <nav role="navigation" aria-label="Table of contents" class="sidebar">
+                <ol class="chapter"><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="introduction.html">Introduction</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Language</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/basics.html"><strong aria-hidden="true">1.</strong> Basics</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/control-flow.html"><strong aria-hidden="true">2.</strong> Control Flow</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/functions.html"><strong aria-hidden="true">3.</strong> Functions</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/type-system.html"><strong aria-hidden="true">4.</strong> Type System</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/classes.html"><strong aria-hidden="true">5.</strong> Classes</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/interfaces.html"><strong aria-hidden="true">6.</strong> Interfaces</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/enums.html"><strong aria-hidden="true">7.</strong> Enums</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/modules.html"><strong aria-hidden="true">8.</strong> Modules</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/error-handling.html"><strong aria-hidden="true">9.</strong> Error Handling</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/pattern-matching.html"><strong aria-hidden="true">10.</strong> Pattern Matching</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/decorators.html"><strong aria-hidden="true">11.</strong> Decorators</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/advanced-types.html"><strong aria-hidden="true">12.</strong> Advanced Types</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/operators.html"><strong aria-hidden="true">13.</strong> Operators</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Guides</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="guides/migrating-from-lua.html"><strong aria-hidden="true">14.</strong> Migrating from Lua</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="guides/lua-targets.html"><strong aria-hidden="true">15.</strong> Lua Targets</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Reference</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/cli.html"><strong aria-hidden="true">16.</strong> CLI</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/configuration.html"><strong aria-hidden="true">17.</strong> Configuration</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/standard-library.html"><strong aria-hidden="true">18.</strong> Standard Library</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/utility-types.html"><strong aria-hidden="true">19.</strong> Utility Types</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/reflection.html"><strong aria-hidden="true">20.</strong> Reflection API</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/error-codes.html"><strong aria-hidden="true">21.</strong> Error Codes</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/grammar.html"><strong aria-hidden="true">22.</strong> Grammar</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/keywords.html"><strong aria-hidden="true">23.</strong> Keywords</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Contributing</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="contributing/setup.html"><strong aria-hidden="true">24.</strong> Getting Started</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">API Reference</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="api/index.html"><strong aria-hidden="true">25.</strong> Rust API Docs</a></span></li></ol>
+            </nav>
+
+            <div id="page-wrapper" class="page-wrapper">
+
+                <div class="page-inner">
+
+                <section class="normal" id="main">
+                    <h1 id="error-handling"><a class="header" href="#error-handling">Error Handling</a></h1>
+<p>LuaNext provides structured exception handling with try/catch/finally blocks, typed error handling, error chaining, and try expressions. This goes beyond Lua’s traditional <code>pcall</code>/<code>xpcall</code> approach.</p>
+<h2 id="syntax"><a class="header" href="#syntax">Syntax</a></h2>
+<pre><code class="language-lua">-- Try/catch/finally statement
+try
+    -- code that might throw
+catch [pattern: Type]
+    -- error handling
+[finally
+    -- cleanup code]
+end
+
+-- Throw statement
+throw expression
+
+-- Rethrow
+rethrow
+
+-- Try expression
+try expression catch error =&gt; fallback
+
+-- Error chain operator
+expression1 !! expression2
+
+-- Throws clause
+function name(params): ReturnType throws ErrorType1, ErrorType2
+    -- function body
+end
+</code></pre>
+<h2 id="examples"><a class="header" href="#examples">Examples</a></h2>
+<h3 id="basic-trycatch"><a class="header" href="#basic-trycatch">Basic Try/Catch</a></h3>
+<pre><code class="language-lua">function divide(a: number, b: number): number
+    if b == 0 then
+        throw "Division by zero"
+    end
+    return a / b
+end
+
+try
+    const result = divide(10, 0)
+    print(result)
+catch error
+    print("Error: " .. error)
+end
+</code></pre>
+<p>Compiles to:</p>
+<pre><code class="language-lua">local function divide(a, b)
+    if b == 0 then
+        error("Division by zero")
+    end
+    return a / b
+end
+
+local success, result = pcall(function()
+    local result = divide(10, 0)
+    print(result)
+end)
+
+if not success then
+    local error = result
+    print("Error: " .. error)
+end
+</code></pre>
+<h3 id="typed-catch-clauses"><a class="header" href="#typed-catch-clauses">Typed Catch Clauses</a></h3>
+<p>Catch specific error types:</p>
+<pre><code class="language-lua">class ValidationError
+    message: string
+
+    constructor(message: string)
+        self.message = message
+    end
+end
+
+class NetworkError
+    message: string
+    code: number
+
+    constructor(message: string, code: number)
+        self.message = message
+        self.code = code
+    end
+end
+
+function processRequest(data: string): void
+    if data == "" then
+        throw ValidationError.new("Data cannot be empty")
+    end
+
+    if not networkAvailable() then
+        throw NetworkError.new("Network unavailable", 503)
+    end
+
+    -- Process data...
+end
+
+try
+    processRequest("")
+catch error: ValidationError
+    print(`Validation error: ${error.message}`)
+catch error: NetworkError
+    print(`Network error (${error.code}): ${error.message}`)
+catch error
+    print(`Unknown error: ${error}`)
+end
+</code></pre>
+<h3 id="multi-typed-catch"><a class="header" href="#multi-typed-catch">Multi-Typed Catch</a></h3>
+<p>Catch multiple error types in one clause:</p>
+<pre><code class="language-lua">try
+    riskyOperation()
+catch error: ValidationError | NetworkError
+    print(`Known error: ${error.message}`)
+catch error
+    print(`Unknown error: ${error}`)
+end
+</code></pre>
+<h3 id="finally-block"><a class="header" href="#finally-block">Finally Block</a></h3>
+<p>Code that always executes, whether an error occurred or not:</p>
+<pre><code class="language-lua">const file = openFile("data.txt")
+
+try
+    processFile(file)
+catch error
+    print(`Error processing file: ${error}`)
+finally
+    closeFile(file)  -- Always executed
+end
+</code></pre>
+<h3 id="throw-statement"><a class="header" href="#throw-statement">Throw Statement</a></h3>
+<p>Throw any value as an error:</p>
+<pre><code class="language-lua">-- Throw string
+throw "Something went wrong"
+
+-- Throw number
+throw 404
+
+-- Throw object
+throw {message = "Error", code = 500}
+
+-- Throw custom error class
+throw ValidationError.new("Invalid input")
+</code></pre>
+<h3 id="rethrow"><a class="header" href="#rethrow">Rethrow</a></h3>
+<p>Rethrow the current error in a catch block:</p>
+<pre><code class="language-lua">try
+    performOperation()
+catch error
+    logError(error)
+    rethrow  -- Re-throw the same error
+end
+</code></pre>
+<h3 id="try-expression"><a class="header" href="#try-expression">Try Expression</a></h3>
+<p>Compact error handling for expressions:</p>
+<pre><code class="language-lua">-- Basic try expression
+const result: number = try parseNumber(input) catch _ =&gt; 0
+
+-- With error variable
+const result: string = try readFile("config.json") catch error =&gt; "default config"
+
+-- Nested try expressions
+const value: number = try parseInt(try readFile("num.txt") catch _ =&gt; "0") catch _ =&gt; 0
+</code></pre>
+<p>Compiles to:</p>
+<pre><code class="language-lua">local result
+local success, value = pcall(function() return parseNumber(input) end)
+if success then
+    result = value
+else
+    result = 0
+end
+</code></pre>
+<h3 id="error-chain-operator"><a class="header" href="#error-chain-operator">Error Chain Operator</a></h3>
+<p>The error chain operator <code>!!</code> provides a shorthand for try expressions:</p>
+<pre><code class="language-lua">-- Error chain (try expression shorthand)
+const result = riskyOperation() !! fallbackValue
+
+-- Equivalent to:
+const result = try riskyOperation() catch _ =&gt; fallbackValue
+
+-- Chaining multiple operations
+const value = operation1() !! operation2() !! defaultValue
+</code></pre>
+<h3 id="throws-clause"><a class="header" href="#throws-clause">Throws Clause</a></h3>
+<p>Document which errors a function can throw:</p>
+<pre><code class="language-lua">function readFile(path: string): string throws FileNotFoundError, PermissionError
+    if not fileExists(path) then
+        throw FileNotFoundError.new(path)
+    end
+
+    if not hasPermission(path) then
+        throw PermissionError.new(path)
+    end
+
+    return loadFile(path)
+end
+
+function processFile(path: string): void throws FileNotFoundError, PermissionError
+    const content = readFile(path)  -- Can propagate throws
+    print(content)
+end
+</code></pre>
+<p>The <code>throws</code> clause is documentation—it doesn’t enforce catching at compile time, but helps with:</p>
+<ul>
+<li>Documentation and intent</li>
+<li>IDE autocomplete and warnings</li>
+<li>Static analysis tools</li>
+</ul>
+<h3 id="multiple-catch-clauses"><a class="header" href="#multiple-catch-clauses">Multiple Catch Clauses</a></h3>
+<p>Handle different error types differently:</p>
+<pre><code class="language-lua">try
+    complexOperation()
+catch error: ValidationError
+    print("Validation failed: " .. error.message)
+    return false
+catch error: NetworkError
+    print("Network issue: " .. error.message)
+    retryLater()
+catch error: DatabaseError
+    print("Database error: " .. error.message)
+    rollbackTransaction()
+catch error
+    print("Unexpected error: " .. tostring(error))
+    logToFile(error)
+end
+</code></pre>
+<h3 id="nested-trycatch"><a class="header" href="#nested-trycatch">Nested Try/Catch</a></h3>
+<p>Try blocks can be nested:</p>
+<pre><code class="language-lua">try
+    const data = fetchData()
+
+    try
+        validateData(data)
+    catch error: ValidationError
+        print("Validation failed, using defaults")
+        data = getDefaultData()
+    end
+
+    processData(data)
+catch error: NetworkError
+    print("Network error: " .. error.message)
+catch error
+    print("Unexpected error: " .. tostring(error))
+end
+</code></pre>
+<h3 id="error-with-context"><a class="header" href="#error-with-context">Error with Context</a></h3>
+<p>Custom error classes with context:</p>
+<pre><code class="language-lua">class HttpError
+    statusCode: number
+    message: string
+    url: string
+
+    constructor(statusCode: number, message: string, url: string)
+        self.statusCode = statusCode
+        self.message = message
+        self.url = url
+    end
+
+    function toString(): string
+        return `HTTP ${self.statusCode} at ${self.url}: ${self.message}`
+    end
+end
+
+function fetchAPI(url: string): string throws HttpError
+    const response = httpGet(url)
+
+    if response.statusCode ~= 200 then
+        throw HttpError.new(response.statusCode, response.body, url)
+    end
+
+    return response.body
+end
+
+try
+    const data = fetchAPI("https://api.example.com/data")
+    print(data)
+catch error: HttpError
+    print(error:toString())
+    if error.statusCode == 404 then
+        print("Resource not found")
+    elseif error.statusCode &gt;= 500 then
+        print("Server error, retrying...")
+    end
+end
+</code></pre>
+<h3 id="error-propagation"><a class="header" href="#error-propagation">Error Propagation</a></h3>
+<p>Errors automatically propagate up the call stack:</p>
+<pre><code class="language-lua">function innerFunction(): void
+    throw "Inner error"
+end
+
+function middleFunction(): void
+    innerFunction()  -- Error propagates
+end
+
+function outerFunction(): void
+    try
+        middleFunction()
+    catch error
+        print("Caught error from inner: " .. error)
+    end
+end
+
+outerFunction()  -- Prints: Caught error from inner: Inner error
+</code></pre>
+<h3 id="graceful-degradation"><a class="header" href="#graceful-degradation">Graceful Degradation</a></h3>
+<p>Use error handling for graceful degradation:</p>
+<pre><code class="language-lua">function loadConfig(): Config
+    -- Try primary config
+    const primary = try readFile("config.json") catch _ =&gt; nil
+
+    if primary ~= nil then
+        return parseConfig(primary)
+    end
+
+    -- Try fallback config
+    const fallback = try readFile("config.default.json") catch _ =&gt; nil
+
+    if fallback ~= nil then
+        return parseConfig(fallback)
+    end
+
+    -- Use hardcoded defaults
+    return getDefaultConfig()
+end
+</code></pre>
+<h3 id="resource-management"><a class="header" href="#resource-management">Resource Management</a></h3>
+<p>Ensure resources are cleaned up with finally:</p>
+<pre><code class="language-lua">function processDatabase(query: string): void
+    const connection = openConnection()
+
+    try
+        const result = connection:execute(query)
+        processResult(result)
+    catch error: DatabaseError
+        print("Database error: " .. error.message)
+        rollback(connection)
+    finally
+        closeConnection(connection)  -- Always executed
+    end
+end
+</code></pre>
+<h3 id="error-recovery"><a class="header" href="#error-recovery">Error Recovery</a></h3>
+<p>Recover from errors and continue:</p>
+<pre><code class="language-lua">function processBatch(items: string[]): void
+    const errors: string[] = {}
+
+    for i, item in ipairs(items) do
+        try
+            processItem(item)
+        catch error
+            table.insert(errors, `Item ${i}: ${error}`)
+        end
+    end
+
+    if #errors &gt; 0 then
+        print("Encountered errors:")
+        for _, error in ipairs(errors) do
+            print(error)
+        end
+    end
+end
+</code></pre>
+<h2 id="details"><a class="header" href="#details">Details</a></h2>
+<h3 id="error-types"><a class="header" href="#error-types">Error Types</a></h3>
+<p>LuaNext can throw any value:</p>
+<ul>
+<li>Strings: <code>throw "error message"</code></li>
+<li>Numbers: <code>throw 404</code></li>
+<li>Tables: <code>throw {code = 500, message = "Error"}</code></li>
+<li>Custom classes: <code>throw CustomError.new()</code></li>
+</ul>
+<h3 id="catch-pattern-matching"><a class="header" href="#catch-pattern-matching">Catch Pattern Matching</a></h3>
+<p>Catch clauses use pattern matching:</p>
+<ul>
+<li><code>catch error</code> — Catch any error</li>
+<li><code>catch error: Type</code> — Catch specific type</li>
+<li><code>catch error: Type1 | Type2</code> — Catch multiple types</li>
+</ul>
+<h3 id="finally-execution-order"><a class="header" href="#finally-execution-order">Finally Execution Order</a></h3>
+<p>The finally block executes:</p>
+<ol>
+<li>After try block completes successfully</li>
+<li>After catch block handles an error</li>
+<li>Before control flow exits (return, break, continue)</li>
+</ol>
+<pre><code class="language-lua">function example(): string
+    try
+        return "success"
+    finally
+        print("Cleanup")  -- Executes before return
+    end
+end
+
+example()  -- Prints "Cleanup", then returns "success"
+</code></pre>
+<h3 id="error-chain-precedence"><a class="header" href="#error-chain-precedence">Error Chain Precedence</a></h3>
+<p>The error chain operator <code>!!</code> has low precedence:</p>
+<pre><code class="language-lua">-- These are equivalent:
+const x = a + b !! c + d
+const x = (a + b) !! (c + d)
+
+-- Parentheses for clarity:
+const x = (a + b) !! c  -- Error chain after addition
+</code></pre>
+<h3 id="try-expression-vs-error-chain"><a class="header" href="#try-expression-vs-error-chain">Try Expression vs Error Chain</a></h3>
+<p>Try expression and error chain are equivalent:</p>
+<pre><code class="language-lua">-- Try expression (explicit)
+const x = try f() catch _ =&gt; 0
+
+-- Error chain (concise)
+const x = f() !! 0
+</code></pre>
+<p>Use try expression when you need the error variable:</p>
+<pre><code class="language-lua">const x = try f() catch error =&gt; log(error) or 0
+</code></pre>
+<p>Use error chain for simple fallbacks:</p>
+<pre><code class="language-lua">const x = f() !! 0
+</code></pre>
+<h3 id="throws-clause-benefits"><a class="header" href="#throws-clause-benefits">Throws Clause Benefits</a></h3>
+<p>While not enforced, the <code>throws</code> clause provides:</p>
+<ul>
+<li><strong>Documentation</strong> — Clear indication of possible errors</li>
+<li><strong>IDE support</strong> — Warnings and autocomplete</li>
+<li><strong>Static analysis</strong> — Tools can check error handling</li>
+<li><strong>Call graph</strong> — Understand error propagation</li>
+</ul>
+<h3 id="performance-considerations"><a class="header" href="#performance-considerations">Performance Considerations</a></h3>
+<p>Exception handling uses Lua’s <code>pcall</code>/<code>xpcall</code>:</p>
+<ul>
+<li>Try blocks have minimal overhead when no error occurs</li>
+<li>Error throwing and catching is slower than normal control flow</li>
+<li>Use for exceptional cases, not normal flow control</li>
+</ul>
+<h3 id="error-vs-return"><a class="header" href="#error-vs-return">Error vs Return</a></h3>
+<p>Prefer errors for exceptional conditions:</p>
+<pre><code class="language-lua">-- Good: Error for exceptional condition
+function divide(a: number, b: number): number
+    if b == 0 then
+        throw "Division by zero"
+    end
+    return a / b
+end
+
+-- Also good: Return optional for expected missing values
+function findUser(id: string): User | nil
+    return users[id]  -- nil is expected, not exceptional
+end
+</code></pre>
+<h3 id="stack-traces"><a class="header" href="#stack-traces">Stack Traces</a></h3>
+<p>LuaNext preserves Lua’s error stack traces:</p>
+<pre><code class="language-lua">function a(): void
+    b()
+end
+
+function b(): void
+    c()
+end
+
+function c(): void
+    throw "Error in c"
+end
+
+try
+    a()
+catch error
+    print(debug.traceback(error))
+    -- Shows: c -&gt; b -&gt; a call chain
+end
+</code></pre>
+<h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
+<ul>
+<li><a href="functions.html">Functions</a> — Throws clause in function signatures</li>
+<li><a href="classes.html">Classes</a> — Custom error classes</li>
+<li><a href="type-system.html">Type System</a> — Union types for error types</li>
+<li><a href="pattern-matching.html">Pattern Matching</a> — Pattern matching in catch clauses</li>
+</ul>
+
+                </section>
+
+                </div><!-- page-inner -->
+
+            </div><!-- page-wrapper -->
+
+            </div><!-- book-inner -->
+
+            <!-- Version Selector -->
+            <nav class="nav-wide-wrapper" aria-label="More">
+                <a href="javascript:void(0)" id="menu-bar-wide" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                    <i class="fa fa-bars"></i>
+                </a>
+            </nav>
+
+            <!-- Version selector dropdown -->
+            <div id="version-selector" class="version-selector">
+                <select id="version-picker" onchange="switchVersion(this.value)" aria-label="Documentation version">
+                    <option value="latest">Latest</option>
+                </select>
+            </div>
+
+        </div><!-- book -->
+
+        <!-- Custom scripts -->
+        <script>
+            // Version selector functionality
+            function switchVersion(version) {
+                const base = window.location.origin + '/luanext/';
+                if (version === 'latest') {
+                    window.location.href = base;
+                } else {
+                    window.location.href = base + version + '/';
+                }
+            }
+
+            // Load versions.json and populate selector if it exists
+            fetch('/luanext/versions.json')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.versions && data.versions.length > 1) {
+                        const selector = document.getElementById('version-picker');
+                        data.versions.forEach(v => {
+                            if (v.version !== 'latest') {
+                                const option = document.createElement('option');
+                                option.value = 'v' + v.version;
+                                option.textContent = 'v' + v.version;
+                                selector.appendChild(option);
+                            }
+                        });
+                    }
+                })
+                .catch(() => {
+                    // versions.json not found (expected during initial setup)
+                    // Selector will only show "Latest"
+                });
+        </script>
+
+        <!-- mdBook scripts and content scripts -->
+        <script src="js/clipboard.min.js" type="text/javascript"></script>
+        <script src="js/highlight.js" type="text/javascript"></script>
+        <script src="js/book.js" type="text/javascript"></script>
+
+        <!-- Custom theme script -->
+        <script src="js/custom-theme.js" type="text/javascript"></script>
+
+        <script src="js/elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/lunr-en.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/search.js" type="text/javascript" charset="utf-8"></script>
+
+    </body>
+</html>

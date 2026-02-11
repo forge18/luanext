@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Fallback to default mdbook template -->
+        
+        <meta name="robots" content="noindex,follow">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta charset="utf-8">
+        <title>Reflection API - LuaNext Documentation</title>
+        <script>
+            var theme = localStorage.getItem("mdbook-theme");
+            if (theme === null || theme === undefined) { theme = "light"; }
+            var html = document.querySelector("html");
+            html.classList.remove("light");
+            html.classList.add(theme);
+        </script>
+        <meta name="description" content="A typed superset of Lua with gradual typing, inspired by TypeScript">
+        <link rel="icon" href="favicon.svg">
+        <link rel="apple-touch-icon" href="apple-touch-icon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/custom.css">
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+
+    </head>
+    <body>
+        <!-- Provide the book title to JavaScript -->
+        <script>
+            window.book = window.book || {};
+            window.book.language = "en";
+        </script>
+
+        <div id="book" class="book">
+            <div class="book-inner">
+
+            <nav role="navigation" aria-label="Table of contents" class="sidebar">
+                <ol class="chapter"><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="introduction.html">Introduction</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Language</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/basics.html"><strong aria-hidden="true">1.</strong> Basics</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/control-flow.html"><strong aria-hidden="true">2.</strong> Control Flow</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/functions.html"><strong aria-hidden="true">3.</strong> Functions</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/type-system.html"><strong aria-hidden="true">4.</strong> Type System</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/classes.html"><strong aria-hidden="true">5.</strong> Classes</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/interfaces.html"><strong aria-hidden="true">6.</strong> Interfaces</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/enums.html"><strong aria-hidden="true">7.</strong> Enums</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/modules.html"><strong aria-hidden="true">8.</strong> Modules</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/error-handling.html"><strong aria-hidden="true">9.</strong> Error Handling</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/pattern-matching.html"><strong aria-hidden="true">10.</strong> Pattern Matching</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/decorators.html"><strong aria-hidden="true">11.</strong> Decorators</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/advanced-types.html"><strong aria-hidden="true">12.</strong> Advanced Types</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="language/operators.html"><strong aria-hidden="true">13.</strong> Operators</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Guides</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="guides/migrating-from-lua.html"><strong aria-hidden="true">14.</strong> Migrating from Lua</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="guides/lua-targets.html"><strong aria-hidden="true">15.</strong> Lua Targets</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Reference</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/cli.html"><strong aria-hidden="true">16.</strong> CLI</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/configuration.html"><strong aria-hidden="true">17.</strong> Configuration</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/standard-library.html"><strong aria-hidden="true">18.</strong> Standard Library</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/utility-types.html"><strong aria-hidden="true">19.</strong> Utility Types</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/reflection.html"><strong aria-hidden="true">20.</strong> Reflection API</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/error-codes.html"><strong aria-hidden="true">21.</strong> Error Codes</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/grammar.html"><strong aria-hidden="true">22.</strong> Grammar</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="reference/keywords.html"><strong aria-hidden="true">23.</strong> Keywords</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">Contributing</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="contributing/setup.html"><strong aria-hidden="true">24.</strong> Getting Started</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><li class="part-title">API Reference</li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="api/index.html"><strong aria-hidden="true">25.</strong> Rust API Docs</a></span></li></ol>
+            </nav>
+
+            <div id="page-wrapper" class="page-wrapper">
+
+                <div class="page-inner">
+
+                <section class="normal" id="main">
+                    <h1 id="reflection-api-reference"><a class="header" href="#reflection-api-reference">Reflection API Reference</a></h1>
+<p>Runtime reflection utilities for inspecting types, classes, and metadata in LuaNext.</p>
+<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
+<p>LuaNext provides a reflection API for runtime type inspection, primarily used with classes and decorators. The <code>Reflect</code> namespace offers functions to query type information, fields, methods, and metadata.</p>
+<p><strong>Key features:</strong></p>
+<ul>
+<li>Runtime type checking</li>
+<li>Field and method inspection</li>
+<li>Metadata access (from decorators)</li>
+<li>Instance checking</li>
+</ul>
+<h2 id="reflection-modes"><a class="header" href="#reflection-modes">Reflection Modes</a></h2>
+<p>Configure reflection metadata generation in <code>luanext.config.yaml</code>:</p>
+<pre><code class="language-yaml">compilerOptions:
+  reflection: "selective"  # Default: metadata for decorated items only
+  # OR
+  reflection: "full"       # Metadata for all types and functions
+  # OR
+  reflection: "none"       # No reflection metadata
+</code></pre>
+<p><strong>Modes:</strong></p>
+<ul>
+<li><code>selective</code> — Include metadata only for items with decorators (minimal overhead)</li>
+<li><code>full</code> — Include metadata for all types, classes, functions (complete introspection)</li>
+<li><code>none</code> — No metadata (smallest bundle size, reflection APIs return nil)</li>
+</ul>
+<h2 id="reflect-namespace"><a class="header" href="#reflect-namespace">Reflect Namespace</a></h2>
+<h3 id="reflectgettypeobj-unknown-string--nil"><a class="header" href="#reflectgettypeobj-unknown-string--nil"><code>Reflect.getType(obj: unknown): string | nil</code></a></h3>
+<p>Returns the LuaNext type name of an object.</p>
+<pre><code class="language-lua">import {Reflect} from "luanext:reflect"
+
+class User
+    name: string
+    age: number
+end
+
+const user = User.new()
+const typeName = Reflect.getType(user)  -- "User"
+
+print(typeName)  -- "User"
+</code></pre>
+<p><strong>Returns:</strong></p>
+<ul>
+<li>Type name (e.g., <code>"User"</code>, <code>"Vector"</code>)</li>
+<li><code>nil</code> if object has no reflection metadata</li>
+</ul>
+<h3 id="reflectgetfieldsobj-unknown-string-fieldinfo--nil"><a class="header" href="#reflectgetfieldsobj-unknown-string-fieldinfo--nil"><code>Reflect.getFields(obj: unknown): {[string]: FieldInfo} | nil</code></a></h3>
+<p>Returns all fields (including inherited) of an object.</p>
+<pre><code class="language-lua">interface FieldInfo
+    name: string
+    type: string
+    readonly: boolean
+    visibility: "public" | "private" | "protected"
+end
+
+const user = User.new()
+const fields = Reflect.getFields(user)
+
+if fields ~= nil then
+    for name, info in pairs(fields) do
+        print(`${name}: ${info.type} (${info.visibility})`)
+    end
+end
+-- Output:
+-- name: string (public)
+-- age: number (public)
+</code></pre>
+<p><strong>Includes inherited fields from parent classes.</strong></p>
+<h3 id="reflectgetownfieldsobj-unknown-string-fieldinfo--nil"><a class="header" href="#reflectgetownfieldsobj-unknown-string-fieldinfo--nil"><code>Reflect.getOwnFields(obj: unknown): {[string]: FieldInfo} | nil</code></a></h3>
+<p>Returns only fields defined directly on the object’s class (excluding inherited).</p>
+<pre><code class="language-lua">class Animal
+    name: string
+end
+
+class Dog extends Animal
+    breed: string
+end
+
+const dog = Dog.new()
+
+const allFields = Reflect.getFields(dog)      -- {name, breed}
+const ownFields = Reflect.getOwnFields(dog)   -- {breed} only
+</code></pre>
+<h3 id="reflectgetmethodsobj-unknown-string-methodinfo--nil"><a class="header" href="#reflectgetmethodsobj-unknown-string-methodinfo--nil"><code>Reflect.getMethods(obj: unknown): {[string]: MethodInfo} | nil</code></a></h3>
+<p>Returns all methods (including inherited) of an object.</p>
+<pre><code class="language-lua">interface MethodInfo
+    name: string
+    parameters: ParameterInfo[]
+    returnType: string
+    visibility: "public" | "private" | "protected"
+end
+
+interface ParameterInfo
+    name: string
+    type: string
+    optional: boolean
+end
+
+const user = User.new()
+const methods = Reflect.getMethods(user)
+
+if methods ~= nil then
+    for name, info in pairs(methods) do
+        print(`${name}: (${formatParams(info.parameters)}) =&gt; ${info.returnType}`)
+    end
+end
+</code></pre>
+<h3 id="reflectgetownmethodsobj-unknown-string-methodinfo--nil"><a class="header" href="#reflectgetownmethodsobj-unknown-string-methodinfo--nil"><code>Reflect.getOwnMethods(obj: unknown): {[string]: MethodInfo} | nil</code></a></h3>
+<p>Returns only methods defined directly on the object’s class (excluding inherited).</p>
+<pre><code class="language-lua">class Animal
+    function speak(): void end
+end
+
+class Dog extends Animal
+    function bark(): void end
+end
+
+const dog = Dog.new()
+
+const allMethods = Reflect.getMethods(dog)      -- {speak, bark}
+const ownMethods = Reflect.getOwnMethods(dog)   -- {bark} only
+</code></pre>
+<h3 id="reflectisinstanceobj-unknown-classref-unknown-boolean"><a class="header" href="#reflectisinstanceobj-unknown-classref-unknown-boolean"><code>Reflect.isInstance(obj: unknown, classRef: unknown): boolean</code></a></h3>
+<p>Checks if an object is an instance of a class.</p>
+<pre><code class="language-lua">class Animal end
+class Dog extends Animal end
+class Cat extends Animal end
+
+const dog = Dog.new()
+
+print(Reflect.isInstance(dog, Dog))     -- true
+print(Reflect.isInstance(dog, Animal))  -- true (parent class)
+print(Reflect.isInstance(dog, Cat))     -- false
+</code></pre>
+<p><strong>More precise than <code>instanceof</code> operator</strong> when working with dynamic types.</p>
+<h2 id="decorator-metadata"><a class="header" href="#decorator-metadata">Decorator Metadata</a></h2>
+<p>Decorators can store metadata accessible via reflection.</p>
+<h3 id="storing-metadata"><a class="header" href="#storing-metadata">Storing Metadata</a></h3>
+<pre><code class="language-lua">function metadata(key: string, value: any): (target: any, propertyKey: string) =&gt; void
+    return function(target, propertyKey)
+        target.__metadata = target.__metadata or {}
+        target.__metadata[propertyKey] = target.__metadata[propertyKey] or {}
+        target.__metadata[propertyKey][key] = value
+    end
+end
+
+class User
+    @metadata("required", true)
+    @metadata("minLength", 3)
+    name: string
+
+    @metadata("required", true)
+    @metadata("min", 18)
+    age: number
+end
+</code></pre>
+<h3 id="accessing-metadata"><a class="header" href="#accessing-metadata">Accessing Metadata</a></h3>
+<pre><code class="language-lua">function validate(obj: User): boolean
+    const fields = Reflect.getFields(obj)
+
+    if fields ~= nil then
+        for fieldName, fieldInfo in pairs(fields) do
+            const meta = User.__metadata[fieldName]
+
+            if meta ~= nil then
+                if meta.required and obj[fieldName] == nil then
+                    error(`Field ${fieldName} is required`)
+                end
+
+                if meta.minLength ~= nil and #obj[fieldName] &lt; meta.minLength then
+                    error(`Field ${fieldName} must be at least ${meta.minLength} characters`)
+                end
+            end
+        end
+    end
+
+    return true
+end
+
+const user = User.new()
+user.name = "AB"  -- Too short
+validate(user)    -- Error: Field name must be at least 3 characters
+</code></pre>
+<h2 id="practical-examples"><a class="header" href="#practical-examples">Practical Examples</a></h2>
+<h3 id="serialization"><a class="header" href="#serialization">Serialization</a></h3>
+<pre><code class="language-lua">function serialize(obj: unknown): string
+    const typeName = Reflect.getType(obj)
+
+    if typeName == nil then
+        return tostring(obj)
+    end
+
+    const fields = Reflect.getFields(obj)
+    if fields == nil then
+        return tostring(obj)
+    end
+
+    const parts: string[] = {`{type="${typeName}"`}
+
+    for name, info in pairs(fields) do
+        const value = obj[name]
+        table.insert(parts, `${name}=${serializeValue(value)}`)
+    end
+
+    return table.concat(parts, ", ") .. "}"
+end
+</code></pre>
+<h3 id="validation-framework"><a class="header" href="#validation-framework">Validation Framework</a></h3>
+<pre><code class="language-lua">function validateObject&lt;T&gt;(obj: T): ValidationResult
+    const errors: string[] = {}
+    const fields = Reflect.getFields(obj)
+
+    if fields ~= nil then
+        for name, info in pairs(fields) do
+            -- Check required fields
+            if info.required and obj[name] == nil then
+                table.insert(errors, `${name} is required`)
+            end
+
+            -- Type validation
+            const actualType = type(obj[name])
+            if not isTypeCompatible(actualType, info.type) then
+                table.insert(errors, `${name} has wrong type: expected ${info.type}, got ${actualType}`)
+            end
+        end
+    end
+
+    return {valid = #errors == 0, errors = errors}
+end
+</code></pre>
+<h3 id="dependency-injection"><a class="header" href="#dependency-injection">Dependency Injection</a></h3>
+<pre><code class="language-lua">function inject(container: Container, target: any): void
+    const fields = Reflect.getFields(target)
+
+    if fields ~= nil then
+        for name, info in pairs(fields) do
+            const meta = target.__metadata?[name]
+
+            if meta?.inject == true then
+                const dependency = container:resolve(info.type)
+                if dependency ~= nil then
+                    target[name] = dependency
+                end
+            end
+        end
+    end
+end
+
+@injectable
+class UserService
+    @inject
+    database: Database
+
+    @inject
+    logger: Logger
+end
+
+const service = UserService.new()
+inject(container, service)  -- Auto-injects dependencies
+</code></pre>
+<h3 id="auto-mapping"><a class="header" href="#auto-mapping">Auto-mapping</a></h3>
+<pre><code class="language-lua">function mapTo&lt;T&gt;(source: any, targetClass: any): T
+    const target = targetClass.new()
+    const sourceFields = Reflect.getFields(source)
+    const targetFields = Reflect.getFields(target)
+
+    if sourceFields ~= nil and targetFields ~= nil then
+        for name, sourceInfo in pairs(sourceFields) do
+            const targetInfo = targetFields[name]
+
+            if targetInfo ~= nil and sourceInfo.type == targetInfo.type then
+                target[name] = source[name]
+            end
+        end
+    end
+
+    return target
+end
+
+const dto = UserDTO.new()
+dto.name = "Alice"
+dto.email = "alice@example.com"
+
+const entity: User = mapTo(dto, User)
+</code></pre>
+<h2 id="performance-considerations"><a class="header" href="#performance-considerations">Performance Considerations</a></h2>
+<h3 id="reflection-overhead"><a class="header" href="#reflection-overhead">Reflection Overhead</a></h3>
+<p><strong>Metadata storage:</strong></p>
+<ul>
+<li><code>selective</code> mode — Minimal (only decorated items)</li>
+<li><code>full</code> mode — Moderate (all types)</li>
+<li><code>none</code> mode — Zero (no metadata)</li>
+</ul>
+<p><strong>Runtime cost:</strong></p>
+<ul>
+<li>Reflection calls involve table lookups</li>
+<li>Use caching for frequently accessed metadata</li>
+<li>Avoid reflection in hot paths</li>
+</ul>
+<h3 id="optimization-tips"><a class="header" href="#optimization-tips">Optimization Tips</a></h3>
+<pre><code class="language-lua">-- ✅ Good: Cache metadata
+const fieldsCache = {}
+
+function getCachedFields(obj: unknown): any
+    const typeName = Reflect.getType(obj)
+
+    if typeName == nil then
+        return nil
+    end
+
+    if fieldsCache[typeName] == nil then
+        fieldsCache[typeName] = Reflect.getFields(obj)
+    end
+
+    return fieldsCache[typeName]
+end
+
+-- ❌ Bad: Repeated reflection in loop
+for i = 1, 10000 do
+    const fields = Reflect.getFields(obj)  -- Called 10000 times!
+end
+</code></pre>
+<h3 id="bundle-size-impact"><a class="header" href="#bundle-size-impact">Bundle Size Impact</a></h3>
+<p><strong>Reflection mode comparison:</strong></p>
+<pre><code>none:      100 KB (baseline)
+selective: 105 KB (+5%, metadata for decorated items only)
+full:      130 KB (+30%, metadata for all types)
+</code></pre>
+<p><strong>Recommendation:</strong> Use <code>selective</code> mode unless you need full introspection.</p>
+<h2 id="limitations"><a class="header" href="#limitations">Limitations</a></h2>
+<ol>
+<li><strong>Primitive types</strong> — No reflection metadata for <code>number</code>, <code>string</code>, <code>boolean</code>, etc.</li>
+<li><strong>External types</strong> — No reflection for plain Lua tables or external C types</li>
+<li><strong>Private access</strong> — Reflection respects visibility modifiers in generated code</li>
+<li><strong>Dynamic types</strong> — Reflection works on compiled types, not runtime <code>any</code>/<code>unknown</code></li>
+</ol>
+<h2 id="type-guards-with-reflection"><a class="header" href="#type-guards-with-reflection">Type Guards with Reflection</a></h2>
+<p>Combine reflection with type guards:</p>
+<pre><code class="language-lua">function isUser(obj: unknown): obj is User
+    const typeName = Reflect.getType(obj)
+    return typeName == "User"
+end
+
+function processValue(value: unknown): void
+    if isUser(value) then
+        -- value is User here
+        print(value.name)
+    end
+end
+</code></pre>
+<h2 id="debugging"><a class="header" href="#debugging">Debugging</a></h2>
+<p>Enable reflection debugging:</p>
+<pre><code class="language-bash">RUST_LOG=debug luanext main.luax
+</code></pre>
+<p>Check generated metadata:</p>
+<pre><code class="language-lua">-- Inspect raw metadata
+const user = User.new()
+print(user.__metadata)       -- Decorator metadata
+print(user.__type)           -- Type name
+print(user.__fields)         -- Field definitions
+</code></pre>
+<h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
+<ul>
+<li><a href="../language/decorators.html">Decorators</a> — Using decorators with reflection</li>
+<li><a href="../language/classes.html">Classes</a> — Class definitions</li>
+<li><a href="configuration.html">Configuration</a> — Setting reflection mode</li>
+</ul>
+
+                </section>
+
+                </div><!-- page-inner -->
+
+            </div><!-- page-wrapper -->
+
+            </div><!-- book-inner -->
+
+            <!-- Version Selector -->
+            <nav class="nav-wide-wrapper" aria-label="More">
+                <a href="javascript:void(0)" id="menu-bar-wide" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                    <i class="fa fa-bars"></i>
+                </a>
+            </nav>
+
+            <!-- Version selector dropdown -->
+            <div id="version-selector" class="version-selector">
+                <select id="version-picker" onchange="switchVersion(this.value)" aria-label="Documentation version">
+                    <option value="latest">Latest</option>
+                </select>
+            </div>
+
+        </div><!-- book -->
+
+        <!-- Custom scripts -->
+        <script>
+            // Version selector functionality
+            function switchVersion(version) {
+                const base = window.location.origin + '/luanext/';
+                if (version === 'latest') {
+                    window.location.href = base;
+                } else {
+                    window.location.href = base + version + '/';
+                }
+            }
+
+            // Load versions.json and populate selector if it exists
+            fetch('/luanext/versions.json')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.versions && data.versions.length > 1) {
+                        const selector = document.getElementById('version-picker');
+                        data.versions.forEach(v => {
+                            if (v.version !== 'latest') {
+                                const option = document.createElement('option');
+                                option.value = 'v' + v.version;
+                                option.textContent = 'v' + v.version;
+                                selector.appendChild(option);
+                            }
+                        });
+                    }
+                })
+                .catch(() => {
+                    // versions.json not found (expected during initial setup)
+                    // Selector will only show "Latest"
+                });
+        </script>
+
+        <!-- mdBook scripts and content scripts -->
+        <script src="js/clipboard.min.js" type="text/javascript"></script>
+        <script src="js/highlight.js" type="text/javascript"></script>
+        <script src="js/book.js" type="text/javascript"></script>
+
+        <!-- Custom theme script -->
+        <script src="js/custom-theme.js" type="text/javascript"></script>
+
+        <script src="js/elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/lunr-en.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/search.js" type="text/javascript" charset="utf-8"></script>
+
+    </body>
+</html>
