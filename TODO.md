@@ -211,7 +211,7 @@
 
 #### Phase 5: Integration & Testing (Days 9-10)
 
-**Phase 5.1 Summary (2026-02-10) - Test Infrastructure ✅ COMPLETE:**
+**Phase 5.1 Summary (2026-02-10) - Test Infrastructure & Bug Fixes ✅ COMPLETE:**
 
 - ✅ **MultiModuleTestHarness** - Foundation for all 23+ integration tests
   - ✅ Manages multiple modules with shared arena allocation
@@ -224,6 +224,21 @@
   - ✅ Convenient URI/path management for workspace files
   - ✅ 10 unit tests covering workspace operations - all passing
   - ✅ File: `crates/luanext-lsp/tests/test_utils.rs`
+
+- ✅ **Critical Bug Fix: export type { ... } Support (2026-02-10)**
+  - ✅ **Root Cause**: `ExportKind::Named` lacked `is_type_only` field even though parser detected the keyword
+  - ✅ **Parser AST**: Added `is_type_only: bool` to `ExportKind::Named` variant
+  - ✅ **Parser**: Updated to pass `is_type_only` flag to named exports
+  - ✅ **Type Checker**: extract_exports() now uses `is_type_only` from export declaration
+  - ✅ **Code Generator**: Skip code generation for `export type { ... }` statements
+  - ✅ **LSP**: Updated all pattern matches to handle new field
+  - ✅ **Tests Fixed**:
+    - ✅ `test_reexport_cannot_be_type_only_and_value` - Now correctly expects duplicate export error
+    - ✅ `test_type_only_reexport_not_generated` - Type-only re-exports now generate no Lua code
+    - ✅ `test_reexport_interface_not_generated` - Interfaces correctly erased at codegen
+    - ✅ `test_codegen_export_all_tree_shaking_selective_copy` - Fixed order-agnostic assertion
+  - ✅ **Results**: All 446 lib tests pass; 23 reexport tests pass; 27 codegen tests pass; zero regressions
+  - Files: `crates/luanext-parser/src/ast/statement.rs`, `crates/luanext-parser/src/parser/statement.rs`, `crates/luanext-typechecker/src/phases/module_phase.rs`, `crates/luanext-core/src/codegen/modules.rs`, `crates/luanext-lsp/src/**/*.rs`
 
 - [ ] **End-to-End Tests**
   - [ ] Multi-file project with complex type dependencies (15 tests)
@@ -255,6 +270,7 @@
 
 **Commits:**
 
+- `<pending>` feat: Phase 5.1 - Bug Fixes (export type support)
 - `<pending>` feat: Phase 5.1 - Test Infrastructure (test harnesses)
 
 ---

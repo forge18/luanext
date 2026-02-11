@@ -40,8 +40,7 @@ CLAUDE.md
 # Documentation build
 book/
 
-# Technical documentation
-technical/
+
 
 # Temporary files
 *.tmp
