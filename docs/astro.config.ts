@@ -12,8 +12,8 @@ export default defineConfig({
         { icon: 'github', label: 'GitHub', href: 'https://github.com/forge18/luanext' },
       ],
       sidebar: [
-        { label: 'Test', slug: 'test' },
-        { label: 'Home', slug: 'introduction' },
+        { label: 'Home', slug: 'index' },
+        { label: 'Introduction', slug: 'introduction' },
         {
           label: 'Language',
           items: [
