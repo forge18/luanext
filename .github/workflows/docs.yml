@@ -34,6 +34,8 @@ jobs:
             docs-site
             book
           sparse-checkout-cone-mode: false
+          fetch-depth: 0
+          submodules: false
 
       - name: Install mdBook
         run: |
