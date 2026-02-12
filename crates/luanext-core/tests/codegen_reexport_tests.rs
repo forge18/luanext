@@ -368,7 +368,10 @@ fn test_codegen_export_all_with_declarations() {
     let lua = generate_lua(source);
 
     // Verify both export * and local declarations are present
-    assert!(lua.contains("for k, v in pairs(_mod)"), "Should have export * loop");
+    assert!(
+        lua.contains("for k, v in pairs(_mod)"),
+        "Should have export * loop"
+    );
 }
 
 #[test]
@@ -381,7 +384,10 @@ fn test_codegen_multiple_export_all() {
 
     // Verify both modules are loaded and copied
     let for_loop_count = lua.matches("for k, v in pairs(_mod)").count();
-    assert!(for_loop_count >= 2, "Should have for-loops for each export *");
+    assert!(
+        for_loop_count >= 2,
+        "Should have for-loops for each export *"
+    );
 
     // Both modules should be loaded
     assert!(

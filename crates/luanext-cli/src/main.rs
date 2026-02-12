@@ -532,8 +532,11 @@ impl<'a> ImportScanner<'a> {
                     imports.push(import_with_kind);
                 }
             } else if self.peek_keyword("export") {
-                // Export statements are valid at top level, continue
-                self.skip_statement();
+                // Check for re-export statements: export { ... } from '...'
+                // and export * from '...' which create dependencies
+                if let Some(reexport) = self.parse_export_statement() {
+                    imports.push(reexport);
+                }
             } else if hit_non_import {
                 // Already hit a non-import, and this isn't import/export
                 // Likely past the import section, stop scanning
@@ -667,6 +670,77 @@ impl<'a> ImportScanner<'a> {
         let source = self.parse_string_literal()?;
 
         // Skip to end of statement
+        self.skip_whitespace_and_comments();
+        self.skip_statement_terminator();
+
+        let kind = if is_type_only {
+            EdgeKind::TypeOnly
+        } else {
+            EdgeKind::Value
+        };
+
+        Some((source, kind))
+    }
+
+    /// Parse an export statement to extract re-export dependencies.
+    /// Handles: `export { X } from './module'`, `export * from './module'`,
+    /// `export type { X } from './module'`, `export type * from './module'`
+    fn parse_export_statement(&mut self) -> Option<(String, EdgeKind)> {
+        let save_pos = self.position;
+        let save_col = self.column;
+        let save_line = self.line;
+
+        // Skip "export"
+        self.position += 6;
+        self.column += 6;
+        self.skip_whitespace_and_comments();
+
+        // Check for "type" keyword
+        let is_type_only = if self.peek_keyword("type") {
+            self.position += 4;
+            self.column += 4;
+            self.skip_whitespace_and_comments();
+            true
+        } else {
+            false
+        };
+
+        // Check for `*` (export * from) or `{` (export { ... } from)
+        match self.source[self.position..].chars().next() {
+            Some('*') => {
+                // export * from './module'
+                self.advance_char();
+                self.skip_whitespace_and_comments();
+            }
+            Some('{') => {
+                // export { X, Y } from './module'
+                self.skip_braced_content();
+                self.skip_whitespace_and_comments();
+            }
+            _ => {
+                // Not a re-export (e.g., export const, export function, export interface)
+                // Restore position and skip statement
+                self.position = save_pos;
+                self.column = save_col;
+                self.line = save_line;
+                self.skip_statement();
+                return None;
+            }
+        }
+
+        // Check for "from" keyword
+        if !self.peek_keyword("from") {
+            // Not a re-export (e.g., export { localVar })
+            self.skip_statement();
+            return None;
+        }
+
+        self.position += 4;
+        self.column += 4;
+        self.skip_whitespace_and_comments();
+
+        // Parse string literal (module source)
+        let source = self.parse_string_literal()?;
         self.skip_whitespace_and_comments();
         self.skip_statement_terminator();
 
@@ -1018,25 +1092,24 @@ struct CheckedModule<'arena> {
 // The AST is safe to send across threads since StringInterner no longer uses Rc.
 unsafe impl<'arena> Send for CheckedModule<'arena> {}
 
-/// Parse a single source file for parallel parsing
-fn parse_single_file<'arena>(
+/// Parse a single file using a shared interner for cross-module StringId consistency
+fn parse_single_file_with_interner<'arena>(
     file_path: &Path,
     file_system: &std::sync::Arc<dyn luanext_core::fs::FileSystem>,
     arena: &'arena bumpalo::Bump,
+    interner: &luanext_parser::string_interner::StringInterner,
+    common_ids: &luanext_parser::string_interner::CommonIdentifiers,
 ) -> anyhow::Result<luanext_core::ParsedModule<'arena>> {
     let source = file_system.read_file(file_path)?;
 
     let handler =
         std::sync::Arc::new(luanext_core::diagnostics::CollectingDiagnosticHandler::new());
-    let (interner, common_ids) =
-        luanext_parser::string_interner::StringInterner::new_with_common_identifiers();
-    let interner = std::rc::Rc::new(interner);
 
-    let mut lexer = luanext_parser::lexer::Lexer::new(&source, handler.clone(), &interner);
+    let mut lexer = luanext_parser::lexer::Lexer::new(&source, handler.clone(), interner);
     let tokens = lexer.tokenize()?;
 
     let mut parser =
-        luanext_parser::parser::Parser::new(tokens, handler.clone(), &interner, &common_ids, arena);
+        luanext_parser::parser::Parser::new(tokens, handler.clone(), interner, common_ids, arena);
     let ast = parser.parse()?;
 
     if luanext_core::diagnostics::DiagnosticHandler::has_errors(&*handler) {
@@ -1049,8 +1122,8 @@ fn parse_single_file<'arena>(
     Ok(luanext_core::ParsedModule {
         path: file_path.to_path_buf(),
         ast,
-        interner: std::rc::Rc::unwrap_or_clone(interner),
-        common_ids,
+        interner: interner.clone(),
+        common_ids: *common_ids,
         diagnostics: luanext_core::diagnostics::DiagnosticHandler::get_diagnostics(&*handler),
     })
 }
@@ -1217,6 +1290,10 @@ fn compile(
         })
         .collect();
 
+    // Shared interner for all files - ensures StringIds are consistent across modules
+    let (shared_interner, shared_common_ids) =
+        luanext_parser::string_interner::StringInterner::new_with_common_identifiers();
+
     let parse_start = Instant::now();
     let parsed_modules: Vec<ParsedModule> = if stale_file_paths.is_empty() {
         Vec::new()
@@ -1231,7 +1308,14 @@ fn compile(
                 // For parallel parsing, use Box::leak to get 'static arena
                 // This is acceptable for short-lived CLI processes
                 let arena: &'static bumpalo::Bump = Box::leak(Box::new(bumpalo::Bump::new()));
-                parse_single_file(file_path, &file_system, arena).map_err(|e| {
+                parse_single_file_with_interner(
+                    file_path,
+                    &file_system,
+                    arena,
+                    &shared_interner,
+                    &shared_common_ids,
+                )
+                .map_err(|e| {
                     eprintln!("Failed to parse {:?}: {}", file_path, e);
                     e
                 })
@@ -1317,8 +1401,11 @@ fn compile(
             }
 
             // --- Stale path: parse, type-check, extract exports ---
-            // Use pooled arena for type checking
-            luanext_core::arena::with_pooled_arena(|arena| {
+            // Use leaked arena so exported type data remains valid for cross-module resolution.
+            // Pooled arenas reset memory after use, but exports stored in ModuleRegistry
+            // reference arena-allocated types that must outlive individual file processing.
+            let arena: &'static bumpalo::Bump = Box::leak(Box::new(bumpalo::Bump::new()));
+            (|| {
                 // --- Prepared module from parallel parsing ---
                 let parsed = match parsed_map.get(&canonical) {
                     Some(parsed) => parsed,
@@ -1339,8 +1426,6 @@ fn compile(
 
                 let handler = Arc::new(CollectingDiagnosticHandler::new());
 
-                debug!("Type checking {:?}...", file_path);
-
                 let module_id = ModuleId::new(canonical.clone());
                 let mut type_checker = TypeChecker::new_with_module_support(
                     handler.clone(),
@@ -1354,14 +1439,16 @@ fn compile(
                 .with_stdlib()
                 .expect("Failed to load standard library");
 
-                if type_checker.check_program(&program).is_err() || handler.has_errors() {
+                // Register module as parsed first (required before register_exports)
+                registry.register_parsed(
+                    module_id.clone(),
+                    Arc::new(luanext_typechecker::SymbolTable::new()),
+                );
+
+                let check_result = type_checker.check_program(&program);
+                if check_result.is_err() || handler.has_errors() {
                     typecheck_failures.set(true);
                     let diagnostics = handler.get_diagnostics();
-                    warn!(
-                        "Type check failed for {:?}: {} errors",
-                        file_path,
-                        diagnostics.len()
-                    );
                     // Print diagnostics to stderr
                     let source = std::fs::read_to_string(file_path).unwrap_or_default();
                     print_diagnostics_from_vec(
@@ -1378,6 +1465,11 @@ fn compile(
                 let exports = type_checker.extract_exports(&program);
                 if let Err(e) = registry.register_exports(&module_id, exports.clone()) {
                     warn!("Failed to register exports for {:?}: {}", module_id, e);
+                }
+
+                // Mark module as fully type-checked
+                if let Err(e) = registry.mark_checked(&module_id) {
+                    warn!("Failed to mark {:?} as checked: {}", module_id, e);
                 }
 
                 // Build cache entry to save after parallel section
@@ -1454,7 +1546,7 @@ fn compile(
                     enable_source_map: cli.source_map || cli.inline_source_map,
                     cache_entry,
                 })
-            }) // End of with_pooled_arena
+            })() // End of leaked arena closure
         })
         .collect();
 

@@ -173,7 +173,10 @@ impl CodeGenerator {
                 self.writeln("");
                 self.has_default_export = true;
             }
-            luanext_parser::ast::statement::ExportKind::All { source, is_type_only } => {
+            luanext_parser::ast::statement::ExportKind::All {
+                source,
+                is_type_only,
+            } => {
                 // export * from './module' - copy all exports from source
                 // export type * from './module' - copy all type exports from source
                 if *is_type_only {
@@ -290,8 +293,7 @@ impl CodeGenerator {
             if let Some(reachable) = self.reachable_exports.as_ref() {
                 // We already checked for empty above, so we know reachable is non-empty here
                 // Clone to avoid borrow issues during mutation
-                let reachable_exports: Vec<String> =
-                    reachable.iter().cloned().collect::<Vec<_>>();
+                let reachable_exports: Vec<String> = reachable.iter().cloned().collect::<Vec<_>>();
 
                 // Generate individual assignments for each reachable export
                 self.write_indent();

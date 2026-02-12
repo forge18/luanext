@@ -8,7 +8,7 @@
 
 **Estimated Effort:** 7-10 days (Phases 1-3 completed in 2 days - 2026-02-08 to 2026-02-09)
 
-**Progress:** Phases 1, 2, 3 ✅ COMPLETE - 2026-02-09
+**Progress:** Phases 1-5.2 ✅ COMPLETE - 2026-02-11 (LSP testing, performance testing, docs remaining)
 
 **Phase 3 Summary (2026-02-09):**
 
@@ -240,13 +240,32 @@
   - ✅ **Results**: All 446 lib tests pass; 23 reexport tests pass; 27 codegen tests pass; zero regressions
   - Files: `crates/luanext-parser/src/ast/statement.rs`, `crates/luanext-parser/src/parser/statement.rs`, `crates/luanext-typechecker/src/phases/module_phase.rs`, `crates/luanext-core/src/codegen/modules.rs`, `crates/luanext-lsp/src/**/*.rs`
 
-- [ ] **End-to-End Tests**
-  - [ ] Multi-file project with complex type dependencies (15 tests)
-  - [ ] Circular type reference tests (should pass) (8 tests)
-  - [ ] Circular value reference tests (should error)
-  - [ ] Re-export chain tests (single level, multi-level, circular)
-  - [ ] Type-only import/export tests
-  - [ ] Mixed scenarios (import, re-export, import again)
+**Phase 5.2 Summary (2026-02-11) - End-to-End Multi-Module Integration Tests ✅ COMPLETE:**
+
+- ✅ **28 E2E integration tests** - All passing
+  - ✅ File: `crates/luanext-cli/tests/multi_module_integration_tests.rs`
+  - ✅ Test categories: basic imports (5), circular types (8), circular values (4), re-exports (7), type-only (4), mixed (3), errors (2)
+
+- ✅ **8 Root Causes Fixed:**
+  1. **Topo sort**: Now follows TypeOnly edges for ordering, only rejects Value cycles
+  2. **Pooled arena use-after-free**: Multi-file compilation uses `Box::leak` instead of `with_pooled_arena`
+  3. **Shared StringInterner**: Single interner shared across all files for consistent StringId values
+  4. **Module registration lifecycle**: `register_parsed()` before type check, `mark_checked()` after
+  5. **ImportScanner**: Added `parse_export_statement()` to discover re-export dependencies
+  6. **Graceful degradation**: Circular type-only deps return Unknown instead of failing
+  7. **Re-export type-only validation**: Preserves type-only flag from source symbol
+  8. **Module resolver**: `resolve_relative` now tries both `index.luax` and `index.tl` for directories
+
+- ✅ **Results**: 28/28 E2E tests; 446 lib tests; zero clippy warnings; zero regressions
+
+- [x] **End-to-End Tests** ✅ COMPLETE (2026-02-11) - 28/28 passing
+  - [x] Multi-file project with complex type dependencies (5 tests)
+  - [x] Circular type reference tests (should pass) (8 tests)
+  - [x] Circular value reference tests (should error) (4 tests)
+  - [x] Re-export chain tests (single level, multi-level, circular) (7 tests)
+  - [x] Type-only import/export tests (4 tests)
+  - [x] Mixed scenarios (import, re-export, import again) (3 tests)
+  - [x] CLI compiles in topological order (topo sort follows all edge kinds)
 
 - [ ] **LSP Testing**
   - [ ] Go-to-definition across files with type resolution (10 tests)
@@ -272,6 +291,7 @@
 
 - `<pending>` feat: Phase 5.1 - Bug Fixes (export type support)
 - `<pending>` feat: Phase 5.1 - Test Infrastructure (test harnesses)
+- `<pending>` feat: Phase 5.2 - End-to-End Multi-Module Integration Tests (28/28 passing)
 
 ---
 
