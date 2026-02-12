@@ -267,31 +267,56 @@
   - [x] Mixed scenarios (import, re-export, import again) (3 tests)
   - [x] CLI compiles in topological order (topo sort follows all edge kinds)
 
-- [ ] **LSP Testing**
-  - [ ] Go-to-definition across files with type resolution (10 tests)
-  - [ ] Hover shows correct types for cross-file imports (8 tests)
-  - [ ] Completion works for cross-file types (including re-exported) (8 tests)
-  - [ ] Find references across files through re-exports (6 tests)
-  - [ ] Rename refactoring across files and re-exports
+- [x] **LSP Testing** ✅ COMPLETE - 2026-02-11 (41 tests)
+  - [x] Go-to-definition across files with type resolution (10 tests) ✅
+  - [x] Hover shows correct types for cross-file imports (9 tests) ✅
+  - [x] Completion works for cross-file types (including re-exported) (9 tests) ✅
+  - [x] Find references across files through re-exports (7 tests) ✅
+  - [x] Rename refactoring across files and re-exports (6 tests) ✅
 
-- [ ] **Performance Testing**
-  - [ ] Large projects (100+ files) compile in reasonable time (<5 seconds for clean build)
-  - [ ] LSP remains responsive with many cross-file references (<100ms for hover/completion)
-  - [ ] Incremental compilation works with cross-file changes
-  - [ ] Deep re-export chains don't cause performance degradation
+- [x] **Performance Testing** ✅ COMPLETE - 2026-02-11
+  - [x] Large projects (100+ files) compile in reasonable time (<5 seconds for clean build) ✅
+  - [x] LSP remains responsive with many cross-file references (<100ms for hover/completion) ✅
+  - [x] Incremental compilation works with cross-file changes ✅
+  - [x] Deep re-export chains don't cause performance degradation ✅
+  - [x] Created comprehensive benchmark suite:
+    - `cross_file_performance.rs` - Large project compilation (50-200 files), re-export chains (depth 1-10)
+    - `cache_performance.rs` - Cache hit/miss, incremental builds, dependency invalidation
+    - `lsp_responsiveness.rs` - Hover/completion performance, parsing, symbol tables
+  - [x] Performance test runner script: `scripts/run_performance_tests.sh`
+  - [x] Documentation: `docs/PERFORMANCE_TESTING.md` (comprehensive guide)
 
-- [ ] **Documentation**
-  - [ ] Document cross-file type resolution in ARCHITECTURE.md
-  - [ ] Add examples of type-only imports and re-exports
-  - [ ] Document circular dependency handling
-  - [ ] Explain re-export resolution strategy
-  - [ ] Add migration guide for existing code
+- [x] **Documentation** ✅ COMPLETE - 2026-02-11
+  - [x] Document cross-file type resolution in ARCHITECTURE.md ✅
+  - [x] Add examples of type-only imports and re-exports ✅
+  - [x] Document circular dependency handling ✅
+  - [x] Explain re-export resolution strategy ✅
+  - [x] Add migration guide for existing code ✅
 
 **Commits:**
 
-- `<pending>` feat: Phase 5.1 - Bug Fixes (export type support)
-- `<pending>` feat: Phase 5.1 - Test Infrastructure (test harnesses)
-- `<pending>` feat: Phase 5.2 - End-to-End Multi-Module Integration Tests (28/28 passing)
+- `204736f` feat: Phase 5.2 - Add comprehensive end-to-end multi-module integration tests
+- `<pending>` feat: Phase 5.3 - LSP Cross-File Tests (41 tests: definition, hover, references, completion, rename)
+- `<pending>` feat: Phase 5 Performance Testing - Comprehensive benchmark suite (cross-file, cache, LSP)
+- `<pending>` docs: Phase 5 Documentation - Complete ARCHITECTURE.md updates and MIGRATION_GUIDE.md
+
+**Documentation Summary (2026-02-11) ✅ COMPLETE:**
+
+- ✅ **ARCHITECTURE.md** - Comprehensive cross-file type resolution documentation
+  - Architecture overview with visual diagrams
+  - Lazy type resolution implementation details
+  - Circular dependency handling (EdgeKind: TypeOnly vs Value)
+  - Re-export resolution strategy with cycle detection
+  - LSP integration for type-only imports
+  - Performance optimizations (caching, tree-shaking)
+  - Complete working examples section (10+ examples)
+- ✅ **MIGRATION_GUIDE.md** - User-friendly migration guide
+  - Overview of new features
+  - Breaking changes (circular value dependencies)
+  - Step-by-step migration instructions
+  - Common patterns and best practices
+  - Performance considerations
+  - Troubleshooting guide with solutions
 
 ---
 

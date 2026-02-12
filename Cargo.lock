@@ -912,6 +912,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bumpalo",
+ "criterion",
  "crossbeam-channel",
  "lsp-server",
  "lsp-types",

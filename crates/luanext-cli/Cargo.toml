@@ -35,3 +35,11 @@ criterion.workspace = true
 [[bench]]
 name = "parallel_optimization"
 harness = false
+
+[[bench]]
+name = "cross_file_performance"
+harness = false
+
+[[bench]]
+name = "cache_performance"
+harness = false
