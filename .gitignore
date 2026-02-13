@@ -29,6 +29,8 @@ dhat-heap.json
 *.swo
 *~
 .DS_Store
+.github/
+.opencode/
 
 # Claude Code
 .claude/logs/
@@ -63,6 +65,7 @@ knowledge/
 credentials.json
 
 # TODO.md
+AGENTS.md
 CLAUDE.md
 */CLAUDE.md
 **/CLAUDE.md

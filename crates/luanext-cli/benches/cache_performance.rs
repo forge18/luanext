@@ -85,7 +85,10 @@ fn generate_cache_test_project(module_count: usize, functions_per_module: usize)
 }
 
 /// Compile with or without cache
-fn compile_with_cache(project_path: &PathBuf, use_cache: bool) -> Result<std::time::Duration, String> {
+fn compile_with_cache(
+    project_path: &PathBuf,
+    use_cache: bool,
+) -> Result<std::time::Duration, String> {
     let binary_path = env!("CARGO_BIN_EXE_luanext");
     let mut cmd = Command::new(binary_path);
 
@@ -165,7 +168,11 @@ fn benchmark_incremental_after_edit(c: &mut Criterion) {
 
         group.bench_with_input(
             BenchmarkId::new("file_change", module_count),
-            &(project_path.clone(), module_to_edit.clone(), original_content.clone()),
+            &(
+                project_path.clone(),
+                module_to_edit.clone(),
+                original_content.clone(),
+            ),
             |b, (path, module_path, orig_content)| {
                 b.iter(|| {
                     // Modify the file (add a comment)
@@ -289,7 +296,10 @@ fn benchmark_reexport_caching(c: &mut Criterion) {
             }
         } else {
             // Deeper levels re-export from previous level
-            reexport.push_str(&format!("export type * from \"./reexport_{}\"\n", depth - 1));
+            reexport.push_str(&format!(
+                "export type * from \"./reexport_{}\"\n",
+                depth - 1
+            ));
         }
 
         let path = temp_dir.path().join(format!("reexport_{}.luax", depth));

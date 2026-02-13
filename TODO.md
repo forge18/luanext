@@ -1,325 +1,5 @@
 # LuaNext TODO
 
-## High Priority
-
-### Enhanced Cross-File Type Support
-
-**Rationale:** Core requirement for TypeScript-inspired type system. TypeScript does full cross-file type resolution, and it's fundamental to the value proposition.
-
-**Estimated Effort:** 7-10 days (Phases 1-3 completed in 2 days - 2026-02-08 to 2026-02-09)
-
-**Progress:** Phases 1-5.2 ✅ COMPLETE - 2026-02-11 (LSP testing, performance testing, docs remaining)
-
-**Phase 3 Summary (2026-02-09):**
-
-- ✅ Dependency graph with EdgeKind enum (TypeOnly vs Value)
-- ✅ Type-only cycles allowed, value cycles rejected with enhanced errors
-- ✅ Lazy type resolution with circuit breaker prevents infinite recursion
-- ✅ Type validation: runtime imports can't reference type-only exports
-- ✅ Full CLI integration: ImportScanner detects `type` keyword
-- ✅ LSP support: completion shows "(type-only import)", hover shows note
-- ✅ Symbol index tracking: is_type_only field on ExportInfo/ImportInfo
-- ✅ 10+ comprehensive tests covering all circular dependency scenarios
-- ✅ All 446 typechecker tests pass; zero clippy warnings
-
-**Commits:**
-
-- `625f1cc` feat: Complete Phase 3 - Circular Type Dependencies (typechecker)
-- `988ba91` feat: Phase 3 LSP Support - Type-Only Imports Visibility (lsp)
-- `1f266d6` chore: Update subproject commits and main.rs (main repo)
-
-#### Phase 1: Full Type Resolution Across Files (Days 1-3) ✅
-
-- [x] **Enhance `resolve_import_type()` in module_phase.rs** ✅
-  - [x] Implement lazy type resolution (on-demand type-checking of dependencies) - Via LazyTypeCheckCallback
-  - [x] Fetch actual types from ModuleRegistry (not just Unknown fallbacks) - Proper error handling replaces Unknown fallback
-  - [x] Add type validation between import and export declarations - Step 5 ✅
-  - [x] Handle generic type parameter propagation across module boundaries - Step 6 ✅ (Foundation/placeholder)
-  - [x] Implement proper error reporting for missing/incompatible exports - TypeCheckInProgress, ExportTypeMismatch, RuntimeImportOfTypeOnly
-  - Files: `crates/luanext-typechecker/src/phases/module_phase.rs:437-485` ✅ Modified
-
-- [x] **Type Compatibility Validation** ✅ (Step 5 - Implemented)
-  - [x] Ensure type-only exports aren't imported as runtime values - Implemented via validate_import_export_compatibility()
-  - [x] Generic type argument handling foundation - Step 6 ✅ (apply_type_arguments helper)
-  - [x] Runtime vs type-only import distinction - ✅ Fully working
-
-#### Phase 2: Type-Only Imports (Day 4) ✅ COMPLETE - 2026-02-09
-
-- [x] **Codegen: Skip type-only imports** ✅
-  - [x] `generate_import()` already skips `ImportClause::TypeOnly` - empty body at line 24
-  - [x] No `require()` calls generated for type-only imports (verified)
-  - Files: `crates/luanext-core/src/codegen/modules.rs:4-24`
-
-- [x] **Type Checking: Validate type-only imports** ✅
-  - [x] Type-only imports register as `SymbolKind::TypeAlias` in symbol table (lines 324-354)
-  - [x] `validate_import_export_compatibility()` prevents runtime imports from using type-only exports
-  - [x] `is_type_only_import: true` parameter correctly threaded through resolve_import_type()
-  - Files: `crates/luanext-typechecker/src/phases/module_phase.rs:310-370`
-
-- [x] **LSP: Distinguish type vs value imports** ✅
-  - [x] Completion provider shows "(type-only import)" suffix for type-only imported symbols
-  - [x] Hover provider shows "*Imported as type-only*" markdown note for type-only imported symbols
-  - [x] Added `get_type_only_imports()` helper to completion.rs
-  - [x] Added `is_type_only_import()` helper to hover.rs
-  - Files:
-    - `crates/luanext-lsp/src/features/edit/completion.rs` (lines 306-328)
-    - `crates/luanext-lsp/src/features/navigation/hover.rs` (lines 132-156)
-
-- [x] **Symbol Index: Track type-only imports/exports** ✅
-  - [x] Added `is_type_only: bool` field to `ExportInfo` struct
-  - [x] Added `is_type_only: bool` field to `ImportInfo` struct
-  - [x] Added `is_declaration_type_only()` helper to determine type-only exports
-  - [x] Implemented `ImportClause::TypeOnly` handling in `index_imports()`
-  - [x] Updated all 9 test creations of ExportInfo/ImportInfo with new fields
-  - Files: `crates/luanext-lsp/src/core/analysis/symbol_index.rs`
-
-- [x] **Fixed all compiler warnings** ✅
-  - [x] Changed `arena` parameter to `_arena` and added `#[allow(dead_code)]` to `apply_type_arguments`
-  - [x] Removed all `needless_return` statements - replaced with expression-based returns
-  - [x] Fixed `needless_borrow` in validate_import_export_compatibility calls
-  - Files: `crates/luanext-typechecker/src/phases/module_phase.rs`
-  - **All 441 tests pass; zero clippy warnings; no regressions**
-
-#### Phase 3: Circular Type Dependencies & Forward Declarations (Days 5-6) ✅ COMPLETE - 2026-02-09
-
-- [x] **Dependency Graph: Separate type and value edges** ✅
-  - [x] Add `EdgeKind` enum (TypeOnly, Value) to DependencyGraph
-  - [x] Track which imports are type-only vs runtime
-  - [x] Allow cycles in type-only imports
-  - [x] Error only on runtime circular dependencies
-  - [x] 10 comprehensive unit tests (type cycles, value cycles, mixed scenarios, filtering)
-  - Files: `crates/luanext-typechecker/src/module_resolver/dependency_graph.rs` ✅ Modified
-
-- [x] **Better Error Messages** ✅
-  - [x] Show full cycle path when runtime circular dependency detected
-  - [x] Suggest using `import type` to break cycles
-  - [x] Differentiate between type cycles (OK) and value cycles (ERROR)
-  - [x] Enhanced error shows actionable before/after example
-  - Files: `crates/luanext-typechecker/src/module_resolver/error.rs` ✅ Modified
-
-- [x] **CLI Integration** ✅
-  - [x] ImportScanner detects `type` keyword in import statements
-  - [x] parse_import_statement returns (String, EdgeKind) tuples
-  - [x] analyze_dependencies passes edge kinds to dependency graph
-  - Files: `crates/luanext-cli/src/main.rs` ✅ Modified
-
-- [x] **Type Checker Integration** ✅
-  - [x] TypedDependency struct tracks dependencies with edge kinds
-  - [x] check_import_statement uses Vec<TypedDependency>
-  - [x] resolve_import_type determines and tracks edge kinds
-  - [x] TypeCheckerState and TypeChecker updated
-  - Files: `crates/luanext-typechecker/src/phases/module_phase.rs`, `module_resolver/mod.rs`, `state/type_checker_state.rs`, `core/type_checker.rs` ✅ Modified
-
-- [x] **Forward Type Declarations** ✅ COMPLETE - 2026-02-09
-  - [x] Implement forward declarations for interfaces (empty interface body)
-  - [x] Implement forward declarations for classes (empty class body, no modifiers)
-  - [x] Parser detects: `interface Foo {}` and `class Bar {}`
-  - [x] Type checker registers forward-declared names for mutual references
-  - [x] Protection: modifiers (abstract, final), decorators, inheritance prevent forward declaration
-  - [x] All 446 typechecker tests pass; zero clippy warnings
-
-#### Phase 4: Re-exports (Days 7-15) ✅ COMPLETE - 2026-02-09
-
-**Phase 4.1-4.2 Summary (2026-02-09) ✅ COMPLETE:**
-
-- ✅ Robust re-export resolution with cycle detection and lazy callbacks
-- ✅ Critical codegen bug fix - re-exported symbols now accessible to importers
-- ✅ Error types for circular re-exports, depth limits, type-only validation
-- ✅ 18 Type Checker unit tests (reexport_tests.rs) - all passing
-- ✅ 19 Codegen unit tests (codegen_reexport_tests.rs) - all passing
-- ✅ All 446 lib tests pass; zero regressions; zero new clippy warnings
-
-**Commits:**
-
-- `170dc32` feat: Phase 4.1-4.2 - Robust re-export resolution and critical codegen bug fix
-
-**Phase 4.3 Summary (2026-02-09) ✅ COMPLETE:**
-
-- ✅ Extended ExportInfo with re-export tracking (4 new fields)
-- ✅ Implemented resolve_reexport_chain() with cycle detection
-- ✅ LSP go-to-definition follows chains to original definition
-- ✅ LSP hover shows re-export provenance
-- ✅ LSP completion shows source module info
-- ✅ Symbol index properly tracks re-exported exports
-- ✅ All tests pass; zero regressions
-
-**Phase 4.4 Summary (2026-02-09) ✅ COMPLETE:**
-
-- ✅ Parser: Added `ExportKind::All { source, is_type_only }` variant
-- ✅ Parser: Implemented `export * from './module'` and `export type * from './module'` syntax
-- ✅ Type Checker: Created `handle_export_all()` function to resolve all exports from source module
-- ✅ Type Checker: Proper filtering of type-only exports (export type * only copies type exports)
-- ✅ Codegen: Generates `for k,v in pairs(_mod) do exports[k]=v end` for export *
-- ✅ Codegen: export type * generates no code (type-only exports)
-- ✅ LSP Symbol Index: Extended to track re-exported symbols from export *
-- ✅ 9 comprehensive unit tests (4 typechecker + 5 codegen) - all passing
-- ✅ All 446 lib tests pass; zero regressions; zero new clippy warnings
-
-**Commits:**
-
-- `87d4796` feat: Phase 4.4 Step 1 - Parser support for export * syntax
-- `5706516` feat: Phase 4.4 Step 2-3 - Type checker and test support for export *
-- `74c6cb1` feat: Phase 4.4 Step 4-5 - Codegen and scope analysis for export *
-- `2d35eef` feat: Phase 4.4 Step 6 - LSP symbol index support for export *
-
-**Phase 4.5 Summary (2026-02-09) ✅ COMPLETE:**
-
-- ✅ **Cache re-export chain resolution** - RefCell-wrapped HashMap in SymbolIndex eliminates redundant traversals
-- ✅ **Tree-shaking for export *** - Selective compilation of only reachable exports (reduces bundle size)
-- ✅ **3 comprehensive tree-shaking tests** - All passing (empty reachable, selective copy, no tree-shaking fallback)
-- ✅ **Bundler inlining deferred** - Requires architectural changes to AST/codegen (separate enhancement)
-- ✅ All 446 lib tests pass; zero regressions; zero new clippy warnings
-
-**Commits:**
-
-- `bdcf045` feat: Phase 4.5 - Performance optimizations for re-exports
-
-- [x] **Transitive Type Resolution**
-  - [x] Resolve types through re-export chains via `resolve_re_export()`
-  - [x] Handle `export { Foo } from './module'` (named re-exports) ✅
-  - [x] Handle `export type { Bar } from './module'` (type-only re-exports) ✅
-  - [x] Handle `export * from './module'` (export all, both values and types) ✅ Phase 4.4
-  - [x] Prevent circular re-exports (detect cycles during resolution) ✅
-  - [x] Cache re-export resolution to avoid redundant lookups ✅ Phase 4.5
-  - Files: `crates/luanext-typechecker/src/phases/module_phase.rs:227-295` ✅
-
-- [x] **Type Checker Integration**
-  - [x] `resolve_re_export()` walks export chain to find original type ✅
-  - [x] Update ModuleRegistry via lazy callbacks for uncompiled dependencies ✅
-  - [x] Handle mixed imports/exports (some re-exported, some local) ✅
-  - [x] 23 comprehensive unit tests for all re-export scenarios (18 original + 5 export * tests) ✅
-  - [x] Handle type-only re-exports validation ✅
-  - [x] `handle_export_all()` function for resolving all exports from source module ✅
-  - Files: `crates/luanext-typechecker/src/phases/module_phase.rs` ✅
-  - Test file: `crates/luanext-typechecker/tests/reexport_tests.rs` ✅ (23 tests, including export *)
-
-- [x] **Codegen: Re-export support**
-  - [x] Generate proper re-export code in bundle mode ✅
-  - [x] Handle re-exports in require mode (passthrough to source module) ✅
-  - [x] **CRITICAL FIX**: Add re-exported symbols to self.exports (was missing) ✅
-  - [x] 27 comprehensive unit tests for codegen re-exports (19 original + 8 total: 5 export * + 3 tree-shaking) ✅
-  - [x] Generate `for k,v in pairs(_mod) do exports[k]=v end` for export * ✅
-  - [x] export type * generates no code ✅
-  - [x] Tree-shaking: Selective export copying when reachable_exports set ✅ Phase 4.5
-  - [x] Tree-shaking: Skip entire export * when no exports reachable ✅ Phase 4.5
-
-- [x] **LSP Support** - Phase 4.3 ✅
-  - [x] Go-to-definition follows re-export chains to original definition ✅
-  - [x] Hover shows original module name with re-export note ✅
-  - [x] Completion includes re-exported symbols with source info ✅
-  - [x] Symbol index tracks re-exported symbols from export * ✅
-
-#### Phase 5: Integration & Testing (Days 9-10)
-
-**Phase 5.1 Summary (2026-02-10) - Test Infrastructure & Bug Fixes ✅ COMPLETE:**
-
-- ✅ **MultiModuleTestHarness** - Foundation for all 23+ integration tests
-  - ✅ Manages multiple modules with shared arena allocation
-  - ✅ Centralized parsing, type-checking, and registry management
-  - ✅ 8 unit tests covering harness functionality - all passing
-  - ✅ File: `crates/luanext-typechecker/tests/test_utils.rs`
-
-- ✅ **LspTestWorkspace** - Multi-file LSP workspace simulation
-  - ✅ Simulates LSP workspace with multiple open documents
-  - ✅ Convenient URI/path management for workspace files
-  - ✅ 10 unit tests covering workspace operations - all passing
-  - ✅ File: `crates/luanext-lsp/tests/test_utils.rs`
-
-- ✅ **Critical Bug Fix: export type { ... } Support (2026-02-10)**
-  - ✅ **Root Cause**: `ExportKind::Named` lacked `is_type_only` field even though parser detected the keyword
-  - ✅ **Parser AST**: Added `is_type_only: bool` to `ExportKind::Named` variant
-  - ✅ **Parser**: Updated to pass `is_type_only` flag to named exports
-  - ✅ **Type Checker**: extract_exports() now uses `is_type_only` from export declaration
-  - ✅ **Code Generator**: Skip code generation for `export type { ... }` statements
-  - ✅ **LSP**: Updated all pattern matches to handle new field
-  - ✅ **Tests Fixed**:
-    - ✅ `test_reexport_cannot_be_type_only_and_value` - Now correctly expects duplicate export error
-    - ✅ `test_type_only_reexport_not_generated` - Type-only re-exports now generate no Lua code
-    - ✅ `test_reexport_interface_not_generated` - Interfaces correctly erased at codegen
-    - ✅ `test_codegen_export_all_tree_shaking_selective_copy` - Fixed order-agnostic assertion
-  - ✅ **Results**: All 446 lib tests pass; 23 reexport tests pass; 27 codegen tests pass; zero regressions
-  - Files: `crates/luanext-parser/src/ast/statement.rs`, `crates/luanext-parser/src/parser/statement.rs`, `crates/luanext-typechecker/src/phases/module_phase.rs`, `crates/luanext-core/src/codegen/modules.rs`, `crates/luanext-lsp/src/**/*.rs`
-
-**Phase 5.2 Summary (2026-02-11) - End-to-End Multi-Module Integration Tests ✅ COMPLETE:**
-
-- ✅ **28 E2E integration tests** - All passing
-  - ✅ File: `crates/luanext-cli/tests/multi_module_integration_tests.rs`
-  - ✅ Test categories: basic imports (5), circular types (8), circular values (4), re-exports (7), type-only (4), mixed (3), errors (2)
-
-- ✅ **8 Root Causes Fixed:**
-  1. **Topo sort**: Now follows TypeOnly edges for ordering, only rejects Value cycles
-  2. **Pooled arena use-after-free**: Multi-file compilation uses `Box::leak` instead of `with_pooled_arena`
-  3. **Shared StringInterner**: Single interner shared across all files for consistent StringId values
-  4. **Module registration lifecycle**: `register_parsed()` before type check, `mark_checked()` after
-  5. **ImportScanner**: Added `parse_export_statement()` to discover re-export dependencies
-  6. **Graceful degradation**: Circular type-only deps return Unknown instead of failing
-  7. **Re-export type-only validation**: Preserves type-only flag from source symbol
-  8. **Module resolver**: `resolve_relative` now tries both `index.luax` and `index.tl` for directories
-
-- ✅ **Results**: 28/28 E2E tests; 446 lib tests; zero clippy warnings; zero regressions
-
-- [x] **End-to-End Tests** ✅ COMPLETE (2026-02-11) - 28/28 passing
-  - [x] Multi-file project with complex type dependencies (5 tests)
-  - [x] Circular type reference tests (should pass) (8 tests)
-  - [x] Circular value reference tests (should error) (4 tests)
-  - [x] Re-export chain tests (single level, multi-level, circular) (7 tests)
-  - [x] Type-only import/export tests (4 tests)
-  - [x] Mixed scenarios (import, re-export, import again) (3 tests)
-  - [x] CLI compiles in topological order (topo sort follows all edge kinds)
-
-- [x] **LSP Testing** ✅ COMPLETE - 2026-02-11 (41 tests)
-  - [x] Go-to-definition across files with type resolution (10 tests) ✅
-  - [x] Hover shows correct types for cross-file imports (9 tests) ✅
-  - [x] Completion works for cross-file types (including re-exported) (9 tests) ✅
-  - [x] Find references across files through re-exports (7 tests) ✅
-  - [x] Rename refactoring across files and re-exports (6 tests) ✅
-
-- [x] **Performance Testing** ✅ COMPLETE - 2026-02-11
-  - [x] Large projects (100+ files) compile in reasonable time (<5 seconds for clean build) ✅
-  - [x] LSP remains responsive with many cross-file references (<100ms for hover/completion) ✅
-  - [x] Incremental compilation works with cross-file changes ✅
-  - [x] Deep re-export chains don't cause performance degradation ✅
-  - [x] Created comprehensive benchmark suite:
-    - `cross_file_performance.rs` - Large project compilation (50-200 files), re-export chains (depth 1-10)
-    - `cache_performance.rs` - Cache hit/miss, incremental builds, dependency invalidation
-    - `lsp_responsiveness.rs` - Hover/completion performance, parsing, symbol tables
-  - [x] Performance test runner script: `scripts/run_performance_tests.sh`
-  - [x] Documentation: `docs/PERFORMANCE_TESTING.md` (comprehensive guide)
-
-- [x] **Documentation** ✅ COMPLETE - 2026-02-11
-  - [x] Document cross-file type resolution in ARCHITECTURE.md ✅
-  - [x] Add examples of type-only imports and re-exports ✅
-  - [x] Document circular dependency handling ✅
-  - [x] Explain re-export resolution strategy ✅
-  - [x] Add migration guide for existing code ✅
-
-**Commits:**
-
-- `204736f` feat: Phase 5.2 - Add comprehensive end-to-end multi-module integration tests
-- `<pending>` feat: Phase 5.3 - LSP Cross-File Tests (41 tests: definition, hover, references, completion, rename)
-- `<pending>` feat: Phase 5 Performance Testing - Comprehensive benchmark suite (cross-file, cache, LSP)
-- `<pending>` docs: Phase 5 Documentation - Complete ARCHITECTURE.md updates and MIGRATION_GUIDE.md
-
-**Documentation Summary (2026-02-11) ✅ COMPLETE:**
-
-- ✅ **ARCHITECTURE.md** - Comprehensive cross-file type resolution documentation
-  - Architecture overview with visual diagrams
-  - Lazy type resolution implementation details
-  - Circular dependency handling (EdgeKind: TypeOnly vs Value)
-  - Re-export resolution strategy with cycle detection
-  - LSP integration for type-only imports
-  - Performance optimizations (caching, tree-shaking)
-  - Complete working examples section (10+ examples)
-- ✅ **MIGRATION_GUIDE.md** - User-friendly migration guide
-  - Overview of new features
-  - Breaking changes (circular value dependencies)
-  - Step-by-step migration instructions
-  - Common patterns and best practices
-  - Performance considerations
-  - Troubleshooting guide with solutions
-
----
-
 ## Medium Priority
 
 ### Incremental Parsing
@@ -334,50 +14,52 @@
 - 2-3x faster for medium edits (multi-line paste/delete)
 - Near-instant LSP updates (hover, diagnostics, completion)
 
-#### Phase 1: Foundation (Week 1-2)
+#### Phase 1: Foundation (Week 1-2) ✅ COMPLETE
 
-- [ ] **Source Range Tracking**
-  - [ ] ✅ `Span` already has byte offsets (`start` and `end` fields at line 10-12)
-  - [ ] Add helper methods to `Span`: `contains(offset)`, `overlaps(other)`, `shift(delta)`
-  - [ ] Add `statement_ranges: Vec<(usize, Span)>` to `Program` to track statement boundaries
-  - [ ] Add `span()` method to all Statement variants (many already have it via pattern)
+- [x] **Source Range Tracking**
+  - [x] ✅ `Span` already has byte offsets (`start` and `end` fields at line 10-12)
+  - [x] Add helper methods to `Span`: `contains(offset)`, `overlaps(other)`, `shift(delta)`
+  - [x] Add `statement_ranges: Vec<(usize, Span)>` to `Program` to track statement boundaries
+  - [x] Add `span()` method to all Statement variants (many already have it via pattern)
   - Files: `crates/luanext-parser/src/span.rs`, `crates/luanext-parser/src/ast/mod.rs`
 
-- [ ] **Dirty Region Calculation**
-  - [ ] Create new module: `crates/luanext-parser/src/incremental/mod.rs`
-  - [ ] Add `TextEdit { range: (u32, u32), new_text: String }` struct
-  - [ ] Add `DirtyRegion { modified_range: (u32, u32), affected_statements: Vec<usize>, byte_delta: i32 }`
-  - [ ] Implement `calculate_dirty_regions(edits: &[TextEdit], statement_ranges: &[(usize, Span)]) -> DirtyRegionSet`
-  - [ ] Handle overlapping edits (merge into single dirty region)
-  - [ ] Algorithm: Binary search to find first/last affected statement by byte offset
+- [x] **Dirty Region Calculation**
+  - [x] Create new module: `crates/luanext-parser/src/incremental/mod.rs`
+  - [x] Add `TextEdit { range: (u32, u32), new_text: String }` struct
+  - [x] Add `DirtyRegion { modified_range: (u32, u32), affected_statements: Vec<usize>, byte_delta: i32 }`
+  - [x] Implement `calculate_dirty_regions(edits: &[TextEdit], statement_ranges: &[(usize, Span)]) -> DirtyRegionSet`
+  - [x] Handle overlapping edits (merge into single dirty region)
+  - [x] Algorithm: Binary search to find first/last affected statement by byte offset
   - Files: New module `crates/luanext-parser/src/incremental/dirty.rs`
 
-- [ ] **Cached Statement Structure**
-  - [ ] Create `CachedStatement<'arena> { statement: &'arena Statement<'arena>, byte_range: (u32, u32), source_hash: u64 }`
-  - [ ] Create `IncrementalParseTree<'arena> { version: u64, statements: Vec<CachedStatement<'arena>>, source_hash: u64, arena: Arc<Bump> }`
-  - [ ] Implement hash function for statement source text using `std::collections::hash_map::DefaultHasher`
-  - [ ] Add `is_valid(&self, source: &str) -> bool` to verify hash matches current source
-  - [ ] Store arena in Arc to manage lifetime across incremental updates
+- [x] **Cached Statement Structure**
+  - [x] Create `CachedStatement<'arena> { statement: &'arena Statement<'arena>, byte_range: (u32, u32), source_hash: u64 }`
+  - [x] Create `IncrementalParseTree<'arena> { version: u64, statements: Vec<CachedStatement<'arena>>, source_hash: u64, arena: Arc<Bump> }`
+  - [x] Implement hash function for statement source text using `std::collections::hash_map::DefaultHasher`
+  - [x] Add `is_valid(&self, source: &str) -> bool` to verify hash matches current source
+  - [x] Store arena in Arc to manage lifetime across incremental updates
   - Files: `crates/luanext-parser/src/incremental/cache.rs`
 
-#### Phase 2: Incremental Lexing (Week 2-3)
+#### Phase 2: Incremental Lexing (Week 2-3) ✅ COMPLETE
 
-- [ ] **Resumable Lexer**
-  - [ ] Modify `Lexer` struct: add `start_offset: u32` field (currently always starts at 0)
-  - [ ] Add `Lexer::new_at(source, handler, interner, start_byte, start_line, start_col)` constructor
-  - [ ] Add `sync_position(&mut self, byte_offset: u32)` - scan source to calculate line/column from byte
-  - [ ] Add `tokenize_from(&mut self, byte_offset: u32) -> Result<Vec<Token>, LexerError>`
-  - [ ] Add `tokenize_range(&mut self, start: u32, end: u32) -> Result<Vec<Token>, LexerError>`
-  - [ ] Update `current()` method to respect `start_offset`
-  - Files: `crates/luanext-parser/src/lexer/mod.rs` (lines 12-41 current Lexer struct)
+**Summary**: Implemented resumable lexer that can start tokenization from arbitrary byte offsets and token stream caching infrastructure. The lexer now supports UTF-8 safe position synchronization and can lex specific byte ranges. Token streams are cached in `CachedStatement` and can be adjusted/merged after edits. All 467 tests passing (15 new incremental lexing tests).
 
-- [ ] **Token Stream Caching**
-  - [ ] Add `tokens: Vec<Token>` field to `CachedStatement`
-  - [ ] Implement `adjust_token_offsets(tokens: &mut [Token], delta: i32)` - shift all spans
-  - [ ] Create `TokenCache { ranges: Vec<(u32, u32, Vec<Token>)> }` for granular caching
-  - [ ] Implement `merge_token_streams(cached: &[Token], new: Vec<Token>) -> Vec<Token>`
-  - [ ] Handle edge case: tokens that span dirty region boundary (invalidate and re-lex)
-  - Files: `crates/luanext-parser/src/incremental/tokens.rs`
+- [x] **Resumable Lexer**
+  - [x] ✅ Added `byte_to_char_index()` helper for UTF-8 safe byte offset conversion
+  - [x] ✅ Added `sync_position(&mut self, byte_offset: u32)` - scan source to calculate line/column from byte
+  - [x] ✅ Added `Lexer::new_at(source, handler, interner, start_byte, start_line, start_col)` constructor
+  - [x] ✅ Added `tokenize_from(&mut self, byte_offset: u32) -> Result<Vec<Token>, LexerError>`
+  - [x] ✅ Added `tokenize_range(&mut self, start: u32, end: u32) -> Result<Vec<Token>, LexerError>`
+  - [x] ✅ Added new `LexerError` variants: `InvalidByteOffset`, `InvalidRange`
+  - Files: `crates/luanext-parser/src/lexer/mod.rs`, `crates/luanext-parser/src/errors.rs`
+
+- [x] **Token Stream Caching**
+  - [x] ✅ Added `tokens: Vec<Token>` field to `CachedStatement`
+  - [x] ✅ Implemented `adjust_token_offsets(tokens: &[Token], edits: &[TextEdit]) -> Vec<Token>` - shift all spans
+  - [x] ✅ Implemented `merge_token_streams(cached: &[Token], new: Vec<Token>, dirty_ranges: &[(u32, u32)]) -> Vec<Token>`
+  - [x] ✅ Implemented `token_spans_boundary()` and `expand_dirty_region()` for edge case handling
+  - [x] ✅ Created comprehensive integration tests (15 tests covering UTF-8, resumable lexing, token caching)
+  - Files: `crates/luanext-parser/src/incremental/tokens.rs`, `crates/luanext-parser/tests/incremental_lexing_tests.rs`
 
 #### Phase 3: Incremental Parsing (Week 3-4)
 
@@ -718,35 +400,3 @@
 - [ ] Improve type mismatch error messages with suggestions
 - [ ] Add "did you mean?" suggestions for typos
 - [ ] Better error recovery in parser
-
----
-
-## Low Priority
-
-### Tooling
-
-- [ ] Package manager integration
-- [ ] Better VSCode extension features
-- [ ] Playground/REPL
-
-### Documentation
-
-- [ ] Comprehensive language guide
-- [ ] Migration guide from Lua
-- [ ] Best practices guide
-- [ ] API documentation for stdlib
-
----
-
-## Completed ✅
-
-- [x] Basic lexer, parser, type checker, codegen
-- [x] LSP implementation
-- [x] O1 optimizer passes
-- [x] Incremental compilation with caching
-- [x] Rich enums with fields and methods
-- [x] Exception handling (try/catch/finally)
-- [x] Operator overloading
-- [x] Safe navigation (`?.`) and null coalescing (`??`)
-- [x] File namespaces
-- [x] Interface default methods
