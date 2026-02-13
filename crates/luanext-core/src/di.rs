@@ -465,7 +465,7 @@ mod tests {
         let mut container = DiContainer::production(config);
 
         let _fs = container.resolve::<Arc<dyn FileSystem>>();
-        assert!(true);
+        // FileSystem resolved successfully
     }
 
     #[test]

@@ -231,7 +231,8 @@ fn test_type_mismatch_in_function_call() {
         greet(123)
     "#;
 
-    let (result, handler) = compile_with_diagnostics(source);
+    let (result, _handler) = compile_with_diagnostics(source);
+
     assert!(
         result.is_err(),
         "Should fail with type mismatch in function call"

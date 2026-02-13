@@ -641,6 +641,7 @@ mod tests {
     #[test]
     fn test_arena_pool_ast_simulation() {
         #[derive(Debug)]
+        #[allow(dead_code)]
         enum Expr<'a> {
             Number(i64),
             Binary {
