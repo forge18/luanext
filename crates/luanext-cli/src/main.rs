@@ -47,6 +47,10 @@ struct Cli {
     #[arg(long)]
     no_emit: bool,
 
+    /// Emit compiled Lua to stdout (implies --no-emit for files)
+    #[arg(long, value_name = "FORMAT")]
+    emit: Option<String>,
+
     /// Watch input files for changes
     #[arg(short, long)]
     watch: bool,
@@ -137,13 +141,26 @@ struct Cli {
 }
 
 fn main() -> anyhow::Result<()> {
-    // Initialize tracing subscriber
-    // Set RUST_LOG=debug for detailed logs, RUST_LOG=info for normal output
-    tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env().add_directive(tracing::Level::INFO.into()))
-        .init();
-
     let cli = Cli::parse();
+
+    // Initialize tracing subscriber
+    // Suppress logs for --emit mode (stdout should only contain Lua code)
+    // Set RUST_LOG=debug for detailed logs, RUST_LOG=info for normal output
+    if cli.emit.is_none() {
+        tracing_subscriber::fmt()
+            .with_env_filter(
+                EnvFilter::from_default_env().add_directive(tracing::Level::INFO.into()),
+            )
+            .init();
+    } else {
+        // For --emit mode, only show errors
+        tracing_subscriber::fmt()
+            .with_env_filter(
+                EnvFilter::from_default_env().add_directive(tracing::Level::ERROR.into()),
+            )
+            .with_writer(std::io::stderr)
+            .init();
+    }
 
     // Handle --init flag
     if cli.init {
@@ -151,11 +168,24 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    // Load configuration
-    let (config, files) = load_config_and_files(&cli)?;
+    // Load configuration (skip config file discovery for --emit mode)
+    let (config, files) = if cli.emit.is_some() {
+        // --emit mode: ignore config, only compile specified files
+        let default_config = luanext_core::config::CompilerConfig::default();
+        // Still apply CLI overrides
+        let files = cli.files.clone();
+        (default_config, files)
+    } else {
+        load_config_and_files(&cli)?
+    };
 
-    // Expand glob patterns to discover all files
-    let files = expand_glob_patterns(&files, &config)?;
+    // Expand glob patterns to discover all files (skip for --emit mode)
+    let files = if cli.emit.is_some() {
+        // --emit mode: don't expand globs, just use the exact files provided
+        files
+    } else {
+        expand_glob_patterns(&files, &config)?
+    };
 
     // Validate that we have input files
     if files.is_empty() {
@@ -192,7 +222,7 @@ fn main() -> anyhow::Result<()> {
     resolved_cli.out_dir = config.compiler_options.out_dir.as_ref().map(PathBuf::from);
     resolved_cli.out_file = config.compiler_options.out_file.as_ref().map(PathBuf::from);
     resolved_cli.source_map = config.compiler_options.source_map;
-    resolved_cli.no_emit = config.compiler_options.no_emit;
+    resolved_cli.no_emit = config.compiler_options.no_emit || cli.emit.is_some();
     resolved_cli.pretty = config.compiler_options.pretty;
     resolved_cli.copy_lua_to_output = config.compiler_options.copy_lua_to_output;
 
@@ -1531,7 +1561,8 @@ fn compile(
                 };
 
                 // Return CheckedModule ready for parallel codegen
-                if cli.no_emit {
+                // Skip codegen only if no-emit is explicitly set (not just from --emit flag)
+                if cli.no_emit && cli.emit.is_none() {
                     return None; // Skip codegen for no-emit mode
                 }
 
@@ -1770,10 +1801,19 @@ fn compile(
     // Collect bundled output if --out-file is specified
     let mut bundled_code = String::new();
 
+    // Collect code for --emit mode (stdout output)
+    let mut emit_code = String::new();
+
     for result in &results {
         match &result.result {
             Ok(output) => {
-                if !cli.no_emit {
+                // --emit mode: collect code for stdout
+                if cli.emit.is_some() {
+                    if !emit_code.is_empty() {
+                        emit_code.push('\n');
+                    }
+                    emit_code.push_str(&output.lua_code);
+                } else if !cli.no_emit {
                     if cli.out_file.is_some() {
                         // Bundling mode: accumulate code
                         if !bundled_code.is_empty() {
@@ -1828,6 +1868,13 @@ fn compile(
                 }
             }
         }
+    }
+
+    // Write --emit output to stdout
+    if cli.emit.is_some() && !emit_code.is_empty() {
+        println!("{}", emit_code);
+        // Don't print timing info when emitting to stdout
+        return Ok(());
     }
 
     // Write bundled output if specified
