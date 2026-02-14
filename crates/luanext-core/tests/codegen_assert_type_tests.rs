@@ -139,10 +139,7 @@ fn test_assert_type_wraps_in_iife() {
     println!("Generated code:\n{}", output);
 
     // Should wrap in IIFE that returns the value
-    assert!(
-        output.contains("(function()"),
-        "Should wrap in IIFE"
-    );
+    assert!(output.contains("(function()"), "Should wrap in IIFE");
     assert!(
         output.contains("return __val"),
         "Should return validated value"
@@ -227,10 +224,7 @@ fn test_assert_type_nullable_string_codegen() {
     println!("Generated code:\n{}", output);
 
     // Should allow nil or check for string
-    assert!(
-        output.contains("__val ~= nil"),
-        "Should allow nil values"
-    );
+    assert!(output.contains("__val ~= nil"), "Should allow nil values");
     assert!(
         output.contains("type(__val) == \"string\""),
         "Should check for string when not nil"
@@ -267,10 +261,7 @@ fn test_assert_type_literal_string_codegen() {
         output.contains("__val ~= \"success\"") || output.contains("__val == \"success\""),
         "Should check for exact string literal"
     );
-    assert!(
-        output.contains("expected"),
-        "Should have error message"
-    );
+    assert!(output.contains("expected"), "Should have error message");
 }
 
 #[test]
@@ -299,10 +290,7 @@ fn test_assert_type_literal_boolean_codegen() {
     println!("Generated code:\n{}", output);
 
     // Should check exact boolean value
-    assert!(
-        output.contains("true"),
-        "Should check for true literal"
-    );
+    assert!(output.contains("true"), "Should check for true literal");
 }
 
 // ============================================================================
@@ -318,15 +306,18 @@ fn test_assert_type_class_codegen() {
 
     assert!(
         output.contains("type(__val) ~= \"table\""),
-        "Should check for table type. Output: {}", output
+        "Should check for table type. Output: {}",
+        output
     );
     assert!(
         output.contains("getmetatable(__val) ~= User"),
-        "Should check metatable against class. Output: {}", output
+        "Should check metatable against class. Output: {}",
+        output
     );
     assert!(
         output.contains("expected instance of User"),
-        "Should have class name in error message. Output: {}", output
+        "Should have class name in error message. Output: {}",
+        output
     );
 }
 
@@ -339,11 +330,13 @@ fn test_assert_type_class_in_union_codegen() {
 
     assert!(
         output.contains("getmetatable(__val) == MyObj"),
-        "Should check metatable in union. Output: {}", output
+        "Should check metatable in union. Output: {}",
+        output
     );
     assert!(
         output.contains("type(__val) == \"string\""),
-        "Should also check string type. Output: {}", output
+        "Should also check string type. Output: {}",
+        output
     );
 }
 
@@ -356,11 +349,13 @@ fn test_assert_type_nullable_class_codegen() {
 
     assert!(
         output.contains("__val ~= nil"),
-        "Should allow nil values. Output: {}", output
+        "Should allow nil values. Output: {}",
+        output
     );
     assert!(
         output.contains("getmetatable(__val) ~= Config"),
-        "Should check metatable when not nil. Output: {}", output
+        "Should check metatable when not nil. Output: {}",
+        output
     );
 }
 
@@ -373,19 +368,23 @@ fn test_assert_type_interface_codegen() {
 
     assert!(
         output.contains("type(__val) ~= \"table\""),
-        "Should check for table type. Output: {}", output
+        "Should check for table type. Output: {}",
+        output
     );
     assert!(
         output.contains("__val.x == nil"),
-        "Should check for property 'x'. Output: {}", output
+        "Should check for property 'x'. Output: {}",
+        output
     );
     assert!(
         output.contains("__val.y == nil"),
-        "Should check for property 'y'. Output: {}", output
+        "Should check for property 'y'. Output: {}",
+        output
     );
     assert!(
         output.contains("Drawable requires property"),
-        "Should have property name in error. Output: {}", output
+        "Should have property name in error. Output: {}",
+        output
     );
 }
 
@@ -398,7 +397,8 @@ fn test_assert_type_interface_method_codegen() {
 
     assert!(
         output.contains("__val.serialize == nil"),
-        "Should check for method 'serialize'. Output: {}", output
+        "Should check for method 'serialize'. Output: {}",
+        output
     );
 }
 
@@ -415,7 +415,8 @@ fn test_assert_type_full_program_primitives() {
 
     assert!(
         output.matches("Type assertion failed").count() >= 2,
-        "Should have at least 2 type assertions. Output: {}", output
+        "Should have at least 2 type assertions. Output: {}",
+        output
     );
 }
 
@@ -428,7 +429,8 @@ fn test_assert_type_full_program_class() {
 
     assert!(
         output.contains("getmetatable"),
-        "Should have metatable check. Output: {}", output
+        "Should have metatable check. Output: {}",
+        output
     );
 }
 
@@ -441,6 +443,7 @@ fn test_assert_type_full_program_interface() {
 
     assert!(
         output.contains("__val.name == nil"),
-        "Should have structural check for name. Output: {}", output
+        "Should have structural check for name. Output: {}",
+        output
     );
 }

@@ -738,7 +738,9 @@ impl CodeGenerator {
 
                 if capture_count == 0 {
                     // No captures - should have been converted to literal by parser
-                    unreachable!("Template pattern with no captures should be converted to literal");
+                    unreachable!(
+                        "Template pattern with no captures should be converted to literal"
+                    );
                 }
 
                 // Generate Lua pattern string
@@ -846,7 +848,10 @@ impl CodeGenerator {
         }
     }
 
-    fn generate_lua_pattern(&self, template: &luanext_parser::ast::pattern::TemplatePattern) -> String {
+    fn generate_lua_pattern(
+        &self,
+        template: &luanext_parser::ast::pattern::TemplatePattern,
+    ) -> String {
         use luanext_parser::ast::pattern::TemplatePatternPart;
 
         let mut pattern = String::from("^");
@@ -980,7 +985,11 @@ impl CodeGenerator {
                     "(type(__val) ~= \"number\" or (math.type and math.type(__val) ~= \"integer\" or not math.type and __val % 1 ~= 0))",
                 )
             }
-            PrimitiveType::Unknown | PrimitiveType::Void | PrimitiveType::Never | PrimitiveType::Coroutine | PrimitiveType::Thread => {
+            PrimitiveType::Unknown
+            | PrimitiveType::Void
+            | PrimitiveType::Never
+            | PrimitiveType::Coroutine
+            | PrimitiveType::Thread => {
                 // Skip check for unknown/void/never/coroutine/thread
                 return;
             }
@@ -1058,7 +1067,10 @@ impl CodeGenerator {
                         type_checks.push("type(__val) == \"table\"".to_string());
                     } else {
                         // Class in union: check metatable
-                        type_checks.push(format!("(type(__val) == \"table\" and getmetatable(__val) == {})", ref_name));
+                        type_checks.push(format!(
+                            "(type(__val) == \"table\" and getmetatable(__val) == {})",
+                            ref_name
+                        ));
                         type_names.push(ref_name);
                     }
                 }
@@ -1180,7 +1192,9 @@ impl CodeGenerator {
                     self.write(" end end;");
                 } else {
                     // Nullable class: nil or metatable check
-                    self.write("if __val ~= nil and (type(__val) ~= \"table\" or getmetatable(__val) ~= ");
+                    self.write(
+                        "if __val ~= nil and (type(__val) ~= \"table\" or getmetatable(__val) ~= ",
+                    );
                     self.write(&ref_name);
                     self.write(") then error(\"Type assertion failed: expected ");
                     self.write(&ref_name);

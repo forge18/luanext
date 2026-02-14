@@ -21,8 +21,11 @@ fn compile_source(source: &str) -> String {
         .output()
         .unwrap();
 
-    assert!(output.status.success(), "Compilation should succeed:\n{}",
-        String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "Compilation should succeed:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     String::from_utf8(output.stdout).unwrap()
 }
@@ -41,7 +44,10 @@ fn test_basic_url_pattern() {
     );
 
     // Verify string.match is generated
-    assert!(lua.contains("string.match"), "Should contain string.match call");
+    assert!(
+        lua.contains("string.match"),
+        "Should contain string.match call"
+    );
     // Verify correct pattern with delimiters
     assert!(
         lua.contains("^https://([^/]+)/(.+)$"),
@@ -51,7 +57,10 @@ fn test_basic_url_pattern() {
     assert!(lua.contains("__capture_1"), "Should have __capture_1");
     assert!(lua.contains("__capture_2"), "Should have __capture_2");
     // Verify nil check for match success
-    assert!(lua.contains("__capture_1 ~= nil"), "Should check if match succeeded");
+    assert!(
+        lua.contains("__capture_1 ~= nil"),
+        "Should check if match succeeded"
+    );
     // Verify bindings from captures to user variables
     assert!(lua.contains("local host = __capture_1"), "Should bind host");
     assert!(lua.contains("local path = __capture_2"), "Should bind path");
@@ -204,7 +213,10 @@ fn test_mixed_with_other_patterns() {
     );
 
     assert!(lua.contains("string.match"), "Should have template pattern");
-    assert!(lua.contains("== \"success\""), "Should have literal string pattern");
+    assert!(
+        lua.contains("== \"success\""),
+        "Should have literal string pattern"
+    );
 }
 
 #[test]
