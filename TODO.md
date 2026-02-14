@@ -13,7 +13,9 @@
 - ✅ AST caching: `Document.ast: RefCell<Option<ParsedAst>>` (line 81)
 - ✅ Symbol table caching: `Document.symbol_table: Option<Arc<SymbolTable>>` (line 83)
 - ✅ Semantic token caching: `VersionedCache<SemanticTokens>` with incremental updates
-- ❌ No caching for: hover info, completion items, diagnostics, type info
+- ✅ Type-check result caching: `VersionedCache<TypeCheckResult>` shared across hover/completion/diagnostics
+- ✅ Diagnostics deduplication: `last_published_diagnostics` skips identical notifications
+- ❌ No caching for: cross-file module exports, symbol index incremental updates
 
 **Benefits:**
 
@@ -90,28 +92,34 @@
   - **Result**: 4 new unit tests, 2 new integration tests, all 856 lib tests passing, zero clippy warnings
   - Files: `crates/luanext-lsp/src/features/edit/completion.rs`, `crates/luanext-lsp/src/core/cache.rs`
 
-#### Phase 4: Type Checking & Diagnostics Cache (Week 2-3)
+#### Phase 4: Type Checking & Diagnostics Cache (Week 2-3) ✅ COMPLETE (2026-02-14)
 
-- [ ] **Type Information Cache**
-  - [ ] Current: Type info recomputed for every hover/completion/diagnostic request
-  - [ ] Add `TypeCache { exprs: HashMap<ExprId, Type>, stmts: HashMap<StmtId, TypeEnv> }`
-  - [ ] Populate during type checking phase (one-time cost)
-  - [ ] Store in `Document` alongside AST
-  - [ ] Query cache in hover/completion providers instead of re-running type checker
-  - [ ] Invalidate on AST change (same invalidation as AST cache)
-  - [ ] Expected speedup: Eliminates redundant type checking (currently run 3-5x per edit)
-  - Files: `crates/luanext-lsp/src/core/document.rs`, integration with type checker
+- [x] **Type Information Cache**
+  - [x] Added `TypeCheckResult` and `CachedSymbolInfo` structs to `cache.rs` — owned types extracted from arena-scoped type checker
+  - [x] Added `type_check_result: VersionedCache<TypeCheckResult>` to `DocumentCache`
+  - [x] Created `DiagnosticsProvider::ensure_type_checked()` — single entry point for type checking, checks cache first, runs lex→parse→typecheck on miss
+  - [x] Refactored `hover.rs` to use `ensure_type_checked()` instead of running its own type checker
+  - [x] Refactored `completion.rs` `complete_symbols()` to use `ensure_type_checked()` instead of running its own type checker
+  - [x] `complete_members()` still uses its own type checker (needs `Type<'arena>` for member iteration)
+  - [x] Updated `document.rs` cache invalidation: `type_check_result.invalidate()` on `didChange`
+  - [x] Expected speedup: 3-5x type-check passes per edit → 1 pass (first feature request), subsequent features ~free
+  - **Result**: 6 new unit tests, all 3,240 tests passing, zero clippy warnings
+  - Files: `crates/luanext-lsp/src/core/cache.rs`, `crates/luanext-lsp/src/core/diagnostics.rs`, `crates/luanext-lsp/src/features/navigation/hover.rs`, `crates/luanext-lsp/src/features/edit/completion.rs`, `crates/luanext-lsp/src/core/document.rs`
 
-- [ ] **Diagnostics Deduplication**
-  - [ ] Current: Diagnostics sent on every `didChange`, even if unchanged
-  - [ ] Add `last_diagnostics: VersionedCache<Vec<Diagnostic>>` to `DocumentCache`
-  - [ ] Before sending diagnostics:
-    - Compute hash of new diagnostic list
-    - Compare with cached hash
-    - If identical: skip `PublishDiagnostics` notification
-  - [ ] Reduces LSP traffic and client-side UI updates
-  - [ ] Particularly helpful for files with many warnings (red squiggles stop flickering)
-  - Files: `crates/luanext-lsp/src/core/document.rs` (around diagnostic publishing)
+- [x] **Diagnostics Deduplication**
+  - [x] Added `last_published_diagnostics: Option<Vec<Diagnostic>>` to `DocumentCache`
+  - [x] `publish_diagnostics()` in `message_handler.rs` compares new diagnostics with last published
+  - [x] Skips `PublishDiagnostics` notification when diagnostics are identical
+  - [x] `last_published_diagnostics` intentionally NOT invalidated on `didChange` — stores "what the client last saw"
+  - [x] Reduces LSP traffic and eliminates red squiggle flickering
+  - Files: `crates/luanext-lsp/src/message_handler.rs`, `crates/luanext-lsp/src/core/cache.rs`
+
+- [x] **Bug Fix: Use-after-free in AST caching (SIGSEGV)**
+  - [x] `parse_full()` and `parse_with_edits()` were taking `&program` (reference to stack-local `Program`) and transmuting to `'static`
+  - [x] After function return, stack local was dropped → dangling reference → SIGSEGV on access
+  - [x] Fixed by allocating `Program` in arena via `arena.alloc(program)` so reference lives as long as `Arc<Bump>`
+  - [x] 3 previously-crashing cross-file completion tests now pass
+  - Files: `crates/luanext-lsp/src/core/document.rs`
 
 #### Phase 5: Cross-File Caching (Week 3)
 
@@ -191,3 +199,8 @@
 - [ ] Improve type mismatch error messages with suggestions
 - [ ] Add "did you mean?" suggestions for typos
 - [ ] Better error recovery in parser
+
+### Testing/Benchmarking Lua
+
+- [ ] Consider a testing strategy for Lua code that results from the compilation process
+- [ ] Consider a benchmarking strategy for Lua code that results from the compilation process
