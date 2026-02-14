@@ -1050,9 +1050,19 @@ impl CodeGenerator {
                         }
                     }
                 }
+                TypeKind::Reference(type_ref) => {
+                    let ref_name = self.resolve(type_ref.name.node);
+                    if self.interface_members.contains_key(&ref_name) {
+                        // Interface in union: check table type (structural check too complex for union OR)
+                        type_names.push(ref_name);
+                        type_checks.push("type(__val) == \"table\"".to_string());
+                    } else {
+                        // Class in union: check metatable
+                        type_checks.push(format!("(type(__val) == \"table\" and getmetatable(__val) == {})", ref_name));
+                        type_names.push(ref_name);
+                    }
+                }
                 _ => {
-                    // For complex types (Reference, etc.), skip for now
-                    // TODO: Implement class/interface checks in unions
                     continue;
                 }
             }
@@ -1117,7 +1127,6 @@ impl CodeGenerator {
                 match lit {
                     Literal::Nil => {
                         // nil? is just nil, so check is always true
-                        return;
                     }
                     Literal::Boolean(b) => {
                         let bool_str = if *b { "true" } else { "false" };
@@ -1152,9 +1161,34 @@ impl CodeGenerator {
                     }
                 }
             }
+            TypeKind::Reference(type_ref) => {
+                let ref_name = self.resolve(type_ref.name.node);
+                if let Some(members) = self.interface_members.get(&ref_name).cloned() {
+                    // Nullable interface: nil or structural check
+                    self.write("if __val ~= nil then if type(__val) ~= \"table\" then error(\"Type assertion failed: expected ");
+                    self.write(&ref_name);
+                    self.write("?, got \" .. type(__val))");
+                    for member in &members {
+                        self.write(" elseif __val.");
+                        self.write(member);
+                        self.write(" == nil then error(\"Type assertion failed: ");
+                        self.write(&ref_name);
+                        self.write(" requires property '");
+                        self.write(member);
+                        self.write("'\")");
+                    }
+                    self.write(" end end;");
+                } else {
+                    // Nullable class: nil or metatable check
+                    self.write("if __val ~= nil and (type(__val) ~= \"table\" or getmetatable(__val) ~= ");
+                    self.write(&ref_name);
+                    self.write(") then error(\"Type assertion failed: expected ");
+                    self.write(&ref_name);
+                    self.write("?, got \" .. type(__val)) end;");
+                }
+            }
             _ => {
-                // For complex types (Reference, Union, etc.), we don't support yet
-                // Just skip the check
+                // For other complex types, skip the check
             }
         }
     }
@@ -1206,12 +1240,37 @@ impl CodeGenerator {
         }
     }
 
-    /// Generate runtime check for reference types (classes/interfaces) (Phase 3)
+    /// Generate runtime check for reference types (classes/interfaces)
     fn generate_reference_type_check(
         &mut self,
-        _type_ref: &luanext_parser::ast::types::TypeReference,
+        type_ref: &luanext_parser::ast::types::TypeReference,
     ) {
-        // Placeholder for Phase 3
-        // Will emit metatable/constructor checks for classes
+        let type_name = self.resolve(type_ref.name.node);
+
+        if let Some(members) = self.interface_members.get(&type_name).cloned() {
+            // Interface: structural check — table + required properties
+            self.write("if type(__val) ~= \"table\" then error(\"Type assertion failed: expected ");
+            self.write(&type_name);
+            self.write(", got \" .. type(__val))");
+            for member in &members {
+                self.write(" elseif __val.");
+                self.write(member);
+                self.write(" == nil then error(\"Type assertion failed: ");
+                self.write(&type_name);
+                self.write(" requires property '");
+                self.write(member);
+                self.write("'\")");
+            }
+            self.write(" end;");
+        } else {
+            // Class: table + metatable check
+            self.write("if type(__val) ~= \"table\" then error(\"Type assertion failed: expected ");
+            self.write(&type_name);
+            self.write(", got \" .. type(__val)) elseif getmetatable(__val) ~= ");
+            self.write(&type_name);
+            self.write(" then error(\"Type assertion failed: expected instance of ");
+            self.write(&type_name);
+            self.write("\") end;");
+        }
     }
 }

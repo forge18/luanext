@@ -137,6 +137,8 @@ pub struct CodeGenerator {
     optimization_level: crate::config::OptimizationLevel,
     /// Track interface default methods: (interface_name, method_name) -> default_function_name
     interface_default_methods: std::collections::HashMap<(String, String), String>,
+    /// Track interface member names for assertType structural checks
+    interface_members: std::collections::HashMap<String, Vec<String>>,
     /// Current namespace path for the file (if any)
     current_namespace: Option<Vec<String>>,
     /// Namespace exports to attach: (local_name, namespace_path_string)
@@ -179,6 +181,7 @@ impl CodeGenerator {
             interner,
             optimization_level: crate::config::OptimizationLevel::None,
             interface_default_methods: Default::default(),
+            interface_members: Default::default(),
             current_namespace: None,
             namespace_exports: Vec::new(),
             next_type_id: 1,

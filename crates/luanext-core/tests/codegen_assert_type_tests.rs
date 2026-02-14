@@ -304,3 +304,143 @@ fn test_assert_type_literal_boolean_codegen() {
         "Should check for true literal"
     );
 }
+
+// ============================================================================
+// Class and Interface Type Codegen Tests
+// ============================================================================
+
+#[test]
+fn test_assert_type_class_codegen() {
+    let source = "class User {\n    name: string\n}\nconst u = assertType<User>(data)";
+
+    let output = generate_lua(source);
+    println!("Generated code:\n{}", output);
+
+    assert!(
+        output.contains("type(__val) ~= \"table\""),
+        "Should check for table type. Output: {}", output
+    );
+    assert!(
+        output.contains("getmetatable(__val) ~= User"),
+        "Should check metatable against class. Output: {}", output
+    );
+    assert!(
+        output.contains("expected instance of User"),
+        "Should have class name in error message. Output: {}", output
+    );
+}
+
+#[test]
+fn test_assert_type_class_in_union_codegen() {
+    let source = "class MyObj {\n    val: number\n}\nconst x = assertType<MyObj | string>(data)";
+
+    let output = generate_lua(source);
+    println!("Generated code:\n{}", output);
+
+    assert!(
+        output.contains("getmetatable(__val) == MyObj"),
+        "Should check metatable in union. Output: {}", output
+    );
+    assert!(
+        output.contains("type(__val) == \"string\""),
+        "Should also check string type. Output: {}", output
+    );
+}
+
+#[test]
+fn test_assert_type_nullable_class_codegen() {
+    let source = "class Config {\n    host: string\n}\nconst c = assertType<Config?>(data)";
+
+    let output = generate_lua(source);
+    println!("Generated code:\n{}", output);
+
+    assert!(
+        output.contains("__val ~= nil"),
+        "Should allow nil values. Output: {}", output
+    );
+    assert!(
+        output.contains("getmetatable(__val) ~= Config"),
+        "Should check metatable when not nil. Output: {}", output
+    );
+}
+
+#[test]
+fn test_assert_type_interface_codegen() {
+    let source = "interface Drawable {\n    x: number\n    y: number\n}\nconst d = assertType<Drawable>(obj)";
+
+    let output = generate_lua(source);
+    println!("Generated code:\n{}", output);
+
+    assert!(
+        output.contains("type(__val) ~= \"table\""),
+        "Should check for table type. Output: {}", output
+    );
+    assert!(
+        output.contains("__val.x == nil"),
+        "Should check for property 'x'. Output: {}", output
+    );
+    assert!(
+        output.contains("__val.y == nil"),
+        "Should check for property 'y'. Output: {}", output
+    );
+    assert!(
+        output.contains("Drawable requires property"),
+        "Should have property name in error. Output: {}", output
+    );
+}
+
+#[test]
+fn test_assert_type_interface_method_codegen() {
+    let source = "interface Serializable {\n    serialize(): string\n}\nconst s = assertType<Serializable>(obj)";
+
+    let output = generate_lua(source);
+    println!("Generated code:\n{}", output);
+
+    assert!(
+        output.contains("__val.serialize == nil"),
+        "Should check for method 'serialize'. Output: {}", output
+    );
+}
+
+// ============================================================================
+// Integration Tests: Full Programs
+// ============================================================================
+
+#[test]
+fn test_assert_type_full_program_primitives() {
+    let source = "function parseConfig(raw: unknown): table\n    const host = assertType<string>(raw.host)\n    const port = assertType<number>(raw.port)\n    return { host = host, port = port }\nend";
+
+    let output = generate_lua(source);
+    println!("Generated code:\n{}", output);
+
+    assert!(
+        output.matches("Type assertion failed").count() >= 2,
+        "Should have at least 2 type assertions. Output: {}", output
+    );
+}
+
+#[test]
+fn test_assert_type_full_program_class() {
+    let source = "class User {\n    name: string\n    constructor(name: string)\n        self.name = name\n    end\n}\nfunction getUser(data: unknown): User\n    return assertType<User>(data)\nend";
+
+    let output = generate_lua(source);
+    println!("Generated code:\n{}", output);
+
+    assert!(
+        output.contains("getmetatable"),
+        "Should have metatable check. Output: {}", output
+    );
+}
+
+#[test]
+fn test_assert_type_full_program_interface() {
+    let source = "interface HasName {\n    name: string\n}\nfunction getName(data: unknown): HasName\n    return assertType<HasName>(data)\nend";
+
+    let output = generate_lua(source);
+    println!("Generated code:\n{}", output);
+
+    assert!(
+        output.contains("__val.name == nil"),
+        "Should have structural check for name. Output: {}", output
+    );
+}

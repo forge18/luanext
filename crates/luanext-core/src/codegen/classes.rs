@@ -481,6 +481,19 @@ impl CodeGenerator {
     pub fn generate_interface_declaration(&mut self, iface_decl: &InterfaceDeclaration) {
         let interface_name = self.resolve(iface_decl.name.node).to_string();
 
+        // Record interface member names for assertType structural checks
+        let member_names: Vec<String> = iface_decl
+            .members
+            .iter()
+            .filter_map(|m| match m {
+                InterfaceMember::Property(p) => Some(self.resolve(p.name.node).to_string()),
+                InterfaceMember::Method(m) => Some(self.resolve(m.name.node).to_string()),
+                InterfaceMember::Index(_) => None,
+            })
+            .collect();
+        self.interface_members
+            .insert(interface_name.clone(), member_names);
+
         for member in iface_decl.members.iter() {
             if let InterfaceMember::Method(method) = member {
                 if let Some(body) = &method.body {
