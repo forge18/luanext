@@ -85,10 +85,7 @@ fn generate_cache_test_project(module_count: usize, functions_per_module: usize)
 }
 
 /// Compile with or without cache
-fn compile_with_cache(
-    project_path: &Path,
-    use_cache: bool,
-) -> Result<std::time::Duration, String> {
+fn compile_with_cache(project_path: &Path, use_cache: bool) -> Result<std::time::Duration, String> {
     let binary_path = env!("CARGO_BIN_EXE_luanext");
     let mut cmd = Command::new(binary_path);
 

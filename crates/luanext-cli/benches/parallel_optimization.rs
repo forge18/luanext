@@ -35,7 +35,8 @@ end
     }
 
     // Add a class with methods (devirtualization opportunity)
-    code.push_str(r#"class Processor implements IProcessor {
+    code.push_str(
+        r#"class Processor implements IProcessor {
     value: number
 
     constructor(initial: number)
@@ -48,7 +49,8 @@ end
 }
 
 export { Processor }
-"#);
+"#,
+    );
 
     code
 }
