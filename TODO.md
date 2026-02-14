@@ -9,9 +9,9 @@
 
 ### Error Messages
 
-- [ ] Improve type mismatch error messages with suggestions
-- [ ] Add "did you mean?" suggestions for typos
-- [ ] Better error recovery in parser
+- [x] Improve type mismatch error messages with suggestions (Infrastructure complete: type_suggestions.rs, type_formatter.rs)
+- [x] Add "did you mean?" suggestions for typos (Implemented for undefined variables with fuzzy matching)
+- [ ] Better error recovery in parser (Infrastructure ready, integration pending)
 
 ### Testing/Benchmarking Lua
 
