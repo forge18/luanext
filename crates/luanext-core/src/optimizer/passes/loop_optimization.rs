@@ -398,6 +398,15 @@ impl LoopOptimizationPass {
                     self.collect_modified_in_pattern(first, modified);
                 }
             }
+            Pattern::Template(template_pattern) => {
+                use luanext_parser::ast::pattern::TemplatePatternPart;
+                // Collect all captured identifiers
+                for part in template_pattern.parts.iter() {
+                    if let TemplatePatternPart::Capture(ident) = part {
+                        modified.insert(ident.node);
+                    }
+                }
+            }
         }
     }
 

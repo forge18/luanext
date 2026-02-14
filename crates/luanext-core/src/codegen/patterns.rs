@@ -35,6 +35,17 @@ impl CodeGenerator {
                 // Generate wildcard as fallback for error recovery
                 self.write("_");
             }
+            Pattern::Template(template_pattern) => {
+                // Template patterns are only valid in match expressions, not in variable
+                // declarations or destructuring assignments.
+                eprintln!(
+                    "Error at {:?}: Template patterns are only valid in match expressions, \
+                    not in variable declarations or destructuring assignments",
+                    template_pattern.span
+                );
+                // Generate wildcard as fallback for error recovery
+                self.write("_");
+            }
         }
     }
 

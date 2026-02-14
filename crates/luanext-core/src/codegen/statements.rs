@@ -102,6 +102,15 @@ impl CodeGenerator {
                 self.generate_expression(&decl.initializer);
                 self.writeln("");
             }
+            Pattern::Template(_) => {
+                // Template patterns should not appear in variable declarations
+                // They are only valid in match expressions
+                // Treat as wildcard (defensive programming)
+                self.write_indent();
+                self.write("local _ = ");
+                self.generate_expression(&decl.initializer);
+                self.writeln("");
+            }
         }
     }
 
@@ -153,6 +162,10 @@ impl CodeGenerator {
                         }
                         Pattern::Or(_) => {
                             // Or-patterns should not appear in destructuring
+                            // Skip - don't bind anything
+                        }
+                        Pattern::Template(_) => {
+                            // Template patterns should not appear in destructuring
                             // Skip - don't bind anything
                         }
                     }
@@ -233,6 +246,7 @@ impl CodeGenerator {
                     }
                     Pattern::Wildcard(_) | Pattern::Literal(_, _) => {}
                     Pattern::Or(_) => {}
+                    Pattern::Template(_) => {}
                 }
             } else {
                 // Shorthand: { key } means { key: key }

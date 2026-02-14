@@ -484,6 +484,15 @@ impl DeadStoreEliminationPass {
                     self.collect_names_from_pattern(first, names);
                 }
             }
+            Pattern::Template(template_pattern) => {
+                use luanext_parser::ast::pattern::TemplatePatternPart;
+                // Collect all captured identifiers
+                for part in template_pattern.parts {
+                    if let TemplatePatternPart::Capture(ident) = part {
+                        names.push(ident.node);
+                    }
+                }
+            }
         }
     }
 

@@ -112,6 +112,15 @@ impl GlobalLocalizationPass {
                     self.collect_pattern_names(first, locals);
                 }
             }
+            Pattern::Template(template_pattern) => {
+                use luanext_parser::ast::pattern::TemplatePatternPart;
+                // Collect all captured identifiers
+                for part in template_pattern.parts {
+                    if let TemplatePatternPart::Capture(ident) = part {
+                        locals.insert(ident.node);
+                    }
+                }
+            }
         }
     }
 

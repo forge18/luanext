@@ -718,6 +718,41 @@ impl CodeGenerator {
                 }
                 self.write(")");
             }
+            Pattern::Template(template_pattern) => {
+                use luanext_parser::ast::pattern::TemplatePatternPart;
+
+                // Count captures
+                let capture_count = template_pattern
+                    .parts
+                    .iter()
+                    .filter(|p| matches!(p, TemplatePatternPart::Capture(_)))
+                    .count();
+
+                if capture_count == 0 {
+                    // No captures - should have been converted to literal by parser
+                    unreachable!("Template pattern with no captures should be converted to literal");
+                }
+
+                // Generate Lua pattern string
+                let lua_pattern = self.generate_lua_pattern(template_pattern);
+
+                // Generate capture variable declarations
+                let capture_vars = (1..=capture_count)
+                    .map(|i| format!("__capture_{}", i))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                // Generate: __capture_1, __capture_2 = string.match(__match_value, "pattern")
+                self.write(&capture_vars);
+                self.write(" = string.match(");
+                self.write(value_var);
+                self.write(", \"");
+                self.write(&lua_pattern);
+                self.write("\")");
+
+                // Check if match succeeded
+                self.write(" and __capture_1 ~= nil");
+            }
         }
     }
 
@@ -784,6 +819,73 @@ impl CodeGenerator {
                     self.generate_pattern_bindings(first, value_var);
                 }
             }
+            Pattern::Template(template_pattern) => {
+                use luanext_parser::ast::pattern::TemplatePatternPart;
+
+                let mut capture_idx = 1;
+                for part in template_pattern.parts.iter() {
+                    if let TemplatePatternPart::Capture(ident) = part {
+                        self.write_indent();
+                        self.write("local ");
+                        let ident_str = self.resolve(ident.node);
+                        self.write(&ident_str);
+                        self.write(&format!(" = __capture_{}", capture_idx));
+                        self.writeln("");
+                        capture_idx += 1;
+                    }
+                }
+            }
         }
+    }
+
+    fn generate_lua_pattern(&self, template: &luanext_parser::ast::pattern::TemplatePattern) -> String {
+        use luanext_parser::ast::pattern::TemplatePatternPart;
+
+        let mut pattern = String::from("^");
+        let parts = template.parts;
+
+        for (i, part) in parts.iter().enumerate() {
+            match part {
+                TemplatePatternPart::String(s) => {
+                    pattern.push_str(&self.escape_lua_pattern(s));
+                }
+                TemplatePatternPart::Capture(_) => {
+                    // Find next literal to determine capture class
+                    let next_delimiter_char = parts.iter().skip(i + 1).find_map(|p| match p {
+                        TemplatePatternPart::String(s) if !s.is_empty() => s.chars().next(),
+                        _ => None,
+                    });
+
+                    if let Some(delimiter) = next_delimiter_char {
+                        // Non-greedy: stop at delimiter
+                        pattern.push_str(&format!(
+                            "([^{}]+)",
+                            self.escape_lua_pattern(&delimiter.to_string())
+                        ));
+                    } else {
+                        // Greedy: consume rest
+                        pattern.push_str("(.+)");
+                    }
+                }
+            }
+        }
+
+        pattern.push('$');
+        pattern
+    }
+
+    fn escape_lua_pattern(&self, s: &str) -> String {
+        let mut result = String::with_capacity(s.len() + 10);
+        for ch in s.chars() {
+            match ch {
+                // Lua pattern magic characters need % prefix
+                '^' | '$' | '(' | ')' | '%' | '.' | '[' | ']' | '*' | '+' | '-' | '?' => {
+                    result.push('%');
+                    result.push(ch);
+                }
+                _ => result.push(ch),
+            }
+        }
+        result
     }
 }

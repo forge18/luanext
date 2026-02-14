@@ -1,198 +1,222 @@
 # LuaNext TODO
 
-## Medium Priority
-
-### Better Caching in LSP
-
-**Rationale:** Current LSP caching is minimal - only AST and symbol table are cached. Many expensive operations (semantic tokens, type checking, symbol lookups) are recomputed on every request. Better caching can reduce LSP response latency from 50-100ms to <10ms for cached operations.
-
-**Estimated Effort:** 2-3 weeks
-
-**Current State:**
-
-- ✅ AST caching: `Document.ast: RefCell<Option<ParsedAst>>` (line 81)
-- ✅ Symbol table caching: `Document.symbol_table: Option<Arc<SymbolTable>>` (line 83)
-- ✅ Semantic token caching: `VersionedCache<SemanticTokens>` with incremental updates
-- ✅ Type-check result caching: `VersionedCache<TypeCheckResult>` shared across hover/completion/diagnostics
-- ✅ Diagnostics deduplication: `last_published_diagnostics` skips identical notifications
-- ✅ Cross-file module exports cache with dependency graph cascade invalidation
-- ✅ Symbol index incremental updates via snapshot diffing
-
-**Benefits:**
-
-- 5-10x faster hover/completion on unchanged files
-- Near-instant semantic token refresh (currently ~50ms)
-- Reduced CPU usage during idle editing
-- Better perceived responsiveness
-
-#### Phase 1: Infrastructure (Week 1) ✅ COMPLETE (2026-02-14)
-
-- [x] **Generic Cache Framework**
-  - [x] Created `crates/luanext-lsp/src/core/cache.rs` module with:
-    - `VersionedCache<T>`: Single-value cache with version tracking (`is_valid()`, `get_if_valid()`, `set()`, `invalidate()`)
-    - `BoundedPositionCache<T>`: Position-keyed LRU cache with bounded capacity (used for hover/completion)
-    - `DocumentCache`: Per-document container aggregating all cache types (placeholder `()` types for Phase 1)
-    - `CacheStats`: Hit/miss counters with `LUANEXT_LSP_CACHE_STATS=1` logging support
-  - [x] Added `cache: RefCell<DocumentCache>` to `Document` struct with `cache()`/`cache_mut()` accessors
-  - [x] `invalidate_all()` clears all caches; `partial_invalidate(start, end)` for range-based invalidation
-  - Files: `crates/luanext-lsp/src/core/cache.rs`, `crates/luanext-lsp/src/core/document.rs`
-
-- [x] **Cache Invalidation Strategy**
-  - [x] On `didChange`: Full invalidation via `doc.cache.borrow_mut().invalidate_all()`
-  - [x] On `didSave`: Selective invalidation (keeps caches if text unchanged, invalidates if formatter modified text)
-  - [x] `partial_invalidate(start, end)`: Clears semantic tokens + diagnostics fully; position caches only within range
-  - [x] LRU eviction: max 100 hover entries, 50 completion entries, 100 type info entries per document
-  - **Result**: 27 new tests (25 unit + 2 integration), all 1,750 tests passing, zero clippy warnings
-  - Files: `crates/luanext-lsp/src/core/cache.rs`
-
-#### Phase 2: Semantic Token Caching (Week 1-2) ✅ COMPLETE (2026-02-14)
-
-- [x] **Full File Semantic Tokens**
-  - [x] Changed `DocumentCache.semantic_tokens` from `VersionedCache<()>` to `VersionedCache<SemanticTokens>`
-  - [x] `provide_full()` checks cache first, returns cached result if `doc.version == cache.version`
-  - [x] On cache miss, computes tokens via `compute_semantic_tokens()` and stores in cache
-  - [x] `result_id` uses document version (deterministic, not SystemTime)
-  - [x] Cache hit/miss stats tracked via `CacheStats` with `LUANEXT_LSP_CACHE_STATS=1` logging
-  - [x] Invalidated on text change (not on save/format if text unchanged)
-  - [x] Expected speedup: 50ms → <1ms for cache hit
-  - Files: `crates/luanext-lsp/src/features/semantic/semantic_tokens.rs`, `crates/luanext-lsp/src/core/cache.rs`
-
-- [x] **Incremental Semantic Token Updates**
-  - [x] Created `crates/luanext-lsp/src/features/semantic/incremental.rs` with:
-    - `TokenTextEdit`: Describes text edits with line/char positions and new text dimensions
-    - `update_semantic_tokens()`: Adjusts token positions for single-line edits without full recompute
-  - [x] Reconstructs absolute positions, applies char delta, re-encodes as deltas
-  - [x] Falls back to full recompute for multi-line edits or structural changes
-  - [x] Integrated into `DocumentManager.change()`: tries incremental update before invalidation
-  - [x] `provide_full_delta()` wired up with cached tokens for computing deltas
-  - **Result**: 18 new tests (8 unit + 10 integration), all 3,230 tests passing, zero clippy warnings
-  - Files: `crates/luanext-lsp/src/features/semantic/incremental.rs`, `crates/luanext-lsp/src/core/document.rs`, `crates/luanext-lsp/tests/semantic_cache_tests.rs`
-
-#### Phase 3: Hover & Completion Caching (Week 2) ✅ COMPLETE (2026-02-14)
-
-- [x] **Hover Information Cache**
-  - [x] Changed `hover_cache: BoundedPositionCache<()>` to `BoundedPositionCache<Hover>` in `DocumentCache`
-  - [x] `provide_impl()` checks cache first, returns cached `Hover` on hit (clone to release RefMut)
-  - [x] Cache key: `Position` + `document.version` (via `BoundedPositionCache` version tracking)
-  - [x] Max entries: 100 per document (LRU eviction, inherited from Phase 1 infrastructure)
-  - [x] Invalidated on text change via `invalidate_all()` in `DocumentManager::change()`
-  - [x] Caches all hover types: keywords, builtin types, and symbol type info
-  - [x] Cache stats tracked via `CacheStats` with `LUANEXT_LSP_CACHE_STATS=1` logging
-  - [x] Expected speedup: 20-30ms → <1ms for repeated hovers
-  - **Result**: 3 new unit tests, 2 new integration tests, all 856 lib tests passing
-  - Files: `crates/luanext-lsp/src/features/navigation/hover.rs`, `crates/luanext-lsp/src/core/cache.rs`
-
-- [x] **Completion Items Cache**
-  - [x] Changed `completion_cache: BoundedPositionCache<()>` to `BoundedPositionCache<Vec<CompletionItem>>`
-  - [x] `provide_with_workspace()` checks cache first for expensive contexts only
-  - [x] Context-aware: caches Statement, MemberAccess, MethodCall (type-checking heavy)
-  - [x] Skips caching for TypeAnnotation, Decorator, Import (cheap hardcoded lists)
-  - [x] Max entries: 50 per document (LRU eviction)
-  - [x] Cache stats only recorded for cacheable contexts
-  - [x] Expected speedup: 30-50ms → <1ms for cached completions
-  - **Result**: 4 new unit tests, 2 new integration tests, all 856 lib tests passing, zero clippy warnings
-  - Files: `crates/luanext-lsp/src/features/edit/completion.rs`, `crates/luanext-lsp/src/core/cache.rs`
-
-#### Phase 4: Type Checking & Diagnostics Cache (Week 2-3) ✅ COMPLETE (2026-02-14)
-
-- [x] **Type Information Cache**
-  - [x] Added `TypeCheckResult` and `CachedSymbolInfo` structs to `cache.rs` — owned types extracted from arena-scoped type checker
-  - [x] Added `type_check_result: VersionedCache<TypeCheckResult>` to `DocumentCache`
-  - [x] Created `DiagnosticsProvider::ensure_type_checked()` — single entry point for type checking, checks cache first, runs lex→parse→typecheck on miss
-  - [x] Refactored `hover.rs` to use `ensure_type_checked()` instead of running its own type checker
-  - [x] Refactored `completion.rs` `complete_symbols()` to use `ensure_type_checked()` instead of running its own type checker
-  - [x] `complete_members()` still uses its own type checker (needs `Type<'arena>` for member iteration)
-  - [x] Updated `document.rs` cache invalidation: `type_check_result.invalidate()` on `didChange`
-  - [x] Expected speedup: 3-5x type-check passes per edit → 1 pass (first feature request), subsequent features ~free
-  - **Result**: 6 new unit tests, all 3,240 tests passing, zero clippy warnings
-  - Files: `crates/luanext-lsp/src/core/cache.rs`, `crates/luanext-lsp/src/core/diagnostics.rs`, `crates/luanext-lsp/src/features/navigation/hover.rs`, `crates/luanext-lsp/src/features/edit/completion.rs`, `crates/luanext-lsp/src/core/document.rs`
-
-- [x] **Diagnostics Deduplication**
-  - [x] Added `last_published_diagnostics: Option<Vec<Diagnostic>>` to `DocumentCache`
-  - [x] `publish_diagnostics()` in `message_handler.rs` compares new diagnostics with last published
-  - [x] Skips `PublishDiagnostics` notification when diagnostics are identical
-  - [x] `last_published_diagnostics` intentionally NOT invalidated on `didChange` — stores "what the client last saw"
-  - [x] Reduces LSP traffic and eliminates red squiggle flickering
-  - Files: `crates/luanext-lsp/src/message_handler.rs`, `crates/luanext-lsp/src/core/cache.rs`
-
-- [x] **Bug Fix: Use-after-free in AST caching (SIGSEGV)**
-  - [x] `parse_full()` and `parse_with_edits()` were taking `&program` (reference to stack-local `Program`) and transmuting to `'static`
-  - [x] After function return, stack local was dropped → dangling reference → SIGSEGV on access
-  - [x] Fixed by allocating `Program` in arena via `arena.alloc(program)` so reference lives as long as `Arc<Bump>`
-  - [x] 3 previously-crashing cross-file completion tests now pass
-  - Files: `crates/luanext-lsp/src/core/document.rs`
-
-#### Phase 5: Cross-File Caching (Week 3) ✅ COMPLETE (2026-02-14)
-
-- [x] **Module Type Exports Cache**
-  - [x] Added `ModuleExportsEntry` struct with `symbols: HashMap<String, CachedSymbolInfo>`, `version`, `content_hash`
-  - [x] Added `ModuleDependencyGraph` with forward (`dependencies`) and reverse (`dependents`) edge tracking
-  - [x] `get_transitive_dependents()` BFS with visited set for cycle-safe cascade invalidation
-  - [x] Added `module_exports_cache: HashMap<String, ModuleExportsEntry>` to `DocumentManager`
-  - [x] `get_module_exports()` checks cache validity by version; `ensure_module_exports_cached()` lazy-computes via `ensure_type_checked()`
-  - [x] `extract_dependencies()` scans AST Import/Export statements to build dependency edges
-  - [x] Cascade invalidation in `change()`: when exports change, invalidates all transitive dependents' `module_exports_cache` + `type_check_result`
-  - [x] Cascade cleanup in `close()`: removes module from caches, invalidates dependents, clears dependency graph
-  - [x] `content_hash()` utility using `std::hash::DefaultHasher` (no new dependencies)
-  - **Result**: 8 new unit tests (dependency graph, module exports, content hash), all tests passing, zero clippy warnings
-  - Files: `crates/luanext-lsp/src/core/cache.rs`, `crates/luanext-lsp/src/core/document.rs`
-
-- [x] **Symbol Index Incremental Updates**
-  - [x] Added `DocumentSymbolSnapshot` with hashed fingerprints for exports, imports, and workspace symbols
-  - [x] Replaced `index_exports()`, `index_imports()`, `index_workspace_symbols()` with `_to` variants that write to external collections
-  - [x] Rewrote `update_document()` with snapshot + diff: build temp collections → hash into snapshot → compare with old → apply only changed categories
-  - [x] `update_document()` now returns `bool` (`exports_changed`) used by `DocumentManager` for cascade invalidation
-  - [x] `clear_document()` also removes document snapshot
-  - [x] Hashing helpers: `hash_export_info()`, `hash_import_infos()`, `hash_workspace_symbols()` using `DefaultHasher`
-  - [x] Expected speedup: Index update from O(n) to O(changed categories) — unchanged exports/imports/workspace symbols are not re-inserted
-  - **Result**: 5 new unit tests (no-change, export added, export removed, body-only change, snapshot cleanup), all tests passing
-  - Files: `crates/luanext-lsp/src/core/analysis/symbol_index.rs`
-
-#### Phase 6: Testing & Optimization (Week 3)
-
-- [ ] **Cache Effectiveness Metrics**
-  - [ ] Add telemetry counters:
-    - `cache_hits`, `cache_misses` per cache type
-    - `avg_response_time_cached` vs `avg_response_time_uncached`
-    - `memory_usage_caches` (track cache overhead)
-  - [ ] Log metrics with `LUANEXT_LSP_CACHE_STATS=1` environment variable
-  - [ ] Identify which caches provide most value (data-driven optimization)
-
-- [ ] **Memory Profiling**
-  - [ ] Measure memory usage with various cache sizes
-  - [ ] Target: <20MB cache overhead for 100 open documents
-  - [ ] Implement cache size limits:
-    - Max total cache size: 50MB
-    - LRU eviction when limit reached
-    - Per-document limits to prevent one large file from evicting all caches
-  - [ ] Profile with `cargo instruments` (macOS) or `heaptrack` (Linux)
-
-- [ ] **Cache Correctness Testing**
-  - [ ] Test: Edit document → hover → should show updated info (not stale cache)
-  - [ ] Test: Rename symbol → completion cache invalidated → new name appears
-  - [ ] Test: Change imported file → dependent file caches invalidated
-  - [ ] Test: Rapid edits → caches don't thrash (avoid invalidate-recompute-invalidate loop)
-  - [ ] Add integration tests: `crates/luanext-lsp/tests/cache_tests.rs`
-
-- [ ] **Documentation**
-  - [ ] Document caching architecture in `ARCHITECTURE.md`
-  - [ ] Add section "LSP Performance Optimization" with cache strategy
-  - [ ] Document cache invalidation rules
-  - [ ] Add troubleshooting: "If LSP shows stale data, try restarting language server"
-
-### Type Checker Bug Fixes
-
-- [x] ✅ **Fixed function call argument type validation** (2026-02-12)
-  - **Issue**: `test_type_mismatch_in_function_call` was passing when it should fail - type checker wasn't catching `greet(123)` when `greet(name: string): void`
-  - **Root cause**: `is_assignable_with_env_recursive()` inserted type pairs into visited set before checking, causing false positive cycle detection
-  - **Fix**: Duplicated literal/primitive checking logic into `is_assignable_with_env_recursive()` (lines 174-189 in `type_compat.rs`)
-  - **Result**: All 1778 tests passing (1464 lib + 314 integration), zero new clippy warnings
-  - File: `crates/luanext-typechecker/src/core/type_compat.rs`
+## Low Priority
 
 ### Language Features
 
-- [ ] String pattern matching improvements
-- [ ] Type assertions with runtime checks
+#### Template Literal Patterns in Match Expressions
+
+**Rationale:** The `match` expression currently supports literal, identifier, array, object, wildcard, and or-patterns. However, there's no way to destructure strings — a very common operation in parsers, URL routers, and data processing. Template literal patterns would allow extracting substrings directly in match arms, compiling to Lua's `string.match()` under the hood.
+
+**Estimated Effort:** 2-3 weeks
+
+**Syntax:**
+
+```luanext
+// Basic template pattern — destructure URL parts
+const result = match url {
+  `https://${host}/${path}` => processSecure(host, path),
+  `http://${host}/${path}` => processInsecure(host, path),
+  _ => error("Invalid URL")
+}
+
+// With guard clauses
+const parsed = match input {
+  `${name}:${age}` when tonumber(age) != nil => { name, age: tonumber(age) },
+  _ => nil
+}
+
+// Mixed with other pattern types
+const message = match value {
+  `error: ${msg}` => handleError(msg),
+  42 => "the answer",
+  _ => "unknown"
+}
+```
+
+**Current State:**
+
+- ✅ **Phase 1-3 COMPLETE**: AST, Parser, Type Checker, and Codegen all implemented
+- ✅ Template patterns parse from backtick syntax in match expressions
+- ✅ Captures restricted to simple identifiers only
+- ✅ Type checker validates string-only matching and infers `string` types for captures
+- ✅ Codegen generates `string.match()` with delimiter-aware Lua patterns
+- ✅ Project compiles successfully with all pattern match locations updated
+- ⏳ **Phase 4-5 TODO**: LSP support and comprehensive test suite needed
+
+**Benefits:**
+
+- Enables string destructuring without manual `string.match()` calls
+- Type-safe: captured variables are inferred as `string`
+- Natural syntax for URL routing, log parsing, config parsing
+- Compiles to efficient Lua patterns (no regex library needed)
+
+**Compilation Target:**
+
+```luanext
+// Source:
+match url {
+  `https://${host}/${path}` => process(host, path),
+  _ => nil
+}
+
+// Compiled Lua:
+(function()
+  local __match_value = url
+  local __capture_1, __capture_2 = string.match(__match_value, "^https://([^/]+)/(.+)$")
+  if __capture_1 ~= nil then
+    local host = __capture_1
+    local path = __capture_2
+    return process(host, path)
+  else
+    return nil
+  end
+end)()
+```
+
+##### Phase 1: AST & Parser ✅ COMPLETE
+
+- [x] Add `Template(TemplatePattern)` variant to `Pattern` enum in `crates/luanext-parser/src/ast/pattern.rs`
+- [x] Define `TemplatePattern` struct with `parts: &'arena [TemplatePatternPart]` (String literal segments + Identifier captures)
+- [x] Parse backtick-delimited patterns in match arms (reuse template literal lexer infrastructure)
+- [x] Ensure `Pattern::span()` and `Pattern::node_id()` handle new variant
+- [x] Validate captures are simple identifiers only (no expressions)
+- [x] Detect and error on adjacent captures
+- [x] Convert patterns without captures to `Pattern::Literal`
+
+##### Phase 2: Type Checker ✅ COMPLETE
+
+- [x] Validate template patterns only appear where the matched value is `string` type
+- [x] Infer all captured variables as `string` type and register them in scope
+- [x] Report error if template pattern used against non-string value
+- [x] Handle template patterns in exhaustiveness checking (template patterns are non-exhaustive by nature)
+- [x] Add `is_string_like_type()` helper for type validation
+- [x] Update `extract_pattern_bindings_recursive()` for template patterns
+- [x] Update `pattern_could_match()` and `narrow_type_by_pattern()`
+- [x] Add template pattern handling in declaration phase
+
+##### Phase 3: Codegen ✅ COMPLETE
+
+- [x] Convert template pattern parts to Lua pattern string (literal text escaped, `${name}` becomes `(.+)` or `([^/]+)`)
+- [x] Generate `string.match()` call in `generate_pattern_match()`
+- [x] Generate local variable bindings from captures in `generate_pattern_bindings()`
+- [x] Handle edge cases: empty captures, adjacent captures, special Lua pattern characters
+- [x] Implement `generate_lua_pattern()` with delimiter-aware capture generation
+- [x] Implement `escape_lua_pattern()` for Lua magic character escaping
+- [x] Add template pattern handling to all pattern match locations
+- [x] Add template pattern handling to optimizer passes
+
+##### Phase 4: LSP Support
+
+- [ ] Semantic tokens for captured variable names in template patterns
+- [ ] Hover info showing inferred `string` type for captured variables
+- [ ] Go-to-definition from captured variable usage to pattern binding site
+- [ ] Completion for captured variables in match arm body
+
+##### Phase 5: Tests
+
+- [ ] Parser tests: basic template pattern, multiple captures, mixed with other patterns, error cases
+- [ ] Type checker tests: string value matching, non-string error, guard clause interaction
+- [ ] Codegen tests: verify generated Lua pattern syntax, variable binding, edge cases
+- [ ] Integration tests: end-to-end compilation of template pattern match expressions
+
+---
+
+#### Runtime Type Assertions via `assertType<T>()`
+
+**Rationale:** Currently `x as Type` is purely compile-time — the type annotation is erased during codegen with no runtime validation. This is unsafe when dealing with external data (user input, API responses, deserialized data). A compiler-intrinsic `assertType<T>(value)` function would emit runtime `type()` checks and throw on mismatch, providing a safe bridge between untyped external data and the type system.
+
+**Estimated Effort:** 2-3 weeks
+
+**Syntax:**
+
+```luanext
+// Primitive type assertion — emits runtime type() check
+const name = assertType<string>(input)
+// Compiled: if type(input) ~= "string" then error("Type assertion failed: expected string, got " .. type(input)) end
+
+// Class/interface assertion — emits table + metatable check
+const user = assertType<User>(data)
+// Compiled: if type(data) ~= "table" then error(...) end
+
+// Union types — emits compound check
+const id = assertType<string | number>(value)
+// Compiled: if type(value) ~= "string" and type(value) ~= "number" then error(...) end
+
+// Optional types
+const name = assertType<string?>(input)
+// Compiled: if input ~= nil and type(input) ~= "string" then error(...) end
+
+// Use in function boundaries for safe parsing
+function parseConfig(raw: unknown): Config {
+  const data = assertType<table>(raw)
+  const host = assertType<string>(data.host)
+  const port = assertType<number>(data.port)
+  return { host, port }
+}
+```
+
+**Current State:**
+
+- `TypeAssertion` (`as`) exists but is compile-time only — codegen just emits the inner expression (`crates/luanext-core/src/codegen/expressions.rs:434-436`)
+- `assert<T>` already declared in stdlib as Lua's truthiness assert (`crates/luanext-typechecker/src/stdlib/builtins.d.tl:46`)
+- `type()` function available in all Lua versions (`builtins.d.tl:18`)
+- `typeof` narrowing already works in the type checker (`crates/luanext-typechecker/src/visitors/narrowing.rs:146-156`)
+- Type predicate system (`x is T`) exists for user-defined type guards (`crates/luanext-parser/src/ast/types.rs:61`)
+- `error()` function available for throwing (`builtins.d.tl:39`)
+
+**Benefits:**
+
+- Safe bridge between `unknown`/external data and typed code
+- Clear error messages at runtime: "Type assertion failed: expected string, got number"
+- Type narrowing after assertion — subsequent code sees the narrowed type
+- Zero overhead in production if compiled with assertions stripped (future optimization flag)
+- Complements existing `as` (compile-time) — `assertType` is the runtime counterpart
+
+**Design Decisions:**
+
+- **Name**: `assertType` (not `assert`, which conflicts with Lua's built-in)
+- **Intrinsic**: Recognized by the compiler, not a library function — allows generating optimal code per type
+- **Return type**: `assertType<T>(value: unknown): T` — returns the value with narrowed type
+- **Error behavior**: Throws via `error()` with descriptive message including expected vs actual type
+
+##### Phase 1: Intrinsic Recognition
+
+- [ ] Register `assertType` as a compiler intrinsic in the type checker (not in stdlib)
+- [ ] Validate: exactly one type argument required, exactly one value argument
+- [ ] Return type is the type argument `T`
+- [ ] Value argument accepts `unknown` or any supertype of `T`
+- [ ] Report error if type argument is not a checkable type (e.g., generic type parameters)
+
+##### Phase 2: Codegen for Primitive Types
+
+- [ ] Recognize `assertType` calls in codegen expression handler
+- [ ] Emit `type()` check for primitives: `string`, `number`, `boolean`, `nil`, `table`
+- [ ] Generate descriptive error message: `"Type assertion failed: expected <T>, got " .. type(value)`
+- [ ] Emit the value expression as the result (assertion returns the value)
+- [ ] Handle `integer` type (Lua 5.3+: `math.type(x) == "integer"`, Lua 5.1/5.2: `type(x) == "number" and x % 1 == 0`)
+
+##### Phase 3: Codegen for Complex Types
+
+- [ ] **Union types**: `assertType<string | number>(x)` emits compound `type()` check with `and`
+- [ ] **Optional types**: `assertType<string?>(x)` emits `x == nil or type(x) == "string"`
+- [ ] **Class types**: `assertType<MyClass>(x)` emits table check + optional metatable/constructor check
+- [ ] **Interface types**: structural check — verify required properties exist (optional: deep check behind a flag)
+- [ ] **Literal types**: `assertType<"hello">(x)` emits `x == "hello"` value equality check
+
+##### Phase 4: Type Narrowing Integration
+
+- [ ] After `assertType<T>(x)`, narrow `x` to type `T` in the enclosing scope (not just the return value)
+- [ ] Handle `assertType` in control flow analysis — if it throws, subsequent code has narrowed type
+- [ ] Integrate with existing `NarrowingContext` in `crates/luanext-typechecker/src/visitors/narrowing.rs`
+
+##### Phase 5: LSP & Tests
+
+- [ ] LSP: hover on `assertType` shows intrinsic signature, completion suggests type arguments
+- [ ] Unit tests: type checker validates intrinsic usage, rejects invalid type arguments
+- [ ] Codegen tests: verify generated Lua for each type category (primitives, unions, optionals, classes)
+- [ ] Integration tests: end-to-end compile + verify runtime behavior with correct and incorrect types
+- [ ] Error message tests: verify descriptive messages for each failure mode
 
 ### Optimizer O2/O3 Passes
 
