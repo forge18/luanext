@@ -69,11 +69,10 @@ fn test_array_literal() {
     "#;
 
     let result = compile(source);
-    if result.is_err() {
-        eprintln!("Array literal error: {}", result.unwrap_err());
+    if let Err(e) = result {
+        eprintln!("Array literal error: {}", e);
     }
     // Just verify it compiles without crash
-    assert!(true);
 }
 
 // ============================================================================

@@ -401,7 +401,7 @@ fn generate_optimizable_code(target_lines: usize) -> String {
     for i in 0..100 {
         code.push_str(&format!("const CONST{} = {}\n", i, i * 10));
     }
-    code.push_str("\n");
+    code.push('\n');
 
     // Generate functions with opportunities for inlining
     let func_count = target_lines / 20;
@@ -716,8 +716,8 @@ fn test_typecheck_complex_generic_inference() {
             "class Container{}<T> {{\n    private value: T\n",
             i
         ));
-        source.push_str(&format!("    constructor(v: T) {{ self.value = v }}\n"));
-        source.push_str(&format!("    getValue(): T {{ return self.value }}\n"));
+        source.push_str("    constructor(v: T) { self.value = v }\n");
+        source.push_str("    getValue(): T { return self.value }\n");
         source.push_str(&format!(
             "    map<U>(fn: (x: T) -> U): Container{}<U> {{\n",
             i
@@ -957,7 +957,7 @@ fn test_rich_enum_instance_precomputation() {
             i % 5
         ));
     }
-    source.push_str("\n");
+    source.push('\n');
     // Fields
     source.push_str("    code: number,\n");
     source.push_str("    message: string,\n");
@@ -1021,9 +1021,7 @@ fn test_incremental_retypecheck_single_file_change() {
         // Each module exports a class and some functions
         content.push_str(&format!("export class Module{} {{\n", i));
         content.push_str("    public value: number\n");
-        content.push_str(&format!(
-            "    constructor(v: number) {{ self.value = v }}\n"
-        ));
+        content.push_str("    constructor(v: number) { self.value = v }\n");
         content.push_str("}\n\n");
 
         // Add some functions that use other modules (imports)
@@ -1171,7 +1169,7 @@ fn test_cache_hit_rate_unchanged_modules() {
         content.push_str(&format!("export class CacheModule{} {{\n", i));
         content.push_str("    public data: string\n");
         content.push_str("    public count: number\n");
-        content.push_str(&format!("    constructor() {{\n"));
+        content.push_str("    constructor() {\n");
         content.push_str(&format!("        self.data = \"module{}\"\n", i));
         content.push_str("        self.count = 0\n");
         content.push_str("    }\n");

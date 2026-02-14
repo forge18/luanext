@@ -146,5 +146,4 @@ fn report_metrics() {
         );
     }
     println!("===");
-    assert!(true);
 }

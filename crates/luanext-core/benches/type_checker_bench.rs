@@ -25,12 +25,12 @@ fn bench_type_checker_simple(c: &mut Criterion) {
             let tokens = lexer.tokenize().ok()?;
 
             let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids, &arena);
-            let mut program = parser.parse().ok()?;
+            let program = parser.parse().ok()?;
 
             let mut checker = TypeChecker::new_with_stdlib(handler, &interner, &common_ids, &arena)
                 .ok()?
                 .with_options(CompilerOptions::default());
-            checker.check_program(black_box(&mut program)).ok()
+            checker.check_program(black_box(&program)).ok()
         })
     });
 }
@@ -58,12 +58,12 @@ fn bench_type_checker_function(c: &mut Criterion) {
             let tokens = lexer.tokenize().ok()?;
 
             let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids, &arena);
-            let mut program = parser.parse().ok()?;
+            let program = parser.parse().ok()?;
 
             let mut checker = TypeChecker::new_with_stdlib(handler, &interner, &common_ids, &arena)
                 .ok()?
                 .with_options(CompilerOptions::default());
-            checker.check_program(black_box(&mut program)).ok()
+            checker.check_program(black_box(&program)).ok()
         })
     });
 }
@@ -98,12 +98,12 @@ fn bench_type_checker_class(c: &mut Criterion) {
             let tokens = lexer.tokenize().ok()?;
 
             let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids, &arena);
-            let mut program = parser.parse().ok()?;
+            let program = parser.parse().ok()?;
 
             let mut checker = TypeChecker::new_with_stdlib(handler, &interner, &common_ids, &arena)
                 .ok()?
                 .with_options(CompilerOptions::default());
-            checker.check_program(black_box(&mut program)).ok()
+            checker.check_program(black_box(&program)).ok()
         })
     });
 }
@@ -147,12 +147,12 @@ fn bench_type_checker_interface(c: &mut Criterion) {
             let tokens = lexer.tokenize().ok()?;
 
             let mut parser = Parser::new(tokens, handler.clone(), &interner, &common_ids, &arena);
-            let mut program = parser.parse().ok()?;
+            let program = parser.parse().ok()?;
 
             let mut checker = TypeChecker::new_with_stdlib(handler, &interner, &common_ids, &arena)
                 .ok()?
                 .with_options(CompilerOptions::default());
-            checker.check_program(black_box(&mut program)).ok()
+            checker.check_program(black_box(&program)).ok()
         })
     });
 }
@@ -182,13 +182,13 @@ fn bench_type_checker_scaling(c: &mut Criterion) {
 
                 let mut parser =
                     Parser::new(tokens, handler.clone(), &interner, &common_ids, &arena);
-                let mut program = parser.parse().ok()?;
+                let program = parser.parse().ok()?;
 
                 let mut checker =
                     TypeChecker::new_with_stdlib(handler, &interner, &common_ids, &arena)
                         .ok()?
                         .with_options(CompilerOptions::default());
-                checker.check_program(black_box(&mut program)).ok()
+                checker.check_program(black_box(&program)).ok()
             })
         });
     }

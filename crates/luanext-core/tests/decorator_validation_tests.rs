@@ -2,9 +2,11 @@ use luanext_core::config::{CompilerConfig, CompilerOptions};
 use luanext_core::di::DiContainer;
 
 fn type_check(source: &str) -> Result<(), String> {
-    let mut config = CompilerConfig::default();
-    config.compiler_options = CompilerOptions {
-        enable_decorators: true,
+    let config = CompilerConfig {
+        compiler_options: CompilerOptions {
+            enable_decorators: true,
+            ..Default::default()
+        },
         ..Default::default()
     };
     let mut container = DiContainer::test_with_config(config);

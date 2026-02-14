@@ -33,13 +33,12 @@ fn create_program<'arena>(
     parser.parse().expect("Parsing failed")
 }
 
+type ModuleData<'arena> = Vec<(String, Program<'arena>, FxHashMap<String, String>)>;
+
 fn create_modules_with_interner<'arena>(
     sources: &[(&str, &str)],
     arena: &'arena Bump,
-) -> (
-    Vec<(String, Program<'arena>, FxHashMap<String, String>)>,
-    Arc<StringInterner>,
-) {
+) -> (ModuleData<'arena>, Arc<StringInterner>) {
     let (interner, common) = StringInterner::new_with_common_identifiers();
     let interner = Arc::new(interner);
     let mut modules = Vec::new();

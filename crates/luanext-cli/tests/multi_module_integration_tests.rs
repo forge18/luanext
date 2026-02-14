@@ -76,7 +76,7 @@ fn collect_luax_files_recursive(dir: &Path, files: &mut Vec<PathBuf>) {
         let path = entry.path();
         if path.is_dir() {
             collect_luax_files_recursive(&path, files);
-        } else if path.extension().map_or(false, |ext| ext == "luax") {
+        } else if path.extension().is_some_and(|ext| ext == "luax") {
             files.push(path);
         }
     }

@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::fs;
-use std::path::PathBuf;
+use std::path::Path;
 use std::process::Command;
 use tempfile::TempDir;
 
@@ -15,7 +15,7 @@ fn generate_module_with_types(name: &str, imports: &[&str], exports_count: usize
             import, import, import
         ));
     }
-    code.push_str("\n");
+    code.push('\n');
 
     // Add interfaces
     for i in 0..exports_count {
@@ -144,7 +144,7 @@ fn generate_large_project(
         ));
     }
 
-    main_content.push_str("\n");
+    main_content.push('\n');
     main_content.push_str("function main(): void\n");
     main_content.push_str("    print(\"Compiled successfully\")\n");
     main_content.push_str("end\n");
@@ -156,7 +156,7 @@ fn generate_large_project(
 }
 
 /// Compile project and measure time
-fn compile_project(project_path: &PathBuf, use_cache: bool) -> Result<(), String> {
+fn compile_project(project_path: &Path, use_cache: bool) -> Result<(), String> {
     let binary_path = env!("CARGO_BIN_EXE_luanext");
     let mut cmd = Command::new(binary_path);
 

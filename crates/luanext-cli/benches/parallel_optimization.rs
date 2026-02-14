@@ -35,8 +35,7 @@ end
     }
 
     // Add a class with methods (devirtualization opportunity)
-    code.push_str(&format!(
-        r#"class Processor implements IProcessor {{
+    code.push_str(r#"class Processor implements IProcessor {
     value: number
 
     constructor(initial: number)
@@ -46,11 +45,10 @@ end
     process(input: number): number
         return input + self.value
     end
-}}
+}
 
-export {{ Processor }}
-"#
-    ));
+export { Processor }
+"#);
 
     code
 }

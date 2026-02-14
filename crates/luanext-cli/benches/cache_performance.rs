@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::fs;
-use std::path::PathBuf;
+use std::path::Path;
 use std::process::Command;
 use tempfile::TempDir;
 
@@ -86,7 +86,7 @@ fn generate_cache_test_project(module_count: usize, functions_per_module: usize)
 
 /// Compile with or without cache
 fn compile_with_cache(
-    project_path: &PathBuf,
+    project_path: &Path,
     use_cache: bool,
 ) -> Result<std::time::Duration, String> {
     let binary_path = env!("CARGO_BIN_EXE_luanext");
@@ -115,7 +115,7 @@ fn compile_with_cache(
 }
 
 /// Clear the cache directory
-fn clear_cache(project_path: &PathBuf) {
+fn clear_cache(project_path: &Path) {
     let cache_dir = project_path.join(".luanext-cache");
     if cache_dir.exists() {
         fs::remove_dir_all(&cache_dir).ok();
