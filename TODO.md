@@ -62,29 +62,45 @@ function parseConfig(raw: unknown): Config {
 - **Return type**: `assertType<T>(value: unknown): T` — returns the value with narrowed type
 - **Error behavior**: Throws via `error()` with descriptive message including expected vs actual type
 
-##### Phase 1: Intrinsic Recognition
+##### Phase 1: Intrinsic Recognition ✅
 
-- [ ] Register `assertType` as a compiler intrinsic in the type checker (not in stdlib)
-- [ ] Validate: exactly one type argument required, exactly one value argument
-- [ ] Return type is the type argument `T`
-- [ ] Value argument accepts `unknown` or any supertype of `T`
-- [ ] Report error if type argument is not a checkable type (e.g., generic type parameters)
+- [x] Register `assertType` as a compiler intrinsic in the type checker (not in stdlib)
+- [x] Validate: exactly one type argument required, exactly one value argument
+- [x] Return type is the type argument `T`
+- [x] Value argument accepts `unknown` or any supertype of `T`
+- [x] Report error if type argument is not a checkable type (e.g., generic type parameters)
 
-##### Phase 2: Codegen for Primitive Types
+**Implementation:** `crates/luanext-typechecker/src/visitors/inference.rs:215-222, 2520-2597`
 
-- [ ] Recognize `assertType` calls in codegen expression handler
-- [ ] Emit `type()` check for primitives: `string`, `number`, `boolean`, `nil`, `table`
-- [ ] Generate descriptive error message: `"Type assertion failed: expected <T>, got " .. type(value)`
-- [ ] Emit the value expression as the result (assertion returns the value)
-- [ ] Handle `integer` type (Lua 5.3+: `math.type(x) == "integer"`, Lua 5.1/5.2: `type(x) == "number" and x % 1 == 0`)
+##### Phase 2: Codegen for Primitive Types ✅
 
-##### Phase 3: Codegen for Complex Types
+- [x] Recognize `assertType` calls in codegen expression handler
+- [x] Emit `type()` check for primitives: `string`, `number`, `boolean`, `nil`, `table`
+- [x] Generate descriptive error message: `"Type assertion failed: expected <T>, got " .. type(value)`
+- [x] Emit the value expression as the result (assertion returns the value)
+- [x] Handle `integer` type (Lua 5.3+: `math.type(x) == "integer"`, Lua 5.1/5.2: `type(x) == "number" and x % 1 == 0`)
 
-- [ ] **Union types**: `assertType<string | number>(x)` emits compound `type()` check with `and`
-- [ ] **Optional types**: `assertType<string?>(x)` emits `x == nil or type(x) == "string"`
-- [ ] **Class types**: `assertType<MyClass>(x)` emits table check + optional metatable/constructor check
-- [ ] **Interface types**: structural check — verify required properties exist (optional: deep check behind a flag)
-- [ ] **Literal types**: `assertType<"hello">(x)` emits `x == "hello"` value equality check
+**Implementation:** `crates/luanext-core/src/codegen/expressions.rs:119-131, 903-1054`
+
+**Tests:**
+
+- Type checker: `crates/luanext-typechecker/tests/assert_type_tests.rs` (7 tests)
+- Codegen: `crates/luanext-core/tests/codegen_assert_type_tests.rs` (9 tests)
+
+##### Phase 3: Codegen for Complex Types ✅
+
+- [x] **Literal types**: `assertType<"hello">(x)` emits `x == "hello"` value equality check (including nil, boolean, string, number)
+- [x] **Union types**: `assertType<string | number>(x)` emits compound `type()` check with `or`
+- [x] **Optional types (Nullable)**: `assertType<string?>(x)` emits `__val ~= nil and type(__val) == "string"`
+- [ ] **Class types**: `assertType<MyClass>(x)` emits table check + optional metatable/constructor check (deferred)
+- [ ] **Interface types**: structural check — verify required properties exist (optional: deep check behind a flag) (deferred)
+
+**Implementation:** `crates/luanext-core/src/codegen/expressions.rs:996-1143`
+
+**Tests:**
+
+- Type checker: `crates/luanext-typechecker/tests/assert_type_tests.rs` (11 tests)
+- Codegen: `crates/luanext-core/tests/codegen_assert_type_tests.rs` (15 tests)
 
 ##### Phase 4: Type Narrowing Integration
 

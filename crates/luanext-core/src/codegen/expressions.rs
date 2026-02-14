@@ -116,7 +116,15 @@ impl CodeGenerator {
             ExpressionKind::Assignment(target, op, value) => {
                 self.generate_assignment_expression(target, *op, value);
             }
-            ExpressionKind::Call(callee, args, _) => {
+            ExpressionKind::Call(callee, args, type_args) => {
+                // Check if this is an assertType intrinsic call
+                if let ExpressionKind::Identifier(name_id) = &callee.kind {
+                    let name = self.resolve(*name_id);
+                    if name == "assertType" {
+                        self.generate_assert_type_intrinsic(args, type_args);
+                        return;
+                    }
+                }
                 self.generate_call_expression(callee, args);
             }
             ExpressionKind::New(constructor, args, _type_args) => {
@@ -887,5 +895,323 @@ impl CodeGenerator {
             }
         }
         result
+    }
+
+    /// Generate code for assertType<T>(value) intrinsic
+    ///
+    /// Emits runtime type checking code that validates the value matches type T,
+    /// throwing an error with a descriptive message if the check fails.
+    ///
+    /// Phase 2: Implements primitive types (string, number, boolean, nil, table, integer)
+    /// Phase 3: Will add unions, optionals, classes, interfaces, literals
+    pub fn generate_assert_type_intrinsic(
+        &mut self,
+        args: &[luanext_parser::prelude::Argument],
+        type_args: &Option<&[luanext_parser::ast::types::Type]>,
+    ) {
+        // Validation should have been done in type checker
+        // Here we just generate the runtime check
+
+        if args.is_empty() || type_args.is_none() {
+            // Fallback: just emit the value if type checking failed
+            if !args.is_empty() {
+                self.generate_expression(&args[0].value);
+            } else {
+                self.write("nil");
+            }
+            return;
+        }
+
+        let type_arg = &type_args.unwrap()[0];
+        let value_expr = &args[0].value;
+
+        // Generate the runtime check wrapped in an IIFE that returns the value on success
+        self.write("(function() local __val = ");
+        self.generate_expression(value_expr);
+        self.write("; ");
+
+        // Generate type check based on the type argument
+        use luanext_parser::ast::types::TypeKind;
+        match &type_arg.kind {
+            TypeKind::Primitive(prim) => {
+                self.generate_primitive_type_check(prim);
+            }
+            TypeKind::Union(members) => {
+                // Phase 3: Union types
+                self.generate_union_type_check(members);
+            }
+            TypeKind::Nullable(inner) => {
+                // Phase 3: Optional types (T?)
+                self.generate_nullable_type_check(inner);
+            }
+            TypeKind::Literal(lit) => {
+                // Phase 3: Literal types
+                self.generate_literal_type_check(lit);
+            }
+            TypeKind::Reference(type_ref) => {
+                // Phase 3: Class/interface types
+                self.generate_reference_type_check(type_ref);
+            }
+            _ => {
+                // Unknown type - skip check and just return value
+                self.write("return __val end)()");
+                return;
+            }
+        }
+
+        self.write(" return __val end)()");
+    }
+
+    /// Generate runtime check for primitive types
+    fn generate_primitive_type_check(&mut self, prim: &luanext_parser::ast::types::PrimitiveType) {
+        use luanext_parser::ast::types::PrimitiveType;
+        let (expected_type, lua_type_check) = match prim {
+            PrimitiveType::String => ("string", "type(__val) ~= \"string\""),
+            PrimitiveType::Number => ("number", "type(__val) ~= \"number\""),
+            PrimitiveType::Boolean => ("boolean", "type(__val) ~= \"boolean\""),
+            PrimitiveType::Nil => ("nil", "__val ~= nil"),
+            PrimitiveType::Table => ("table", "type(__val) ~= \"table\""),
+            PrimitiveType::Integer => {
+                // Lua 5.3+: math.type(x) == "integer"
+                // Lua 5.1/5.2: type(x) == "number" and x % 1 == 0
+                // We'll emit both checks with a fallback
+                (
+                    "integer",
+                    "(type(__val) ~= \"number\" or (math.type and math.type(__val) ~= \"integer\" or not math.type and __val % 1 ~= 0))",
+                )
+            }
+            PrimitiveType::Unknown | PrimitiveType::Void | PrimitiveType::Never | PrimitiveType::Coroutine | PrimitiveType::Thread => {
+                // Skip check for unknown/void/never/coroutine/thread
+                return;
+            }
+        };
+
+        self.write("if ");
+        self.write(lua_type_check);
+        self.write(" then error(\"Type assertion failed: expected ");
+        self.write(expected_type);
+        self.write(", got \" .. type(__val)) end;");
+    }
+
+    /// Generate runtime check for union types
+    fn generate_union_type_check(&mut self, members: &[luanext_parser::ast::types::Type]) {
+        use luanext_parser::ast::types::{PrimitiveType, TypeKind};
+
+        // Build a list of type checks that will be OR'd together
+        // For union types like `string | number`, we need: type(__val) == "string" or type(__val) == "number"
+        let mut type_checks = Vec::new();
+        let mut type_names: Vec<String> = Vec::new();
+
+        for member in members {
+            match &member.kind {
+                TypeKind::Primitive(prim) => {
+                    let (type_name, check) = match prim {
+                        PrimitiveType::String => ("string", "type(__val) == \"string\""),
+                        PrimitiveType::Number => ("number", "type(__val) == \"number\""),
+                        PrimitiveType::Boolean => ("boolean", "type(__val) == \"boolean\""),
+                        PrimitiveType::Table => ("table", "type(__val) == \"table\""),
+                        PrimitiveType::Nil => ("nil", "__val == nil"),
+                        PrimitiveType::Integer => {
+                            type_names.push("integer".to_string());
+                            type_checks.push("(type(__val) == \"number\" and (math.type and math.type(__val) == \"integer\" or not math.type and __val % 1 == 0))".to_string());
+                            continue;
+                        }
+                        _ => continue, // Skip unknown/void/never/etc.
+                    };
+                    type_names.push(type_name.to_string());
+                    type_checks.push(check.to_string());
+                }
+                TypeKind::Literal(lit) => {
+                    // Handle literal types in unions
+                    use luanext_parser::ast::expression::Literal;
+                    match lit {
+                        Literal::Nil => {
+                            type_names.push("nil".to_string());
+                            type_checks.push("__val == nil".to_string());
+                        }
+                        Literal::Boolean(b) => {
+                            let bool_str = if *b { "true" } else { "false" };
+                            type_names.push(bool_str.to_string());
+                            type_checks.push(format!("__val == {}", bool_str));
+                        }
+                        Literal::String(s) => {
+                            type_names.push(format!("\"{}\"", s));
+                            type_checks.push(format!("__val == \"{}\"", s.replace('\"', "\\\"")));
+                        }
+                        Literal::Number(n) => {
+                            let num_str = n.to_string();
+                            type_names.push(num_str.clone());
+                            type_checks.push(format!("__val == {}", num_str));
+                        }
+                        Literal::Integer(i) => {
+                            let int_str = i.to_string();
+                            type_names.push(int_str.clone());
+                            type_checks.push(format!("__val == {}", int_str));
+                        }
+                    }
+                }
+                _ => {
+                    // For complex types (Reference, etc.), skip for now
+                    // TODO: Implement class/interface checks in unions
+                    continue;
+                }
+            }
+        }
+
+        if type_checks.is_empty() {
+            // No checkable types in union - skip check
+            return;
+        }
+
+        // Generate: if not (check1 or check2 or ...) then error(...) end
+        self.write("if not (");
+        for (i, check) in type_checks.iter().enumerate() {
+            if i > 0 {
+                self.write(" or ");
+            }
+            self.write(check);
+        }
+        self.write(") then error(\"Type assertion failed: expected ");
+        for (i, name) in type_names.iter().enumerate() {
+            if i > 0 {
+                self.write(" | ");
+            }
+            self.write(name);
+        }
+        self.write(", got \" .. type(__val)) end;");
+    }
+
+    /// Generate runtime check for nullable types (T?)
+    fn generate_nullable_type_check(&mut self, inner: &luanext_parser::ast::types::Type) {
+        use luanext_parser::ast::types::{PrimitiveType, TypeKind};
+
+        // For nullable types, we need: __val == nil or (inner_check passes)
+        // Example: string? → __val == nil or type(__val) == "string"
+
+        match &inner.kind {
+            TypeKind::Primitive(prim) => {
+                let (type_name, check) = match prim {
+                    PrimitiveType::String => ("string", "type(__val) == \"string\""),
+                    PrimitiveType::Number => ("number", "type(__val) == \"number\""),
+                    PrimitiveType::Boolean => ("boolean", "type(__val) == \"boolean\""),
+                    PrimitiveType::Table => ("table", "type(__val) == \"table\""),
+                    PrimitiveType::Integer => {
+                        self.write("if __val ~= nil and not (type(__val) == \"number\" and (math.type and math.type(__val) == \"integer\" or not math.type and __val % 1 == 0)) then error(\"Type assertion failed: expected integer?, got \" .. type(__val)) end;");
+                        return;
+                    }
+                    _ => {
+                        // For Unknown/Void/Never, skip check
+                        return;
+                    }
+                };
+
+                self.write("if __val ~= nil and ");
+                self.write(check);
+                self.write(" == false then error(\"Type assertion failed: expected ");
+                self.write(type_name);
+                self.write("?, got \" .. type(__val)) end;");
+            }
+            TypeKind::Literal(lit) => {
+                // For literal types that are nullable
+                use luanext_parser::ast::expression::Literal;
+                match lit {
+                    Literal::Nil => {
+                        // nil? is just nil, so check is always true
+                        return;
+                    }
+                    Literal::Boolean(b) => {
+                        let bool_str = if *b { "true" } else { "false" };
+                        self.write("if __val ~= nil and __val ~= ");
+                        self.write(bool_str);
+                        self.write(" then error(\"Type assertion failed: expected ");
+                        self.write(bool_str);
+                        self.write("?, got \" .. tostring(__val)) end;");
+                    }
+                    Literal::String(s) => {
+                        self.write("if __val ~= nil and __val ~= \"");
+                        self.write(&s.replace('\"', "\\\""));
+                        self.write("\" then error(\"Type assertion failed: expected \\\"");
+                        self.write(&s.replace('\"', "\\\""));
+                        self.write("\\\"?, got \" .. tostring(__val)) end;");
+                    }
+                    Literal::Number(n) => {
+                        let num_str = n.to_string();
+                        self.write("if __val ~= nil and __val ~= ");
+                        self.write(&num_str);
+                        self.write(" then error(\"Type assertion failed: expected ");
+                        self.write(&num_str);
+                        self.write("?, got \" .. tostring(__val)) end;");
+                    }
+                    Literal::Integer(i) => {
+                        let int_str = i.to_string();
+                        self.write("if __val ~= nil and __val ~= ");
+                        self.write(&int_str);
+                        self.write(" then error(\"Type assertion failed: expected ");
+                        self.write(&int_str);
+                        self.write("?, got \" .. tostring(__val)) end;");
+                    }
+                }
+            }
+            _ => {
+                // For complex types (Reference, Union, etc.), we don't support yet
+                // Just skip the check
+            }
+        }
+    }
+
+    /// Generate runtime check for literal types
+    fn generate_literal_type_check(&mut self, lit: &luanext_parser::ast::expression::Literal) {
+        use luanext_parser::ast::expression::Literal;
+        match lit {
+            Literal::Nil => {
+                // For nil literal type, check if value is NOT nil
+                self.write("if __val ~= nil then error(\"Type assertion failed: expected nil, got \" .. type(__val)) end;");
+            }
+            Literal::Boolean(b) => {
+                // For boolean literal type, check exact value
+                let bool_str = if *b { "true" } else { "false" };
+                self.write("if __val ~= ");
+                self.write(bool_str);
+                self.write(" then error(\"Type assertion failed: expected ");
+                self.write(bool_str);
+                self.write(", got \" .. tostring(__val)) end;");
+            }
+            Literal::String(_s) => {
+                // For string literal type, check exact value
+                self.write("if __val ~= ");
+                self.generate_literal(lit);
+                self.write(" then error(\"Type assertion failed: expected ");
+                // Escape the string for error message
+                self.generate_literal(lit);
+                self.write(", got \" .. tostring(__val)) end;");
+            }
+            Literal::Number(n) => {
+                // For number literal type, check exact value
+                let num_str = n.to_string();
+                self.write("if __val ~= ");
+                self.write(&num_str);
+                self.write(" then error(\"Type assertion failed: expected ");
+                self.write(&num_str);
+                self.write(", got \" .. tostring(__val)) end;");
+            }
+            Literal::Integer(i) => {
+                // For integer literal type, check exact value
+                let int_str = i.to_string();
+                self.write("if __val ~= ");
+                self.write(&int_str);
+                self.write(" then error(\"Type assertion failed: expected ");
+                self.write(&int_str);
+                self.write(", got \" .. tostring(__val)) end;");
+            }
+        }
+    }
+
+    /// Generate runtime check for reference types (classes/interfaces) (Phase 3)
+    fn generate_reference_type_check(
+        &mut self,
+        _type_ref: &luanext_parser::ast::types::TypeReference,
+    ) {
+        // Placeholder for Phase 3
+        // Will emit metatable/constructor checks for classes
     }
 }
