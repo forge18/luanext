@@ -15,7 +15,8 @@
 - ✅ Semantic token caching: `VersionedCache<SemanticTokens>` with incremental updates
 - ✅ Type-check result caching: `VersionedCache<TypeCheckResult>` shared across hover/completion/diagnostics
 - ✅ Diagnostics deduplication: `last_published_diagnostics` skips identical notifications
-- ❌ No caching for: cross-file module exports, symbol index incremental updates
+- ✅ Cross-file module exports cache with dependency graph cascade invalidation
+- ✅ Symbol index incremental updates via snapshot diffing
 
 **Benefits:**
 
@@ -121,26 +122,30 @@
   - [x] 3 previously-crashing cross-file completion tests now pass
   - Files: `crates/luanext-lsp/src/core/document.rs`
 
-#### Phase 5: Cross-File Caching (Week 3)
+#### Phase 5: Cross-File Caching (Week 3) ✅ COMPLETE (2026-02-14)
 
-- [ ] **Module Type Exports Cache**
-  - [ ] Current: Module exports re-resolved on every cross-file query
-  - [ ] Add `ModuleExportsCache: HashMap<ModuleId, (Arc<ModuleExports>, FileHash)>`
-  - [ ] Store in `DocumentManager` (shared across documents)
-  - [ ] Cache key: Module path + file modification time
-  - [ ] Invalidate when dependency file changes (watch `didChange` for imported files)
-  - [ ] Implement cascade invalidation: if `a.lua` imports `b.lua` and `b.lua` changes → invalidate `a.lua` caches
-  - [ ] Expected benefit: Multi-file hover/completion becomes practical (currently too slow)
-  - Files: `crates/luanext-lsp/src/core/document.rs` (DocumentManager)
+- [x] **Module Type Exports Cache**
+  - [x] Added `ModuleExportsEntry` struct with `symbols: HashMap<String, CachedSymbolInfo>`, `version`, `content_hash`
+  - [x] Added `ModuleDependencyGraph` with forward (`dependencies`) and reverse (`dependents`) edge tracking
+  - [x] `get_transitive_dependents()` BFS with visited set for cycle-safe cascade invalidation
+  - [x] Added `module_exports_cache: HashMap<String, ModuleExportsEntry>` to `DocumentManager`
+  - [x] `get_module_exports()` checks cache validity by version; `ensure_module_exports_cached()` lazy-computes via `ensure_type_checked()`
+  - [x] `extract_dependencies()` scans AST Import/Export statements to build dependency edges
+  - [x] Cascade invalidation in `change()`: when exports change, invalidates all transitive dependents' `module_exports_cache` + `type_check_result`
+  - [x] Cascade cleanup in `close()`: removes module from caches, invalidates dependents, clears dependency graph
+  - [x] `content_hash()` utility using `std::hash::DefaultHasher` (no new dependencies)
+  - **Result**: 8 new unit tests (dependency graph, module exports, content hash), all tests passing, zero clippy warnings
+  - Files: `crates/luanext-lsp/src/core/cache.rs`, `crates/luanext-lsp/src/core/document.rs`
 
-- [ ] **Symbol Index Incremental Updates**
-  - [ ] Current: `SymbolIndex::update_document()` rebuilds entire index on every change
-  - [ ] Implement incremental update:
-    - Track which symbols changed (added/removed/modified)
-    - Update only affected index entries
-    - Keep unchanged symbol entries
-  - [ ] Requires statement-level dirty tracking (synergy with incremental parsing)
-  - [ ] Expected speedup: Index update from O(n) to O(changed statements)
+- [x] **Symbol Index Incremental Updates**
+  - [x] Added `DocumentSymbolSnapshot` with hashed fingerprints for exports, imports, and workspace symbols
+  - [x] Replaced `index_exports()`, `index_imports()`, `index_workspace_symbols()` with `_to` variants that write to external collections
+  - [x] Rewrote `update_document()` with snapshot + diff: build temp collections → hash into snapshot → compare with old → apply only changed categories
+  - [x] `update_document()` now returns `bool` (`exports_changed`) used by `DocumentManager` for cascade invalidation
+  - [x] `clear_document()` also removes document snapshot
+  - [x] Hashing helpers: `hash_export_info()`, `hash_import_infos()`, `hash_workspace_symbols()` using `DefaultHasher`
+  - [x] Expected speedup: Index update from O(n) to O(changed categories) — unchanged exports/imports/workspace symbols are not re-inserted
+  - **Result**: 5 new unit tests (no-change, export added, export removed, body-only change, snapshot cleanup), all tests passing
   - Files: `crates/luanext-lsp/src/core/analysis/symbol_index.rs`
 
 #### Phase 6: Testing & Optimization (Week 3)
