@@ -11,7 +11,7 @@
 
 - [x] Improve type mismatch error messages with suggestions (Infrastructure complete: type_suggestions.rs, type_formatter.rs)
 - [x] Add "did you mean?" suggestions for typos (Implemented for undefined variables with fuzzy matching)
-- [ ] Better error recovery in parser (ParserError::new() constructor added; next: add suggestion field to ParserError, contextual hints in consume() for missing end/then/do/)/]/})
+- [x] Better error recovery in parser (ParserError with suggestion field, contextual hints in consume() for missing end/then/do/)/]/}, suggestions threaded through diagnostics)
 
 ### Incremental Parsing
 
