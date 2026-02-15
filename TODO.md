@@ -4,22 +4,56 @@
 
 ### Optimizer O2/O3 Passes
 
-- [ ] Implement remaining O2 passes (function inlining, loop optimization, etc.)
-- [ ] Implement O3 passes (aggressive inlining, devirtualization, etc.)
+#### Missing O2 Passes (Moderate Optimizations)
 
-### Error Messages
+- [ ] Jump threading - optimize conditional branches with known values
+- [ ] Common subexpression elimination (CSE) - eliminate duplicate computations
+- [ ] Copy propagation - replace variable uses with their values
+- [ ] Peephole optimization - small local code improvements
+- [ ] Branch prediction hints - annotate likely/unlikely branches for Lua VM
+- [ ] Sparse conditional constant propagation (SCCP) - combine constant folding with dead code elimination
 
-- [x] Improve type mismatch error messages with suggestions (Infrastructure complete: type_suggestions.rs, type_formatter.rs)
-- [x] Add "did you mean?" suggestions for typos (Implemented for undefined variables with fuzzy matching)
-- [x] Better error recovery in parser (ParserError with suggestion field, contextual hints in consume() for missing end/then/do/)/]/}, suggestions threaded through diagnostics)
+#### Missing O3 Passes (Aggressive Optimizations)
 
-### Incremental Parsing
+- [ ] Loop unrolling - duplicate loop bodies for small iteration counts
+- [ ] Loop fusion - merge adjacent loops with same iteration space
+- [ ] Loop fission/distribution - split loops to improve cache locality
+- [ ] Function cloning for specialization - duplicate functions for different call contexts
+- [ ] Escape analysis - stack-allocate tables that don't escape
+- [ ] Interprocedural constant propagation - propagate constants across function boundaries
+- [ ] Scalar replacement of aggregates - replace table accesses with local variables
 
-- [x] Dirty region detection (`DirtyRegionSet`, `is_statement_clean`) with proper zero-length insertion handling
-- [x] `parse_incremental()` with dirty region support: cumulative byte delta adjustment, region-scoped lexing/parsing, clean statement reuse with adjusted byte ranges
-- [x] Multi-arena consolidation with GC (max 3 arenas, periodic consolidation every 10 parses)
-- [x] Integration tests: 10 realistic edit scenarios (typing, deletion, paste, comment/uncomment, undo/redo, format)
-- [ ] LSP integration: wire incremental parsing into document sync handler
+#### Advanced Infrastructure (Required for Some O2/O3 Passes)
+
+- [ ] Control Flow Graph (CFG) construction
+  - Required for: jump threading, SCCP, advanced dead code elimination
+  - Implementation: Build basic blocks and edges from AST
+
+- [ ] Dominance analysis
+  - Required for: advanced loop optimizations, SSA construction
+  - Implementation: Compute dominator tree from CFG
+
+- [ ] Static Single Assignment (SSA) form
+  - Required for: aggressive constant propagation, copy propagation, CSE
+  - Implementation: Insert φ-functions at join points
+
+- [ ] Alias analysis
+  - Required for: escape analysis, scalar replacement
+  - Implementation: Track which expressions may alias same memory
+
+- [ ] Side-effect analysis
+  - Required for: function cloning, interprocedural optimizations
+  - Implementation: Track which functions have observable side effects
+
+#### Performance/Profiling Guided Optimizations
+
+- [ ] Profile-Guided Optimization (PGO)
+  - Collect runtime profiling data
+  - Use hot path information to guide inlining/specialization decisions
+
+- [ ] Link-Time Optimization (LTO)
+  - Cross-module optimizations using cached type information
+  - Already have infrastructure via `CacheManager` and `ModuleRegistry`
 
 ### Testing/Benchmarking Lua
 

@@ -5,6 +5,8 @@
 //! immutable `&'arena` references, so passes use a clone-and-rebuild pattern:
 //! clone sub-expressions to owned values, mutate, then allocate back into the arena.
 
+pub mod analysis;
+
 use crate::config::OptimizationLevel;
 use crate::diagnostics::DiagnosticHandler;
 use crate::MutableProgram;
@@ -1045,6 +1047,9 @@ pub struct Optimizer<'arena> {
 
     // Whole-program analysis results (for O3+ cross-module optimizations)
     whole_program_analysis: Option<WholeProgramAnalysis>,
+
+    // Advanced analysis infrastructure (CFG, dominance, SSA, alias, side-effects)
+    analysis_context: Option<analysis::AnalysisContext>,
 }
 
 impl<'arena> Optimizer<'arena> {
@@ -1064,6 +1069,7 @@ impl<'arena> Optimizer<'arena> {
             data_pass: None,
             standalone_passes: Vec::new(),
             whole_program_analysis: None,
+            analysis_context: None,
         };
 
         optimizer.register_passes();
@@ -1174,6 +1180,11 @@ impl<'arena> Optimizer<'arena> {
         count
     }
 
+    /// Returns a reference to the computed analysis context, if available.
+    pub fn analysis_context(&self) -> Option<&analysis::AnalysisContext> {
+        self.analysis_context.as_ref()
+    }
+
     /// Returns the names of all registered passes
     pub fn pass_names(&self) -> Vec<&'static str> {
         let mut names = Vec::new();
@@ -1259,6 +1270,17 @@ impl<'arena> Optimizer<'arena> {
 
         let features = AstFeatureDetector::detect(program);
         debug!("Detected AST features: {:?}", features);
+
+        // Compute advanced analysis infrastructure (CFG, dominance, SSA, alias, side-effects)
+        if effective_level >= OptimizationLevel::Moderate {
+            let mut ctx = analysis::AnalysisContext::new();
+            if let Err(e) = ctx.compute(program, self.interner.clone()) {
+                debug!("Analysis context computation failed: {}", e);
+            } else {
+                debug!("Analysis context computed successfully");
+                self.analysis_context = Some(ctx);
+            }
+        }
 
         let mut iteration = 0;
         let max_iterations = 10;

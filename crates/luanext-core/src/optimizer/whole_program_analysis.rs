@@ -18,6 +18,8 @@ use std::sync::Arc;
 pub struct WholeProgramAnalysis {
     /// Class hierarchy for devirtualization
     pub class_hierarchy: Arc<ClassHierarchy>,
+    /// Cross-module side-effect information (populated when analysis infrastructure is enabled)
+    pub side_effects: Option<Arc<super::analysis::SideEffectInfo>>,
 }
 
 impl WholeProgramAnalysis {
@@ -39,6 +41,7 @@ impl WholeProgramAnalysis {
 
         Self {
             class_hierarchy: Arc::new(class_hierarchy),
+            side_effects: None,
         }
     }
 }
