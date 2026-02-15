@@ -249,13 +249,10 @@ impl SideEffectAnalyzer {
 
         // First pass: collect function names and analyze each function body
         for stmt in statements {
-            match stmt {
-                Statement::Function(func) => {
-                    self.function_names.push(func.name.node);
-                    let effects = self.analyze_block(&func.body);
-                    function_effects.insert(func.name.node, effects);
-                }
-                _ => {}
+            if let Statement::Function(func) = stmt {
+                self.function_names.push(func.name.node);
+                let effects = self.analyze_block(&func.body);
+                function_effects.insert(func.name.node, effects);
             }
         }
 
@@ -510,9 +507,15 @@ impl SideEffectAnalyzer {
             ExpressionKind::Object(properties) => {
                 for prop in properties.iter() {
                     match prop {
-                        luanext_parser::ast::expression::ObjectProperty::Property { value, .. }
-                        | luanext_parser::ast::expression::ObjectProperty::Computed { value, .. }
-                        | luanext_parser::ast::expression::ObjectProperty::Spread { value, .. } => {
+                        luanext_parser::ast::expression::ObjectProperty::Property {
+                            value, ..
+                        }
+                        | luanext_parser::ast::expression::ObjectProperty::Computed {
+                            value, ..
+                        }
+                        | luanext_parser::ast::expression::ObjectProperty::Spread {
+                            value, ..
+                        } => {
                             effects.merge(&self.analyze_expression(value));
                         }
                     }

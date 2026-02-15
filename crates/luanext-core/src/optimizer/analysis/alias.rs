@@ -292,7 +292,10 @@ impl AliasAnalyzer {
                     }
                 }
             }
-            Pattern::Wildcard(_) | Pattern::Literal(_, _) | Pattern::Or(_) | Pattern::Template(_) => {}
+            Pattern::Wildcard(_)
+            | Pattern::Literal(_, _)
+            | Pattern::Or(_)
+            | Pattern::Template(_) => {}
         }
     }
 
@@ -418,10 +421,7 @@ impl AliasAnalyzer {
     }
 
     /// Check if an expression produces a table value.
-    fn is_table_expression(
-        &self,
-        expr: &luanext_parser::ast::expression::Expression<'_>,
-    ) -> bool {
+    fn is_table_expression(&self, expr: &luanext_parser::ast::expression::Expression<'_>) -> bool {
         matches!(
             &expr.kind,
             ExpressionKind::Object(_) | ExpressionKind::Array(_) | ExpressionKind::New(_, _, _)
@@ -442,11 +442,7 @@ impl AliasAnalyzer {
         names
     }
 
-    fn collect_pattern_names(
-        &self,
-        pattern: &Pattern<'_>,
-        names: &mut Vec<StringId>,
-    ) {
+    fn collect_pattern_names(&self, pattern: &Pattern<'_>, names: &mut Vec<StringId>) {
         match pattern {
             Pattern::Identifier(ident) => names.push(ident.node),
             Pattern::Array(arr_pat) => {
@@ -465,15 +461,15 @@ impl AliasAnalyzer {
                     }
                 }
             }
-            Pattern::Wildcard(_) | Pattern::Literal(_, _) | Pattern::Or(_) | Pattern::Template(_) => {}
+            Pattern::Wildcard(_)
+            | Pattern::Literal(_, _)
+            | Pattern::Or(_)
+            | Pattern::Template(_) => {}
         }
     }
 
     /// Check if an expression causes variables to escape (passed to unknown calls).
-    fn check_expression_escapes(
-        &mut self,
-        expr: &luanext_parser::ast::expression::Expression<'_>,
-    ) {
+    fn check_expression_escapes(&mut self, expr: &luanext_parser::ast::expression::Expression<'_>) {
         match &expr.kind {
             ExpressionKind::Call(_, args, _)
             | ExpressionKind::MethodCall(_, _, args, _)
@@ -653,10 +649,7 @@ mod tests {
         let x_id = interner.get_or_intern("x");
         let y_id = interner.get_or_intern("y");
 
-        let result = info.query(
-            &MemoryLocation::Local(x_id),
-            &MemoryLocation::Local(y_id),
-        );
+        let result = info.query(&MemoryLocation::Local(x_id), &MemoryLocation::Local(y_id));
         assert_eq!(
             result,
             AliasResult::NoAlias,
@@ -703,10 +696,7 @@ mod tests {
         let a_id = interner.get_or_intern("a");
         let b_id = interner.get_or_intern("b");
 
-        let result = info.query(
-            &MemoryLocation::Local(a_id),
-            &MemoryLocation::Local(b_id),
-        );
+        let result = info.query(&MemoryLocation::Local(a_id), &MemoryLocation::Local(b_id));
         assert_eq!(
             result,
             AliasResult::MayAlias,
@@ -784,10 +774,7 @@ mod tests {
         let analyzer = AliasAnalyzer::new();
         let info = analyzer.analyze(&stmts);
 
-        let result = info.query(
-            &MemoryLocation::Global(g_id),
-            &MemoryLocation::Local(x_id),
-        );
+        let result = info.query(&MemoryLocation::Global(g_id), &MemoryLocation::Local(x_id));
         assert_eq!(
             result,
             AliasResult::MayAlias,
@@ -804,10 +791,7 @@ mod tests {
         let analyzer = AliasAnalyzer::new();
         let info = analyzer.analyze(&stmts);
 
-        let result = info.query(
-            &MemoryLocation::Local(x_id),
-            &MemoryLocation::Local(x_id),
-        );
+        let result = info.query(&MemoryLocation::Local(x_id), &MemoryLocation::Local(x_id));
         assert_eq!(
             result,
             AliasResult::MustAlias,
@@ -879,9 +863,6 @@ mod tests {
         let analyzer = AliasAnalyzer::new();
         let info = analyzer.analyze(&stmts);
 
-        assert!(
-            info.has_escaped(t_id),
-            "t should escape when returned"
-        );
+        assert!(info.has_escaped(t_id), "t should escape when returned");
     }
 }

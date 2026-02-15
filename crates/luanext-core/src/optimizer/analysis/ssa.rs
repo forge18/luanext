@@ -158,11 +158,7 @@ impl<'a> SsaBuilder<'a> {
     }
 
     /// Step 1: Collect which variables are defined in each block.
-    fn collect_definitions(
-        &mut self,
-        cfg: &ControlFlowGraph,
-        statements: &[Statement<'_>],
-    ) {
+    fn collect_definitions(&mut self, cfg: &ControlFlowGraph, statements: &[Statement<'_>]) {
         for block in &cfg.blocks {
             let mut block_defs = FxHashSet::default();
             for &stmt_idx in &block.statement_indices {
@@ -177,11 +173,7 @@ impl<'a> SsaBuilder<'a> {
     }
 
     /// Collect variable names defined by a statement.
-    fn collect_stmt_defs(
-        &mut self,
-        stmt: &Statement<'_>,
-        block_defs: &mut FxHashSet<StringId>,
-    ) {
+    fn collect_stmt_defs(&mut self, stmt: &Statement<'_>, block_defs: &mut FxHashSet<StringId>) {
         match stmt {
             Statement::Variable(decl) => {
                 self.collect_pattern_names(&decl.pattern, block_defs);
@@ -245,16 +237,15 @@ impl<'a> SsaBuilder<'a> {
                     }
                 }
             }
-            Pattern::Wildcard(_) | Pattern::Literal(_, _) | Pattern::Or(_) | Pattern::Template(_) => {}
+            Pattern::Wildcard(_)
+            | Pattern::Literal(_, _)
+            | Pattern::Or(_)
+            | Pattern::Template(_) => {}
         }
     }
 
     /// Step 2: Place phi-functions using dominance frontiers.
-    fn place_phi_functions(
-        &mut self,
-        cfg: &ControlFlowGraph,
-        dom_tree: &DominatorTree,
-    ) {
+    fn place_phi_functions(&mut self, cfg: &ControlFlowGraph, dom_tree: &DominatorTree) {
         // For each variable, place phis at the dominance frontier of blocks that define it
         for var in self.all_vars.clone() {
             // Worklist: blocks where this variable is defined
@@ -392,13 +383,8 @@ impl<'a> SsaBuilder<'a> {
         // Record reaching definitions at end of this block
         for &var in &self.all_vars {
             let version = self.current_version(var);
-            self.reaching_defs.insert(
-                (block, var),
-                SsaVar {
-                    name: var,
-                    version,
-                },
-            );
+            self.reaching_defs
+                .insert((block, var), SsaVar { name: var, version });
         }
 
         // Fill in phi-function operands in successor blocks
@@ -427,11 +413,7 @@ impl<'a> SsaBuilder<'a> {
         }
 
         // Recurse into dominator tree children
-        let children: Vec<BlockId> = dom_tree
-            .children
-            .get(&block)
-            .cloned()
-            .unwrap_or_default();
+        let children: Vec<BlockId> = dom_tree.children.get(&block).cloned().unwrap_or_default();
         for child in children {
             self.rename_block(child, cfg, dom_tree, statements);
         }
@@ -570,11 +552,7 @@ impl<'a> SsaBuilder<'a> {
         defs
     }
 
-    fn collect_pattern_name_list(
-        &self,
-        pattern: &Pattern<'_>,
-        names: &mut Vec<StringId>,
-    ) {
+    fn collect_pattern_name_list(&self, pattern: &Pattern<'_>, names: &mut Vec<StringId>) {
         match pattern {
             Pattern::Identifier(ident) => {
                 names.push(ident.node);
@@ -595,7 +573,10 @@ impl<'a> SsaBuilder<'a> {
                     }
                 }
             }
-            Pattern::Wildcard(_) | Pattern::Literal(_, _) | Pattern::Or(_) | Pattern::Template(_) => {}
+            Pattern::Wildcard(_)
+            | Pattern::Literal(_, _)
+            | Pattern::Or(_)
+            | Pattern::Template(_) => {}
         }
     }
 
@@ -616,7 +597,7 @@ mod tests {
     use super::*;
     use crate::optimizer::analysis::cfg::CfgBuilder;
     use crate::optimizer::analysis::dominance::DominatorTree;
-    use luanext_parser::ast::expression::{AssignmentOp, Expression, ExpressionKind, Literal};
+    use luanext_parser::ast::expression::{Expression, ExpressionKind, Literal};
     use luanext_parser::ast::statement::{
         Block, IfStatement, Statement, VariableDeclaration, VariableKind, WhileStatement,
     };
@@ -671,10 +652,7 @@ mod tests {
         // local x = nil; local y = nil
         // Linear code — no phi-functions needed
         let interner = StringInterner::new();
-        let stmts = vec![
-            make_var_decl(&interner, "x"),
-            make_var_decl(&interner, "y"),
-        ];
+        let stmts = vec![make_var_decl(&interner, "x"), make_var_decl(&interner, "y")];
 
         let cfg = CfgBuilder::build(&stmts);
         let dom_tree = DominatorTree::build(&cfg);
@@ -682,10 +660,7 @@ mod tests {
 
         // No phi-functions in linear code
         for (_, phis) in &ssa.phi_functions {
-            assert!(
-                phis.is_empty(),
-                "Linear code should have no phi-functions"
-            );
+            assert!(phis.is_empty(), "Linear code should have no phi-functions");
         }
 
         // Both x and y should be tracked
@@ -755,10 +730,7 @@ mod tests {
         // local x = nil (redefinition)
         // Each definition should get a unique version
         let interner = StringInterner::new();
-        let stmts = vec![
-            make_var_decl(&interner, "x"),
-            make_var_decl(&interner, "x"),
-        ];
+        let stmts = vec![make_var_decl(&interner, "x"), make_var_decl(&interner, "x")];
 
         let cfg = CfgBuilder::build(&stmts);
         let dom_tree = DominatorTree::build(&cfg);
@@ -781,8 +753,7 @@ mod tests {
         let interner = StringInterner::new();
         let arena = bumpalo::Bump::new();
 
-        let inner_stmts =
-            arena.alloc_slice_clone(&[make_var_decl(&interner, "y")]);
+        let inner_stmts = arena.alloc_slice_clone(&[make_var_decl(&interner, "y")]);
         let loop_body = Block {
             statements: inner_stmts,
             span: Span::new(20, 40, 2, 5),
@@ -826,10 +797,7 @@ mod tests {
         // local x = nil; local y = nil
         // Both variables should be independently versioned
         let interner = StringInterner::new();
-        let stmts = vec![
-            make_var_decl(&interner, "x"),
-            make_var_decl(&interner, "y"),
-        ];
+        let stmts = vec![make_var_decl(&interner, "x"), make_var_decl(&interner, "y")];
 
         let cfg = CfgBuilder::build(&stmts);
         let dom_tree = DominatorTree::build(&cfg);
@@ -883,8 +851,7 @@ mod tests {
         let interner = StringInterner::new();
         let arena = bumpalo::Bump::new();
 
-        let inner_stmts =
-            arena.alloc_slice_clone(&[make_var_decl(&interner, "x")]);
+        let inner_stmts = arena.alloc_slice_clone(&[make_var_decl(&interner, "x")]);
         let then_block = Block {
             statements: inner_stmts,
             span: Span::new(15, 30, 2, 1),

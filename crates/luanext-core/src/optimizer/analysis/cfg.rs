@@ -129,12 +129,7 @@ impl ControlFlowGraph {
         postorder
     }
 
-    fn dfs_postorder(
-        &self,
-        block: BlockId,
-        visited: &mut Vec<bool>,
-        postorder: &mut Vec<BlockId>,
-    ) {
+    fn dfs_postorder(&self, block: BlockId, visited: &mut Vec<bool>, postorder: &mut Vec<BlockId>) {
         let idx = block.0 as usize;
         if idx >= visited.len() || visited[idx] {
             return;
@@ -735,11 +730,7 @@ impl CfgBuilder {
     }
 
     /// Process a nested control-flow statement (inside a sub-block).
-    fn process_nested_statement(
-        &mut self,
-        stmt: &Statement<'_>,
-        current: BlockId,
-    ) -> BlockId {
+    fn process_nested_statement(&mut self, stmt: &Statement<'_>, current: BlockId) -> BlockId {
         match stmt {
             Statement::If(if_stmt) => {
                 let join_block = self.new_block();
@@ -1004,10 +995,7 @@ impl CfgBuilder {
                 }
             }
             // Also detect from Branch with self-referencing (repeat...until)
-            if let Terminator::Branch {
-                false_target, ..
-            } = &block.terminator
-            {
+            if let Terminator::Branch { false_target, .. } = &block.terminator {
                 if *false_target == block.id && !loop_headers.contains(&block.id) {
                     loop_headers.push(block.id);
                 }
@@ -1143,10 +1131,7 @@ mod tests {
         }
     }
 
-    fn make_var_decl<'a>(
-        interner: &StringInterner,
-        name: &str,
-    ) -> Statement<'a> {
+    fn make_var_decl<'a>(interner: &StringInterner, name: &str) -> Statement<'a> {
         Statement::Variable(VariableDeclaration {
             kind: VariableKind::Local,
             pattern: luanext_parser::ast::pattern::Pattern::Identifier(make_ident(interner, name)),
@@ -1183,10 +1168,7 @@ mod tests {
         ));
         // All 3 statements should be in the same block
         let code_block_id = BlockId(2);
-        assert_eq!(
-            cfg.block(code_block_id).unwrap().statement_indices.len(),
-            3
-        );
+        assert_eq!(cfg.block(code_block_id).unwrap().statement_indices.len(), 3);
         // Code block falls through to EXIT
         assert!(matches!(
             cfg.block(code_block_id).unwrap().terminator,
@@ -1307,15 +1289,15 @@ mod tests {
     #[test]
     fn test_for_generic() {
         let arena = bumpalo::Bump::new();
-        let stmts = vec![Statement::For(
-            arena.alloc(ForStatement::Generic(ForGeneric {
+        let stmts = vec![Statement::For(arena.alloc(ForStatement::Generic(
+            ForGeneric {
                 variables: &[],
                 pattern: None,
                 iterators: &[],
                 body: empty_block(),
                 span: Span::new(0, 30, 1, 1),
-            })),
-        )];
+            },
+        )))];
 
         let cfg = CfgBuilder::build(&stmts);
 
@@ -1386,15 +1368,13 @@ mod tests {
 
     #[test]
     fn test_reverse_postorder() {
-        let stmts = vec![
-            Statement::If(IfStatement {
-                condition: make_expr_literal_true(),
-                then_block: empty_block(),
-                else_ifs: &[],
-                else_block: Some(empty_block()),
-                span: Span::new(0, 50, 1, 1),
-            }),
-        ];
+        let stmts = vec![Statement::If(IfStatement {
+            condition: make_expr_literal_true(),
+            then_block: empty_block(),
+            else_ifs: &[],
+            else_block: Some(empty_block()),
+            span: Span::new(0, 50, 1, 1),
+        })];
 
         let cfg = CfgBuilder::build(&stmts);
         let rpo = cfg.reverse_postorder();
