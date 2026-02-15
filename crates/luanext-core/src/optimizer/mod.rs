@@ -1097,6 +1097,12 @@ impl<'arena> Optimizer<'arena> {
             let mut expr_pass = ExpressionCompositePass::new("expression-transforms");
             expr_pass.add_visitor(Box::new(ConstantFoldingPass::new()));
             expr_pass.add_visitor(Box::new(AlgebraicSimplificationPass::new()));
+
+            // O2 addition: Peephole optimizations
+            if level >= OptimizationLevel::Moderate {
+                expr_pass.add_visitor(Box::new(PeepholeOptimizationPass::new()));
+            }
+
             self.expr_pass = Some(expr_pass);
         }
 

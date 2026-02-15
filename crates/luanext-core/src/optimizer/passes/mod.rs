@@ -33,3 +33,6 @@ pub use generic_specialization::GenericSpecializationPass;
 
 mod copy_propagation;
 pub use copy_propagation::CopyPropagationPass;
+
+mod peephole_optimization;
+pub use peephole_optimization::PeepholeOptimizationPass;
