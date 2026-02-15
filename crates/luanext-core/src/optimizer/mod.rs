@@ -1110,7 +1110,9 @@ impl<'arena> Optimizer<'arena> {
         // O2 passes - Elimination and data structure transforms
         if level >= OptimizationLevel::Moderate {
             // Dead store elimination (block-level: reverse liveness analysis)
+            // Copy propagation (block-level: SSA-based value propagation)
             if let Some(ref mut elim_pass) = self.elim_pass {
+                elim_pass.add_block_visitor(Box::new(CopyPropagationPass::new()));
                 elim_pass.add_block_visitor(Box::new(DeadStoreEliminationPass::new()));
             }
 

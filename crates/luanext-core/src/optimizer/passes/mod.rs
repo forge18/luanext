@@ -30,3 +30,6 @@ pub use tail_call_optimization::TailCallOptimizationPass;
 
 mod generic_specialization;
 pub use generic_specialization::GenericSpecializationPass;
+
+mod copy_propagation;
+pub use copy_propagation::CopyPropagationPass;
