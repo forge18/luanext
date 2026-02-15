@@ -36,3 +36,12 @@ pub use copy_propagation::CopyPropagationPass;
 
 mod peephole_optimization;
 pub use peephole_optimization::PeepholeOptimizationPass;
+
+mod common_subexpression_elimination;
+pub use common_subexpression_elimination::CommonSubexpressionEliminationPass;
+
+mod jump_threading;
+pub use jump_threading::JumpThreadingPass;
+
+mod sccp;
+pub use sccp::SccpPass;

@@ -29,9 +29,7 @@
 
 use crate::optimizer::ExprVisitor;
 use bumpalo::Bump;
-use luanext_parser::ast::expression::{
-    BinaryOp, Expression, ExpressionKind, Literal, UnaryOp,
-};
+use luanext_parser::ast::expression::{BinaryOp, Expression, ExpressionKind, Literal, UnaryOp};
 
 /// Peephole optimization pass.
 ///
@@ -48,9 +46,7 @@ impl PeepholeOptimizationPass {
         match (&left.kind, &right.kind) {
             (ExpressionKind::Identifier(a), ExpressionKind::Identifier(b)) => a == b,
             (ExpressionKind::Literal(a), ExpressionKind::Literal(b)) => match (a, b) {
-                (Literal::Number(n1), Literal::Number(n2)) => {
-                    (n1 - n2).abs() < f64::EPSILON
-                }
+                (Literal::Number(n1), Literal::Number(n2)) => (n1 - n2).abs() < f64::EPSILON,
                 (Literal::String(s1), Literal::String(s2)) => s1 == s2,
                 (Literal::Boolean(b1), Literal::Boolean(b2)) => b1 == b2,
                 (Literal::Nil, Literal::Nil) => true,
@@ -66,7 +62,7 @@ impl PeepholeOptimizationPass {
         op: BinaryOp,
         left: &Expression<'arena>,
         right: &Expression<'arena>,
-        arena: &'arena Bump,
+        _arena: &'arena Bump,
     ) -> Option<Expression<'arena>> {
         match (&left.kind, op, &right.kind) {
             // x + 0 → x
@@ -180,13 +176,9 @@ impl PeepholeOptimizationPass {
                 })
             }
             // x or x → x (idempotent)
-            (_, BinaryOp::Or, _) if Self::exprs_equivalent(left, right) => {
-                Some(left.clone())
-            }
+            (_, BinaryOp::Or, _) if Self::exprs_equivalent(left, right) => Some(left.clone()),
             // x and x → x (idempotent)
-            (_, BinaryOp::And, _) if Self::exprs_equivalent(left, right) => {
-                Some(left.clone())
-            }
+            (_, BinaryOp::And, _) if Self::exprs_equivalent(left, right) => Some(left.clone()),
             // "" .. x → x (empty string concatenation)
             (ExpressionKind::Literal(Literal::String(s)), BinaryOp::Concatenate, _)
                 if s.is_empty() =>
@@ -216,9 +208,10 @@ impl<'arena> ExprVisitor<'arena> for PeepholeOptimizationPass {
                     if old_type.is_some() {
                         expr.annotated_type = old_type;
                     }
-                    return true;
+                    true
+                } else {
+                    false
                 }
-                false
             }
             // Binary operation optimizations
             ExpressionKind::Binary(op, left, right) => {
@@ -229,34 +222,33 @@ impl<'arena> ExprVisitor<'arena> for PeepholeOptimizationPass {
                     if old_type.is_some() {
                         expr.annotated_type = old_type;
                     }
-                    return true;
+                    true
+                } else {
+                    false
                 }
-                false
             }
             // Conditional with constant condition
-            ExpressionKind::Conditional(cond, then_expr, else_expr) => {
-                match &cond.kind {
-                    ExpressionKind::Literal(Literal::Boolean(true)) => {
-                        // if true then A else B → A
-                        let old_type = expr.annotated_type.clone();
-                        *expr = (**then_expr).clone();
-                        if old_type.is_some() {
-                            expr.annotated_type = old_type;
-                        }
-                        return true;
+            ExpressionKind::Conditional(cond, then_expr, else_expr) => match &cond.kind {
+                ExpressionKind::Literal(Literal::Boolean(true)) => {
+                    // if true then A else B → A
+                    let old_type = expr.annotated_type.clone();
+                    *expr = (**then_expr).clone();
+                    if old_type.is_some() {
+                        expr.annotated_type = old_type;
                     }
-                    ExpressionKind::Literal(Literal::Boolean(false)) => {
-                        // if false then A else B → B
-                        let old_type = expr.annotated_type.clone();
-                        *expr = (**else_expr).clone();
-                        if old_type.is_some() {
-                            expr.annotated_type = old_type;
-                        }
-                        return true;
-                    }
-                    _ => false,
+                    true
                 }
-            }
+                ExpressionKind::Literal(Literal::Boolean(false)) => {
+                    // if false then A else B → B
+                    let old_type = expr.annotated_type.clone();
+                    *expr = (**else_expr).clone();
+                    if old_type.is_some() {
+                        expr.annotated_type = old_type;
+                    }
+                    true
+                }
+                _ => false,
+            },
             _ => false,
         }
     }

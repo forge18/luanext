@@ -22,12 +22,14 @@ fn test_while_false_body_cleared() {
     let output = compile_with_opt_level(source, OptimizationLevel::Moderate).unwrap();
     assert!(
         !output.contains("never"),
-        "Dead while loop body should be cleared. Got:\n{}",
+        "Dead while loop body should be eliminated. Got:\n{}",
         output
     );
+    // Jump threading removes the entire while(false) statement,
+    // which is strictly better than just clearing the body
     assert!(
-        output.contains("while"),
-        "While keyword remains (loop structure preserved). Got:\n{}",
+        !output.contains("while"),
+        "Entire while(false) loop should be removed by jump threading. Got:\n{}",
         output
     );
 }

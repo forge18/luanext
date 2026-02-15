@@ -7,9 +7,9 @@
 #### Missing O2 Passes (Moderate Optimizations)
 
 - [ ] Jump threading - optimize conditional branches with known values
-- [ ] Common subexpression elimination (CSE) - eliminate duplicate computations
-- [ ] Copy propagation - replace variable uses with their values
-- [ ] Peephole optimization - small local code improvements
+- [x] Common subexpression elimination (CSE) - eliminate duplicate computations (12 tests)
+- [x] Copy propagation - replace variable uses with their values (10 tests)
+- [x] Peephole optimization - small local code improvements (8 tests)
 - [ ] Sparse conditional constant propagation (SCCP) - combine constant folding with dead code elimination
 
 #### Missing O3 Passes (Aggressive Optimizations)

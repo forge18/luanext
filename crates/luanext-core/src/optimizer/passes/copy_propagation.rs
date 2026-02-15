@@ -95,10 +95,8 @@ impl CopyPropagationPass {
             // Simple member access (non-escaping)
             ExpressionKind::Member(base, field) => {
                 if let ExpressionKind::Identifier(base_var) = &base.kind {
-                    self.copy_values.insert(
-                        name,
-                        PropagationValue::SimpleMember(*base_var, field.node),
-                    );
+                    self.copy_values
+                        .insert(name, PropagationValue::SimpleMember(*base_var, field.node));
                 }
             }
             // Any other expression is not propagatable
@@ -167,7 +165,11 @@ impl CopyPropagationPass {
     }
 
     /// Propagate copies in an expression, returning true if changed.
-    fn propagate_in_expr<'arena>(&self, expr: &mut Expression<'arena>, arena: &'arena Bump) -> bool {
+    fn propagate_in_expr<'arena>(
+        &self,
+        expr: &mut Expression<'arena>,
+        arena: &'arena Bump,
+    ) -> bool {
         let mut changed = false;
 
         match &mut expr.kind {
@@ -311,7 +313,7 @@ impl CopyPropagationPass {
             ExpressionKind::Assignment(target, op, value) => {
                 let mut new_value = (**value).clone();
                 if self.propagate_in_expr(&mut new_value, arena) {
-                    expr.kind = ExpressionKind::Assignment(*target, *op, arena.alloc(new_value));
+                    expr.kind = ExpressionKind::Assignment(target, *op, arena.alloc(new_value));
                     changed = true;
                 }
             }
@@ -330,7 +332,11 @@ impl CopyPropagationPass {
     }
 
     /// Propagate copies in a block of statements.
-    fn propagate_in_block<'arena>(&mut self, block: &mut Block<'arena>, arena: &'arena Bump) -> bool {
+    fn propagate_in_block<'arena>(
+        &mut self,
+        block: &mut Block<'arena>,
+        arena: &'arena Bump,
+    ) -> bool {
         // Blocks have immutable statement slices, so we need to clone
         let mut stmts: Vec<_> = block.statements.to_vec();
         let mut changed = false;
@@ -412,24 +418,25 @@ impl CopyPropagationPass {
                 changed
             }
             Statement::While(while_stmt) => {
-                let saved_state = self.copy_values.clone();
+                // Propagate into condition using current copy_values
                 let mut changed = self.propagate_in_expr(&mut while_stmt.condition, arena);
-                changed |= self.propagate_in_block(&mut while_stmt.body, arena);
-                // After loop, clear copy_values (loop-carried dependencies)
-                self.copy_values = saved_state;
+                // Clear before loop body (variables may be modified)
                 self.copy_values.clear();
+                changed |= self.propagate_in_block(&mut while_stmt.body, arena);
                 changed
             }
             Statement::For(for_stmt) => {
-                let saved_state = self.copy_values.clone();
                 let changed = match &**for_stmt {
                     ForStatement::Numeric(for_num_ref) => {
                         let mut new_num = (**for_num_ref).clone();
+                        // Propagate into loop bounds using current copy_values
                         let mut ch = self.propagate_in_expr(&mut new_num.start, arena);
                         ch |= self.propagate_in_expr(&mut new_num.end, arena);
                         if let Some(step) = &mut new_num.step {
                             ch |= self.propagate_in_expr(step, arena);
                         }
+                        // Clear copy_values before loop body (variables may be modified)
+                        self.copy_values.clear();
                         ch |= self.propagate_in_block(&mut new_num.body, arena);
                         if ch {
                             *stmt = Statement::For(
@@ -442,7 +449,7 @@ impl CopyPropagationPass {
                         let mut new_gen = for_gen_ref.clone();
                         let mut ch = false;
 
-                        // Generic for has iterators which is an immutable slice
+                        // Propagate into iterators using current copy_values
                         let mut iters: Vec<_> = new_gen.iterators.to_vec();
                         for iter in &mut iters {
                             ch |= self.propagate_in_expr(iter, arena);
@@ -451,6 +458,8 @@ impl CopyPropagationPass {
                             new_gen.iterators = arena.alloc_slice_clone(&iters);
                         }
 
+                        // Clear copy_values before loop body (variables may be modified)
+                        self.copy_values.clear();
                         ch |= self.propagate_in_block(&mut new_gen.body, arena);
                         if ch {
                             *stmt = Statement::For(arena.alloc(ForStatement::Generic(new_gen)));
@@ -458,8 +467,7 @@ impl CopyPropagationPass {
                         ch
                     }
                 };
-                self.copy_values = saved_state;
-                self.copy_values.clear();
+                // copy_values already cleared above
                 changed
             }
             Statement::Return(ret) => {
@@ -490,10 +498,12 @@ impl CopyPropagationPass {
                 self.propagate_in_block(block, arena)
             }
             Statement::Repeat(repeat_stmt) => {
-                let saved_state = self.copy_values.clone();
+                // Clear before loop body (variables may be modified)
+                self.copy_values.clear();
                 let mut changed = self.propagate_in_block(&mut repeat_stmt.body, arena);
+                // Propagate into 'until' condition (uses values from loop body)
                 changed |= self.propagate_in_expr(&mut repeat_stmt.until, arena);
-                self.copy_values = saved_state;
+                // Clear after loop
                 self.copy_values.clear();
                 changed
             }

@@ -1117,8 +1117,12 @@ impl<'arena> Optimizer<'arena> {
         if level >= OptimizationLevel::Moderate {
             // Dead store elimination (block-level: reverse liveness analysis)
             // Copy propagation (block-level: SSA-based value propagation)
+            // Common subexpression elimination (block-level: value numbering)
             if let Some(ref mut elim_pass) = self.elim_pass {
+                elim_pass.add_block_visitor(Box::new(SccpPass::new()));
+                elim_pass.add_block_visitor(Box::new(JumpThreadingPass::new()));
                 elim_pass.add_block_visitor(Box::new(CopyPropagationPass::new()));
+                elim_pass.add_block_visitor(Box::new(CommonSubexpressionEliminationPass::new()));
                 elim_pass.add_block_visitor(Box::new(DeadStoreEliminationPass::new()));
             }
 

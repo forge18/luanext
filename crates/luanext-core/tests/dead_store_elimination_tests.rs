@@ -54,7 +54,7 @@ fn test_dead_store_reassigned_variable() {
 fn test_dead_store_in_loop() {
     let source = r#"
         local sum = 0
-        for i in [1, 2, 3] {
+        for i in [1, 2, 3] do
             sum = sum + i
         end
         return sum
