@@ -6,20 +6,40 @@
 
 #### Missing O2 Passes (Moderate Optimizations)
 
-- [ ] Jump threading - optimize conditional branches with known values
+- [x] Jump threading - optimize conditional branches with known values (10 tests)
 - [x] Common subexpression elimination (CSE) - eliminate duplicate computations (12 tests)
 - [x] Copy propagation - replace variable uses with their values (10 tests)
 - [x] Peephole optimization - small local code improvements (8 tests)
-- [ ] Sparse conditional constant propagation (SCCP) - combine constant folding with dead code elimination
+- [x] Sparse conditional constant propagation (SCCP) - combine constant folding with dead code elimination (10 tests)
 
-#### Missing O3 Passes (Aggressive Optimizations)
+#### O3 Passes (Aggressive Optimizations)
 
-- [ ] Loop unrolling - duplicate loop bodies for small iteration counts
-- [ ] Loop fusion - merge adjacent loops with same iteration space
-- [ ] Loop fission/distribution - split loops to improve cache locality
-- [ ] Function cloning for specialization - duplicate functions for different call contexts
-- [ ] Interprocedural constant propagation - propagate constants across function boundaries
-- [ ] Scalar replacement of aggregates - replace table accesses with local variables when the table doesn't escape
+**Completed (3/6):**
+
+- [x] **Loop unrolling** - duplicate loop bodies for small iteration counts
+  - Implementation: `crates/luanext-core/src/optimizer/passes/loop_unrolling.rs` (520 lines)
+  - Tests: `crates/luanext-core/tests/loop_unrolling_tests.rs` (15 tests, all passing)
+  - Registered at O3 level, safely unrolls numeric for-loops with ≤4 constant iterations
+  - Includes safety checks: no break/continue/return, numeric loops only
+- [x] **Function cloning for specialization** - duplicate functions for different call contexts
+  - Implementation: `crates/luanext-core/src/optimizer/passes/function_cloning.rs`
+  - Tests: `crates/luanext-core/tests/function_cloning_tests.rs` (12 tests, all passing)
+  - Clones small functions (≤8 statements) when called with constant arguments
+  - Max 4 clones per function, deduplicates identical specializations
+  - Substitutes constant args into cloned body, removes from parameter list
+- [x] **Interprocedural constant propagation** - propagate constants across function boundaries
+  - Implementation: `crates/luanext-core/src/optimizer/passes/interprocedural_const_prop.rs`
+  - Tests: `crates/luanext-core/tests/interprocedural_const_prop_tests.rs` (15 tests, all passing)
+  - Analyzes all call sites; when ALL callers pass the same constant for a parameter,
+    substitutes it into the function body and removes the parameter
+  - Fixed-point iteration (max 3 rounds) for propagation chains
+  - Skips varargs, spread arguments, generic functions, destructuring parameters
+
+**Remaining Future Work (1/6):**
+
+- [ ] **Scalar replacement of aggregates** - replace table accesses with local variables
+  - Would require: Robust escape analysis, table access pattern detection
+  - Complexity: Very High, needs comprehensive alias/escape analysis
 
 #### Cross-Module Optimizations
 

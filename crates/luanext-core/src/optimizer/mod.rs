@@ -1163,6 +1163,14 @@ impl<'arena> Optimizer<'arena> {
                 .push(Box::new(DevirtualizationPass::new(interner.clone())));
             self.standalone_passes
                 .push(Box::new(GenericSpecializationPass::new(interner.clone())));
+            self.standalone_passes
+                .push(Box::new(LoopUnrollingPass::new()));
+            self.standalone_passes
+                .push(Box::new(FunctionCloningPass::new(interner.clone())));
+            self.standalone_passes
+                .push(Box::new(InterproceduralConstPropPass::new(
+                    interner.clone(),
+                )));
         }
 
         // Global localization runs at all optimization levels

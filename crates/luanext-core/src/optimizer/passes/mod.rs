@@ -45,3 +45,12 @@ pub use jump_threading::JumpThreadingPass;
 
 mod sccp;
 pub use sccp::SccpPass;
+
+mod loop_unrolling;
+pub use loop_unrolling::LoopUnrollingPass;
+
+mod function_cloning;
+pub use function_cloning::FunctionCloningPass;
+
+mod interprocedural_const_prop;
+pub use interprocedural_const_prop::InterproceduralConstPropPass;
