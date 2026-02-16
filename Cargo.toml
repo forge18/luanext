@@ -63,6 +63,7 @@ tempfile = "3.13"
 indoc = "2.0"
 proptest = "1.5"
 dhat = "0.3"
+mlua = { version = "0.10", features = ["lua54", "vendored"] }
 
 # Development tools (not used in production code)
 cargo-fuzz = "0.12"

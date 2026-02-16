@@ -5,4 +5,8 @@
 
 pub mod compile;
 pub mod fixtures;
+pub mod lua_executor;
 pub mod mocks;
+
+// Re-export commonly used items
+pub use lua_executor::{LuaExecutor, LuaValueExt};

@@ -16,5 +16,6 @@ luanext-parser = { git = "https://github.com/forge18/luanext-parser.git" }
 luanext-lsp = { path = "../luanext-lsp", optional = true }
 lsp-types = { version = "0.97", optional = true }
 bumpalo.workspace = true
+mlua.workspace = true
 
 [dev-dependencies]

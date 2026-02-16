@@ -33,6 +33,7 @@ criterion.workspace = true
 tempfile.workspace = true
 dhat.workspace = true
 proptest.workspace = true
+luanext-test-helpers = { path = "../luanext-test-helpers" }
 
 [[bench]]
 name = "lexer_bench"
