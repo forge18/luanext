@@ -8,7 +8,45 @@ LuaNext extends Lua with type annotations while preserving Lua's simplicity. Thi
 
 ## Variable Declarations
 
-LuaNext provides two keywords for variable declarations: `const` for immutable variables and `local` for mutable variables.
+LuaNext provides three keywords for variable declarations: `const` for immutable variables, `local` for mutable block-scoped variables, and `global` for module-level variables.
+
+### `global` — Module-Level Variables
+
+Variables declared with `global` are accessible throughout the entire module (but not automatically exported):
+
+```lua
+global x: number = 42
+global config = { debug: true }  -- Type inferred
+
+function test(): void {
+    print(x)  -- ✅ Accessible in functions
+}
+```
+
+**Implicit global syntax** — Variables with type annotations at the module top-level are automatically global:
+
+```lua
+count: number = 0  -- Implicitly global (has type annotation)
+x = 1              -- Assignment expression (no type annotation)
+```
+
+Compiles to:
+
+```lua
+x = 42
+config = { debug = true }
+count = 0
+
+function test()
+    print(x)
+end
+```
+
+**Key differences from `local`:**
+
+- Module-level scope (accessible in all functions within the module)
+- Not hoisted by optimizer (already module-level)
+- Not automatically exported (use `export global x = ...` to export)
 
 ### `const` — Immutable Variables
 
