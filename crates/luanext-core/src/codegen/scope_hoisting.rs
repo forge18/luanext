@@ -360,6 +360,7 @@ impl<'a> EscapeAnalysis<'a> {
 
                 true
             }
+            VariableKind::Global => false, // Globals are already module-level, don't hoist
             VariableKind::Local => false,
         }
     }

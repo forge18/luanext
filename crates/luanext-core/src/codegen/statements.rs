@@ -62,9 +62,13 @@ impl CodeGenerator {
     pub fn generate_variable_declaration(&mut self, decl: &VariableDeclaration) {
         match &decl.pattern {
             Pattern::Identifier(_) | Pattern::Wildcard(_) => {
-                // Simple case: local name = value
+                // Simple case: [local] name = value
                 self.write_indent();
-                self.write("local ");
+                // Only emit 'local' keyword for Local and Const kinds
+                // Global variables omit 'local' to create module-level variables
+                if matches!(decl.kind, VariableKind::Local | VariableKind::Const) {
+                    self.write("local ");
+                }
                 self.generate_pattern(&decl.pattern);
                 self.write(" = ");
                 self.generate_expression(&decl.initializer);
@@ -73,7 +77,10 @@ impl CodeGenerator {
             Pattern::Array(array_pattern) => {
                 // Generate temporary variable and destructuring assignments
                 self.write_indent();
-                self.write("local __temp = ");
+                if matches!(decl.kind, VariableKind::Local | VariableKind::Const) {
+                    self.write("local ");
+                }
+                self.write("__temp = ");
                 self.generate_expression(&decl.initializer);
                 self.writeln("");
                 self.generate_array_destructuring(array_pattern, "__temp");
@@ -81,7 +88,10 @@ impl CodeGenerator {
             Pattern::Object(obj_pattern) => {
                 // Generate temporary variable and destructuring assignments
                 self.write_indent();
-                self.write("local __temp = ");
+                if matches!(decl.kind, VariableKind::Local | VariableKind::Const) {
+                    self.write("local ");
+                }
+                self.write("__temp = ");
                 self.generate_expression(&decl.initializer);
                 self.writeln("");
                 self.generate_object_destructuring(obj_pattern, "__temp");
