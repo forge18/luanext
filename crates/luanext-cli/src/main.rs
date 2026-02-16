@@ -1613,6 +1613,48 @@ fn compile(
         config.compiler_options.optimization_level.effective()
     };
     info!("Optimization level: {:?}", optimization_level);
+
+    // --- Phase 1.4: Build module graph for LTO (O2+) ---
+    let module_graph_opt: Option<Arc<luanext_core::optimizer::analysis::module_graph::ModuleGraph>> =
+        if optimization_level >= luanext_core::config::OptimizationLevel::Moderate {
+            info!("Building module graph for link-time optimizations...");
+            let mg_start = Instant::now();
+
+            // Prepare module data: (path, statements)
+            let module_data: Vec<(PathBuf, &[luanext_parser::ast::statement::Statement])> =
+                checked_modules
+                    .iter()
+                    .map(|m| (m.file_path.clone(), m.ast.statements))
+                    .collect();
+
+            // Entry points are the explicitly provided files
+            let entry_points: Vec<PathBuf> = cli.files.clone();
+
+            // Get interner from first module (all share the same interner)
+            let interner = checked_modules
+                .first()
+                .map(|m| m.interner.clone())
+                .unwrap_or_else(|| Arc::new(StringInterner::new()));
+
+            let graph = luanext_core::optimizer::analysis::module_graph::ModuleGraph::build(
+                &module_data,
+                interner,
+                &registry,
+                &entry_points,
+            );
+
+            info!(
+                "⏱️  Module graph construction: {:?} ({} modules, {} reachable)",
+                mg_start.elapsed(),
+                graph.modules.len(),
+                graph.modules.values().filter(|n| n.is_reachable).count()
+            );
+
+            Some(Arc::new(graph))
+        } else {
+            None
+        };
+
     let wpa_start = Instant::now();
     let whole_program_analysis =
         if optimization_level >= luanext_core::config::OptimizationLevel::Aggressive {
@@ -1680,7 +1722,7 @@ fn compile(
         };
 
     // Filter modules based on reachability for tree shaking
-    let checked_modules_filtered: Vec<CheckedModule> = if let Some(ref reachable) = reachable_set {
+    let mut checked_modules_filtered: Vec<CheckedModule> = if let Some(ref reachable) = reachable_set {
         checked_modules
             .into_iter()
             .filter(|module| {
@@ -1698,6 +1740,35 @@ fn compile(
     } else {
         checked_modules
     };
+
+    // --- Phase 1.7: LTO module filtering (O2+) ---
+    // Filter out unreachable modules based on LTO analysis
+    if let Some(ref graph) = module_graph_opt {
+        if optimization_level >= luanext_core::config::OptimizationLevel::Moderate {
+            use luanext_core::optimizer::UnusedModuleEliminationPass;
+
+            let lto_pass = UnusedModuleEliminationPass::new(graph.clone());
+            let modules_to_compile = lto_pass.get_modules_to_compile();
+            let lto_compile_set: FxHashSet<PathBuf> = modules_to_compile.into_iter().collect();
+
+            let pre_lto_count = checked_modules_filtered.len();
+            checked_modules_filtered.retain(|module| {
+                let canonical = module.file_path
+                    .canonicalize()
+                    .unwrap_or_else(|_| module.file_path.clone());
+                lto_compile_set.contains(&canonical)
+            });
+
+            let eliminated = pre_lto_count - checked_modules_filtered.len();
+            if eliminated > 0 {
+                info!(
+                    "LTO eliminated {} unreachable module(s), {} remain",
+                    eliminated,
+                    checked_modules_filtered.len()
+                );
+            }
+        }
+    }
 
     // --- Phase 2: Parallel code generation ---
     // Each module's codegen is independent - can run in parallel
@@ -1733,7 +1804,32 @@ fn compile(
 
             let mut generator = builder.build();
             // Convert arena-allocated Program to mutable AST for codegen
-            let mutable_ast = luanext_core::MutableProgram::from_program(&module.ast);
+            let mut mutable_ast = luanext_core::MutableProgram::from_program(&module.ast);
+
+            // Apply LTO AST transformation passes (O2+)
+            if let Some(ref graph) = module_graph_opt {
+                if optimization_level >= luanext_core::config::OptimizationLevel::Moderate {
+                    use luanext_core::optimizer::passes::{DeadImportEliminationPass, DeadExportEliminationPass};
+
+                    // Create passes with module graph and interner
+                    let mut import_pass = DeadImportEliminationPass::new(graph.clone(), module.interner.clone());
+                    let mut export_pass = DeadExportEliminationPass::new(graph.clone(), module.interner.clone());
+
+                    // Set current module context
+                    import_pass.set_current_module(&module.file_path);
+                    export_pass.set_current_module(&module.file_path);
+
+                    // Apply dead import elimination
+                    let after_import = import_pass.apply(&mutable_ast.statements);
+
+                    // Apply dead export elimination
+                    let after_export = export_pass.apply(&after_import);
+
+                    // Update statements with transformed result
+                    mutable_ast.statements = after_export;
+                }
+            }
+
             let lua_code = generator.generate(&mutable_ast);
             let source_map = generator.take_source_map();
 

@@ -169,8 +169,9 @@ impl AstFeatureDetector {
 }
 
 // Pass modules — enabled incrementally during arena migration
-mod passes;
+pub mod passes;
 use passes::*;
+pub use passes::UnusedModuleEliminationPass;
 
 mod rich_enum_optimization;
 use rich_enum_optimization::RichEnumOptimizationPass;
@@ -1050,6 +1051,10 @@ pub struct Optimizer<'arena> {
 
     // Advanced analysis infrastructure (CFG, dominance, SSA, alias, side-effects)
     analysis_context: Option<analysis::AnalysisContext>,
+
+    // Module graph for link-time optimizations (LTO)
+    module_graph: Option<Arc<analysis::module_graph::ModuleGraph>>,
+    current_module_path: Option<std::path::PathBuf>,
 }
 
 impl<'arena> Optimizer<'arena> {
@@ -1070,10 +1075,22 @@ impl<'arena> Optimizer<'arena> {
             standalone_passes: Vec::new(),
             whole_program_analysis: None,
             analysis_context: None,
+            module_graph: None,
+            current_module_path: None,
         };
 
         optimizer.register_passes();
         optimizer
+    }
+
+    /// Set module graph for link-time optimizations (LTO)
+    pub fn set_module_graph(&mut self, graph: Arc<analysis::module_graph::ModuleGraph>) {
+        self.module_graph = Some(graph);
+    }
+
+    /// Set the current module being optimized (for per-module LTO passes)
+    pub fn set_current_module(&mut self, path: std::path::PathBuf) {
+        self.current_module_path = Some(path);
     }
 
     /// Set whole-program analysis results for cross-module optimizations
@@ -1171,6 +1188,8 @@ impl<'arena> Optimizer<'arena> {
                 .push(Box::new(InterproceduralConstPropPass::new(
                     interner.clone(),
                 )));
+            self.standalone_passes
+                .push(Box::new(ScalarReplacementPass::new(interner.clone())));
         }
 
         // Global localization runs at all optimization levels
@@ -1406,6 +1425,38 @@ impl<'arena> Optimizer<'arena> {
             "Optimization complete: {} iterations, {:?} total",
             iteration, total_elapsed
         );
+
+        Ok(())
+    }
+
+    /// Apply Link-Time Optimization (LTO) passes to the program
+    /// These passes require module graph context and work at statement level
+    ///
+    /// LTO passes are applied ONCE after regular optimization (no fixed-point iteration)
+    /// because they work on module structure rather than code patterns.
+    ///
+    /// Note: LTO passes are currently placeholders. Full implementation requires
+    /// reworking passes to operate on MutableProgram<'arena> directly rather than
+    /// owned Vec<Statement>.
+    pub fn apply_lto_passes(&mut self, _program: &mut MutableProgram<'arena>) -> Result<(), String> {
+        let Some(ref _graph) = self.module_graph else {
+            // No module graph available, skip LTO passes
+            return Ok(());
+        };
+
+        let Some(ref _module_path) = self.current_module_path else {
+            // No current module set, skip LTO passes
+            return Ok(());
+        };
+
+        // TODO: Implement LTO passes that work with arena-allocated statements
+        // Current implementation has lifetime issues that need to be resolved
+        // The passes need to be refactored to:
+        // 1. Work directly with &'arena [Statement<'arena>]
+        // 2. Use arena allocation for new statements
+        // 3. Return &'arena [Statement<'arena>] instead of Vec<Statement>
+
+        debug!("LTO passes registered but not yet applied (implementation pending)");
 
         Ok(())
     }

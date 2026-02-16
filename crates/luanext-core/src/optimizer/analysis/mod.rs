@@ -20,12 +20,16 @@
 pub mod alias;
 pub mod cfg;
 pub mod dominance;
+pub mod module_graph;
 pub mod side_effect;
 pub mod ssa;
 
 pub use alias::{AliasAnalyzer, AliasInfo, AliasResult, MemoryLocation};
 pub use cfg::{BasicBlock, BlockId, CfgBuilder, ControlFlowGraph, Terminator};
 pub use dominance::DominatorTree;
+pub use module_graph::{
+    ExportInfo, ImportInfo, ModuleGraph, ModuleNode, ReExportInfo, ReExportKind,
+};
 pub use side_effect::{SideEffectAnalyzer, SideEffectInfo, SideEffects};
 pub use ssa::{PhiFunction, SsaForm, SsaVar};
 

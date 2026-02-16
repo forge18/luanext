@@ -659,7 +659,7 @@ mod tests {
         let ssa = SsaForm::build(&cfg, &dom_tree, &stmts);
 
         // No phi-functions in linear code
-        for (_, phis) in &ssa.phi_functions {
+        for phis in ssa.phi_functions.values() {
             assert!(phis.is_empty(), "Linear code should have no phi-functions");
         }
 

@@ -54,3 +54,19 @@ pub use function_cloning::FunctionCloningPass;
 
 mod interprocedural_const_prop;
 pub use interprocedural_const_prop::InterproceduralConstPropPass;
+
+mod scalar_replacement;
+pub use scalar_replacement::ScalarReplacementPass;
+
+// Link-Time Optimization (LTO) passes
+mod dead_export_elimination;
+pub use dead_export_elimination::DeadExportEliminationPass;
+
+mod dead_import_elimination;
+pub use dead_import_elimination::DeadImportEliminationPass;
+
+mod unused_module_elimination;
+pub use unused_module_elimination::{UnusedModuleEliminationPass, UnusedModuleStats};
+
+mod reexport_flattening;
+pub use reexport_flattening::ReExportFlatteningPass;

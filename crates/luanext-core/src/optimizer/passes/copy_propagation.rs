@@ -66,6 +66,12 @@ pub struct CopyPropagationPass {
     copy_values: FxHashMap<StringId, PropagationValue>,
 }
 
+impl Default for CopyPropagationPass {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CopyPropagationPass {
     pub fn new() -> Self {
         Self {

@@ -55,6 +55,12 @@ pub struct CommonSubexpressionEliminationPass {
     current_stmt_index: usize,
 }
 
+impl Default for CommonSubexpressionEliminationPass {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CommonSubexpressionEliminationPass {
     pub fn new() -> Self {
         Self {

@@ -36,6 +36,12 @@ use luanext_parser::ast::expression::{BinaryOp, Expression, ExpressionKind, Lite
 /// Applies local pattern-based optimizations to expressions.
 pub struct PeepholeOptimizationPass;
 
+impl Default for PeepholeOptimizationPass {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PeepholeOptimizationPass {
     pub fn new() -> Self {
         Self
