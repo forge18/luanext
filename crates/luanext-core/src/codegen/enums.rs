@@ -75,7 +75,7 @@ impl CodeGenerator {
         self.writeln(&format!("setmetatable({}, {{", enum_name));
         self.indent();
         self.write_indent();
-        self.writeln(&format!("__metatable = {}", mt_name));
+        self.writeln(&format!("__metatable = {},", mt_name));
         self.write_indent();
         self.writeln("__call = function()");
         self.indent();
@@ -118,7 +118,20 @@ impl CodeGenerator {
         self.write("local self = setmetatable({}, ");
         self.write(enum_name);
         self.writeln(")");
+        self.write_indent();
+        self.writeln("self.__name = name");
+        self.write_indent();
+        self.writeln("self.__ordinal = ordinal");
+        for field in enum_decl.fields.iter() {
+            let field_name = self.resolve(field.name.node);
+            self.write_indent();
+            self.writeln(&format!("self.{0} = {0}", field_name));
+        }
+        self.write_indent();
+        self.writeln("return self");
         self.dedent();
+        self.write_indent();
+        self.writeln("end");
 
         self.writeln("");
         self.write_indent();
@@ -200,8 +213,6 @@ impl CodeGenerator {
             self.write(&member_name);
             self.writeln(")");
         }
-        self.write_indent();
-        self.writeln(&format!("setmetatable({}, {})", enum_name, mt_name));
 
         let is_o3 = self.optimization_level >= OptimizationLevel::Aggressive;
 

@@ -101,7 +101,16 @@ Enable typed global variable declarations without `local` keyword for cleaner te
 - [x] Constructor default params codegen bug fixed (`classes.rs`)
 - [x] Match guard pre-binding codegen bug fixed (`expressions.rs`)
 
-**Phase 2: High Priority (~70 tests, 8 files)** - arrow functions, optional chaining, spread/rest, error handling, interfaces, enums, type aliases, decorators
+**Phase 2: High Priority (~70 tests, 8 files)** - COMPLETE (73/73 passing, 8 files created)
+
+- [x] `execution_arrow_function_tests.rs` (10 tests)
+- [x] `execution_optional_chaining_tests.rs` (10 tests)
+- [x] `execution_spread_rest_tests.rs` (8 tests)
+- [x] `execution_error_handling_tests.rs` (10 tests) - also fixed try/catch pcall codegen bug
+- [x] `execution_enum_tests.rs` (10 tests) - also fixed 3 pre-existing rich enum codegen bugs
+- [x] `execution_interface_tests.rs` (8 tests)
+- [x] `execution_type_alias_tests.rs` (5 tests)
+- [x] `execution_decorator_tests.rs` (7 tests)
 
 **Phase 3: Medium Priority (~40 tests, 4 files)** - operator overloading, getters/setters, advanced classes, advanced control flow
 

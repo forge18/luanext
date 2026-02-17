@@ -657,7 +657,7 @@ impl CodeGenerator {
 
         self.indent();
         self.write_indent();
-        self.write("local __error = __result");
+        self.writeln("local __error = __result");
 
         let catch_count = stmt.catch_clauses.len();
         for (i, catch_clause) in stmt.catch_clauses.iter().enumerate() {
@@ -735,7 +735,7 @@ impl CodeGenerator {
     pub fn generate_catch_clause_pcall(
         &mut self,
         clause: &luanext_parser::ast::statement::CatchClause,
-        is_last: bool,
+        _is_last: bool,
     ) {
         let var_name = match &clause.pattern {
             luanext_parser::ast::statement::CatchPattern::Untyped { variable, .. }
@@ -746,17 +746,8 @@ impl CodeGenerator {
         };
 
         self.write_indent();
-        if is_last {
-            self.writeln("else");
-        } else {
-            self.writeln("elseif false then");
-        }
-
-        self.indent();
-        self.write_indent();
         self.writeln(&format!("local {} = __error", var_name));
         self.generate_block(&clause.body);
-        self.dedent();
     }
 
     pub fn generate_catch_clause_xpcall(
