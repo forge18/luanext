@@ -549,6 +549,23 @@ impl CodeGenerator {
 
             self.indent();
 
+            // Emit default parameter initialization (same pattern as statements.rs:407-422)
+            for param in ctor.parameters.iter() {
+                if let Some(default_expr) = &param.default {
+                    if let parser::ast::pattern::Pattern::Identifier(ident) = &param.pattern {
+                        let param_name = self.resolve(ident.node);
+                        self.write_indent();
+                        self.write("if ");
+                        self.write(&param_name);
+                        self.write(" == nil then ");
+                        self.write(&param_name);
+                        self.write(" = ");
+                        self.generate_expression(default_expr);
+                        self.writeln(" end");
+                    }
+                }
+            }
+
             self.generate_block(&ctor.body);
 
             self.dedent();

@@ -620,6 +620,24 @@ impl CodeGenerator {
         self.generate_expression(match_expr.value);
         self.writeln("");
 
+        // Pre-bind identifier patterns that have guards, so guard expressions
+        // can reference the bound variable (e.g., `n if n > 100`)
+        let mut pre_bound_guard_idents = std::collections::HashSet::new();
+        for arm in match_expr.arms.iter() {
+            if arm.guard.is_some() {
+                if let Pattern::Identifier(ident) = &arm.pattern {
+                    let ident_str = self.resolve(ident.node);
+                    if pre_bound_guard_idents.insert(ident_str.clone()) {
+                        self.write_indent();
+                        self.write("local ");
+                        self.write(&ident_str);
+                        self.write(" = __match_value");
+                        self.writeln("");
+                    }
+                }
+            }
+        }
+
         for (i, arm) in match_expr.arms.iter().enumerate() {
             self.write_indent();
             if i == 0 {
@@ -640,7 +658,12 @@ impl CodeGenerator {
             self.writeln("");
             self.indent();
 
-            self.generate_pattern_bindings(&arm.pattern, "__match_value");
+            // Skip re-binding identifier patterns that were pre-bound for guards
+            let skip_binding = arm.guard.is_some()
+                && matches!(&arm.pattern, Pattern::Identifier(_));
+            if !skip_binding {
+                self.generate_pattern_bindings(&arm.pattern, "__match_value");
+            }
 
             self.write_indent();
             match &arm.body {

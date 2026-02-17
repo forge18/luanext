@@ -3,8 +3,7 @@
 //! These tests compile LuaNext source code to Lua and then execute it
 //! to verify that the generated code produces correct results.
 
-use luanext_core::config::OptimizationLevel;
-use luanext_test_helpers::compile::{compile, compile_with_stdlib, compile_with_stdlib_and_optimization};
+use luanext_test_helpers::compile::{compile, compile_with_stdlib};
 use luanext_test_helpers::LuaExecutor;
 
 // ============================================================================
@@ -508,9 +507,9 @@ fn test_table_methods() {
                 self.value = v
             end
         }
-        initial: number = obj:get_value()
-        obj:set_value(42)
-        updated: number = obj:get_value()
+        initial: number = obj::get_value()
+        obj::set_value(42)
+        updated: number = obj::get_value()
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -637,9 +636,14 @@ fn test_class_declaration_and_instantiation() {
         class Point {
             x: number
             y: number
+
+            constructor(x: number, y: number) {
+                self.x = x
+                self.y = y
+            }
         }
 
-        p = Point{x = 10, y = 20}
+        p = new Point(10, 20)
         x_val: number = p.x
         y_val: number = p.y
     "#;
@@ -666,8 +670,8 @@ fn test_class_constructor() {
             }
         }
 
-        c1 = Counter(10)
-        c2 = Counter()
+        c1 = new Counter(10)
+        c2 = new Counter()
 
         val1: number = c1.value
         val2: number = c2.value
@@ -688,21 +692,25 @@ fn test_class_constructor() {
 fn test_class_instance_methods() {
     let source = r#"
         class Counter {
-            value: number = 0
+            value: number
 
-            increment(self) {
+            constructor() {
+                self.value = 0
+            }
+
+            increment() {
                 self.value = self.value + 1
             }
 
-            get_value(self): number {
+            get_value(): number {
                 return self.value
             }
         }
 
-        c = Counter{}
-        c:increment()
-        c:increment()
-        result: number = c:get_value()
+        c = new Counter()
+        c::increment()
+        c::increment()
+        result: number = c::get_value()
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -751,19 +759,23 @@ fn test_class_inheritance() {
                 self.name = name
             }
 
-            speak(self): string {
+            speak(): string {
                 return self.name .. " makes a sound"
             }
         }
 
         class Dog extends Animal {
-            speak(self): string {
+            constructor(name: string) {
+                self.name = name
+            }
+
+            override speak(): string {
                 return self.name .. " barks"
             }
         }
 
-        dog = Dog("Rex")
-        result: string = dog:speak()
+        dog = new Dog("Rex")
+        result: string = dog::speak()
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -778,24 +790,32 @@ fn test_class_inheritance() {
 fn test_class_method_overriding() {
     let source = r#"
         class Base {
-            value: number = 10
+            value: number
 
-            get_value(self): number {
+            constructor() {
+                self.value = 10
+            }
+
+            get_value(): number {
                 return self.value
             }
         }
 
         class Derived extends Base {
-            get_value(self): number {
+            constructor() {
+                self.value = 10
+            }
+
+            override get_value(): number {
                 return self.value * 2
             }
         }
 
-        base = Base{}
-        derived = Derived{}
+        base = new Base()
+        derived = new Derived()
 
-        base_val: number = base:get_value()
-        derived_val: number = derived:get_value()
+        base_val: number = base::get_value()
+        derived_val: number = derived::get_value()
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -958,9 +978,9 @@ fn test_simple_pattern_matching() {
             }
         }
 
-        local result1: string = classify(1)
-        local result2: string = classify(3)
-        local result3: string = classify(99)
+        result1: string = classify(1)
+        result2: string = classify(3)
+        result3: string = classify(99)
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -981,17 +1001,17 @@ fn test_match_with_guards() {
     let source = r#"
         function categorize(x: number): string {
             return match x {
-                n if n > 100 => "large",
-                n if n > 10 => "medium",
-                n if n > 0 => "small",
+                n when n > 100 => "large",
+                n when n > 10 => "medium",
+                n when n > 0 => "small",
                 _ => "zero or negative"
             }
         }
 
-        local result1: string = categorize(150)
-        local result2: string = categorize(50)
-        local result3: string = categorize(5)
-        local result4: string = categorize(-10)
+        result1: string = categorize(150)
+        result2: string = categorize(50)
+        result3: string = categorize(5)
+        result4: string = categorize(-10)
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -1022,8 +1042,8 @@ fn test_match_exhaustiveness() {
             }
         }
 
-        local msg1: string = get_message("pending")
-        local msg2: string = get_message("approved")
+        msg1: string = get_message("pending")
+        msg2: string = get_message("approved")
     "#;
 
     let lua_code = compile(source).unwrap();

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Global variable declarations with three syntaxes: `global x: number = 42`, `global x = 42`, and `x: number = 42`
 - Cross-file LSP features: go-to-definition, find-all-references, and rename refactoring across files
 - Module system with import/export statements
 - Bundle mode code generation with custom module runtime
