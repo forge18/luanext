@@ -1,7 +1,6 @@
 /// Unit tests for ModuleGraph data structures
 ///
 /// These tests verify the basic data structures and functionality of the LTO module graph.
-
 use luanext_core::optimizer::analysis::module_graph::{ModuleGraph, ModuleNode, ExportInfo, ImportInfo};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::path::PathBuf;

@@ -250,9 +250,9 @@ mod tests {
     #[test]
     fn test_value_ext_f64() {
         let executor = LuaExecutor::new().unwrap();
-        executor.execute("x = 3.14").unwrap();
+        executor.execute("x = 1.234").unwrap();
         let value: Value = executor.lua().globals().get("x").unwrap();
-        assert_eq!(value.as_f64(), Some(3.14));
+        assert_eq!(value.as_f64(), Some(1.234));
     }
 
     #[test]

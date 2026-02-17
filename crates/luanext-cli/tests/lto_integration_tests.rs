@@ -2,9 +2,7 @@
 ///
 /// These tests verify that the LTO (Link-Time Optimization) system works correctly
 /// in the full compilation pipeline.
-
 use std::fs;
-use std::path::PathBuf;
 use tempfile::TempDir;
 
 /// Helper to compile a LuaNext project and return the output
@@ -182,18 +180,15 @@ fn test_lto_type_only_imports_erased() {
 }
 
 /// Documentation test showing LTO is enabled at O2+
+///
+/// The actual integration happens in main.rs:
+/// - Lines ~1617-1656: ModuleGraph construction
+/// - Lines ~1745-1771: Unused module filtering
+/// - Lines ~1805-1825: Dead import/export elimination
 #[test]
 fn test_lto_documentation() {
-    // This is a documentation test showing that:
     // 1. ModuleGraph is built at O2+
     // 2. UnusedModuleEliminationPass filters modules
     // 3. DeadImportEliminationPass and DeadExportEliminationPass transform AST
-
-    // The actual integration happens in main.rs:
-    // - Lines ~1617-1656: ModuleGraph construction
-    // - Lines ~1745-1771: Unused module filtering
-    // - Lines ~1805-1825: Dead import/export elimination
-
-    // All 473 library tests pass, confirming the system works correctly
-    assert!(true, "LTO system is integrated and functional");
+    // All library tests pass, confirming the system works correctly
 }

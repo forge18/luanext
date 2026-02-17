@@ -71,7 +71,7 @@ fn test_integer_arithmetic() {
 fn test_float_arithmetic() {
     let source = r#"
         x: number = 10.5 / 2
-        y: number = 3.14 * 2
+        y: number = 2.5 * 3
         z: number = x + y
     "#;
 
@@ -84,8 +84,8 @@ fn test_float_arithmetic() {
     let z: f64 = executor.execute_and_get(&lua_code, "z").unwrap();
 
     assert!((x - 5.25).abs() < 0.001);
-    assert!((y - 6.28).abs() < 0.001);
-    assert!((z - 11.53).abs() < 0.001);
+    assert!((y - 7.5).abs() < 0.001);
+    assert!((z - 12.75).abs() < 0.001);
 }
 
 #[test]
@@ -122,10 +122,10 @@ fn test_boolean_logic() {
     let c: bool = executor.execute_and_get(&lua_code, "c").unwrap();
     let d: bool = executor.execute_and_get(&lua_code, "d").unwrap();
 
-    assert_eq!(a, false);
-    assert_eq!(b, true);
-    assert_eq!(c, false);
-    assert_eq!(d, true);
+    assert!(!a);
+    assert!(b);
+    assert!(!c);
+    assert!(d);
 }
 
 #[test]
@@ -144,8 +144,8 @@ fn test_nil_handling() {
     let is_x_nil: bool = executor.execute_and_get(&lua_code, "is_x_nil").unwrap();
     let is_y_nil: bool = executor.execute_and_get(&lua_code, "is_y_nil").unwrap();
 
-    assert_eq!(is_x_nil, true);
-    assert_eq!(is_y_nil, false);
+    assert!(is_x_nil);
+    assert!(!is_y_nil);
 }
 
 // ============================================================================
