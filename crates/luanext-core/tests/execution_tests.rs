@@ -3,35 +3,65 @@
 //! These tests compile LuaNext source code to Lua and then execute it
 //! to verify that the generated code produces correct results.
 
-use luanext_test_helpers::compile::compile;
+use luanext_core::config::OptimizationLevel;
+use luanext_test_helpers::compile::{compile, compile_with_stdlib, compile_with_stdlib_and_optimization};
 use luanext_test_helpers::LuaExecutor;
 
 // ============================================================================
-// Category 1: Arithmetic & Literals (5 tests)
+// Category 1: Arithmetic & Literals (6 tests - includes variable scope demo)
 // ============================================================================
 
 #[test]
-fn test_integer_arithmetic() {
-    // Use module-level variables (without local) or return a table
+fn test_variable_scoping_patterns() {
+    // Demonstrates all four variable declaration patterns
     let source = r#"
-        local function run_test()
-            local x: number = 1 + 2 * 3
-            local y: number = 10 - x
-            local z: number = y * 2
-            return {x = x, y = y, z = z}
-        end
-        return run_test()
+        -- Implicit global (type annotation required)
+        implicit_global: number = 100
+
+        -- Explicit global (optional, clearer intent)
+        global explicit_global: number = 200
+
+        -- Const (immutable, generates local in Lua)
+        const CONSTANT_VALUE: number = 42
+
+        -- Local variable in function (demonstrates scoping)
+        function calculate(): number {
+            local temp: number = 10
+            return temp * CONSTANT_VALUE
+        }
+
+        result: number = calculate()
     "#;
 
     let lua_code = compile(source).unwrap();
     let executor = LuaExecutor::new().unwrap();
+    executor.execute(&lua_code).unwrap();
 
-    // Execute and get the returned table
-    let result: mlua::Table = executor.execute_with_result(&lua_code).unwrap();
+    // Verify global variables (implicit and explicit)
+    let implicit: i64 = executor.execute_and_get(&lua_code, "implicit_global").unwrap();
+    let explicit: i64 = executor.execute_and_get(&lua_code, "explicit_global").unwrap();
+    let result: i64 = executor.execute_and_get(&lua_code, "result").unwrap();
 
-    let x: i64 = result.get("x").unwrap();
-    let y: i64 = result.get("y").unwrap();
-    let z: i64 = result.get("z").unwrap();
+    assert_eq!(implicit, 100);
+    assert_eq!(explicit, 200);
+    assert_eq!(result, 420); // 10 * 42 (const is used in calculation but not accessible globally)
+}
+
+#[test]
+fn test_integer_arithmetic() {
+    let source = r#"
+        x: number = 1 + 2 * 3
+        y: number = 10 - x
+        z: number = y * 2
+    "#;
+
+    let lua_code = compile(source).unwrap();
+    let executor = LuaExecutor::new().unwrap();
+    executor.execute(&lua_code).unwrap();
+
+    let x: i64 = executor.execute_and_get(&lua_code, "x").unwrap();
+    let y: i64 = executor.execute_and_get(&lua_code, "y").unwrap();
+    let z: i64 = executor.execute_and_get(&lua_code, "z").unwrap();
 
     assert_eq!(x, 7);
     assert_eq!(y, 3);
@@ -41,9 +71,9 @@ fn test_integer_arithmetic() {
 #[test]
 fn test_float_arithmetic() {
     let source = r#"
-        local x: number = 10.5 / 2
-        local y: number = 3.14 * 2
-        local z: number = x + y
+        x: number = 10.5 / 2
+        y: number = 3.14 * 2
+        z: number = x + y
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -62,9 +92,9 @@ fn test_float_arithmetic() {
 #[test]
 fn test_string_concatenation() {
     let source = r#"
-        local hello: string = "hello"
-        local world: string = "world"
-        local result: string = hello .. " " .. world
+        hello: string = "hello"
+        world: string = "world"
+        result: string = hello .. " " .. world
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -78,10 +108,10 @@ fn test_string_concatenation() {
 #[test]
 fn test_boolean_logic() {
     let source = r#"
-        local a: boolean = true and false
-        local b: boolean = true or false
-        local c: boolean = not true
-        local d: boolean = true and true
+        a: boolean = true and false
+        b: boolean = true or false
+        c: boolean = not true
+        d: boolean = true and true
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -102,10 +132,10 @@ fn test_boolean_logic() {
 #[test]
 fn test_nil_handling() {
     let source = r#"
-        local x: number | nil = nil
-        local y: number | nil = 42
-        local is_x_nil: boolean = x == nil
-        local is_y_nil: boolean = y == nil
+        x: number | nil = nil
+        y: number | nil = 42
+        is_x_nil: boolean = x == nil
+        is_y_nil: boolean = y == nil
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -129,7 +159,7 @@ fn test_function_declaration_and_call() {
         function add(a: number, b: number): number {
             return a + b
         }
-        local result: number = add(5, 3)
+        result: number = add(5, 3)
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -149,8 +179,8 @@ fn test_function_return_values() {
         function get_greeting(): string {
             return "hello"
         }
-        local num: number = get_ten()
-        local greeting: string = get_greeting()
+        num: number = get_ten()
+        greeting: string = get_greeting()
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -170,8 +200,8 @@ fn test_multiple_return_values() {
         function swap(a: number, b: number): (number, number) {
             return b, a
         }
-        local x: number
-        local y: number
+        global x: number = 0
+        global y: number = 0
         x, y = swap(1, 2)
     "#;
 
@@ -189,22 +219,29 @@ fn test_multiple_return_values() {
 #[test]
 fn test_closures_and_upvalues() {
     let source = r#"
-        function make_counter(): () -> number {
+        function make_counter()
             local count: number = 0
-            return function(): number {
+            return function(): number
                 count = count + 1
                 return count
-            }
-        }
-        local counter = make_counter()
-        local first: number = counter()
-        local second: number = counter()
-        local third: number = counter()
+            end
+        end
+        counter = make_counter()
+        first: number = counter()
+        second: number = counter()
+        third: number = counter()
     "#;
 
-    let lua_code = compile(source).unwrap();
+    let lua_code = match compile(source) {
+        Ok(code) => code,
+        Err(e) => panic!("Compilation failed: {}", e),
+    };
+    println!("Generated Lua:\n{}", lua_code);
     let executor = LuaExecutor::new().unwrap();
-    executor.execute(&lua_code).unwrap();
+    match executor.execute(&lua_code) {
+        Ok(_) => {},
+        Err(e) => panic!("Execution failed: {}\nGenerated Lua:\n{}", e, lua_code),
+    }
 
     let first: i64 = executor.execute_and_get(&lua_code, "first").unwrap();
     let second: i64 = executor.execute_and_get(&lua_code, "second").unwrap();
@@ -225,7 +262,7 @@ fn test_recursion() {
                 return n * factorial(n - 1)
             end
         }
-        local result: number = factorial(5)
+        result: number = factorial(5)
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -242,8 +279,8 @@ fn test_default_parameters() {
         function greet(name: string = "World"): string {
             return "Hello, " .. name
         }
-        local greeting1: string = greet("Alice")
-        local greeting2: string = greet()
+        greeting1: string = greet("Alice")
+        greeting2: string = greet()
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -273,9 +310,9 @@ fn test_if_else_branches() {
                 return "zero"
             end
         }
-        local result1: string = classify(10)
-        local result2: string = classify(-5)
-        local result3: string = classify(0)
+        result1: string = classify(10)
+        result2: string = classify(-5)
+        result3: string = classify(0)
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -294,7 +331,7 @@ fn test_if_else_branches() {
 #[test]
 fn test_while_loop() {
     let source = r#"
-        local sum: number = 0
+        sum: number = 0
         local i: number = 1
         while i <= 5 do
             sum = sum + i
@@ -313,7 +350,7 @@ fn test_while_loop() {
 #[test]
 fn test_for_loop_numeric() {
     let source = r#"
-        local sum: number = 0
+        sum: number = 0
         for i = 1, 5 do
             sum = sum + i
         end
@@ -330,14 +367,18 @@ fn test_for_loop_numeric() {
 #[test]
 fn test_for_in_loop() {
     let source = r#"
-        local items = {10, 20, 30}
-        local sum: number = 0
+        local items = [10, 20, 30]
+        sum: number = 0
         for _, value in ipairs(items) do
             sum = sum + value
         end
     "#;
 
-    let lua_code = compile(source).unwrap();
+    let lua_code = match compile_with_stdlib(source) {
+        Ok(code) => code,
+        Err(e) => panic!("Compilation failed: {}", e),
+    };
+    println!("Generated Lua:\n{}", lua_code);
     let executor = LuaExecutor::new().unwrap();
     executor.execute(&lua_code).unwrap();
 
@@ -348,7 +389,7 @@ fn test_for_in_loop() {
 #[test]
 fn test_break_statement() {
     let source = r#"
-        local sum: number = 0
+        sum: number = 0
         for i = 1, 10 do
             if i > 5 then
                 break
@@ -372,9 +413,9 @@ fn test_break_statement() {
 #[test]
 fn test_table_creation_and_indexing() {
     let source = r#"
-        local point = {x = 10, y = 20}
-        local x_val: number = point.x
-        local y_val: number = point.y
+        point = {x = 10, y = 20}
+        x_val: number = point.x
+        y_val: number = point.y
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -391,8 +432,8 @@ fn test_table_creation_and_indexing() {
 #[test]
 fn test_table_destructuring() {
     let source = r#"
-        local point = {x = 10, y = 20}
-        local {x, y} = point
+        point = {x = 10, y = 20}
+        {x, y} = point
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -409,10 +450,10 @@ fn test_table_destructuring() {
 #[test]
 fn test_array_style_tables() {
     let source = r#"
-        local arr = {1, 2, 3, 4, 5}
-        local first: number = arr[1]
-        local last: number = arr[5]
-        local len: number = #arr
+        arr = {1, 2, 3, 4, 5}
+        first: number = arr[1]
+        last: number = arr[5]
+        len: number = #arr
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -431,15 +472,15 @@ fn test_array_style_tables() {
 #[test]
 fn test_mixed_key_tables() {
     let source = r#"
-        local mixed = {
+        mixed = {
             name = "Alice",
             age = 30,
             [1] = "first",
             [2] = "second"
         }
-        local name_val: string = mixed.name
-        local age_val: number = mixed.age
-        local first_val: string = mixed[1]
+        name_val: string = mixed.name
+        age_val: number = mixed.age
+        first_val: string = mixed[1]
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -458,7 +499,7 @@ fn test_mixed_key_tables() {
 #[test]
 fn test_table_methods() {
     let source = r#"
-        local obj = {
+        obj = {
             value = 10,
             get_value = function(self)
                 return self.value
@@ -467,9 +508,9 @@ fn test_table_methods() {
                 self.value = v
             end
         }
-        local initial: number = obj:get_value()
+        initial: number = obj:get_value()
         obj:set_value(42)
-        local updated: number = obj:get_value()
+        updated: number = obj:get_value()
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -490,11 +531,11 @@ fn test_table_methods() {
 #[test]
 fn test_type_annotations_no_runtime_impact() {
     let source = r#"
-        local x: number = 42
-        local y: string = "hello"
-        local z: boolean = true
+        x: number = 42
+        y: string = "hello"
+        z: boolean = true
         -- Type annotations should not affect runtime behavior
-        local result: number = x + 10
+        result: number = x + 10
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -508,8 +549,8 @@ fn test_type_annotations_no_runtime_impact() {
 #[test]
 fn test_optional_types() {
     let source = r#"
-        local x: number | nil = nil
-        local y: number | nil = 42
+        x: number | nil = nil
+        y: number | nil = 42
 
         function get_value_or_default(val: number | nil, default: number): number {
             if val == nil then
@@ -519,8 +560,8 @@ fn test_optional_types() {
             end
         }
 
-        local result1: number = get_value_or_default(x, 100)
-        local result2: number = get_value_or_default(y, 100)
+        result1: number = get_value_or_default(x, 100)
+        result2: number = get_value_or_default(y, 100)
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -545,11 +586,11 @@ fn test_union_types_runtime_behavior() {
             end
         }
 
-        local result1: string = process(42)
-        local result2: string = process("hello")
+        result1: string = process(42)
+        result2: string = process("hello")
     "#;
 
-    let lua_code = compile(source).unwrap();
+    let lua_code = compile_with_stdlib(source).unwrap();
     let executor = LuaExecutor::new().unwrap();
     executor.execute(&lua_code).unwrap();
 
@@ -571,8 +612,8 @@ fn test_type_narrowing() {
             end
         }
 
-        local len1: number = get_length("hello")
-        local len2: number = get_length(nil)
+        len1: number = get_length("hello")
+        len2: number = get_length(nil)
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -598,9 +639,9 @@ fn test_class_declaration_and_instantiation() {
             y: number
         }
 
-        local p = Point{x = 10, y = 20}
-        local x_val: number = p.x
-        local y_val: number = p.y
+        p = Point{x = 10, y = 20}
+        x_val: number = p.x
+        y_val: number = p.y
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -625,11 +666,11 @@ fn test_class_constructor() {
             }
         }
 
-        local c1 = Counter(10)
-        local c2 = Counter()
+        c1 = Counter(10)
+        c2 = Counter()
 
-        local val1: number = c1.value
-        local val2: number = c2.value
+        val1: number = c1.value
+        val2: number = c2.value
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -658,10 +699,10 @@ fn test_class_instance_methods() {
             }
         }
 
-        local c = Counter{}
+        c = Counter{}
         c:increment()
         c:increment()
-        local result: number = c:get_value()
+        result: number = c:get_value()
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -685,8 +726,8 @@ fn test_class_static_methods() {
             }
         }
 
-        local sum: number = Math.add(5, 3)
-        local product: number = Math.multiply(4, 7)
+        sum: number = Math.add(5, 3)
+        product: number = Math.multiply(4, 7)
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -721,8 +762,8 @@ fn test_class_inheritance() {
             }
         }
 
-        local dog = Dog("Rex")
-        local result: string = dog:speak()
+        dog = Dog("Rex")
+        result: string = dog:speak()
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -750,11 +791,11 @@ fn test_class_method_overriding() {
             }
         }
 
-        local base = Base{}
-        local derived = Derived{}
+        base = Base{}
+        derived = Derived{}
 
-        local base_val: number = base:get_value()
-        local derived_val: number = derived:get_value()
+        base_val: number = base:get_value()
+        derived_val: number = derived:get_value()
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -775,8 +816,8 @@ fn test_class_method_overriding() {
 #[test]
 fn test_basic_string_interpolation() {
     let source = r#"
-        local name: string = "Alice"
-        local greeting: string = `Hello, ${name}!`
+        name: string = "Alice"
+        greeting: string = `Hello, ${name}!`
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -790,9 +831,9 @@ fn test_basic_string_interpolation() {
 #[test]
 fn test_expression_interpolation() {
     let source = r#"
-        local x: number = 10
-        local y: number = 20
-        local result: string = `The sum of ${x} and ${y} is ${x + y}`
+        x: number = 10
+        y: number = 20
+        result: string = `The sum of ${x} and ${y} is ${x + y}`
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -806,8 +847,8 @@ fn test_expression_interpolation() {
 #[test]
 fn test_nested_interpolation() {
     let source = r#"
-        local inner: string = "world"
-        local outer: string = `Hello, ${`nested ${inner}`}!`
+        inner: string = "world"
+        outer: string = `Hello, ${`nested ${inner}`}!`
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -825,8 +866,8 @@ fn test_nested_interpolation() {
 #[test]
 fn test_array_destructuring() {
     let source = r#"
-        local arr = {1, 2, 3}
-        local [a, b, c] = arr
+        arr = {1, 2, 3}
+        [a, b, c] = arr
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -845,8 +886,8 @@ fn test_array_destructuring() {
 #[test]
 fn test_object_destructuring() {
     let source = r#"
-        local person = {name = "Alice", age = 30, city = "NYC"}
-        local {name, age} = person
+        person = {name = "Alice", age = 30, city = "NYC"}
+        {name, age} = person
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -863,11 +904,11 @@ fn test_object_destructuring() {
 #[test]
 fn test_nested_destructuring() {
     let source = r#"
-        local data = {
+        data = {
             user = {name = "Bob", age = 25},
             location = {city = "LA", country = "USA"}
         }
-        local {user = {name, age}} = data
+        {user = {name, age}} = data
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -884,8 +925,8 @@ fn test_nested_destructuring() {
 #[test]
 fn test_destructuring_with_defaults() {
     let source = r#"
-        local obj = {x = 10}
-        local {x, y = 20, z = 30} = obj
+        obj = {x = 10}
+        {x, y = 20, z = 30} = obj
     "#;
 
     let lua_code = compile(source).unwrap();

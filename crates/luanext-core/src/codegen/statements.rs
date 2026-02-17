@@ -56,6 +56,23 @@ impl CodeGenerator {
                 let name = self.interner.resolve(goto.target.node);
                 self.writeln(&format!("goto {name}"));
             }
+            Statement::MultiAssignment(multi) => {
+                self.write_indent();
+                for (i, target) in multi.targets.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.generate_expression(target);
+                }
+                self.write(" = ");
+                for (i, value) in multi.values.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.generate_expression(value);
+                }
+                self.writeln("");
+            }
         }
     }
 
@@ -348,6 +365,23 @@ impl CodeGenerator {
             let rest_name_str = self.resolve(rest_name);
             self.write(&rest_name_str);
             self.writeln(" = {...}");
+        }
+
+        // Emit default parameter initialization
+        for param in decl.parameters.iter() {
+            if let Some(default_expr) = &param.default {
+                if let Pattern::Identifier(ident) = &param.pattern {
+                    let param_name = self.resolve(ident.node);
+                    self.write_indent();
+                    self.write("if ");
+                    self.write(&param_name);
+                    self.write(" == nil then ");
+                    self.write(&param_name);
+                    self.write(" = ");
+                    self.generate_expression(default_expr);
+                    self.writeln(" end");
+                }
+            }
         }
 
         self.generate_block(&decl.body);

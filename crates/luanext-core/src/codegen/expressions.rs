@@ -399,38 +399,36 @@ impl CodeGenerator {
                 self.write("(");
                 let mut first = true;
 
-                let mut string_parts: Vec<String> = Vec::new();
-                let mut expression_parts: Vec<&Expression> = Vec::new();
-
                 for part in template_lit.parts.iter() {
                     match part {
                         TemplatePart::String(s) => {
-                            string_parts.push(s.clone());
+                            // Only dedent multi-line strings to preserve inline spacing
+                            let processed = if s.contains('\n') {
+                                dedent(s)
+                            } else {
+                                s.clone()
+                            };
+                            // Skip empty string parts (e.g. trailing empty from last interpolation)
+                            if processed.is_empty() {
+                                continue;
+                            }
+                            if !first {
+                                self.write(" .. ");
+                            }
+                            first = false;
+                            self.write("\"");
+                            self.write(&processed.replace('\\', "\\\\").replace('"', "\\\""));
+                            self.write("\"");
                         }
                         TemplatePart::Expression(expr) => {
-                            expression_parts.push(expr);
+                            if !first {
+                                self.write(" .. ");
+                            }
+                            first = false;
+                            self.write("tostring(");
+                            self.generate_expression(expr);
+                            self.write(")");
                         }
-                    }
-                }
-
-                let string_iter = string_parts.iter();
-                let mut expression_iter = expression_parts.iter().peekable();
-
-                for s in string_iter {
-                    if !first {
-                        self.write(" .. ");
-                    }
-                    first = false;
-
-                    let dedented = dedent(s);
-                    self.write("\"");
-                    self.write(&dedented.replace('\\', "\\\\").replace('"', "\\\""));
-                    self.write("\"");
-
-                    if expression_iter.peek().is_some() {
-                        self.write(" .. tostring(");
-                        self.generate_expression(expression_iter.next().unwrap());
-                        self.write(")");
                     }
                 }
 

@@ -638,6 +638,10 @@ impl CfgBuilder {
                 self.add_stmt_to_block(current, index, decl.span);
                 current
             }
+            Statement::MultiAssignment(multi) => {
+                self.add_stmt_to_block(current, index, multi.span);
+                current
+            }
         }
     }
 
@@ -1092,6 +1096,7 @@ fn statement_span(stmt: &Statement<'_>) -> Span {
         Statement::DeclareType(d) => d.span,
         Statement::DeclareInterface(d) => d.span,
         Statement::DeclareConst(d) => d.span,
+        Statement::MultiAssignment(m) => m.span,
     }
 }
 

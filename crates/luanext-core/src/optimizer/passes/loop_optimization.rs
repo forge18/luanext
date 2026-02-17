@@ -356,6 +356,14 @@ impl LoopOptimizationPass {
             | Statement::DeclareConst(_)
             | Statement::Label(_)
             | Statement::Goto(_) => {}
+            Statement::MultiAssignment(multi) => {
+                for target in multi.targets.iter() {
+                    self.collect_modified_in_expression(target, modified);
+                }
+                for value in multi.values.iter() {
+                    self.collect_modified_in_expression(value, modified);
+                }
+            }
         }
     }
 
