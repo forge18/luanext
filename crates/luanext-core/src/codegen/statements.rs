@@ -100,7 +100,7 @@ impl CodeGenerator {
                 self.write("__temp = ");
                 self.generate_expression(&decl.initializer);
                 self.writeln("");
-                self.generate_array_destructuring(array_pattern, "__temp");
+                self.generate_array_destructuring(array_pattern, "__temp", &decl.kind);
             }
             Pattern::Object(obj_pattern) => {
                 // Generate temporary variable and destructuring assignments
@@ -111,7 +111,7 @@ impl CodeGenerator {
                 self.write("__temp = ");
                 self.generate_expression(&decl.initializer);
                 self.writeln("");
-                self.generate_object_destructuring(obj_pattern, "__temp");
+                self.generate_object_destructuring(obj_pattern, "__temp", &decl.kind);
             }
             Pattern::Literal(_, _) => {
                 // Literals in patterns don't bind variables - just evaluate the initializer
@@ -142,7 +142,12 @@ impl CodeGenerator {
     }
 
     /// Generate array destructuring assignments
-    pub fn generate_array_destructuring(&mut self, pattern: &ArrayPattern, source: &str) {
+    pub fn generate_array_destructuring(
+        &mut self,
+        pattern: &ArrayPattern,
+        source: &str,
+        kind: &VariableKind,
+    ) {
         let mut index = 1; // Lua arrays are 1-indexed
 
         for elem in pattern.elements.iter() {
@@ -154,7 +159,9 @@ impl CodeGenerator {
                     match pat {
                         Pattern::Identifier(ident) => {
                             self.write_indent();
-                            self.write("local ");
+                            if matches!(kind, VariableKind::Local | VariableKind::Const) {
+                                self.write("local ");
+                            }
                             let resolved = self.resolve(ident.node);
                             self.write(&resolved);
                             self.write(&format!(" = {}[{}]", source, index));
@@ -168,21 +175,25 @@ impl CodeGenerator {
                             // Nested array destructuring
                             let temp_var = format!("__temp_{}", index);
                             self.write_indent();
-                            self.write("local ");
+                            if matches!(kind, VariableKind::Local | VariableKind::Const) {
+                                self.write("local ");
+                            }
                             self.write(&temp_var);
                             self.write(&format!(" = {}[{}]", source, index));
                             self.writeln("");
-                            self.generate_array_destructuring(nested_array, &temp_var);
+                            self.generate_array_destructuring(nested_array, &temp_var, kind);
                         }
                         Pattern::Object(nested_obj) => {
                             // Nested object destructuring
                             let temp_var = format!("__temp_{}", index);
                             self.write_indent();
-                            self.write("local ");
+                            if matches!(kind, VariableKind::Local | VariableKind::Const) {
+                                self.write("local ");
+                            }
                             self.write(&temp_var);
                             self.write(&format!(" = {}[{}]", source, index));
                             self.writeln("");
-                            self.generate_object_destructuring(nested_obj, &temp_var);
+                            self.generate_object_destructuring(nested_obj, &temp_var, kind);
                         }
                         Pattern::Wildcard(_) | Pattern::Literal(_, _) => {
                             // Skip - don't bind anything
@@ -201,7 +212,9 @@ impl CodeGenerator {
                 ArrayPatternElement::Rest(ident) => {
                     // Rest element: collect remaining elements
                     self.write_indent();
-                    self.write("local ");
+                    if matches!(kind, VariableKind::Local | VariableKind::Const) {
+                        self.write("local ");
+                    }
                     let resolved = self.resolve(ident.node);
                     self.write(&resolved);
                     self.write(" = {");
@@ -235,7 +248,12 @@ impl CodeGenerator {
     }
 
     /// Generate object destructuring assignments
-    pub fn generate_object_destructuring(&mut self, pattern: &ObjectPattern, source: &str) {
+    pub fn generate_object_destructuring(
+        &mut self,
+        pattern: &ObjectPattern,
+        source: &str,
+        kind: &VariableKind,
+    ) {
         for prop in pattern.properties.iter() {
             let key_str = self.resolve(prop.key.node);
 
@@ -244,32 +262,42 @@ impl CodeGenerator {
                 match value_pattern {
                     Pattern::Identifier(ident) => {
                         self.write_indent();
-                        self.write("local ");
+                        if matches!(kind, VariableKind::Local | VariableKind::Const) {
+                            self.write("local ");
+                        }
                         let resolved = self.resolve(ident.node);
                         self.write(&resolved);
                         self.write(" = ");
                         self.write_property_access(source, &key_str, &prop.computed_key);
+                        if let Some(default_expr) = &prop.default {
+                            self.write(" or ");
+                            self.generate_expression(default_expr);
+                        }
                         self.writeln("");
                     }
                     Pattern::Array(nested_array) => {
                         let temp_var = format!("__temp_{}", key_str);
                         self.write_indent();
-                        self.write("local ");
+                        if matches!(kind, VariableKind::Local | VariableKind::Const) {
+                            self.write("local ");
+                        }
                         self.write(&temp_var);
                         self.write(" = ");
                         self.write_property_access(source, &key_str, &prop.computed_key);
                         self.writeln("");
-                        self.generate_array_destructuring(nested_array, &temp_var);
+                        self.generate_array_destructuring(nested_array, &temp_var, kind);
                     }
                     Pattern::Object(nested_obj) => {
                         let temp_var = format!("__temp_{}", key_str);
                         self.write_indent();
-                        self.write("local ");
+                        if matches!(kind, VariableKind::Local | VariableKind::Const) {
+                            self.write("local ");
+                        }
                         self.write(&temp_var);
                         self.write(" = ");
                         self.write_property_access(source, &key_str, &prop.computed_key);
                         self.writeln("");
-                        self.generate_object_destructuring(nested_obj, &temp_var);
+                        self.generate_object_destructuring(nested_obj, &temp_var, kind);
                     }
                     Pattern::Wildcard(_) | Pattern::Literal(_, _) => {}
                     Pattern::Or(_) => {}
@@ -278,10 +306,16 @@ impl CodeGenerator {
             } else {
                 // Shorthand: { key } means { key: key }
                 self.write_indent();
-                self.write("local ");
+                if matches!(kind, VariableKind::Local | VariableKind::Const) {
+                    self.write("local ");
+                }
                 self.write(&key_str);
                 self.write(" = ");
                 self.write_property_access(source, &key_str, &prop.computed_key);
+                if let Some(default_expr) = &prop.default {
+                    self.write(" or ");
+                    self.generate_expression(default_expr);
+                }
                 self.writeln("");
             }
         }
@@ -297,7 +331,10 @@ impl CodeGenerator {
                 .collect();
 
             self.write_indent();
-            self.writeln(&format!("local {} = {{}}", rest_name));
+            if matches!(kind, VariableKind::Local | VariableKind::Const) {
+                self.write("local ");
+            }
+            self.writeln(&format!("{} = {{}}", rest_name));
             self.write_indent();
             self.writeln(&format!("for __k, __v in pairs({}) do", source));
             self.indent();
@@ -480,12 +517,21 @@ impl CodeGenerator {
                     self.writeln(") do");
                     self.indent();
                     // Generate destructuring assignments at top of loop body
+                    // For-loop variables are always local
                     match pattern {
                         Pattern::Array(array_pattern) => {
-                            self.generate_array_destructuring(array_pattern, "__item");
+                            self.generate_array_destructuring(
+                                array_pattern,
+                                "__item",
+                                &VariableKind::Local,
+                            );
                         }
                         Pattern::Object(obj_pattern) => {
-                            self.generate_object_destructuring(obj_pattern, "__item");
+                            self.generate_object_destructuring(
+                                obj_pattern,
+                                "__item",
+                                &VariableKind::Local,
+                            );
                         }
                         _ => {}
                     }

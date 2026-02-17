@@ -866,7 +866,7 @@ fn test_nested_interpolation() {
 #[test]
 fn test_array_destructuring() {
     let source = r#"
-        arr = {1, 2, 3}
+        local arr = [1, 2, 3];
         [a, b, c] = arr
     "#;
 
@@ -886,7 +886,7 @@ fn test_array_destructuring() {
 #[test]
 fn test_object_destructuring() {
     let source = r#"
-        person = {name = "Alice", age = 30, city = "NYC"}
+        local person = {name = "Alice", age = 30, city = "NYC"}
         {name, age} = person
     "#;
 
@@ -904,11 +904,11 @@ fn test_object_destructuring() {
 #[test]
 fn test_nested_destructuring() {
     let source = r#"
-        data = {
+        local data = {
             user = {name = "Bob", age = 25},
             location = {city = "LA", country = "USA"}
         }
-        {user = {name, age}} = data
+        {user: {name, age}} = data
     "#;
 
     let lua_code = compile(source).unwrap();
@@ -925,7 +925,7 @@ fn test_nested_destructuring() {
 #[test]
 fn test_destructuring_with_defaults() {
     let source = r#"
-        obj = {x = 10}
+        local obj = {x = 10, y = nil, z = nil}
         {x, y = 20, z = 30} = obj
     "#;
 
