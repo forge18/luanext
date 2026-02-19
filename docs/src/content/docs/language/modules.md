@@ -316,6 +316,8 @@ const user = getUser("user-123")
 const post = getPost("post-456")
 ```
 
+> **Optimization:** When compiling with `--optimize`, the compiler automatically flattens re-export chains. For example, if `api/index.luax` re-exports `getUser` from `./users`, the compiler will generate a direct `require("./users")` call instead of going through the barrel file, reducing runtime overhead.
+
 ### Exporting Types
 
 Export type declarations:

@@ -1,9 +1,15 @@
 use luanext_core::codegen::CodeGenerator;
+use luanext_core::optimizer::analysis::module_graph::{
+    ExportInfo, ModuleGraph, ModuleNode, ReExportInfo, ReExportKind,
+};
+use luanext_core::optimizer::passes::ReExportFlatteningPass;
 use luanext_core::MutableProgram;
 use luanext_parser::lexer::Lexer;
 use luanext_parser::parser::Parser;
 use luanext_parser::string_interner::StringInterner;
 use luanext_typechecker::cli::diagnostics::CollectingDiagnosticHandler;
+use rustc_hash::{FxHashMap, FxHashSet};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 fn generate_lua(source: &str) -> String {
@@ -517,5 +523,252 @@ fn test_codegen_export_all_no_tree_shaking() {
     assert!(
         lua.contains("exports[k] = v"),
         "Should copy all exports with runtime loop"
+    );
+}
+
+// --- LTO Re-export Flattening Codegen Tests ---
+
+fn create_module_node(path: PathBuf) -> ModuleNode {
+    ModuleNode {
+        path,
+        exports: FxHashMap::default(),
+        imports: FxHashMap::default(),
+        re_exports: Vec::new(),
+        is_reachable: true,
+    }
+}
+
+fn export_info(name: &str) -> ExportInfo {
+    ExportInfo {
+        name: name.to_string(),
+        is_type_only: false,
+        is_default: false,
+        is_used: true,
+    }
+}
+
+/// Parse source, apply LTO re-export flattening, then codegen.
+fn generate_lua_with_flattening(
+    source: &str,
+    current_module: &PathBuf,
+    graph: ModuleGraph,
+) -> String {
+    let arena = bumpalo::Bump::new();
+    let handler = Arc::new(CollectingDiagnosticHandler::new());
+    let (interner, common) = StringInterner::new_with_common_identifiers();
+    let interner = Arc::new(interner);
+
+    let mut lexer = Lexer::new(source, handler.clone(), &interner);
+    let tokens = lexer.tokenize().expect("Lexing failed");
+
+    let mut parser = Parser::new(tokens, handler.clone(), &interner, &common, &arena);
+    let program = parser.parse().expect("Parsing failed");
+
+    let mut mutable = MutableProgram::from_program(&program);
+
+    // Apply re-export flattening
+    let mut pass = ReExportFlatteningPass::new(Arc::new(graph), interner.clone());
+    pass.set_current_module(current_module);
+    mutable.statements = pass.apply(&mutable.statements);
+
+    let mut codegen = CodeGenerator::new(interner);
+    codegen.generate(&mutable)
+}
+
+#[test]
+fn test_reexport_flattening_changes_require_path() {
+    // A re-exports from B, B re-exports from C, C defines foo
+    // After flattening, A should require from C directly
+    let mut modules = FxHashMap::default();
+
+    let a_path = PathBuf::from("/project/src/a.luax");
+    let b_path = PathBuf::from("/project/src/b.luax");
+    let c_path = PathBuf::from("/project/src/c.luax");
+
+    modules.insert(a_path.clone(), create_module_node(a_path.clone()));
+
+    let mut b_node = create_module_node(b_path.clone());
+    b_node.re_exports.push(ReExportInfo {
+        source_module: c_path.clone(),
+        specifiers: ReExportKind::Named(vec![("foo".to_string(), "foo".to_string())]),
+    });
+    modules.insert(b_path, b_node);
+
+    let mut c_node = create_module_node(c_path.clone());
+    c_node.exports.insert("foo".to_string(), export_info("foo"));
+    modules.insert(c_path, c_node);
+
+    let graph = ModuleGraph {
+        modules,
+        entry_points: FxHashSet::default(),
+    };
+
+    let source = r#"export { foo } from './b'"#;
+    let lua = generate_lua_with_flattening(source, &a_path, graph);
+
+    // After flattening, the require should point to ./c, not ./b
+    assert!(
+        lua.contains("./c"),
+        "Flattened re-export should require from ./c, got:\n{lua}"
+    );
+    assert!(
+        !lua.contains("./b"),
+        "Flattened re-export should NOT require from ./b, got:\n{lua}"
+    );
+}
+
+#[test]
+fn test_reexport_flattening_preserves_symbol_name() {
+    let mut modules = FxHashMap::default();
+
+    let a_path = PathBuf::from("/project/src/a.luax");
+    let b_path = PathBuf::from("/project/src/b.luax");
+    let c_path = PathBuf::from("/project/src/c.luax");
+
+    modules.insert(a_path.clone(), create_module_node(a_path.clone()));
+
+    let mut b_node = create_module_node(b_path.clone());
+    b_node.re_exports.push(ReExportInfo {
+        source_module: c_path.clone(),
+        specifiers: ReExportKind::Named(vec![("foo".to_string(), "foo".to_string())]),
+    });
+    modules.insert(b_path, b_node);
+
+    let mut c_node = create_module_node(c_path.clone());
+    c_node.exports.insert("foo".to_string(), export_info("foo"));
+    modules.insert(c_path, c_node);
+
+    let graph = ModuleGraph {
+        modules,
+        entry_points: FxHashSet::default(),
+    };
+
+    let source = r#"export { foo } from './b'"#;
+    let lua = generate_lua_with_flattening(source, &a_path, graph);
+
+    // The symbol name "foo" should still appear in the output
+    assert!(
+        lua.contains("foo"),
+        "Flattened re-export should preserve symbol name, got:\n{lua}"
+    );
+}
+
+#[test]
+fn test_reexport_flattening_no_change_for_direct_export() {
+    // B directly exports foo — no chain to flatten
+    let mut modules = FxHashMap::default();
+
+    let a_path = PathBuf::from("/project/src/a.luax");
+    let b_path = PathBuf::from("/project/src/b.luax");
+
+    modules.insert(a_path.clone(), create_module_node(a_path.clone()));
+
+    let mut b_node = create_module_node(b_path.clone());
+    b_node.exports.insert("foo".to_string(), export_info("foo"));
+    modules.insert(b_path, b_node);
+
+    let graph = ModuleGraph {
+        modules,
+        entry_points: FxHashSet::default(),
+    };
+
+    let source = r#"export { foo } from './b'"#;
+    let lua = generate_lua_with_flattening(source, &a_path, graph);
+
+    // Should still point to ./b since there's no chain
+    assert!(
+        lua.contains("./b"),
+        "Direct re-export should keep original path, got:\n{lua}"
+    );
+}
+
+#[test]
+fn test_reexport_flattening_deep_chain() {
+    // A → B → C → D
+    let mut modules = FxHashMap::default();
+
+    let a_path = PathBuf::from("/project/src/a.luax");
+    let b_path = PathBuf::from("/project/src/b.luax");
+    let c_path = PathBuf::from("/project/src/c.luax");
+    let d_path = PathBuf::from("/project/src/d.luax");
+
+    modules.insert(a_path.clone(), create_module_node(a_path.clone()));
+
+    let mut b_node = create_module_node(b_path.clone());
+    b_node.re_exports.push(ReExportInfo {
+        source_module: c_path.clone(),
+        specifiers: ReExportKind::Named(vec![("foo".to_string(), "foo".to_string())]),
+    });
+    modules.insert(b_path, b_node);
+
+    let mut c_node = create_module_node(c_path.clone());
+    c_node.re_exports.push(ReExportInfo {
+        source_module: d_path.clone(),
+        specifiers: ReExportKind::Named(vec![("foo".to_string(), "foo".to_string())]),
+    });
+    modules.insert(c_path, c_node);
+
+    let mut d_node = create_module_node(d_path.clone());
+    d_node.exports.insert("foo".to_string(), export_info("foo"));
+    modules.insert(d_path, d_node);
+
+    let graph = ModuleGraph {
+        modules,
+        entry_points: FxHashSet::default(),
+    };
+
+    let source = r#"export { foo } from './b'"#;
+    let lua = generate_lua_with_flattening(source, &a_path, graph);
+
+    assert!(
+        lua.contains("./d"),
+        "Deep chain should flatten to ./d, got:\n{lua}"
+    );
+    assert!(
+        !lua.contains("./b"),
+        "Should not contain intermediate ./b, got:\n{lua}"
+    );
+}
+
+#[test]
+fn test_reexport_flattening_with_alias() {
+    // B re-exports foo as bar from C
+    let mut modules = FxHashMap::default();
+
+    let a_path = PathBuf::from("/project/src/a.luax");
+    let b_path = PathBuf::from("/project/src/b.luax");
+    let c_path = PathBuf::from("/project/src/c.luax");
+
+    modules.insert(a_path.clone(), create_module_node(a_path.clone()));
+
+    let mut b_node = create_module_node(b_path.clone());
+    b_node.re_exports.push(ReExportInfo {
+        source_module: c_path.clone(),
+        specifiers: ReExportKind::Named(vec![("bar".to_string(), "bar".to_string())]),
+    });
+    modules.insert(b_path, b_node);
+
+    let mut c_node = create_module_node(c_path.clone());
+    c_node.exports.insert("bar".to_string(), export_info("bar"));
+    modules.insert(c_path, c_node);
+
+    let graph = ModuleGraph {
+        modules,
+        entry_points: FxHashSet::default(),
+    };
+
+    // A's source uses `export { bar as baz } from './b'`
+    let source = r#"export { bar as baz } from './b'"#;
+    let lua = generate_lua_with_flattening(source, &a_path, graph);
+
+    // After flattening, should require from ./c
+    assert!(
+        lua.contains("./c"),
+        "Aliased re-export should flatten to ./c, got:\n{lua}"
+    );
+    // The local extraction uses the original name (bar) and the alias (baz)
+    assert!(
+        lua.contains("bar") || lua.contains("baz"),
+        "Should preserve the symbol names, got:\n{lua}"
     );
 }

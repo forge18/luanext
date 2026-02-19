@@ -90,8 +90,8 @@ impl ModuleGraph {
             graph.mark_import_references(path, statements, &interner);
         }
 
-        // Phase 3: Resolve import/export connections
-        graph.resolve_connections();
+        // Phase 3: Resolve relative source paths to canonical module paths
+        graph.resolve_source_paths();
 
         // Phase 4: Compute reachability from entry points
         graph.compute_reachability();
@@ -363,11 +363,63 @@ impl ModuleGraph {
         }
     }
 
-    /// Resolve which imports connect to which exports
-    fn resolve_connections(&mut self) {
-        // Build a map of module paths for quick lookups
-        // For now, this is a placeholder - we'll need proper module resolution
-        // that matches the resolver used in the compiler
+    /// Resolve relative source paths in imports and re-exports to canonical module paths.
+    ///
+    /// After Phase 1 (add_module), `ImportInfo.source_module` and `ReExportInfo.source_module`
+    /// contain raw relative strings like `PathBuf::from("./b")`. This method resolves them
+    /// to the canonical paths used as keys in `self.modules`, enabling correct lookups in
+    /// `resolve_re_export_chain()`, `compute_reachability()`, and `mark_usage()`.
+    fn resolve_source_paths(&mut self) {
+        let known_modules: Vec<PathBuf> = self.modules.keys().cloned().collect();
+
+        // Collect all resolutions first to avoid borrow issues
+        let mut import_resolutions: Vec<(PathBuf, String, PathBuf)> = Vec::new();
+        let mut reexport_resolutions: Vec<(PathBuf, usize, PathBuf)> = Vec::new();
+
+        for (module_path, node) in &self.modules {
+            let parent = module_path
+                .parent()
+                .unwrap_or(module_path.as_path())
+                .to_path_buf();
+
+            // Resolve import source paths
+            for (name, import_info) in &node.imports {
+                let source_str = import_info.source_module.to_string_lossy();
+                if let Some(resolved) =
+                    resolve_relative_source(&parent, &source_str, &known_modules)
+                {
+                    import_resolutions.push((module_path.clone(), name.clone(), resolved));
+                }
+            }
+
+            // Resolve re-export source paths
+            for (idx, re_export) in node.re_exports.iter().enumerate() {
+                let source_str = re_export.source_module.to_string_lossy();
+                if let Some(resolved) =
+                    resolve_relative_source(&parent, &source_str, &known_modules)
+                {
+                    reexport_resolutions.push((module_path.clone(), idx, resolved));
+                }
+            }
+        }
+
+        // Apply import resolutions
+        for (module_path, import_name, resolved) in import_resolutions {
+            if let Some(node) = self.modules.get_mut(&module_path) {
+                if let Some(import_info) = node.imports.get_mut(&import_name) {
+                    import_info.source_module = resolved;
+                }
+            }
+        }
+
+        // Apply re-export resolutions
+        for (module_path, idx, resolved) in reexport_resolutions {
+            if let Some(node) = self.modules.get_mut(&module_path) {
+                if let Some(re_export) = node.re_exports.get_mut(idx) {
+                    re_export.source_module = resolved;
+                }
+            }
+        }
     }
 
     /// DFS from entry points to mark reachable modules
@@ -760,4 +812,156 @@ impl ModuleGraph {
 
         None
     }
+}
+
+/// Resolve a relative import source string (e.g., `./b`, `../utils`) to a canonical
+/// module path from the set of known modules.
+///
+/// Tries the source path with common extensions (`.luax`, `.tl`, `.lua`) and
+/// directory index patterns (`index.luax`, `index.tl`).
+pub fn resolve_relative_source(
+    from_dir: &Path,
+    source: &str,
+    known_modules: &[PathBuf],
+) -> Option<PathBuf> {
+    // Only resolve relative paths
+    if !source.starts_with("./") && !source.starts_with("../") {
+        return None;
+    }
+
+    let target = normalize_path(&from_dir.join(source));
+
+    // Try exact match first
+    for known in known_modules {
+        if paths_equal(known, &target) {
+            return Some(known.clone());
+        }
+    }
+
+    // Try with extensions
+    for ext in &["luax", "tl", "lua"] {
+        let with_ext = target.with_extension(ext);
+        for known in known_modules {
+            if paths_equal(known, &with_ext) {
+                return Some(known.clone());
+            }
+        }
+    }
+
+    // Try directory index patterns
+    for index_name in &["index.luax", "index.tl"] {
+        let index_path = target.join(index_name);
+        for known in known_modules {
+            if paths_equal(known, &index_path) {
+                return Some(known.clone());
+            }
+        }
+    }
+
+    None
+}
+
+/// Normalize a path by resolving `.` and `..` components without filesystem access.
+fn normalize_path(path: &Path) -> PathBuf {
+    let mut components = Vec::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::CurDir => {} // skip "."
+            std::path::Component::ParentDir => {
+                // Pop the last normal component if possible
+                if let Some(last) = components.last() {
+                    if *last != std::path::Component::ParentDir {
+                        components.pop();
+                    } else {
+                        components.push(component);
+                    }
+                } else {
+                    components.push(component);
+                }
+            }
+            _ => components.push(component),
+        }
+    }
+    components.iter().collect()
+}
+
+/// Compare two paths for equality, normalizing both first.
+fn paths_equal(a: &Path, b: &Path) -> bool {
+    normalize_path(a) == normalize_path(b)
+}
+
+/// Compute a relative require path from one module to another.
+///
+/// Given `from = /project/src/a.luax` and `to = /project/src/lib/c.luax`,
+/// returns `./lib/c` (no extension, with `./` prefix).
+pub fn compute_relative_require_path(from: &Path, to: &Path) -> String {
+    let from_dir = from.parent().unwrap_or(from);
+    let to_normalized = normalize_path(to);
+    let from_dir_normalized = normalize_path(from_dir);
+
+    // Try to compute relative path
+    if let Some(rel) = pathdiff_relative(&from_dir_normalized, &to_normalized) {
+        let rel_str = rel.to_string_lossy();
+        // Strip extension
+        let without_ext = strip_module_extension(&rel_str);
+        // Ensure ./ prefix
+        if without_ext.starts_with("./") || without_ext.starts_with("../") {
+            without_ext
+        } else {
+            format!("./{without_ext}")
+        }
+    } else {
+        // Fallback: use the target path as-is without extension
+        let to_str = to_normalized.to_string_lossy();
+        strip_module_extension(&to_str)
+    }
+}
+
+/// Compute relative path from a directory to a target file.
+fn pathdiff_relative(from_dir: &Path, to: &Path) -> Option<PathBuf> {
+    let from_components: Vec<_> = from_dir.components().collect();
+    let to_components: Vec<_> = to.components().collect();
+
+    // Find common prefix length
+    let common_len = from_components
+        .iter()
+        .zip(to_components.iter())
+        .take_while(|(a, b)| a == b)
+        .count();
+
+    if common_len == 0 {
+        return None;
+    }
+
+    let mut result = PathBuf::new();
+
+    // Add "../" for each remaining component in from_dir
+    let ups = from_components.len() - common_len;
+    for _ in 0..ups {
+        result.push("..");
+    }
+
+    // Add remaining components from target
+    for component in &to_components[common_len..] {
+        result.push(component);
+    }
+
+    // If no ups needed, prefix with "./"
+    if ups == 0 {
+        let mut prefixed = PathBuf::from(".");
+        prefixed.push(result);
+        result = prefixed;
+    }
+
+    Some(result)
+}
+
+/// Strip module file extensions (.luax, .tl, .lua) from a path string.
+fn strip_module_extension(path: &str) -> String {
+    for ext in &[".luax", ".tl", ".lua"] {
+        if let Some(stripped) = path.strip_suffix(ext) {
+            return stripped.to_string();
+        }
+    }
+    path.to_string()
 }

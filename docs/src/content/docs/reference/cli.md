@@ -349,8 +349,11 @@ luanext main.luax --optimize --out-file optimized.lua
 - Rich enum optimization
 - Table preallocation
 - Tail call optimization
+- Link-time dead import/export elimination (multi-file)
+- Re-export chain flattening (multi-file)
+- Unused module elimination (multi-file)
 
-**Note:** Requires `--out-file` or single file compilation for whole-program analysis.
+**Note:** Requires `--out-file` or single file compilation for whole-program analysis. Link-time optimizations are applied automatically when compiling multiple files together.
 
 #### `--no-optimize`
 

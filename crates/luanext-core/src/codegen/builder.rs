@@ -286,10 +286,7 @@ impl CodeGeneratorBuilder {
     ///
     /// Maps original alias import sources (e.g., `@/utils`) to resolved
     /// relative require paths (e.g., `./src/utils`) for correct Lua output.
-    pub fn alias_require_map(
-        mut self,
-        map: std::collections::HashMap<String, String>,
-    ) -> Self {
+    pub fn alias_require_map(mut self, map: std::collections::HashMap<String, String>) -> Self {
         self.alias_require_map = map;
         self
     }

@@ -33,8 +33,6 @@ pub struct UnusedModuleEliminationPass {
     module_graph: Arc<ModuleGraph>,
 }
 
-// TODO: Remove this allow once integrated into CLI (Phase 3)
-#[allow(dead_code)]
 impl UnusedModuleEliminationPass {
     pub fn new(module_graph: Arc<ModuleGraph>) -> Self {
         Self { module_graph }

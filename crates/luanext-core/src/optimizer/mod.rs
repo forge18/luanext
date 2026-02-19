@@ -1429,38 +1429,7 @@ impl<'arena> Optimizer<'arena> {
         Ok(())
     }
 
-    /// Apply Link-Time Optimization (LTO) passes to the program
-    /// These passes require module graph context and work at statement level
-    ///
-    /// LTO passes are applied ONCE after regular optimization (no fixed-point iteration)
-    /// because they work on module structure rather than code patterns.
-    ///
-    /// Note: LTO passes are currently placeholders. Full implementation requires
-    /// reworking passes to operate on MutableProgram<'arena> directly rather than
-    /// owned Vec<Statement>.
-    pub fn apply_lto_passes(
-        &mut self,
-        _program: &mut MutableProgram<'arena>,
-    ) -> Result<(), String> {
-        let Some(ref _graph) = self.module_graph else {
-            // No module graph available, skip LTO passes
-            return Ok(());
-        };
-
-        let Some(ref _module_path) = self.current_module_path else {
-            // No current module set, skip LTO passes
-            return Ok(());
-        };
-
-        // TODO: Implement LTO passes that work with arena-allocated statements
-        // Current implementation has lifetime issues that need to be resolved
-        // The passes need to be refactored to:
-        // 1. Work directly with &'arena [Statement<'arena>]
-        // 2. Use arena allocation for new statements
-        // 3. Return &'arena [Statement<'arena>] instead of Vec<Statement>
-
-        debug!("LTO passes registered but not yet applied (implementation pending)");
-
-        Ok(())
-    }
+    // Note: LTO passes (ReExportFlattening, DeadImportElimination, DeadExportElimination)
+    // are applied directly in main.rs during the codegen phase, where we have access to
+    // MutableProgram and Vec<Statement> for efficient statement-level transformations.
 }

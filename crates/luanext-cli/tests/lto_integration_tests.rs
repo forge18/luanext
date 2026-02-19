@@ -226,10 +226,197 @@ fn test_lto_type_only_imports_erased() {
 /// - Lines ~1617-1656: ModuleGraph construction
 /// - Lines ~1745-1771: Unused module filtering
 /// - Lines ~1805-1825: Dead import/export elimination
+/// - Lines ~1889-1920: Re-export flattening at O3
 #[test]
 fn test_lto_documentation() {
     // 1. ModuleGraph is built at O2+
     // 2. UnusedModuleEliminationPass filters modules
-    // 3. DeadImportEliminationPass and DeadExportEliminationPass transform AST
+    // 3. ReExportFlatteningPass flattens re-export chains (O3)
+    // 4. DeadImportEliminationPass and DeadExportEliminationPass transform AST
     // All library tests pass, confirming the system works correctly
+}
+
+// --- Multi-file LTO integration tests ---
+
+/// Compile a multi-file LuaNext project (all files together) and return per-file Lua output.
+fn compile_multi_file_project(
+    files: &[(&str, &str)],
+    opt_level: &str,
+) -> Result<Vec<(String, String)>, String> {
+    let temp_dir = TempDir::new().map_err(|e| format!("Failed to create temp dir: {e}"))?;
+    let base_path = temp_dir.path();
+
+    // Write all files
+    for (filename, content) in files {
+        let file_path = base_path.join(filename);
+        if let Some(parent) = file_path.parent() {
+            fs::create_dir_all(parent).map_err(|e| format!("Failed to create dir: {e}"))?;
+        }
+        fs::write(&file_path, content).map_err(|e| format!("Failed to write {filename}: {e}"))?;
+    }
+
+    // Build command with ALL files
+    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_luanext"));
+
+    for (filename, _) in files.iter().filter(|(name, _)| name.ends_with(".luax")) {
+        cmd.arg(base_path.join(filename));
+    }
+
+    if opt_level == "O2" || opt_level == "O3" {
+        cmd.arg("--optimize");
+    } else if opt_level == "O0" {
+        cmd.arg("--no-optimize");
+    }
+
+    let output = cmd
+        .output()
+        .map_err(|e| format!("Failed to run compiler: {e}"))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Compilation failed: {stderr}"));
+    }
+
+    // Read all generated .lua files
+    let mut results = Vec::new();
+    for (filename, _) in files.iter().filter(|(name, _)| name.ends_with(".luax")) {
+        let lua_path = base_path.join(filename).with_extension("lua");
+        if lua_path.exists() {
+            let lua_content = fs::read_to_string(&lua_path)
+                .map_err(|e| format!("Failed to read {}: {e}", lua_path.display()))?;
+            results.push((filename.to_string(), lua_content));
+        }
+    }
+
+    Ok(results)
+}
+
+#[test]
+#[ignore] // Requires luanext binary
+fn test_lto_reexport_flattening_basic() {
+    // A re-exports from B, B re-exports from C, C defines the function
+    let files = vec![
+        (
+            "a.luax",
+            r#"
+            export { greet } from './b'
+        "#,
+        ),
+        (
+            "b.luax",
+            r#"
+            export { greet } from './c'
+        "#,
+        ),
+        (
+            "c.luax",
+            r#"
+            export function greet(name: string): void {
+                print('Hello ' .. name)
+            }
+        "#,
+        ),
+    ];
+
+    // With O3 (--optimize), re-export flattening should kick in
+    let outputs = compile_multi_file_project(&files, "O3").expect("Compilation should succeed");
+
+    // Find a.lua in outputs
+    let a_output = outputs
+        .iter()
+        .find(|(name, _)| name == "a.luax")
+        .map(|(_, lua)| lua.as_str())
+        .expect("a.lua should be generated");
+
+    // After flattening, a.lua should require from ./c, not ./b
+    assert!(
+        a_output.contains("./c") || a_output.contains("/c"),
+        "Flattened a.lua should require from c, got:\n{a_output}"
+    );
+}
+
+#[test]
+#[ignore] // Requires luanext binary
+fn test_lto_reexport_flattening_with_rename() {
+    let files = vec![
+        (
+            "a.luax",
+            r#"
+            export { foo as bar } from './b'
+        "#,
+        ),
+        (
+            "b.luax",
+            r#"
+            export { foo } from './c'
+        "#,
+        ),
+        (
+            "c.luax",
+            r#"
+            export function foo(): number {
+                return 42
+            }
+        "#,
+        ),
+    ];
+
+    let outputs = compile_multi_file_project(&files, "O3").expect("Compilation should succeed");
+
+    let a_output = outputs
+        .iter()
+        .find(|(name, _)| name == "a.luax")
+        .map(|(_, lua)| lua.as_str())
+        .expect("a.lua should be generated");
+
+    // After flattening, should require from c
+    assert!(
+        a_output.contains("./c") || a_output.contains("/c"),
+        "Renamed re-export should flatten to c, got:\n{a_output}"
+    );
+}
+
+#[test]
+#[ignore] // Requires luanext binary
+fn test_lto_reexport_flattening_export_all_barrel() {
+    // B is a pure barrel file: export * from './c'
+    let files = vec![
+        (
+            "a.luax",
+            r#"
+            export * from './b'
+        "#,
+        ),
+        (
+            "b.luax",
+            r#"
+            export * from './c'
+        "#,
+        ),
+        (
+            "c.luax",
+            r#"
+            export function foo(): number {
+                return 42
+            }
+            export function bar(): number {
+                return 99
+            }
+        "#,
+        ),
+    ];
+
+    let outputs = compile_multi_file_project(&files, "O3").expect("Compilation should succeed");
+
+    let a_output = outputs
+        .iter()
+        .find(|(name, _)| name == "a.luax")
+        .map(|(_, lua)| lua.as_str())
+        .expect("a.lua should be generated");
+
+    // After flattening, a.lua should require from c (barrel skip)
+    assert!(
+        a_output.contains("./c") || a_output.contains("/c"),
+        "Export-all barrel should flatten to c, got:\n{a_output}"
+    );
 }

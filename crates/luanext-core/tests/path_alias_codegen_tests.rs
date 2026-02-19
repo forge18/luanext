@@ -93,10 +93,7 @@ fn test_alias_default_import_rewritten() {
 fn test_alias_namespace_import_rewritten() {
     let source = r#"import * as utils from "@/shared/utils""#;
     let mut alias_map = HashMap::new();
-    alias_map.insert(
-        "@/shared/utils".to_string(),
-        "../shared/utils".to_string(),
-    );
+    alias_map.insert("@/shared/utils".to_string(), "../shared/utils".to_string());
 
     let result = compile_with_alias_map(source, alias_map).unwrap();
     assert!(

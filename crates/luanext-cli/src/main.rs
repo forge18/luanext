@@ -1096,8 +1096,7 @@ fn discover_dependencies(
                 Ok(dep_id) => {
                     // If this was an alias import, compute the resolved require path
                     if resolver.matches_alias(&import.source) {
-                        let require_path =
-                            compute_relative_require_path(file_path, dep_id.path());
+                        let require_path = compute_relative_require_path(file_path, dep_id.path());
                         file_alias_map.insert(import.source.clone(), require_path);
                     }
                     dependencies.push((dep_id, import.kind));
@@ -1639,10 +1638,7 @@ fn compile(
                 let output_path = determine_output_path(file_path, &cli);
                 let interner_arc = Arc::new(parsed.interner.clone());
 
-                let file_alias_map = alias_maps
-                    .get(file_path)
-                    .cloned()
-                    .unwrap_or_default();
+                let file_alias_map = alias_maps.get(file_path).cloned().unwrap_or_default();
 
                 Some(CheckedModule {
                     file_path: file_path.clone(),
@@ -1891,25 +1887,29 @@ fn compile(
                 if optimization_level >= luanext_core::config::OptimizationLevel::Moderate {
                     use luanext_core::optimizer::passes::{
                         DeadExportEliminationPass, DeadImportEliminationPass,
+                        ReExportFlatteningPass,
                     };
 
-                    // Create passes with module graph and interner
+                    // O3: Re-export flattening (runs first to enable more dead code elimination)
+                    if optimization_level >= luanext_core::config::OptimizationLevel::Aggressive {
+                        let mut reexport_pass =
+                            ReExportFlatteningPass::new(graph.clone(), module.interner.clone());
+                        reexport_pass.set_current_module(&module.file_path);
+                        mutable_ast.statements = reexport_pass.apply(&mutable_ast.statements);
+                    }
+
+                    // O2+: Dead import/export elimination
                     let mut import_pass =
                         DeadImportEliminationPass::new(graph.clone(), module.interner.clone());
                     let mut export_pass =
                         DeadExportEliminationPass::new(graph.clone(), module.interner.clone());
 
-                    // Set current module context
                     import_pass.set_current_module(&module.file_path);
                     export_pass.set_current_module(&module.file_path);
 
-                    // Apply dead import elimination
                     let after_import = import_pass.apply(&mutable_ast.statements);
-
-                    // Apply dead export elimination
                     let after_export = export_pass.apply(&after_import);
 
-                    // Update statements with transformed result
                     mutable_ast.statements = after_export;
                 }
             }

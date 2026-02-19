@@ -2,7 +2,8 @@
 ///
 /// These tests verify the basic data structures and functionality of the LTO module graph.
 use luanext_core::optimizer::analysis::module_graph::{
-    ExportInfo, ImportInfo, ModuleGraph, ModuleNode,
+    compute_relative_require_path, resolve_relative_source, ExportInfo, ImportInfo, ModuleGraph,
+    ModuleNode, ReExportInfo, ReExportKind,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::path::PathBuf;
@@ -286,4 +287,205 @@ fn test_default_exports() {
     let default_export = module.exports.get("default").unwrap();
     assert!(default_export.is_default);
     assert!(default_export.is_used);
+}
+
+// --- Path Resolution Tests ---
+
+#[test]
+fn test_resolve_relative_source_with_extension() {
+    let known = vec![PathBuf::from("/project/src/b.luax")];
+    let from_dir = PathBuf::from("/project/src");
+
+    let result = resolve_relative_source(&from_dir, "./b", &known);
+    assert_eq!(result, Some(PathBuf::from("/project/src/b.luax")));
+}
+
+#[test]
+fn test_resolve_relative_source_parent_dir() {
+    let known = vec![PathBuf::from("/project/lib/utils.luax")];
+    let from_dir = PathBuf::from("/project/src");
+
+    let result = resolve_relative_source(&from_dir, "../lib/utils", &known);
+    assert_eq!(result, Some(PathBuf::from("/project/lib/utils.luax")));
+}
+
+#[test]
+fn test_resolve_relative_source_no_match() {
+    let known = vec![PathBuf::from("/project/src/b.luax")];
+    let from_dir = PathBuf::from("/project/src");
+
+    let result = resolve_relative_source(&from_dir, "./nonexistent", &known);
+    assert_eq!(result, None);
+}
+
+#[test]
+fn test_resolve_relative_source_ignores_absolute() {
+    let known = vec![PathBuf::from("/project/src/b.luax")];
+    let from_dir = PathBuf::from("/project/src");
+
+    let result = resolve_relative_source(&from_dir, "some-package", &known);
+    assert_eq!(result, None);
+}
+
+#[test]
+fn test_resolve_relative_source_tl_extension() {
+    let known = vec![PathBuf::from("/project/src/types.tl")];
+    let from_dir = PathBuf::from("/project/src");
+
+    let result = resolve_relative_source(&from_dir, "./types", &known);
+    assert_eq!(result, Some(PathBuf::from("/project/src/types.tl")));
+}
+
+#[test]
+fn test_resolve_relative_source_index_file() {
+    let known = vec![PathBuf::from("/project/src/utils/index.luax")];
+    let from_dir = PathBuf::from("/project/src");
+
+    let result = resolve_relative_source(&from_dir, "./utils", &known);
+    assert_eq!(result, Some(PathBuf::from("/project/src/utils/index.luax")));
+}
+
+#[test]
+fn test_compute_relative_require_path_same_dir() {
+    let from = PathBuf::from("/project/src/a.luax");
+    let to = PathBuf::from("/project/src/c.luax");
+
+    let result = compute_relative_require_path(&from, &to);
+    assert_eq!(result, "./c");
+}
+
+#[test]
+fn test_compute_relative_require_path_subdirectory() {
+    let from = PathBuf::from("/project/src/a.luax");
+    let to = PathBuf::from("/project/src/lib/c.luax");
+
+    let result = compute_relative_require_path(&from, &to);
+    assert_eq!(result, "./lib/c");
+}
+
+#[test]
+fn test_compute_relative_require_path_parent_dir() {
+    let from = PathBuf::from("/project/src/sub/a.luax");
+    let to = PathBuf::from("/project/src/c.luax");
+
+    let result = compute_relative_require_path(&from, &to);
+    assert_eq!(result, "../c");
+}
+
+#[test]
+fn test_resolve_re_export_chain_after_path_resolution() {
+    // Build a graph with resolved paths: B re-exports foo from C
+    let mut modules = FxHashMap::default();
+
+    let b_path = PathBuf::from("/project/src/b.luax");
+    let c_path = PathBuf::from("/project/src/c.luax");
+
+    let mut b_node = create_module_node(b_path.clone());
+    b_node.re_exports.push(ReExportInfo {
+        source_module: c_path.clone(), // Already resolved to canonical path
+        specifiers: ReExportKind::Named(vec![("foo".to_string(), "foo".to_string())]),
+    });
+    modules.insert(b_path.clone(), b_node);
+
+    let mut c_node = create_module_node(c_path.clone());
+    c_node.exports.insert(
+        "foo".to_string(),
+        ExportInfo {
+            name: "foo".to_string(),
+            is_type_only: false,
+            is_default: false,
+            is_used: true,
+        },
+    );
+    modules.insert(c_path.clone(), c_node);
+
+    let graph = ModuleGraph {
+        modules,
+        entry_points: FxHashSet::default(),
+    };
+
+    // Resolve chain: B.foo → C.foo
+    let result = graph.resolve_re_export_chain(&b_path, "foo");
+    assert_eq!(result, Some((c_path, "foo".to_string())));
+}
+
+#[test]
+fn test_resolve_re_export_chain_deep() {
+    // B → C → D chain
+    let mut modules = FxHashMap::default();
+
+    let b_path = PathBuf::from("/project/src/b.luax");
+    let c_path = PathBuf::from("/project/src/c.luax");
+    let d_path = PathBuf::from("/project/src/d.luax");
+
+    let mut b_node = create_module_node(b_path.clone());
+    b_node.re_exports.push(ReExportInfo {
+        source_module: c_path.clone(),
+        specifiers: ReExportKind::Named(vec![("foo".to_string(), "foo".to_string())]),
+    });
+    modules.insert(b_path.clone(), b_node);
+
+    let mut c_node = create_module_node(c_path.clone());
+    c_node.re_exports.push(ReExportInfo {
+        source_module: d_path.clone(),
+        specifiers: ReExportKind::Named(vec![("foo".to_string(), "foo".to_string())]),
+    });
+    modules.insert(c_path, c_node);
+
+    let mut d_node = create_module_node(d_path.clone());
+    d_node.exports.insert(
+        "foo".to_string(),
+        ExportInfo {
+            name: "foo".to_string(),
+            is_type_only: false,
+            is_default: false,
+            is_used: true,
+        },
+    );
+    modules.insert(d_path.clone(), d_node);
+
+    let graph = ModuleGraph {
+        modules,
+        entry_points: FxHashSet::default(),
+    };
+
+    let result = graph.resolve_re_export_chain(&b_path, "foo");
+    assert_eq!(result, Some((d_path, "foo".to_string())));
+}
+
+#[test]
+fn test_resolve_re_export_chain_with_rename() {
+    // B re-exports C's "original" as "renamed"
+    let mut modules = FxHashMap::default();
+
+    let b_path = PathBuf::from("/project/src/b.luax");
+    let c_path = PathBuf::from("/project/src/c.luax");
+
+    let mut b_node = create_module_node(b_path.clone());
+    b_node.re_exports.push(ReExportInfo {
+        source_module: c_path.clone(),
+        specifiers: ReExportKind::Named(vec![("original".to_string(), "renamed".to_string())]),
+    });
+    modules.insert(b_path.clone(), b_node);
+
+    let mut c_node = create_module_node(c_path.clone());
+    c_node.exports.insert(
+        "original".to_string(),
+        ExportInfo {
+            name: "original".to_string(),
+            is_type_only: false,
+            is_default: false,
+            is_used: true,
+        },
+    );
+    modules.insert(c_path.clone(), c_node);
+
+    let graph = ModuleGraph {
+        modules,
+        entry_points: FxHashSet::default(),
+    };
+
+    // Looking up "renamed" should resolve to C's "original"
+    let result = graph.resolve_re_export_chain(&b_path, "renamed");
+    assert_eq!(result, Some((c_path, "original".to_string())));
 }
