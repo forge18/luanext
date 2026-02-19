@@ -31,7 +31,7 @@ struct Cli {
     #[arg(long, value_name = "FILE")]
     out_file: Option<PathBuf>,
 
-    /// Target Lua version (5.1, 5.2, 5.3, 5.4)
+    /// Target Lua version (5.1, 5.2, 5.3, 5.4, 5.5, jit)
     #[arg(long, value_name = "VERSION", default_value = "5.4")]
     target: String,
 
@@ -199,6 +199,8 @@ fn main() -> anyhow::Result<()> {
         luanext_core::config::LuaVersion::Lua52 => luanext_core::codegen::LuaTarget::Lua52,
         luanext_core::config::LuaVersion::Lua53 => luanext_core::codegen::LuaTarget::Lua53,
         luanext_core::config::LuaVersion::Lua54 => luanext_core::codegen::LuaTarget::Lua54,
+        luanext_core::config::LuaVersion::Lua55 => luanext_core::codegen::LuaTarget::Lua55,
+        luanext_core::config::LuaVersion::LuaJIT => luanext_core::codegen::LuaTarget::LuaJIT,
         luanext_core::config::LuaVersion::Auto => {
             // Should never hit this case after effective(), but fallback to 5.4
             luanext_core::codegen::LuaTarget::Lua54
@@ -243,7 +245,7 @@ fn init_project() -> anyhow::Result<()> {
 # https://luanext.dev/docs/configuration
 
 compilerOptions:
-  target: "5.4"          # Lua version: 5.1, 5.2, 5.3, 5.4
+  target: "5.4"          # Lua version: 5.1, 5.2, 5.3, 5.4, 5.5, jit
   outDir: "./dist"       # Output directory for compiled files
   sourceMap: true        # Generate source maps
   strict: true           # Enable strict type checking
@@ -302,8 +304,10 @@ fn parse_lua_target(target: &str) -> anyhow::Result<luanext_core::codegen::LuaTa
         "5.2" | "52" => Ok(LuaTarget::Lua52),
         "5.3" | "53" => Ok(LuaTarget::Lua53),
         "5.4" | "54" => Ok(LuaTarget::Lua54),
+        "5.5" | "55" => Ok(LuaTarget::Lua55),
+        "jit" | "luajit" => Ok(LuaTarget::LuaJIT),
         _ => Err(anyhow::anyhow!(
-            "Invalid Lua target '{}'. Supported targets: 5.1, 5.2, 5.3, 5.4",
+            "Invalid Lua target '{}'. Supported targets: 5.1, 5.2, 5.3, 5.4, 5.5, jit",
             target
         )),
     }
@@ -352,6 +356,8 @@ fn load_config_and_files(
             "5.2" | "52" => LuaVersion::Lua52,
             "5.3" | "53" => LuaVersion::Lua53,
             "5.4" | "54" => LuaVersion::Lua54,
+            "5.5" | "55" => LuaVersion::Lua55,
+            "jit" | "luajit" => LuaVersion::LuaJIT,
             _ => LuaVersion::Lua54,
         });
     }

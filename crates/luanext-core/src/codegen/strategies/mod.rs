@@ -2,6 +2,8 @@ pub mod lua51;
 pub mod lua52;
 pub mod lua53;
 pub mod lua54;
+pub mod lua55;
+pub mod luajit;
 
 use luanext_parser::ast::expression::BinaryOp;
 use luanext_parser::string_interner::StringId;
@@ -34,4 +36,17 @@ pub trait CodeGenStrategy {
 
     /// Check if this strategy supports goto/labels (Lua 5.2+)
     fn supports_goto(&self) -> bool;
+
+    /// Check if this strategy supports native `continue` keyword (Lua 5.5+)
+    /// When true, emits `continue` directly instead of `goto __continue` + label
+    fn supports_native_continue(&self) -> bool {
+        false
+    }
+
+    /// Generate the variable declaration prefix for a global variable.
+    /// Returns `Some("global ")` for Lua 5.5 (native global keyword),
+    /// `None` for all other targets (global = no prefix).
+    fn global_declaration_prefix(&self) -> Option<&str> {
+        None
+    }
 }

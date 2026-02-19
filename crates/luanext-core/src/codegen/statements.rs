@@ -77,16 +77,29 @@ impl CodeGenerator {
         }
     }
 
+    /// Emit the appropriate variable declaration prefix for the given kind.
+    /// For Local/Const: emits "local "
+    /// For Global on Lua 5.5: emits "global "
+    /// For Global on other targets: emits nothing (bare assignment)
+    fn emit_var_prefix(&mut self, kind: &VariableKind) {
+        match kind {
+            VariableKind::Local | VariableKind::Const => {
+                self.write("local ");
+            }
+            VariableKind::Global => {
+                if let Some(prefix) = self.strategy.global_declaration_prefix() {
+                    let prefix = prefix.to_string();
+                    self.write(&prefix);
+                }
+            }
+        }
+    }
+
     pub fn generate_variable_declaration(&mut self, decl: &VariableDeclaration) {
         match &decl.pattern {
             Pattern::Identifier(_) | Pattern::Wildcard(_) => {
-                // Simple case: [local] name = value
                 self.write_indent();
-                // Only emit 'local' keyword for Local and Const kinds
-                // Global variables omit 'local' to create module-level variables
-                if matches!(decl.kind, VariableKind::Local | VariableKind::Const) {
-                    self.write("local ");
-                }
+                self.emit_var_prefix(&decl.kind);
                 self.generate_pattern(&decl.pattern);
                 self.write(" = ");
                 self.generate_expression(&decl.initializer);
@@ -95,9 +108,7 @@ impl CodeGenerator {
             Pattern::Array(array_pattern) => {
                 // Generate temporary variable and destructuring assignments
                 self.write_indent();
-                if matches!(decl.kind, VariableKind::Local | VariableKind::Const) {
-                    self.write("local ");
-                }
+                self.emit_var_prefix(&decl.kind);
                 self.write("__temp = ");
                 self.generate_expression(&decl.initializer);
                 self.writeln("");
@@ -106,9 +117,7 @@ impl CodeGenerator {
             Pattern::Object(obj_pattern) => {
                 // Generate temporary variable and destructuring assignments
                 self.write_indent();
-                if matches!(decl.kind, VariableKind::Local | VariableKind::Const) {
-                    self.write("local ");
-                }
+                self.emit_var_prefix(&decl.kind);
                 self.write("__temp = ");
                 self.generate_expression(&decl.initializer);
                 self.writeln("");
@@ -160,9 +169,7 @@ impl CodeGenerator {
                     match pat {
                         Pattern::Identifier(ident) => {
                             self.write_indent();
-                            if matches!(kind, VariableKind::Local | VariableKind::Const) {
-                                self.write("local ");
-                            }
+                            self.emit_var_prefix(kind);
                             let resolved = self.resolve(ident.node);
                             self.write(&resolved);
                             self.write(&format!(" = {}[{}]", source, index));
@@ -176,9 +183,7 @@ impl CodeGenerator {
                             // Nested array destructuring
                             let temp_var = format!("__temp_{}", index);
                             self.write_indent();
-                            if matches!(kind, VariableKind::Local | VariableKind::Const) {
-                                self.write("local ");
-                            }
+                            self.emit_var_prefix(kind);
                             self.write(&temp_var);
                             self.write(&format!(" = {}[{}]", source, index));
                             self.writeln("");
@@ -188,9 +193,7 @@ impl CodeGenerator {
                             // Nested object destructuring
                             let temp_var = format!("__temp_{}", index);
                             self.write_indent();
-                            if matches!(kind, VariableKind::Local | VariableKind::Const) {
-                                self.write("local ");
-                            }
+                            self.emit_var_prefix(kind);
                             self.write(&temp_var);
                             self.write(&format!(" = {}[{}]", source, index));
                             self.writeln("");
@@ -213,9 +216,7 @@ impl CodeGenerator {
                 ArrayPatternElement::Rest(ident) => {
                     // Rest element: collect remaining elements
                     self.write_indent();
-                    if matches!(kind, VariableKind::Local | VariableKind::Const) {
-                        self.write("local ");
-                    }
+                    self.emit_var_prefix(kind);
                     let resolved = self.resolve(ident.node);
                     self.write(&resolved);
                     self.write(" = {");
@@ -263,9 +264,7 @@ impl CodeGenerator {
                 match value_pattern {
                     Pattern::Identifier(ident) => {
                         self.write_indent();
-                        if matches!(kind, VariableKind::Local | VariableKind::Const) {
-                            self.write("local ");
-                        }
+                        self.emit_var_prefix(kind);
                         let resolved = self.resolve(ident.node);
                         self.write(&resolved);
                         self.write(" = ");
@@ -279,9 +278,7 @@ impl CodeGenerator {
                     Pattern::Array(nested_array) => {
                         let temp_var = format!("__temp_{}", key_str);
                         self.write_indent();
-                        if matches!(kind, VariableKind::Local | VariableKind::Const) {
-                            self.write("local ");
-                        }
+                        self.emit_var_prefix(kind);
                         self.write(&temp_var);
                         self.write(" = ");
                         self.write_property_access(source, &key_str, &prop.computed_key);
@@ -291,9 +288,7 @@ impl CodeGenerator {
                     Pattern::Object(nested_obj) => {
                         let temp_var = format!("__temp_{}", key_str);
                         self.write_indent();
-                        if matches!(kind, VariableKind::Local | VariableKind::Const) {
-                            self.write("local ");
-                        }
+                        self.emit_var_prefix(kind);
                         self.write(&temp_var);
                         self.write(" = ");
                         self.write_property_access(source, &key_str, &prop.computed_key);
@@ -307,9 +302,7 @@ impl CodeGenerator {
             } else {
                 // Shorthand: { key } means { key: key }
                 self.write_indent();
-                if matches!(kind, VariableKind::Local | VariableKind::Const) {
-                    self.write("local ");
-                }
+                self.emit_var_prefix(kind);
                 self.write(&key_str);
                 self.write(" = ");
                 self.write_property_access(source, &key_str, &prop.computed_key);
@@ -332,9 +325,7 @@ impl CodeGenerator {
                 .collect();
 
             self.write_indent();
-            if matches!(kind, VariableKind::Local | VariableKind::Const) {
-                self.write("local ");
-            }
+            self.emit_var_prefix(kind);
             self.writeln(&format!("{} = {{}}", rest_name));
             self.write_indent();
             self.writeln(&format!("for __k, __v in pairs({}) do", source));
@@ -476,7 +467,10 @@ impl CodeGenerator {
         self.generate_expression(&while_stmt.condition);
         self.writeln(" do");
         self.indent();
-        if has_continue && !self.strategy.supports_goto() {
+        if has_continue
+            && !self.strategy.supports_goto()
+            && !self.strategy.supports_native_continue()
+        {
             if block_contains_break(&while_stmt.body) {
                 self.write_indent();
                 self.writeln("error(\"LuaNext: continue and break in the same loop is not supported for Lua 5.1 target\")");
@@ -486,7 +480,7 @@ impl CodeGenerator {
             self.indent();
         }
         self.generate_block(&while_stmt.body);
-        if has_continue {
+        if has_continue && !self.strategy.supports_native_continue() {
             if self.strategy.supports_goto() {
                 self.write_indent();
                 self.writeln("::__continue::");
@@ -519,7 +513,10 @@ impl CodeGenerator {
                 }
                 self.writeln(" do");
                 self.indent();
-                if has_continue && !self.strategy.supports_goto() {
+                if has_continue
+                    && !self.strategy.supports_goto()
+                    && !self.strategy.supports_native_continue()
+                {
                     if block_contains_break(&numeric.body) {
                         self.write_indent();
                         self.writeln("error(\"LuaNext: continue and break in the same loop is not supported for Lua 5.1 target\")");
@@ -529,7 +526,7 @@ impl CodeGenerator {
                     self.indent();
                 }
                 self.generate_block(&numeric.body);
-                if has_continue {
+                if has_continue && !self.strategy.supports_native_continue() {
                     if self.strategy.supports_goto() {
                         self.write_indent();
                         self.writeln("::__continue::");
@@ -577,7 +574,10 @@ impl CodeGenerator {
                         }
                         _ => {}
                     }
-                    if has_continue && !self.strategy.supports_goto() {
+                    if has_continue
+                        && !self.strategy.supports_goto()
+                        && !self.strategy.supports_native_continue()
+                    {
                         if block_contains_break(&generic.body) {
                             self.write_indent();
                             self.writeln("error(\"LuaNext: continue and break in the same loop is not supported for Lua 5.1 target\")");
@@ -587,7 +587,7 @@ impl CodeGenerator {
                         self.indent();
                     }
                     self.generate_block(&generic.body);
-                    if has_continue {
+                    if has_continue && !self.strategy.supports_native_continue() {
                         if self.strategy.supports_goto() {
                             self.write_indent();
                             self.writeln("::__continue::");
@@ -619,7 +619,10 @@ impl CodeGenerator {
                     }
                     self.writeln(" do");
                     self.indent();
-                    if has_continue && !self.strategy.supports_goto() {
+                    if has_continue
+                        && !self.strategy.supports_goto()
+                        && !self.strategy.supports_native_continue()
+                    {
                         if block_contains_break(&generic.body) {
                             self.write_indent();
                             self.writeln("error(\"LuaNext: continue and break in the same loop is not supported for Lua 5.1 target\")");
@@ -629,7 +632,7 @@ impl CodeGenerator {
                         self.indent();
                     }
                     self.generate_block(&generic.body);
-                    if has_continue {
+                    if has_continue && !self.strategy.supports_native_continue() {
                         if self.strategy.supports_goto() {
                             self.write_indent();
                             self.writeln("::__continue::");
@@ -652,7 +655,10 @@ impl CodeGenerator {
         self.write_indent();
         self.writeln("repeat");
         self.indent();
-        if has_continue && !self.strategy.supports_goto() {
+        if has_continue
+            && !self.strategy.supports_goto()
+            && !self.strategy.supports_native_continue()
+        {
             if block_contains_break(&repeat_stmt.body) {
                 self.write_indent();
                 self.writeln("error(\"LuaNext: continue and break in the same loop is not supported for Lua 5.1 target\")");
@@ -662,7 +668,7 @@ impl CodeGenerator {
             self.indent();
         }
         self.generate_block(&repeat_stmt.body);
-        if has_continue {
+        if has_continue && !self.strategy.supports_native_continue() {
             if self.strategy.supports_goto() {
                 self.write_indent();
                 self.writeln("::__continue::");

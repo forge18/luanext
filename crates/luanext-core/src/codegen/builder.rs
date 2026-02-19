@@ -106,7 +106,7 @@ impl CodeGeneratorBuilder {
     ///
     /// # Arguments
     ///
-    /// * `target` - The [`LuaTarget`] version (Lua51, Lua52, Lua53, or Lua54)
+    /// * `target` - The [`LuaTarget`] version (Lua51, Lua52, Lua53, Lua54, Lua55, or LuaJIT)
     ///
     /// # Example
     ///

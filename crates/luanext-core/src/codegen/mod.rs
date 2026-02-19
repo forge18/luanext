@@ -54,6 +54,10 @@ pub enum LuaTarget {
     /// Lua 5.4 (added const, to-be-closed)
     #[default]
     Lua54,
+    /// Lua 5.5 (native continue, global keyword)
+    Lua55,
+    /// LuaJIT (Lua 5.1 + bit library + goto)
+    LuaJIT,
 }
 
 /// Dedent a multi-line template literal string.
@@ -220,6 +224,8 @@ impl CodeGenerator {
             LuaTarget::Lua52 => Box::new(strategies::lua52::Lua52Strategy),
             LuaTarget::Lua53 => Box::new(strategies::lua53::Lua53Strategy),
             LuaTarget::Lua54 => Box::new(strategies::lua54::Lua54Strategy),
+            LuaTarget::Lua55 => Box::new(strategies::lua55::Lua55Strategy),
+            LuaTarget::LuaJIT => Box::new(strategies::luajit::LuaJITStrategy),
         }
     }
 
@@ -1916,5 +1922,248 @@ end
             "function should encode as f: {}",
             output
         );
+    }
+
+    // ========================================================================
+    // Lua 5.5 strategy tests
+    // ========================================================================
+
+    #[test]
+    fn test_lua55_strategy_name() {
+        let strategy = crate::codegen::strategies::lua55::Lua55Strategy;
+        assert_eq!(strategy.name(), "Lua 5.5");
+    }
+
+    #[test]
+    fn test_lua55_native_bitwise() {
+        let strategy = crate::codegen::strategies::lua55::Lua55Strategy;
+        assert!(strategy.supports_native_bitwise());
+        assert!(strategy.supports_native_integer_divide());
+    }
+
+    #[test]
+    fn test_lua55_native_continue() {
+        let strategy = crate::codegen::strategies::lua55::Lua55Strategy;
+        assert!(strategy.supports_native_continue());
+        assert_eq!(strategy.generate_continue(None), "continue");
+    }
+
+    #[test]
+    fn test_lua55_global_prefix() {
+        let strategy = crate::codegen::strategies::lua55::Lua55Strategy;
+        assert_eq!(strategy.global_declaration_prefix(), Some("global "));
+    }
+
+    #[test]
+    fn test_lua55_supports_goto() {
+        let strategy = crate::codegen::strategies::lua55::Lua55Strategy;
+        assert!(strategy.supports_goto());
+    }
+
+    #[test]
+    fn test_lua55_no_preamble() {
+        let strategy = crate::codegen::strategies::lua55::Lua55Strategy;
+        assert!(strategy.emit_preamble().is_none());
+    }
+
+    #[test]
+    fn test_lua55_bitwise_codegen() {
+        let source = "const x = a & b";
+        let output = generate_code_with_target(source, LuaTarget::Lua55);
+        assert!(output.contains("local x = (a & b)"));
+    }
+
+    #[test]
+    fn test_lua55_integer_divide_codegen() {
+        let source = "const x = a // b";
+        let output = generate_code_with_target(source, LuaTarget::Lua55);
+        assert!(output.contains("local x = (a // b)"));
+    }
+
+    #[test]
+    fn test_lua55_global_codegen() {
+        let source = "global x = 42";
+        let output = generate_code_with_target(source, LuaTarget::Lua55);
+        assert!(
+            output.contains("global x = 42"),
+            "Expected 'global x = 42' in output: {}",
+            output
+        );
+    }
+
+    #[test]
+    fn test_lua55_global_not_local() {
+        let source = "global x = 42";
+        let output = generate_code_with_target(source, LuaTarget::Lua55);
+        assert!(
+            !output.contains("local x"),
+            "Global should not emit 'local': {}",
+            output
+        );
+    }
+
+    // ========================================================================
+    // LuaJIT strategy tests
+    // ========================================================================
+
+    #[test]
+    fn test_luajit_strategy_name() {
+        let strategy = crate::codegen::strategies::luajit::LuaJITStrategy;
+        assert_eq!(strategy.name(), "LuaJIT");
+    }
+
+    #[test]
+    fn test_luajit_bitwise_band() {
+        let strategy = crate::codegen::strategies::luajit::LuaJITStrategy;
+        let result = strategy.generate_bitwise_op(BinaryOp::BitwiseAnd, "a", "b");
+        assert_eq!(result, "bit.band(a, b)");
+    }
+
+    #[test]
+    fn test_luajit_bitwise_bor() {
+        let strategy = crate::codegen::strategies::luajit::LuaJITStrategy;
+        let result = strategy.generate_bitwise_op(BinaryOp::BitwiseOr, "a", "b");
+        assert_eq!(result, "bit.bor(a, b)");
+    }
+
+    #[test]
+    fn test_luajit_bitwise_bxor() {
+        let strategy = crate::codegen::strategies::luajit::LuaJITStrategy;
+        let result = strategy.generate_bitwise_op(BinaryOp::BitwiseXor, "a", "b");
+        assert_eq!(result, "bit.bxor(a, b)");
+    }
+
+    #[test]
+    fn test_luajit_bitwise_shifts() {
+        let strategy = crate::codegen::strategies::luajit::LuaJITStrategy;
+        assert_eq!(
+            strategy.generate_bitwise_op(BinaryOp::ShiftLeft, "x", "2"),
+            "bit.lshift(x, 2)"
+        );
+        assert_eq!(
+            strategy.generate_bitwise_op(BinaryOp::ShiftRight, "x", "3"),
+            "bit.rshift(x, 3)"
+        );
+    }
+
+    #[test]
+    fn test_luajit_unary_bnot() {
+        let strategy = crate::codegen::strategies::luajit::LuaJITStrategy;
+        assert_eq!(strategy.generate_unary_bitwise_not("x"), "bit.bnot(x)");
+    }
+
+    #[test]
+    fn test_luajit_integer_divide() {
+        let strategy = crate::codegen::strategies::luajit::LuaJITStrategy;
+        assert_eq!(
+            strategy.generate_integer_divide("a", "b"),
+            "math.floor(a / b)"
+        );
+    }
+
+    #[test]
+    fn test_luajit_supports_goto() {
+        let strategy = crate::codegen::strategies::luajit::LuaJITStrategy;
+        assert!(strategy.supports_goto());
+    }
+
+    #[test]
+    fn test_luajit_no_native_bitwise() {
+        let strategy = crate::codegen::strategies::luajit::LuaJITStrategy;
+        assert!(!strategy.supports_native_bitwise());
+        assert!(!strategy.supports_native_integer_divide());
+    }
+
+    #[test]
+    fn test_luajit_no_preamble() {
+        let strategy = crate::codegen::strategies::luajit::LuaJITStrategy;
+        assert!(strategy.emit_preamble().is_none());
+    }
+
+    #[test]
+    fn test_luajit_no_native_continue() {
+        let strategy = crate::codegen::strategies::luajit::LuaJITStrategy;
+        assert!(!strategy.supports_native_continue());
+    }
+
+    #[test]
+    fn test_luajit_no_global_prefix() {
+        let strategy = crate::codegen::strategies::luajit::LuaJITStrategy;
+        assert!(strategy.global_declaration_prefix().is_none());
+    }
+
+    #[test]
+    fn test_luajit_continue_uses_goto() {
+        let strategy = crate::codegen::strategies::luajit::LuaJITStrategy;
+        assert_eq!(strategy.generate_continue(None), "goto __continue");
+    }
+
+    #[test]
+    fn test_luajit_bitwise_codegen() {
+        let source = "const x = a & b";
+        let output = generate_code_with_target(source, LuaTarget::LuaJIT);
+        assert!(
+            output.contains("bit.band(a, b)"),
+            "Expected bit.band in output: {}",
+            output
+        );
+    }
+
+    #[test]
+    fn test_luajit_integer_divide_codegen() {
+        let source = "const x = a // b";
+        let output = generate_code_with_target(source, LuaTarget::LuaJIT);
+        assert!(
+            output.contains("math.floor(a / b)"),
+            "Expected math.floor in output: {}",
+            output
+        );
+    }
+
+    #[test]
+    fn test_luajit_global_no_prefix() {
+        let source = "global x = 42";
+        let output = generate_code_with_target(source, LuaTarget::LuaJIT);
+        // LuaJIT has no global keyword — just emits bare assignment
+        assert!(
+            output.contains("x = 42"),
+            "Expected bare 'x = 42' in output: {}",
+            output
+        );
+        assert!(
+            !output.contains("local x"),
+            "Should not contain 'local': {}",
+            output
+        );
+        assert!(
+            !output.contains("global x"),
+            "Should not contain 'global': {}",
+            output
+        );
+    }
+
+    // ========================================================================
+    // Target selection tests for new targets
+    // ========================================================================
+
+    #[test]
+    fn test_target_selection_includes_new_targets() {
+        let source = "const x = a + b";
+
+        let output_55 = generate_code_with_target(source, LuaTarget::Lua55);
+        assert!(output_55.contains("local x = (a + b)"));
+
+        let output_jit = generate_code_with_target(source, LuaTarget::LuaJIT);
+        assert!(output_jit.contains("local x = (a + b)"));
+    }
+
+    // Verify LuaJIT doesn't emit a preamble (unlike Lua51 which emits helper functions)
+    #[test]
+    fn test_luajit_vs_lua51_preamble() {
+        let strategy_51 = Lua51Strategy;
+        let strategy_jit = crate::codegen::strategies::luajit::LuaJITStrategy;
+
+        assert!(strategy_51.emit_preamble().is_some());
+        assert!(strategy_jit.emit_preamble().is_none());
     }
 }

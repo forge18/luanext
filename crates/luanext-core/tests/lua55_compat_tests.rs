@@ -18,7 +18,8 @@
 //! The remaining tests verify current Lua 5.4 output for features that Lua 5.5
 //! will continue to support.
 
-use luanext_test_helpers::compile::compile;
+use luanext_core::codegen::LuaTarget;
+use luanext_test_helpers::compile::{compile, compile_with_target};
 use luanext_test_helpers::LuaExecutor;
 
 #[test]
@@ -90,15 +91,68 @@ fn test_lua55_named_vararg() {
 }
 
 #[test]
-#[ignore = "Requires mlua 0.11.6+ with lua55 feature. See upgrade path in module docs."]
 fn test_lua55_global_declaration_native_syntax() {
     // Lua 5.5 adds native `global` declaration syntax.
-    // Currently LuaNext generates: `x = 42` (global assignment without local)
-    // With Lua55Strategy: should generate: `global x = 42` (native Lua 5.5 syntax)
+    // With Lua55Strategy: generates `global x = 42` (native Lua 5.5 syntax)
     let source = r#"
         global count: number = 42
     "#;
-    let lua_code = compile(source).unwrap();
-    // When Lua55Strategy is implemented, this should contain native global syntax
-    assert!(lua_code.contains("global count = 42") || lua_code.contains("count = 42"));
+    let lua_code = compile_with_target(source, LuaTarget::Lua55).unwrap();
+    assert!(
+        lua_code.contains("global count = 42"),
+        "Expected native 'global count = 42' in Lua 5.5 output, got:\n{lua_code}"
+    );
+}
+
+#[test]
+fn test_lua55_native_continue() {
+    // Lua 5.5 has native `continue` keyword — no goto/label emulation needed
+    let source = r#"
+        local total: number = 0
+        for i = 1, 10 do
+            if i == 5 then
+                continue
+            end
+            total = total + i
+        end
+    "#;
+    let lua_code = compile_with_target(source, LuaTarget::Lua55).unwrap();
+    assert!(
+        lua_code.contains("continue"),
+        "Expected native 'continue' in Lua 5.5 output, got:\n{lua_code}"
+    );
+    assert!(
+        !lua_code.contains("goto __continue"),
+        "Should not use goto emulation for Lua 5.5, got:\n{lua_code}"
+    );
+    assert!(
+        !lua_code.contains("::__continue::"),
+        "Should not have continue label for Lua 5.5, got:\n{lua_code}"
+    );
+}
+
+#[test]
+fn test_lua55_native_bitwise() {
+    // Lua 5.5 supports native bitwise operators (same as 5.3+)
+    let source = r#"
+        const x: number = 15 & 7
+    "#;
+    let lua_code = compile_with_target(source, LuaTarget::Lua55).unwrap();
+    assert!(
+        lua_code.contains("&"),
+        "Expected native & operator in Lua 5.5 output, got:\n{lua_code}"
+    );
+}
+
+#[test]
+fn test_lua55_native_integer_divide() {
+    // Lua 5.5 supports native // operator (same as 5.3+)
+    let source = r#"
+        const x: number = 10 // 3
+    "#;
+    let lua_code = compile_with_target(source, LuaTarget::Lua55).unwrap();
+    assert!(
+        lua_code.contains("//"),
+        "Expected native // operator in Lua 5.5 output, got:\n{lua_code}"
+    );
 }
