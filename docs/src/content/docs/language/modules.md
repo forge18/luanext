@@ -447,15 +447,61 @@ This works because type-only imports are erased at runtime.
 
 LuaNext resolves modules using the following rules:
 
-1. **Relative paths** — Start with `./` or `../`
+1. **Path aliases** — Patterns configured in `compilerOptions.paths`
+   - `@/utils` → resolved via alias mapping (e.g., `src/utils.luax`)
+   - Checked first, before relative path resolution
+   - See [Path Aliases](#path-aliases) below
+
+2. **Relative paths** — Start with `./` or `../`
    - `./module` → same directory
    - `../module` → parent directory
    - `../../module` → grandparent directory
 
-2. **Absolute paths** — Resolved from project root or node_modules
+3. **Absolute paths** — Resolved from project root or node_modules
 
-3. **File extensions** — `.luax` is implicit
+4. **File extensions** — `.luax` is implicit
    - `import {x} from "./module"` → looks for `module.luax`
+
+### Path Aliases
+
+In large projects, deeply nested relative imports become fragile and hard to read:
+
+```lua
+-- Fragile: breaks if file moves
+import { Button } from "../../../components/Button"
+import { formatDate } from "../../utils/date"
+```
+
+Path aliases let you define short, stable prefixes that map to directories in your project:
+
+```yaml
+# luanext.config.yaml
+compilerOptions:
+  baseUrl: "."
+  paths:
+    "@/*": ["src/*"]
+    "@components/*": ["src/components/*"]
+    "@utils/*": ["src/utils/*"]
+```
+
+Now imports are clean and resilient to refactoring:
+
+```lua
+import { Button } from "@components/Button"
+import { formatDate } from "@utils/date"
+import { API_URL } from "@/config"
+```
+
+Path alias resolution happens **before** relative and package path resolution. The compiler resolves alias patterns to filesystem paths, and the generated Lua emits correct relative `require()` calls.
+
+**Pattern matching** follows TypeScript's `paths` semantics:
+
+- Each pattern may contain one `*` wildcard (e.g., `@/*`)
+- Patterns without `*` are exact matches (e.g., `@config`)
+- When multiple patterns match, the longest prefix wins
+- Multiple replacement paths are tried in order as fallbacks
+
+See [Configuration Reference](../reference/configuration.md#compileroptions-paths) for full `paths` syntax and examples.
 
 ### Export Restrictions
 

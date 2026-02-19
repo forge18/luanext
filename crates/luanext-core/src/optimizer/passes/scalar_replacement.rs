@@ -342,10 +342,7 @@ fn stmt_escapes(var_name: StringId, stmt: &Statement<'_>) -> bool {
             ForStatement::Numeric(num) => {
                 expr_escapes(var_name, &num.start)
                     || expr_escapes(var_name, &num.end)
-                    || num
-                        .step
-                        .as_ref()
-                        .is_some_and(|s| expr_escapes(var_name, s))
+                    || num.step.as_ref().is_some_and(|s| expr_escapes(var_name, s))
                     || block_escapes(var_name, &num.body)
             }
             ForStatement::Generic(gen) => {

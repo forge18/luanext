@@ -49,4 +49,8 @@ impl CodeGenStrategy for Lua53Strategy {
     fn supports_native_integer_divide(&self) -> bool {
         true
     }
+
+    fn supports_goto(&self) -> bool {
+        true
+    }
 }

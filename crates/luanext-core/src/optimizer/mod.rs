@@ -170,8 +170,8 @@ impl AstFeatureDetector {
 
 // Pass modules — enabled incrementally during arena migration
 pub mod passes;
-use passes::*;
 pub use passes::UnusedModuleEliminationPass;
+use passes::*;
 
 mod rich_enum_optimization;
 use rich_enum_optimization::RichEnumOptimizationPass;
@@ -1438,7 +1438,10 @@ impl<'arena> Optimizer<'arena> {
     /// Note: LTO passes are currently placeholders. Full implementation requires
     /// reworking passes to operate on MutableProgram<'arena> directly rather than
     /// owned Vec<Statement>.
-    pub fn apply_lto_passes(&mut self, _program: &mut MutableProgram<'arena>) -> Result<(), String> {
+    pub fn apply_lto_passes(
+        &mut self,
+        _program: &mut MutableProgram<'arena>,
+    ) -> Result<(), String> {
         let Some(ref _graph) = self.module_graph else {
             // No module graph available, skip LTO passes
             return Ok(());

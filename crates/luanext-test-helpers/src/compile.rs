@@ -3,10 +3,13 @@
 //! Provides convenient functions for compiling TypedLua source code
 //! in tests, using proper DI through the Container.
 
+use luanext_core::codegen::{CodeGenerator, LuaTarget};
 use luanext_core::config::{CompilerConfig, OptimizationLevel};
 use luanext_core::di::DiContainer;
-use luanext_core::diagnostics::CollectingDiagnosticHandler;
+use luanext_core::diagnostics::{CollectingDiagnosticHandler, DiagnosticHandler};
 use luanext_core::fs::MockFileSystem;
+use luanext_core::optimizer::Optimizer;
+use luanext_core::MutableProgram;
 use luanext_core::TypeChecker;
 use luanext_parser::string_interner::StringInterner;
 use luanext_parser::{Lexer, Parser};
@@ -121,4 +124,67 @@ pub fn create_test_container(config: CompilerConfig) -> DiContainer {
     let diagnostics = Arc::new(CollectingDiagnosticHandler::new());
     let fs = Arc::new(MockFileSystem::new());
     DiContainer::test(config, diagnostics, fs)
+}
+
+/// Compile TypedLua source code targeting a specific Lua version
+///
+/// Use this for Lua version compatibility tests that need to verify the
+/// generated output syntax differs by target (e.g. Lua51 uses `_bit_band()`
+/// while Lua53+ uses native `&`).
+///
+/// # Arguments
+/// * `source` - The TypedLua source code to compile
+/// * `target` - The Lua version target for code generation
+///
+/// # Returns
+/// The generated Lua code or an error message
+pub fn compile_with_target(source: &str, target: LuaTarget) -> Result<String, String> {
+    use bumpalo::Bump;
+    use luanext_parser::diagnostics::CollectingDiagnosticHandler as ParserCollectingHandler;
+
+    let arena = Bump::new();
+    let parser_handler =
+        Arc::new(ParserCollectingHandler::new()) as Arc<dyn luanext_parser::DiagnosticHandler>;
+    let typecheck_handler = Arc::new(CollectingDiagnosticHandler::new());
+    let (interner, common_ids) = StringInterner::new_with_common_identifiers();
+    let interner = Arc::new(interner);
+
+    let mut lexer = Lexer::new(source, parser_handler.clone(), &interner);
+    let tokens = lexer
+        .tokenize()
+        .map_err(|e| format!("Lexing failed: {:?}", e))?;
+
+    let mut parser = Parser::new(
+        tokens,
+        parser_handler.clone(),
+        &interner,
+        &common_ids,
+        &arena,
+    );
+    let program = parser
+        .parse()
+        .map_err(|e| format!("Parsing failed: {:?}", e))?;
+
+    let mut type_checker =
+        TypeChecker::new(typecheck_handler.clone(), &interner, &common_ids, &arena);
+    type_checker
+        .check_program(&program)
+        .map_err(|e| e.message)?;
+
+    let mut mutable_program = MutableProgram::from_program(&program);
+
+    let mut optimizer = Optimizer::new(
+        OptimizationLevel::None,
+        typecheck_handler.clone(),
+        interner.clone(),
+    );
+    if let Err(err_msg) = optimizer.optimize(&mut mutable_program, &arena) {
+        typecheck_handler.warning(
+            luanext_parser::span::Span::dummy(),
+            &format!("Optimization warning: {}", err_msg),
+        );
+    }
+
+    let mut codegen = CodeGenerator::new(interner.clone()).with_target(target);
+    Ok(codegen.generate(&mutable_program))
 }

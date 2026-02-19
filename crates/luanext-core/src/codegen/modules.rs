@@ -17,7 +17,14 @@ impl CodeGenerator {
                     .unwrap_or_else(|| import.source.clone());
                 ("__require", resolved_id)
             }
-            CodeGenMode::Require => ("require", import.source.clone()),
+            CodeGenMode::Require => {
+                let resolved = self
+                    .alias_require_map
+                    .get(&import.source)
+                    .cloned()
+                    .unwrap_or_else(|| import.source.clone());
+                ("require", resolved)
+            }
         };
 
         match &import.clause {
@@ -203,7 +210,14 @@ impl CodeGenerator {
                     .unwrap_or_else(|| source.to_string());
                 ("__require", resolved_id)
             }
-            CodeGenMode::Require => ("require", source.to_string()),
+            CodeGenMode::Require => {
+                let resolved = self
+                    .alias_require_map
+                    .get(source)
+                    .cloned()
+                    .unwrap_or_else(|| source.to_string());
+                ("require", resolved)
+            }
         };
 
         self.write_indent();
@@ -278,7 +292,14 @@ impl CodeGenerator {
                     .unwrap_or_else(|| source.to_string());
                 ("__require", resolved_id)
             }
-            CodeGenMode::Require => ("require", source.to_string()),
+            CodeGenMode::Require => {
+                let resolved = self
+                    .alias_require_map
+                    .get(source)
+                    .cloned()
+                    .unwrap_or_else(|| source.to_string());
+                ("require", resolved)
+            }
         };
 
         self.write_indent();

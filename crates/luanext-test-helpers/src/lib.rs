@@ -10,3 +10,4 @@ pub mod mocks;
 
 // Re-export commonly used items
 pub use lua_executor::{LuaExecutor, LuaValueExt};
+pub use luanext_core::codegen::LuaTarget;

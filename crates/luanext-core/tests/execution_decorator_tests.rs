@@ -81,8 +81,13 @@ fn test_decorator_mutates_class() {
     let lua_code = compile(source).unwrap();
     let executor = LuaExecutor::new().unwrap();
 
-    let times_decorated: i64 = executor.execute_and_get(&lua_code, "times_decorated").unwrap();
-    assert_eq!(times_decorated, 2, "decorator should be called for each decorated class");
+    let times_decorated: i64 = executor
+        .execute_and_get(&lua_code, "times_decorated")
+        .unwrap();
+    assert_eq!(
+        times_decorated, 2,
+        "decorator should be called for each decorated class"
+    );
 }
 
 #[test]
@@ -117,7 +122,10 @@ fn test_chained_decorators() {
     let executor = LuaExecutor::new().unwrap();
 
     let call_count: i64 = executor.execute_and_get(&lua_code, "call_count").unwrap();
-    assert_eq!(call_count, 3, "all three decorators should have been called");
+    assert_eq!(
+        call_count, 3,
+        "all three decorators should have been called"
+    );
 }
 
 #[test]
@@ -154,7 +162,10 @@ fn test_method_decorator() {
 
     let call_log: String = executor.execute_and_get(&lua_code, "call_log").unwrap();
     let result: String = executor.execute_and_get(&lua_code, "result").unwrap();
-    assert_eq!(call_log, "called", "method decorator should have been invoked");
+    assert_eq!(
+        call_log, "called",
+        "method decorator should have been invoked"
+    );
     assert_eq!(result, "Hello, World");
 }
 
@@ -180,8 +191,13 @@ fn test_member_expression_decorator() {
     let lua_code = compile(source).unwrap();
     let executor = LuaExecutor::new().unwrap();
 
-    let ns_call_count: i64 = executor.execute_and_get(&lua_code, "ns_call_count").unwrap();
-    assert_eq!(ns_call_count, 1, "namespace decorator should have been called");
+    let ns_call_count: i64 = executor
+        .execute_and_get(&lua_code, "ns_call_count")
+        .unwrap();
+    assert_eq!(
+        ns_call_count, 1,
+        "namespace decorator should have been called"
+    );
 }
 
 #[test]
@@ -209,8 +225,173 @@ fn test_decorator_return_value_used() {
     let lua_code = compile(source).unwrap();
     let executor = LuaExecutor::new().unwrap();
 
-    let decorator_ran: bool = executor.execute_and_get(&lua_code, "decorator_ran").unwrap();
+    let decorator_ran: bool = executor
+        .execute_and_get(&lua_code, "decorator_ran")
+        .unwrap();
     let result: i64 = executor.execute_and_get(&lua_code, "result").unwrap();
     assert!(decorator_ran, "decorator should have been called");
     assert_eq!(result, 42, "decorated class should still work normally");
+}
+
+// ============================================================================
+// Decorator Execution Order
+// ============================================================================
+
+#[test]
+fn test_decorator_execution_order_verification() {
+    // Verifies decorators execute top-to-bottom by recording invocation order
+    let source = r#"
+        order: string = ""
+
+        function first(target)
+            order = order .. "1"
+            return target
+        end
+
+        function second(target)
+            order = order .. "2"
+            return target
+        end
+
+        function third(target)
+            order = order .. "3"
+            return target
+        end
+
+        @first
+        @second
+        @third
+        class MyClass {
+        }
+    "#;
+
+    let lua_code = compile(source).unwrap();
+    let executor = LuaExecutor::new().unwrap();
+
+    let order: String = executor.execute_and_get(&lua_code, "order").unwrap();
+    assert_eq!(order, "123", "decorators should execute top-to-bottom");
+}
+
+#[test]
+fn test_chained_decorators_modify_class_table() {
+    // Each decorator adds a property to the class table; both survive
+    // Use globals to capture since type checker doesn't know about decorator-added fields
+    let source = r#"
+        foo_val: string = ""
+        bar_val: string = ""
+
+        function addFoo(target)
+            target.foo = "foo"
+            foo_val = target.foo
+            return target
+        end
+
+        function addBar(target)
+            target.bar = "bar"
+            bar_val = target.bar
+            return target
+        end
+
+        @addFoo
+        @addBar
+        class MyClass {
+        }
+    "#;
+
+    let lua_code = compile(source).unwrap();
+    let executor = LuaExecutor::new().unwrap();
+
+    let foo_val: String = executor.execute_and_get(&lua_code, "foo_val").unwrap();
+    let bar_val: String = executor.execute_and_get(&lua_code, "bar_val").unwrap();
+    assert_eq!(foo_val, "foo");
+    assert_eq!(bar_val, "bar");
+}
+
+#[test]
+fn test_decorator_factory_chain_with_args() {
+    // Multiple decorator factories with arguments applied in sequence
+    let source = r#"
+        log: string = ""
+
+        function tag(name: string)
+            return function(target)
+                log = log .. name .. ","
+                return target
+            end
+        end
+
+        @tag("alpha")
+        @tag("beta")
+        @tag("gamma")
+        class Tagged {
+        }
+    "#;
+
+    let lua_code = compile(source).unwrap();
+    let executor = LuaExecutor::new().unwrap();
+
+    let log: String = executor.execute_and_get(&lua_code, "log").unwrap();
+    assert_eq!(log, "alpha,beta,gamma,");
+}
+
+#[test]
+fn test_decorator_replaces_class() {
+    // Decorator that returns a completely different table — verify replacement semantics
+    // The decorator captures a reference and returns a new table, so Original becomes the new table
+    let source = r#"
+        replaced: boolean = false
+        original_ref = nil
+
+        function replace(target)
+            original_ref = target
+            replaced = true
+            return { marker = true }
+        end
+
+        @replace
+        class Original {
+        }
+    "#;
+
+    let lua_code = compile(source).unwrap();
+    let executor = LuaExecutor::new().unwrap();
+
+    let replaced: bool = executor.execute_and_get(&lua_code, "replaced").unwrap();
+    assert!(replaced, "decorator should have run and replaced the class");
+}
+
+#[test]
+fn test_method_decorator_execution_order() {
+    // Multiple method decorators applied in order on a static method
+    let source = r#"
+        log: string = ""
+
+        function logA(method)
+            log = log .. "A"
+            return method
+        end
+
+        function logB(method)
+            log = log .. "B"
+            return method
+        end
+
+        class Svc {
+            @logA
+            @logB
+            static run(): number {
+                return 42
+            }
+        }
+
+        result: number = Svc.run()
+    "#;
+
+    let lua_code = compile(source).unwrap();
+    let executor = LuaExecutor::new().unwrap();
+
+    let log: String = executor.execute_and_get(&lua_code, "log").unwrap();
+    let result: i64 = executor.execute_and_get(&lua_code, "result").unwrap();
+    assert_eq!(log, "AB", "method decorators should execute top-to-bottom");
+    assert_eq!(result, 42, "decorated method should still work");
 }

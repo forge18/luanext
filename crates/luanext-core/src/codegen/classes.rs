@@ -27,7 +27,10 @@ impl CodeGenerator {
         self.current_class_parent = base_class_name;
 
         self.write_indent();
-        self.write("local ");
+        // Skip 'local' if this class was already forward-declared
+        if !self.forward_declared_classes.contains(class_name) {
+            self.write("local ");
+        }
         self.write(class_name);
         self.writeln(" = {}");
 

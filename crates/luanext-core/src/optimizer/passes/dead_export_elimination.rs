@@ -92,19 +92,21 @@ impl DeadExportEliminationPass {
                                 result.push(stmt.clone());
                             }
                         }
-                        ExportKind::Named { specifiers, source, .. } => {
+                        ExportKind::Named {
+                            specifiers, source, ..
+                        } => {
                             if source.is_none() {
                                 // Local named exports: export { foo, bar };
                                 // Check if any specifier is used
-                                let any_used = specifiers
-                                    .iter()
-                                    .any(|spec| {
-                                        let export_name = spec.exported.as_ref().unwrap_or(&spec.local);
-                                        let name_str = self.interner.resolve(export_name.node);
-                                        module_node.exports.get(&name_str)
-                                            .map(|info| info.is_used)
-                                            .unwrap_or(true) // Conservative: keep if not in graph
-                                    });
+                                let any_used = specifiers.iter().any(|spec| {
+                                    let export_name = spec.exported.as_ref().unwrap_or(&spec.local);
+                                    let name_str = self.interner.resolve(export_name.node);
+                                    module_node
+                                        .exports
+                                        .get(&name_str)
+                                        .map(|info| info.is_used)
+                                        .unwrap_or(true) // Conservative: keep if not in graph
+                                });
 
                                 if any_used {
                                     // Keep statement if any exports are used
@@ -137,7 +139,10 @@ impl DeadExportEliminationPass {
     }
 
     /// Extract the symbol name from a declaration statement
-    fn get_declaration_name(&self, stmt: &Statement<'_>) -> Option<luanext_parser::string_interner::StringId> {
+    fn get_declaration_name(
+        &self,
+        stmt: &Statement<'_>,
+    ) -> Option<luanext_parser::string_interner::StringId> {
         match stmt {
             Statement::Function(func) => Some(func.name.node),
             Statement::Variable(var) => {
@@ -155,7 +160,6 @@ impl DeadExportEliminationPass {
             _ => None,
         }
     }
-
 }
 
 #[cfg(test)]

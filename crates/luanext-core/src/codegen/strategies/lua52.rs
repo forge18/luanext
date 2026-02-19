@@ -39,7 +39,9 @@ impl CodeGenStrategy for Lua52Strategy {
     }
 
     fn emit_preamble(&self) -> Option<String> {
-        None // bit32 is built-in in Lua 5.2
+        // Emit bit32 polyfill so Lua 5.2 output is self-contained.
+        // On a real Lua 5.2 runtime, this harmlessly shadows the built-in bit32.
+        Some(luanext_runtime::bitwise::for_lua52().to_string())
     }
 
     fn supports_native_bitwise(&self) -> bool {
@@ -48,5 +50,9 @@ impl CodeGenStrategy for Lua52Strategy {
 
     fn supports_native_integer_divide(&self) -> bool {
         false
+    }
+
+    fn supports_goto(&self) -> bool {
+        true
     }
 }

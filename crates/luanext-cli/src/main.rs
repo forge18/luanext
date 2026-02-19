@@ -965,6 +965,56 @@ impl<'a> ImportScanner<'a> {
     }
 }
 
+/// Compute a relative require path from the importing file to the resolved module.
+///
+/// Given an importing file at `/project/src/app/main.luax` and a resolved module at
+/// `/project/src/utils/helpers.luax`, this produces `../utils/helpers`.
+fn compute_relative_require_path(from_file: &std::path::Path, to_file: &std::path::Path) -> String {
+    use std::path::Component;
+
+    let from_dir = from_file.parent().unwrap_or(from_file);
+
+    // Get canonical-like components for both paths
+    let from_components: Vec<Component> = from_dir.components().collect();
+    let to_components: Vec<Component> = to_file.components().collect();
+
+    // Find common prefix length
+    let common_len = from_components
+        .iter()
+        .zip(to_components.iter())
+        .take_while(|(a, b)| a == b)
+        .count();
+
+    // Build relative path: go up from `from_dir` and then down to `to_file`
+    let ups = from_components.len() - common_len;
+    let mut parts: Vec<String> = Vec::new();
+
+    for _ in 0..ups {
+        parts.push("..".to_string());
+    }
+
+    for component in &to_components[common_len..] {
+        parts.push(component.as_os_str().to_string_lossy().to_string());
+    }
+
+    let mut path_str = parts.join("/");
+
+    // Strip known extensions
+    for ext in &[".luax", ".tl", ".d.tl", ".lua"] {
+        if path_str.ends_with(ext) {
+            path_str = path_str[..path_str.len() - ext.len()].to_string();
+            break;
+        }
+    }
+
+    // Ensure ./ prefix if not already relative with ../
+    if !path_str.starts_with("../") {
+        path_str = format!("./{}", path_str);
+    }
+
+    path_str
+}
+
 /// Collect all imports from a source file using fast lexer-only scanning
 fn collect_imports(
     _source: &str,
@@ -984,6 +1034,8 @@ fn collect_imports(
 /// Result of dependency discovery
 struct DependencyResult {
     ordered_files: Vec<PathBuf>,
+    /// Per-file alias require path mappings: file_path → (alias_source → resolved_require_path)
+    alias_maps: std::collections::HashMap<PathBuf, std::collections::HashMap<String, String>>,
 }
 
 /// Discover dependencies and determine compilation order
@@ -1000,6 +1052,7 @@ fn discover_dependencies(
     // 1. Build dependency graph
     let mut dep_graph = DependencyGraph::new();
     let mut file_map: HashMap<PathBuf, PathBuf> = HashMap::with_capacity(files.len());
+    let mut alias_maps: HashMap<PathBuf, HashMap<String, String>> = HashMap::new();
 
     info!("Discovering dependencies for {} files...", files.len());
 
@@ -1036,10 +1089,17 @@ fn discover_dependencies(
         // Resolve imports to module IDs
         let module_id = ModuleId::new(canonical.clone());
         let mut dependencies: Vec<(ModuleId, EdgeKind)> = Vec::with_capacity(imports.len());
+        let mut file_alias_map: HashMap<String, String> = HashMap::new();
 
         for import in &imports {
             match resolver.resolve(&import.source, file_path) {
                 Ok(dep_id) => {
+                    // If this was an alias import, compute the resolved require path
+                    if resolver.matches_alias(&import.source) {
+                        let require_path =
+                            compute_relative_require_path(file_path, dep_id.path());
+                        file_alias_map.insert(import.source.clone(), require_path);
+                    }
                     dependencies.push((dep_id, import.kind));
                 }
                 Err(e) => {
@@ -1049,6 +1109,10 @@ fn discover_dependencies(
                     );
                 }
             }
+        }
+
+        if !file_alias_map.is_empty() {
+            alias_maps.insert(file_path.clone(), file_alias_map);
         }
 
         // Add to dependency graph
@@ -1078,7 +1142,10 @@ fn discover_dependencies(
         debug!("  {}. {:?}", i + 1, file);
     }
 
-    Ok(DependencyResult { ordered_files })
+    Ok(DependencyResult {
+        ordered_files,
+        alias_maps,
+    })
 }
 
 /// Result of compiling a single file
@@ -1116,6 +1183,8 @@ struct CheckedModule<'arena> {
     output_path: PathBuf,
     enable_source_map: bool,
     cache_entry: Option<CacheEntryData>,
+    /// Alias source → resolved require path mapping for this file
+    alias_require_map: std::collections::HashMap<String, String>,
 }
 
 // SAFETY: All fields are Send after StringInterner migration to ThreadedRodeo.
@@ -1307,6 +1376,7 @@ fn compile(
         }
     };
     let ordered_files = dep_result.ordered_files;
+    let alias_maps = dep_result.alias_maps;
     info!("⏱️  Dependency discovery: {:?}", dep_start.elapsed());
 
     // --- Parallel parsing of stale files ---
@@ -1569,6 +1639,11 @@ fn compile(
                 let output_path = determine_output_path(file_path, &cli);
                 let interner_arc = Arc::new(parsed.interner.clone());
 
+                let file_alias_map = alias_maps
+                    .get(file_path)
+                    .cloned()
+                    .unwrap_or_default();
+
                 Some(CheckedModule {
                     file_path: file_path.clone(),
                     ast: program,
@@ -1576,6 +1651,7 @@ fn compile(
                     output_path,
                     enable_source_map: cli.source_map || cli.inline_source_map,
                     cache_entry,
+                    alias_require_map: file_alias_map,
                 })
             })() // End of leaked arena closure
         })
@@ -1615,45 +1691,46 @@ fn compile(
     info!("Optimization level: {:?}", optimization_level);
 
     // --- Phase 1.4: Build module graph for LTO (O2+) ---
-    let module_graph_opt: Option<Arc<luanext_core::optimizer::analysis::module_graph::ModuleGraph>> =
-        if optimization_level >= luanext_core::config::OptimizationLevel::Moderate {
-            info!("Building module graph for link-time optimizations...");
-            let mg_start = Instant::now();
+    let module_graph_opt: Option<
+        Arc<luanext_core::optimizer::analysis::module_graph::ModuleGraph>,
+    > = if optimization_level >= luanext_core::config::OptimizationLevel::Moderate {
+        info!("Building module graph for link-time optimizations...");
+        let mg_start = Instant::now();
 
-            // Prepare module data: (path, statements)
-            let module_data: Vec<(PathBuf, &[luanext_parser::ast::statement::Statement])> =
-                checked_modules
-                    .iter()
-                    .map(|m| (m.file_path.clone(), m.ast.statements))
-                    .collect();
+        // Prepare module data: (path, statements)
+        let module_data: Vec<(PathBuf, &[luanext_parser::ast::statement::Statement])> =
+            checked_modules
+                .iter()
+                .map(|m| (m.file_path.clone(), m.ast.statements))
+                .collect();
 
-            // Entry points are the explicitly provided files
-            let entry_points: Vec<PathBuf> = cli.files.clone();
+        // Entry points are the explicitly provided files
+        let entry_points: Vec<PathBuf> = cli.files.clone();
 
-            // Get interner from first module (all share the same interner)
-            let interner = checked_modules
-                .first()
-                .map(|m| m.interner.clone())
-                .unwrap_or_else(|| Arc::new(StringInterner::new()));
+        // Get interner from first module (all share the same interner)
+        let interner = checked_modules
+            .first()
+            .map(|m| m.interner.clone())
+            .unwrap_or_else(|| Arc::new(StringInterner::new()));
 
-            let graph = luanext_core::optimizer::analysis::module_graph::ModuleGraph::build(
-                &module_data,
-                interner,
-                &registry,
-                &entry_points,
-            );
+        let graph = luanext_core::optimizer::analysis::module_graph::ModuleGraph::build(
+            &module_data,
+            interner,
+            &registry,
+            &entry_points,
+        );
 
-            info!(
-                "⏱️  Module graph construction: {:?} ({} modules, {} reachable)",
-                mg_start.elapsed(),
-                graph.modules.len(),
-                graph.modules.values().filter(|n| n.is_reachable).count()
-            );
+        info!(
+            "⏱️  Module graph construction: {:?} ({} modules, {} reachable)",
+            mg_start.elapsed(),
+            graph.modules.len(),
+            graph.modules.values().filter(|n| n.is_reachable).count()
+        );
 
-            Some(Arc::new(graph))
-        } else {
-            None
-        };
+        Some(Arc::new(graph))
+    } else {
+        None
+    };
 
     let wpa_start = Instant::now();
     let whole_program_analysis =
@@ -1722,24 +1799,25 @@ fn compile(
         };
 
     // Filter modules based on reachability for tree shaking
-    let mut checked_modules_filtered: Vec<CheckedModule> = if let Some(ref reachable) = reachable_set {
-        checked_modules
-            .into_iter()
-            .filter(|module| {
-                let module_id = module.file_path.to_string_lossy().to_string();
-                // Always include entry module, otherwise check reachability
-                module_id
-                    == cli
-                        .files
-                        .first()
-                        .map(|f| f.to_string_lossy().to_string())
-                        .unwrap_or_default()
-                    || reachable.is_module_reachable(&module_id)
-            })
-            .collect()
-    } else {
-        checked_modules
-    };
+    let mut checked_modules_filtered: Vec<CheckedModule> =
+        if let Some(ref reachable) = reachable_set {
+            checked_modules
+                .into_iter()
+                .filter(|module| {
+                    let module_id = module.file_path.to_string_lossy().to_string();
+                    // Always include entry module, otherwise check reachability
+                    module_id
+                        == cli
+                            .files
+                            .first()
+                            .map(|f| f.to_string_lossy().to_string())
+                            .unwrap_or_default()
+                        || reachable.is_module_reachable(&module_id)
+                })
+                .collect()
+        } else {
+            checked_modules
+        };
 
     // --- Phase 1.7: LTO module filtering (O2+) ---
     // Filter out unreachable modules based on LTO analysis
@@ -1753,7 +1831,8 @@ fn compile(
 
             let pre_lto_count = checked_modules_filtered.len();
             checked_modules_filtered.retain(|module| {
-                let canonical = module.file_path
+                let canonical = module
+                    .file_path
                     .canonicalize()
                     .unwrap_or_else(|_| module.file_path.clone());
                 lto_compile_set.contains(&canonical)
@@ -1781,7 +1860,8 @@ fn compile(
             let mut builder = CodeGeneratorBuilder::new(module.interner.clone())
                 .target(target)
                 .output_format(output_format)
-                .optimization_level(optimization_level);
+                .optimization_level(optimization_level)
+                .alias_require_map(module.alias_require_map.clone());
 
             if module.enable_source_map {
                 builder = builder.source_map(module.file_path.to_string_lossy().to_string());
@@ -1809,11 +1889,15 @@ fn compile(
             // Apply LTO AST transformation passes (O2+)
             if let Some(ref graph) = module_graph_opt {
                 if optimization_level >= luanext_core::config::OptimizationLevel::Moderate {
-                    use luanext_core::optimizer::passes::{DeadImportEliminationPass, DeadExportEliminationPass};
+                    use luanext_core::optimizer::passes::{
+                        DeadExportEliminationPass, DeadImportEliminationPass,
+                    };
 
                     // Create passes with module graph and interner
-                    let mut import_pass = DeadImportEliminationPass::new(graph.clone(), module.interner.clone());
-                    let mut export_pass = DeadExportEliminationPass::new(graph.clone(), module.interner.clone());
+                    let mut import_pass =
+                        DeadImportEliminationPass::new(graph.clone(), module.interner.clone());
+                    let mut export_pass =
+                        DeadExportEliminationPass::new(graph.clone(), module.interner.clone());
 
                     // Set current module context
                     import_pass.set_current_module(&module.file_path);

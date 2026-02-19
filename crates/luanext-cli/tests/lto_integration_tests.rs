@@ -6,7 +6,10 @@ use std::fs;
 use tempfile::TempDir;
 
 /// Helper to compile a LuaNext project and return the output
-fn compile_project_with_optimization(files: &[(&str, &str)], opt_level: &str) -> Result<Vec<String>, String> {
+fn compile_project_with_optimization(
+    files: &[(&str, &str)],
+    opt_level: &str,
+) -> Result<Vec<String>, String> {
     let temp_dir = TempDir::new().map_err(|e| format!("Failed to create temp dir: {}", e))?;
     let base_path = temp_dir.path();
 
@@ -16,7 +19,8 @@ fn compile_project_with_optimization(files: &[(&str, &str)], opt_level: &str) ->
         if let Some(parent) = file_path.parent() {
             fs::create_dir_all(parent).map_err(|e| format!("Failed to create directory: {}", e))?;
         }
-        fs::write(&file_path, content).map_err(|e| format!("Failed to write file {}: {}", filename, e))?;
+        fs::write(&file_path, content)
+            .map_err(|e| format!("Failed to write file {}: {}", filename, e))?;
     }
 
     // Compile all .luax files
@@ -59,15 +63,21 @@ fn compile_project_with_optimization(files: &[(&str, &str)], opt_level: &str) ->
 fn test_lto_basic_functionality() {
     // This test verifies that the LTO system doesn't break basic compilation
     let files = vec![
-        ("main.luax", r#"
+        (
+            "main.luax",
+            r#"
             import { greet } from './utils';
             greet('World');
-        "#),
-        ("utils.luax", r#"
+        "#,
+        ),
+        (
+            "utils.luax",
+            r#"
             export function greet(name: string): void {
                 print('Hello ' .. name);
             }
-        "#),
+        "#,
+        ),
     ];
 
     let result = compile_project_with_optimization(&files, "O2");
@@ -79,18 +89,24 @@ fn test_lto_basic_functionality() {
 fn test_lto_preserves_used_imports() {
     // This test verifies that used imports are preserved
     let files = vec![
-        ("main.luax", r#"
+        (
+            "main.luax",
+            r#"
             import { used, unused } from './utils';
             const x = used();
-        "#),
-        ("utils.luax", r#"
+        "#,
+        ),
+        (
+            "utils.luax",
+            r#"
             export function used() { return 1; }
             export function unused() { return 2; }
-        "#),
+        "#,
+        ),
     ];
 
-    let outputs = compile_project_with_optimization(&files, "O2")
-        .expect("Compilation should succeed");
+    let outputs =
+        compile_project_with_optimization(&files, "O2").expect("Compilation should succeed");
 
     // The main.lua should contain the 'used' import
     let main_lua = &outputs[0];
@@ -102,24 +118,32 @@ fn test_lto_preserves_used_imports() {
 fn test_lto_removes_unused_exports() {
     // This test verifies that unused exports are optimized
     let files = vec![
-        ("main.luax", r#"
+        (
+            "main.luax",
+            r#"
             import { used } from './utils';
             const x = used();
-        "#),
-        ("utils.luax", r#"
+        "#,
+        ),
+        (
+            "utils.luax",
+            r#"
             export function used() { return 1; }
             export function unused() { return 2; }
             function localOnly() { return 3; }
-        "#),
+        "#,
+        ),
     ];
 
-    let outputs = compile_project_with_optimization(&files, "O2")
-        .expect("Compilation should succeed");
+    let outputs =
+        compile_project_with_optimization(&files, "O2").expect("Compilation should succeed");
 
     // The utils.lua should preserve the local function
     let utils_lua = &outputs[1];
-    assert!(utils_lua.contains("localOnly") || utils_lua.contains("local_only"),
-            "Local functions should be preserved");
+    assert!(
+        utils_lua.contains("localOnly") || utils_lua.contains("local_only"),
+        "Local functions should be preserved"
+    );
 }
 
 #[test]
@@ -127,14 +151,20 @@ fn test_lto_removes_unused_exports() {
 fn test_no_lto_at_o0() {
     // Verify that LTO is disabled at O0
     let files = vec![
-        ("main.luax", r#"
+        (
+            "main.luax",
+            r#"
             import { used, unused } from './utils';
             const x = used();
-        "#),
-        ("utils.luax", r#"
+        "#,
+        ),
+        (
+            "utils.luax",
+            r#"
             export function used() { return 1; }
             export function unused() { return 2; }
-        "#),
+        "#,
+        ),
     ];
 
     let result_o0 = compile_project_with_optimization(&files, "O0");
@@ -151,32 +181,43 @@ fn test_no_lto_at_o0() {
 fn test_lto_type_only_imports_erased() {
     // Verify that type-only imports are erased (LTO should handle this)
     let files = vec![
-        ("main.luax", r#"
+        (
+            "main.luax",
+            r#"
             import type { User } from './types';
             import { greet } from './utils';
             const user: User = { name: 'Alice' };
             greet(user.name);
-        "#),
-        ("types.luax", r#"
+        "#,
+        ),
+        (
+            "types.luax",
+            r#"
             export type User = { name: string };
-        "#),
-        ("utils.luax", r#"
+        "#,
+        ),
+        (
+            "utils.luax",
+            r#"
             export function greet(name: string): void {
                 print('Hello ' .. name);
             }
-        "#),
+        "#,
+        ),
     ];
 
-    let outputs = compile_project_with_optimization(&files, "O2")
-        .expect("Compilation should succeed");
+    let outputs =
+        compile_project_with_optimization(&files, "O2").expect("Compilation should succeed");
 
     // main.lua should not have runtime imports from types.luax
     let main_lua = &outputs[0];
 
     // The type-only import should not appear in the generated code
     // (this is more about codegen than LTO, but LTO should preserve this behavior)
-    assert!(!main_lua.contains("require('types')") && !main_lua.contains("require(\"types\")"),
-            "Type-only imports should not generate runtime requires");
+    assert!(
+        !main_lua.contains("require('types')") && !main_lua.contains("require(\"types\")"),
+        "Type-only imports should not generate runtime requires"
+    );
 }
 
 /// Documentation test showing LTO is enabled at O2+

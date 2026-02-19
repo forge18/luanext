@@ -195,7 +195,10 @@ fn test_abstract_class_cannot_instantiate() {
     "#;
 
     let result = compile(source);
-    assert!(result.is_err(), "Instantiating abstract class should fail at compile time");
+    assert!(
+        result.is_err(),
+        "Instantiating abstract class should fail at compile time"
+    );
 }
 
 #[test]
@@ -257,7 +260,10 @@ fn test_final_class_cannot_extend() {
     "#;
 
     let result = compile(source);
-    assert!(result.is_err(), "Extending a final class should fail at compile time");
+    assert!(
+        result.is_err(),
+        "Extending a final class should fail at compile time"
+    );
 }
 
 #[test]
@@ -284,7 +290,10 @@ fn test_final_method_cannot_override() {
     "#;
 
     let result = compile(source);
-    assert!(result.is_err(), "Overriding a final method should fail at compile time");
+    assert!(
+        result.is_err(),
+        "Overriding a final method should fail at compile time"
+    );
 }
 
 // ============================================================================
@@ -334,7 +343,9 @@ fn test_method_resolution_order() {
     executor.execute(&lua_code).unwrap();
 
     let greet: String = executor.execute_and_get(&lua_code, "greet_result").unwrap();
-    let identity: String = executor.execute_and_get(&lua_code, "identity_result").unwrap();
+    let identity: String = executor
+        .execute_and_get(&lua_code, "identity_result")
+        .unwrap();
     assert_eq!(greet, "Hello from Base");
     assert_eq!(identity, "Middle");
 }
@@ -416,4 +427,241 @@ fn test_type_infrastructure() {
 
     let animal_name: String = executor.execute_and_get(&lua_code, "animal_name").unwrap();
     assert_eq!(animal_name, "Animal");
+}
+
+// ============================================================================
+// Static Class Members
+// ============================================================================
+
+#[test]
+fn test_static_method_calling_another_static() {
+    // Static methods calling other static methods on the same class
+    let source = r#"
+        class MathUtils {
+            static square(x: number): number {
+                return x * x
+            }
+
+            static sumOfSquares(a: number, b: number): number {
+                return MathUtils.square(a) + MathUtils.square(b)
+            }
+        }
+
+        result: number = MathUtils.sumOfSquares(3, 4)
+    "#;
+
+    let lua_code = compile(source).unwrap();
+    let executor = LuaExecutor::new().unwrap();
+
+    let result: i64 = executor.execute_and_get(&lua_code, "result").unwrap();
+    assert_eq!(result, 25);
+}
+
+#[test]
+fn test_static_and_instance_methods_coexist() {
+    // A class with both static factory and instance methods
+    let source = r#"
+        class Counter {
+            count: number
+
+            constructor() {
+                self.count = 0
+            }
+
+            increment() {
+                self.count = self.count + 1
+            }
+
+            getCount(): number {
+                return self.count
+            }
+
+            static create(): Counter {
+                return new Counter()
+            }
+        }
+
+        c = Counter.create()
+        c::increment()
+        c::increment()
+        c::increment()
+        result: number = c::getCount()
+    "#;
+
+    let lua_code = compile(source).unwrap();
+    let executor = LuaExecutor::new().unwrap();
+
+    let result: i64 = executor.execute_and_get(&lua_code, "result").unwrap();
+    assert_eq!(result, 3);
+}
+
+#[test]
+fn test_static_method_returns_new_instance() {
+    // Static factory method that creates and returns a configured instance
+    let source = r#"
+        class Logger {
+            prefix: string
+
+            constructor(prefix: string) {
+                self.prefix = prefix
+            }
+
+            log(msg: string): string {
+                return self.prefix .. ": " .. msg
+            }
+
+            static createDefault(): Logger {
+                return new Logger("INFO")
+            }
+        }
+
+        logger = Logger.createDefault()
+        result: string = logger::log("test message")
+    "#;
+
+    let lua_code = compile(source).unwrap();
+    let executor = LuaExecutor::new().unwrap();
+
+    let result: String = executor.execute_and_get(&lua_code, "result").unwrap();
+    assert_eq!(result, "INFO: test message");
+}
+
+#[test]
+fn test_multiple_static_methods_with_shared_logic() {
+    // Multiple static methods that share computation via another static method
+    let source = r#"
+        class Converter {
+            static celsiusToFahrenheit(c: number): number {
+                return c * 9 / 5 + 32
+            }
+
+            static fahrenheitToCelsius(f: number): number {
+                return (f - 32) * 5 / 9
+            }
+
+            static isFreezing(c: number): boolean {
+                return Converter.celsiusToFahrenheit(c) <= 32
+            }
+        }
+
+        temp_f: number = Converter.celsiusToFahrenheit(100)
+        is_freezing: boolean = Converter.isFreezing(0)
+    "#;
+
+    let lua_code = compile(source).unwrap();
+    let executor = LuaExecutor::new().unwrap();
+
+    let temp_f: f64 = executor.execute_and_get(&lua_code, "temp_f").unwrap();
+    let is_freezing: bool = executor.execute_and_get(&lua_code, "is_freezing").unwrap();
+    assert!((temp_f - 212.0).abs() < 0.01);
+    assert!(is_freezing);
+}
+
+#[test]
+fn test_static_method_with_class_level_state() {
+    // Static methods reading/writing state stored on the class table
+    let source = r#"
+        class IdGenerator {
+            static nextId(): number {
+                if IdGenerator._counter == nil then
+                    IdGenerator._counter = 0
+                end
+                IdGenerator._counter = IdGenerator._counter + 1
+                return IdGenerator._counter
+            }
+        }
+
+        a: number = IdGenerator.nextId()
+        b: number = IdGenerator.nextId()
+        c: number = IdGenerator.nextId()
+    "#;
+
+    let lua_code = compile(source).unwrap();
+    let executor = LuaExecutor::new().unwrap();
+
+    let a: i64 = executor.execute_and_get(&lua_code, "a").unwrap();
+    let b: i64 = executor.execute_and_get(&lua_code, "b").unwrap();
+    let c: i64 = executor.execute_and_get(&lua_code, "c").unwrap();
+    assert_eq!(a, 1);
+    assert_eq!(b, 2);
+    assert_eq!(c, 3);
+}
+
+#[test]
+fn test_static_method_in_inheritance() {
+    // Static methods accessible on child class via metatable __index chain
+    let source = r#"
+        class Base {
+            static greet(): string {
+                return "Hello from Base"
+            }
+        }
+
+        class Child extends Base {
+            constructor() {}
+        }
+
+        result: string = Child.greet()
+    "#;
+
+    let lua_code = compile(source).unwrap();
+    let executor = LuaExecutor::new().unwrap();
+
+    let result: String = executor.execute_and_get(&lua_code, "result").unwrap();
+    assert_eq!(result, "Hello from Base");
+}
+
+// ============================================================================
+// Static Getters and Setters
+// ============================================================================
+
+#[test]
+fn test_static_getter() {
+    // Static getter called via get_<name>() convention
+    let source = r#"
+        class Config {
+            static get version(): string {
+                return "1.0.0"
+            }
+        }
+
+        result: string = Config.get_version()
+    "#;
+
+    let lua_code = compile(source).unwrap();
+    let executor = LuaExecutor::new().unwrap();
+
+    let result: String = executor.execute_and_get(&lua_code, "result").unwrap();
+    assert_eq!(result, "1.0.0");
+}
+
+#[test]
+fn test_static_getter_and_setter() {
+    // Static getter/setter pair managing class-level state
+    let source = r#"
+        class Settings {
+            static get theme(): string {
+                if Settings._theme == nil then
+                    return "light"
+                end
+                return Settings._theme
+            }
+
+            static set theme(value: string) {
+                Settings._theme = value
+            }
+        }
+
+        initial: string = Settings.get_theme()
+        Settings.set_theme("dark")
+        after: string = Settings.get_theme()
+    "#;
+
+    let lua_code = compile(source).unwrap();
+    let executor = LuaExecutor::new().unwrap();
+
+    let initial: String = executor.execute_and_get(&lua_code, "initial").unwrap();
+    let after: String = executor.execute_and_get(&lua_code, "after").unwrap();
+    assert_eq!(initial, "light");
+    assert_eq!(after, "dark");
 }

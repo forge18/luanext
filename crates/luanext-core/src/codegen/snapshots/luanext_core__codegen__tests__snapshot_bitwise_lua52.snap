@@ -1,7 +1,71 @@
 ---
 source: crates/luanext-core/src/codegen/mod.rs
+assertion_line: 1162
 expression: output
 ---
+-- bit32 polyfill for Lua 5.2 compatibility
+-- Provides the bit32 library API using pure Lua arithmetic.
+-- On a real Lua 5.2 runtime, this shadows the built-in bit32 (same API).
+bit32 = {}
+function bit32.band(a, b)
+    local result = 0
+    local bitval = 1
+    while a > 0 and b > 0 do
+        if a % 2 == 1 and b % 2 == 1 then
+            result = result + bitval
+        end
+        bitval = bitval * 2
+        a = math.floor(a / 2)
+        b = math.floor(b / 2)
+    end
+    return result
+end
+function bit32.bor(a, b)
+    local result = 0
+    local bitval = 1
+    while a > 0 or b > 0 do
+        if a % 2 == 1 or b % 2 == 1 then
+            result = result + bitval
+        end
+        bitval = bitval * 2
+        a = math.floor(a / 2)
+        b = math.floor(b / 2)
+    end
+    return result
+end
+function bit32.bxor(a, b)
+    local result = 0
+    local bitval = 1
+    while a > 0 or b > 0 do
+        if (a % 2) ~= (b % 2) then
+            result = result + bitval
+        end
+        bitval = bitval * 2
+        a = math.floor(a / 2)
+        b = math.floor(b / 2)
+    end
+    return result
+end
+function bit32.bnot(a)
+    local result = 0
+    local bitval = 1
+    for i = 0, 31 do
+        if a % 2 == 0 then
+            result = result + bitval
+        end
+        bitval = bitval * 2
+        a = math.floor(a / 2)
+    end
+    return result
+end
+function bit32.lshift(a, b)
+    return math.floor(a) * (2 ^ b)
+end
+function bit32.rshift(a, b)
+    return math.floor(math.floor(a) / (2 ^ b))
+end
+
+
 local a = bit32.band(x, y)
 local b = bit32.bor(x, y)
 local c = bit32.bxor(x, y)

@@ -172,6 +172,9 @@ fn test_rethrow_with_side_effects() {
     let executor = LuaExecutor::new().unwrap();
     let counter: i64 = executor.execute_and_get(&lua_code, "counter").unwrap();
     let caught: String = executor.execute_and_get(&lua_code, "caught").unwrap();
-    assert_eq!(counter, 3, "All three increments should execute before rethrow");
+    assert_eq!(
+        counter, 3,
+        "All three increments should execute before rethrow"
+    );
     assert!(caught.contains("err"), "Error should propagate");
 }

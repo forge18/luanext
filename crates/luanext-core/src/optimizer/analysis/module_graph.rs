@@ -500,7 +500,12 @@ impl ModuleGraph {
     ) {
         match stmt {
             Statement::Variable(var) => {
-                self.find_references_in_expression(&var.initializer, import_names, interner, referenced);
+                self.find_references_in_expression(
+                    &var.initializer,
+                    import_names,
+                    interner,
+                    referenced,
+                );
             }
             Statement::Function(func) => {
                 for stmt in func.body.statements {
@@ -516,12 +521,22 @@ impl ModuleGraph {
                 }
             }
             Statement::If(if_stmt) => {
-                self.find_references_in_expression(&if_stmt.condition, import_names, interner, referenced);
+                self.find_references_in_expression(
+                    &if_stmt.condition,
+                    import_names,
+                    interner,
+                    referenced,
+                );
                 for stmt in if_stmt.then_block.statements {
                     self.find_references_in_statement(stmt, import_names, interner, referenced);
                 }
                 for else_if in if_stmt.else_ifs.iter() {
-                    self.find_references_in_expression(&else_if.condition, import_names, interner, referenced);
+                    self.find_references_in_expression(
+                        &else_if.condition,
+                        import_names,
+                        interner,
+                        referenced,
+                    );
                     for stmt in else_if.block.statements {
                         self.find_references_in_statement(stmt, import_names, interner, referenced);
                     }
@@ -533,7 +548,12 @@ impl ModuleGraph {
                 }
             }
             Statement::While(while_stmt) => {
-                self.find_references_in_expression(&while_stmt.condition, import_names, interner, referenced);
+                self.find_references_in_expression(
+                    &while_stmt.condition,
+                    import_names,
+                    interner,
+                    referenced,
+                );
                 for stmt in while_stmt.body.statements {
                     self.find_references_in_statement(stmt, import_names, interner, referenced);
                 }
@@ -542,21 +562,51 @@ impl ModuleGraph {
                 // Handle both for-loop variants
                 match for_stmt {
                     luanext_parser::ast::statement::ForStatement::Numeric(numeric) => {
-                        self.find_references_in_expression(&numeric.start, import_names, interner, referenced);
-                        self.find_references_in_expression(&numeric.end, import_names, interner, referenced);
+                        self.find_references_in_expression(
+                            &numeric.start,
+                            import_names,
+                            interner,
+                            referenced,
+                        );
+                        self.find_references_in_expression(
+                            &numeric.end,
+                            import_names,
+                            interner,
+                            referenced,
+                        );
                         if let Some(step) = &numeric.step {
-                            self.find_references_in_expression(step, import_names, interner, referenced);
+                            self.find_references_in_expression(
+                                step,
+                                import_names,
+                                interner,
+                                referenced,
+                            );
                         }
                         for stmt in numeric.body.statements {
-                            self.find_references_in_statement(stmt, import_names, interner, referenced);
+                            self.find_references_in_statement(
+                                stmt,
+                                import_names,
+                                interner,
+                                referenced,
+                            );
                         }
                     }
                     luanext_parser::ast::statement::ForStatement::Generic(generic) => {
                         for expr in generic.iterators.iter() {
-                            self.find_references_in_expression(expr, import_names, interner, referenced);
+                            self.find_references_in_expression(
+                                expr,
+                                import_names,
+                                interner,
+                                referenced,
+                            );
                         }
                         for stmt in generic.body.statements {
-                            self.find_references_in_statement(stmt, import_names, interner, referenced);
+                            self.find_references_in_statement(
+                                stmt,
+                                import_names,
+                                interner,
+                                referenced,
+                            );
                         }
                     }
                 }
@@ -592,7 +642,12 @@ impl ModuleGraph {
             ExpressionKind::Call(callee, arguments, _) => {
                 self.find_references_in_expression(callee, import_names, interner, referenced);
                 for arg in arguments.iter() {
-                    self.find_references_in_expression(&arg.value, import_names, interner, referenced);
+                    self.find_references_in_expression(
+                        &arg.value,
+                        import_names,
+                        interner,
+                        referenced,
+                    );
                 }
             }
             ExpressionKind::Member(object, _) => {
@@ -614,8 +669,16 @@ impl ModuleGraph {
             }
             ExpressionKind::Object(props) => {
                 for prop in props.iter() {
-                    if let luanext_parser::ast::expression::ObjectProperty::Property { value, .. } = prop {
-                        self.find_references_in_expression(value, import_names, interner, referenced);
+                    if let luanext_parser::ast::expression::ObjectProperty::Property {
+                        value, ..
+                    } = prop
+                    {
+                        self.find_references_in_expression(
+                            value,
+                            import_names,
+                            interner,
+                            referenced,
+                        );
                     }
                 }
             }

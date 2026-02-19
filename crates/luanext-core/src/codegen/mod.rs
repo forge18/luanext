@@ -163,6 +163,10 @@ pub struct CodeGenerator {
     tree_shaking_enabled: bool,
     /// Scope hoisting: whether scope hoisting is enabled for bundles
     scope_hoisting_enabled: bool,
+    /// Track class names that have been forward-declared in the current block
+    forward_declared_classes: std::collections::HashSet<String>,
+    /// Alias source to resolved require path mapping (for Require mode path aliases)
+    alias_require_map: std::collections::HashMap<String, String>,
 }
 
 impl CodeGenerator {
@@ -194,6 +198,8 @@ impl CodeGenerator {
             reachable_exports: None,
             tree_shaking_enabled: false,
             scope_hoisting_enabled: true,
+            forward_declared_classes: Default::default(),
+            alias_require_map: Default::default(),
         }
     }
 
@@ -235,6 +241,14 @@ impl CodeGenerator {
 
     pub fn with_mode(mut self, mode: CodeGenMode) -> Self {
         self.mode = mode;
+        self
+    }
+
+    pub fn with_alias_require_map(
+        mut self,
+        map: std::collections::HashMap<String, String>,
+    ) -> Self {
+        self.alias_require_map = map;
         self
     }
 
@@ -311,6 +325,10 @@ impl CodeGenerator {
         if self.uses_built_in_decorators {
             self.embed_runtime_library();
         }
+
+        // Emit forward declarations for all classes in the top-level program.
+        // This enables mutual recursion between classes defined at module scope.
+        self.emit_top_level_class_forward_declarations(&program.statements);
 
         for statement in &program.statements {
             self.generate_statement(statement);
@@ -1474,14 +1492,18 @@ end
         "#;
         let output = generate_code(source);
 
-        // Check Animal class
-        assert!(output.contains("local Animal = {}"));
+        // Forward declarations for mutual visibility
+        assert!(output.contains("local Animal\n"));
+        assert!(output.contains("local Dog\n"));
+
+        // Check Animal class (no `local` prefix since forward-declared)
+        assert!(output.contains("Animal = {}"));
         assert!(output.contains("Animal.__index = Animal"));
         assert!(output.contains("function Animal.new(name)"));
         assert!(output.contains("function Animal:speak()"));
 
         // Check Dog class with inheritance
-        assert!(output.contains("local Dog = {}"));
+        assert!(output.contains("Dog = {}"));
         assert!(output.contains("Dog.__index = Dog"));
         assert!(output.contains("setmetatable(Dog, { __index = Animal })"));
         assert!(output.contains("function Dog.new(name, breed)"));

@@ -61,6 +61,7 @@ pub struct CodeGeneratorBuilder {
     whole_program_analysis: Option<WholeProgramAnalysis>,
     reachable_exports: Option<std::collections::HashSet<String>>,
     reflection_mode: ReflectionMode,
+    alias_require_map: std::collections::HashMap<String, String>,
 }
 
 impl CodeGeneratorBuilder {
@@ -97,6 +98,7 @@ impl CodeGeneratorBuilder {
             whole_program_analysis: None,
             reachable_exports: None,
             reflection_mode: ReflectionMode::default(),
+            alias_require_map: Default::default(),
         }
     }
 
@@ -280,6 +282,18 @@ impl CodeGeneratorBuilder {
         self
     }
 
+    /// Sets the alias require path mapping for Require mode.
+    ///
+    /// Maps original alias import sources (e.g., `@/utils`) to resolved
+    /// relative require paths (e.g., `./src/utils`) for correct Lua output.
+    pub fn alias_require_map(
+        mut self,
+        map: std::collections::HashMap<String, String>,
+    ) -> Self {
+        self.alias_require_map = map;
+        self
+    }
+
     /// Sets the reachable exports for tree shaking in bundle mode.
     ///
     /// When tree shaking is enabled, exports not in this set will be skipped
@@ -352,6 +366,10 @@ impl CodeGeneratorBuilder {
 
         if let Some(ref exports) = self.reachable_exports {
             generator = generator.with_tree_shaking(exports.clone());
+        }
+
+        if !self.alias_require_map.is_empty() {
+            generator = generator.with_alias_require_map(self.alias_require_map);
         }
 
         generator

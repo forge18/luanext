@@ -1,5 +1,5 @@
 use super::super::CodeGenerator;
-use luanext_parser::ast::expression::{AssignmentOp, BinaryOp};
+use luanext_parser::ast::expression::{AssignmentOp, BinaryOp, ExpressionKind};
 
 impl CodeGenerator {
     pub fn generate_binary_expression(
@@ -91,6 +91,21 @@ impl CodeGenerator {
         op: AssignmentOp,
         value: &luanext_parser::ast::expression::Expression,
     ) {
+        // Handle optional chaining as assignment target:
+        // obj?.x = value  →  if obj ~= nil then obj.x = value end
+        // obj?.[k] = value  →  if obj ~= nil then obj[k] = value end
+        match &target.kind {
+            ExpressionKind::OptionalMember(object, member) => {
+                self.generate_optional_member_assignment(object, member, op, value);
+                return;
+            }
+            ExpressionKind::OptionalIndex(object, index) => {
+                self.generate_optional_index_assignment(object, index, op, value);
+                return;
+            }
+            _ => {}
+        }
+
         match op {
             AssignmentOp::Assign => {
                 self.generate_expression(target);
@@ -181,6 +196,140 @@ impl CodeGenerator {
                 self.write(" >> ");
                 self.generate_expression(value);
             }
+        }
+    }
+
+    /// Generate assignment to an optional member: obj?.x = value
+    /// Emits: if obj ~= nil then obj.x = value end
+    /// For complex expressions, uses a temp var to avoid double evaluation.
+    fn generate_optional_member_assignment(
+        &mut self,
+        object: &luanext_parser::ast::expression::Expression,
+        member: &luanext_parser::ast::Ident,
+        op: AssignmentOp,
+        value: &luanext_parser::ast::expression::Expression,
+    ) {
+        let member_str = self.resolve(member.node);
+        if self.is_simple_expression(object) {
+            // Simple case: obj?.x = value → if obj ~= nil then obj.x = value end
+            self.write("if ");
+            self.generate_expression(object);
+            self.write(" ~= nil then ");
+            self.generate_expression(object);
+            self.write(".");
+            self.write(&member_str);
+            self.write_assignment_op_rhs(op, object, Some(&member_str), None, value);
+            self.write(" end");
+        } else {
+            // Complex case: use temp var to avoid double evaluation
+            self.write("(function() local __t = ");
+            self.generate_expression(object);
+            self.write("; if __t ~= nil then __t.");
+            self.write(&member_str);
+            self.write_assignment_op_rhs_temp(op, "__t", Some(&member_str), None, value);
+            self.write(" end end)()");
+        }
+    }
+
+    /// Generate assignment to an optional index: obj?.[k] = value
+    /// Emits: if obj ~= nil then obj[k] = value end
+    fn generate_optional_index_assignment(
+        &mut self,
+        object: &luanext_parser::ast::expression::Expression,
+        index: &luanext_parser::ast::expression::Expression,
+        op: AssignmentOp,
+        value: &luanext_parser::ast::expression::Expression,
+    ) {
+        if self.is_simple_expression(object) {
+            self.write("if ");
+            self.generate_expression(object);
+            self.write(" ~= nil then ");
+            self.generate_expression(object);
+            self.write("[");
+            self.generate_expression(index);
+            self.write("]");
+            self.write_assignment_op_rhs(op, object, None, Some(index), value);
+            self.write(" end");
+        } else {
+            self.write("(function() local __t = ");
+            self.generate_expression(object);
+            self.write("; if __t ~= nil then __t[");
+            self.generate_expression(index);
+            self.write("]");
+            self.write_assignment_op_rhs_temp(op, "__t", None, Some(index), value);
+            self.write(" end end)()");
+        }
+    }
+
+    /// Write the RHS of an assignment with the correct operator.
+    /// For simple =, just writes " = value".
+    /// For compound (+=, etc.), writes " = target.member OP value".
+    fn write_assignment_op_rhs(
+        &mut self,
+        op: AssignmentOp,
+        object: &luanext_parser::ast::expression::Expression,
+        member: Option<&str>,
+        index: Option<&luanext_parser::ast::expression::Expression>,
+        value: &luanext_parser::ast::expression::Expression,
+    ) {
+        self.write(" = ");
+        if op != AssignmentOp::Assign {
+            // Emit target reference for compound assignment
+            self.generate_expression(object);
+            if let Some(m) = member {
+                self.write(".");
+                self.write(m);
+            } else if let Some(idx) = index {
+                self.write("[");
+                self.generate_expression(idx);
+                self.write("]");
+            }
+            self.write(&format!(" {} ", Self::compound_op_str(op)));
+        }
+        self.generate_expression(value);
+    }
+
+    /// Write the RHS using a temp variable name for compound assignment.
+    fn write_assignment_op_rhs_temp(
+        &mut self,
+        op: AssignmentOp,
+        temp_var: &str,
+        member: Option<&str>,
+        index: Option<&luanext_parser::ast::expression::Expression>,
+        value: &luanext_parser::ast::expression::Expression,
+    ) {
+        self.write(" = ");
+        if op != AssignmentOp::Assign {
+            self.write(temp_var);
+            if let Some(m) = member {
+                self.write(".");
+                self.write(m);
+            } else if let Some(idx) = index {
+                self.write("[");
+                self.generate_expression(idx);
+                self.write("]");
+            }
+            self.write(&format!(" {} ", Self::compound_op_str(op)));
+        }
+        self.generate_expression(value);
+    }
+
+    /// Get the Lua operator string for a compound assignment op.
+    fn compound_op_str(op: AssignmentOp) -> &'static str {
+        match op {
+            AssignmentOp::Assign => "",
+            AssignmentOp::AddAssign => "+",
+            AssignmentOp::SubtractAssign => "-",
+            AssignmentOp::MultiplyAssign => "*",
+            AssignmentOp::DivideAssign => "/",
+            AssignmentOp::ModuloAssign => "%",
+            AssignmentOp::PowerAssign => "^",
+            AssignmentOp::ConcatenateAssign => "..",
+            AssignmentOp::BitwiseAndAssign => "&",
+            AssignmentOp::BitwiseOrAssign => "|",
+            AssignmentOp::FloorDivideAssign => "//",
+            AssignmentOp::LeftShiftAssign => "<<",
+            AssignmentOp::RightShiftAssign => ">>",
         }
     }
 }

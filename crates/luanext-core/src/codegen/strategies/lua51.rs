@@ -31,7 +31,9 @@ impl CodeGenStrategy for Lua51Strategy {
     }
 
     fn generate_continue(&self, _label: Option<StringId>) -> String {
-        "goto __continue".to_string()
+        // Lua 5.1 has no goto; continue is emulated via repeat...until true wrapping
+        // where break exits the inner repeat (acting as continue for the outer loop)
+        "break".to_string()
     }
 
     fn generate_unary_bitwise_not(&self, operand_expr: &str) -> String {
@@ -47,6 +49,10 @@ impl CodeGenStrategy for Lua51Strategy {
     }
 
     fn supports_native_integer_divide(&self) -> bool {
+        false
+    }
+
+    fn supports_goto(&self) -> bool {
         false
     }
 }

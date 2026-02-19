@@ -72,15 +72,15 @@ impl DeadImportEliminationPass {
                     match &import_decl.clause {
                         ImportClause::Named(specifiers) => {
                             // Check if any import specifier is referenced
-                            let any_referenced = specifiers
-                                .iter()
-                                .any(|spec| {
-                                    let local_name = spec.local.as_ref().unwrap_or(&spec.imported);
-                                    let name_str = self.interner.resolve(local_name.node);
-                                    module_node.imports.get(&name_str)
-                                        .map(|info| info.is_referenced)
-                                        .unwrap_or(true) // Conservative: keep if not in graph
-                                });
+                            let any_referenced = specifiers.iter().any(|spec| {
+                                let local_name = spec.local.as_ref().unwrap_or(&spec.imported);
+                                let name_str = self.interner.resolve(local_name.node);
+                                module_node
+                                    .imports
+                                    .get(&name_str)
+                                    .map(|info| info.is_referenced)
+                                    .unwrap_or(true) // Conservative: keep if not in graph
+                            });
 
                             if any_referenced {
                                 // Keep import statement if any specifiers are used
@@ -93,9 +93,12 @@ impl DeadImportEliminationPass {
                         ImportClause::Default(ident) => {
                             // Check if default import is referenced
                             let name_str = self.interner.resolve(ident.node);
-                            if module_node.imports.get(&name_str)
+                            if module_node
+                                .imports
+                                .get(&name_str)
                                 .map(|info| info.is_referenced)
-                                .unwrap_or(true) // Conservative
+                                .unwrap_or(true)
+                            // Conservative
                             {
                                 result.push(stmt.clone());
                             }
@@ -104,9 +107,12 @@ impl DeadImportEliminationPass {
                         ImportClause::Namespace(ident) => {
                             // Check if namespace import is referenced
                             let name_str = self.interner.resolve(ident.node);
-                            if module_node.imports.get(&name_str)
+                            if module_node
+                                .imports
+                                .get(&name_str)
                                 .map(|info| info.is_referenced)
-                                .unwrap_or(true) // Conservative
+                                .unwrap_or(true)
+                            // Conservative
                             {
                                 result.push(stmt.clone());
                             }
@@ -120,19 +126,21 @@ impl DeadImportEliminationPass {
                         ImportClause::Mixed { default, named } => {
                             // Check both default and named imports
                             let default_name_str = self.interner.resolve(default.node);
-                            let default_used = module_node.imports.get(&default_name_str)
+                            let default_used = module_node
+                                .imports
+                                .get(&default_name_str)
                                 .map(|info| info.is_referenced)
                                 .unwrap_or(true);
 
-                            let any_named_used = named
-                                .iter()
-                                .any(|spec| {
-                                    let local_name = spec.local.as_ref().unwrap_or(&spec.imported);
-                                    let name_str = self.interner.resolve(local_name.node);
-                                    module_node.imports.get(&name_str)
-                                        .map(|info| info.is_referenced)
-                                        .unwrap_or(true)
-                                });
+                            let any_named_used = named.iter().any(|spec| {
+                                let local_name = spec.local.as_ref().unwrap_or(&spec.imported);
+                                let name_str = self.interner.resolve(local_name.node);
+                                module_node
+                                    .imports
+                                    .get(&name_str)
+                                    .map(|info| info.is_referenced)
+                                    .unwrap_or(true)
+                            });
 
                             if default_used || any_named_used {
                                 // Keep if either default or any named import is used
@@ -151,7 +159,6 @@ impl DeadImportEliminationPass {
 
         result
     }
-
 }
 
 #[cfg(test)]

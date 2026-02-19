@@ -1,7 +1,9 @@
 /// Unit tests for ModuleGraph data structures
 ///
 /// These tests verify the basic data structures and functionality of the LTO module graph.
-use luanext_core::optimizer::analysis::module_graph::{ModuleGraph, ModuleNode, ExportInfo, ImportInfo};
+use luanext_core::optimizer::analysis::module_graph::{
+    ExportInfo, ImportInfo, ModuleGraph, ModuleNode,
+};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::path::PathBuf;
 
@@ -178,11 +180,7 @@ fn test_module_graph_reachability() {
 
     assert_eq!(graph.modules.len(), 3);
 
-    let reachable_count = graph
-        .modules
-        .values()
-        .filter(|m| m.is_reachable)
-        .count();
+    let reachable_count = graph.modules.values().filter(|m| m.is_reachable).count();
 
     assert_eq!(reachable_count, 2);
 }

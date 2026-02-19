@@ -37,8 +37,12 @@ fn test_variable_scoping_patterns() {
     executor.execute(&lua_code).unwrap();
 
     // Verify global variables (implicit and explicit)
-    let implicit: i64 = executor.execute_and_get(&lua_code, "implicit_global").unwrap();
-    let explicit: i64 = executor.execute_and_get(&lua_code, "explicit_global").unwrap();
+    let implicit: i64 = executor
+        .execute_and_get(&lua_code, "implicit_global")
+        .unwrap();
+    let explicit: i64 = executor
+        .execute_and_get(&lua_code, "explicit_global")
+        .unwrap();
     let result: i64 = executor.execute_and_get(&lua_code, "result").unwrap();
 
     assert_eq!(implicit, 100);
@@ -238,7 +242,7 @@ fn test_closures_and_upvalues() {
     println!("Generated Lua:\n{}", lua_code);
     let executor = LuaExecutor::new().unwrap();
     match executor.execute(&lua_code) {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(e) => panic!("Execution failed: {}\nGenerated Lua:\n{}", e, lua_code),
     }
 

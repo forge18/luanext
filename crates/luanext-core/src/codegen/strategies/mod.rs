@@ -31,4 +31,7 @@ pub trait CodeGenStrategy {
 
     /// Check if this strategy supports integer division
     fn supports_native_integer_divide(&self) -> bool;
+
+    /// Check if this strategy supports goto/labels (Lua 5.2+)
+    fn supports_goto(&self) -> bool;
 }

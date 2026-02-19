@@ -166,7 +166,10 @@ fn test_assert_type_nullable_nil() {
     let lua_code = compile(source).unwrap();
     let executor = LuaExecutor::new().unwrap();
     let caught: bool = executor.execute_and_get(&lua_code, "caught").unwrap();
-    assert!(!caught, "assertType<string?>(nil) should NOT throw an error");
+    assert!(
+        !caught,
+        "assertType<string?>(nil) should NOT throw an error"
+    );
 }
 
 // --- assertType Returns Value ---

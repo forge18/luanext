@@ -23,7 +23,8 @@ impl CodeGenerator {
             }
             Statement::Continue(_) => {
                 self.write_indent();
-                self.writeln("continue");
+                let continue_code = self.strategy.generate_continue(None);
+                self.writeln(&continue_code);
             }
             Statement::Expression(expr) => {
                 self.write_indent();
@@ -469,12 +470,32 @@ impl CodeGenerator {
     }
 
     pub fn generate_while_statement(&mut self, while_stmt: &WhileStatement) {
+        let has_continue = block_contains_continue(&while_stmt.body);
         self.write_indent();
         self.write("while ");
         self.generate_expression(&while_stmt.condition);
         self.writeln(" do");
         self.indent();
+        if has_continue && !self.strategy.supports_goto() {
+            if block_contains_break(&while_stmt.body) {
+                self.write_indent();
+                self.writeln("error(\"LuaNext: continue and break in the same loop is not supported for Lua 5.1 target\")");
+            }
+            self.write_indent();
+            self.writeln("repeat");
+            self.indent();
+        }
         self.generate_block(&while_stmt.body);
+        if has_continue {
+            if self.strategy.supports_goto() {
+                self.write_indent();
+                self.writeln("::__continue::");
+            } else {
+                self.dedent();
+                self.write_indent();
+                self.writeln("until true");
+            }
+        }
         self.dedent();
         self.write_indent();
         self.writeln("end");
@@ -483,6 +504,7 @@ impl CodeGenerator {
     pub fn generate_for_statement(&mut self, for_stmt: &ForStatement) {
         match for_stmt {
             ForStatement::Numeric(numeric) => {
+                let has_continue = block_contains_continue(&numeric.body);
                 self.write_indent();
                 self.write("for ");
                 let var_name = self.resolve(numeric.variable.node);
@@ -497,12 +519,32 @@ impl CodeGenerator {
                 }
                 self.writeln(" do");
                 self.indent();
+                if has_continue && !self.strategy.supports_goto() {
+                    if block_contains_break(&numeric.body) {
+                        self.write_indent();
+                        self.writeln("error(\"LuaNext: continue and break in the same loop is not supported for Lua 5.1 target\")");
+                    }
+                    self.write_indent();
+                    self.writeln("repeat");
+                    self.indent();
+                }
                 self.generate_block(&numeric.body);
+                if has_continue {
+                    if self.strategy.supports_goto() {
+                        self.write_indent();
+                        self.writeln("::__continue::");
+                    } else {
+                        self.dedent();
+                        self.write_indent();
+                        self.writeln("until true");
+                    }
+                }
                 self.dedent();
                 self.write_indent();
                 self.writeln("end");
             }
             ForStatement::Generic(generic) => {
+                let has_continue = block_contains_continue(&generic.body);
                 if let Some(pattern) = &generic.pattern {
                     // Destructuring for loop: for [a, b] in items do ... end
                     // Desugars to: for _, __item in ipairs(items) do local a = __item[1] ... end
@@ -535,7 +577,26 @@ impl CodeGenerator {
                         }
                         _ => {}
                     }
+                    if has_continue && !self.strategy.supports_goto() {
+                        if block_contains_break(&generic.body) {
+                            self.write_indent();
+                            self.writeln("error(\"LuaNext: continue and break in the same loop is not supported for Lua 5.1 target\")");
+                        }
+                        self.write_indent();
+                        self.writeln("repeat");
+                        self.indent();
+                    }
                     self.generate_block(&generic.body);
+                    if has_continue {
+                        if self.strategy.supports_goto() {
+                            self.write_indent();
+                            self.writeln("::__continue::");
+                        } else {
+                            self.dedent();
+                            self.write_indent();
+                            self.writeln("until true");
+                        }
+                    }
                     self.dedent();
                     self.write_indent();
                     self.writeln("end");
@@ -558,7 +619,26 @@ impl CodeGenerator {
                     }
                     self.writeln(" do");
                     self.indent();
+                    if has_continue && !self.strategy.supports_goto() {
+                        if block_contains_break(&generic.body) {
+                            self.write_indent();
+                            self.writeln("error(\"LuaNext: continue and break in the same loop is not supported for Lua 5.1 target\")");
+                        }
+                        self.write_indent();
+                        self.writeln("repeat");
+                        self.indent();
+                    }
                     self.generate_block(&generic.body);
+                    if has_continue {
+                        if self.strategy.supports_goto() {
+                            self.write_indent();
+                            self.writeln("::__continue::");
+                        } else {
+                            self.dedent();
+                            self.write_indent();
+                            self.writeln("until true");
+                        }
+                    }
                     self.dedent();
                     self.write_indent();
                     self.writeln("end");
@@ -568,10 +648,30 @@ impl CodeGenerator {
     }
 
     pub fn generate_repeat_statement(&mut self, repeat_stmt: &RepeatStatement) {
+        let has_continue = block_contains_continue(&repeat_stmt.body);
         self.write_indent();
         self.writeln("repeat");
         self.indent();
+        if has_continue && !self.strategy.supports_goto() {
+            if block_contains_break(&repeat_stmt.body) {
+                self.write_indent();
+                self.writeln("error(\"LuaNext: continue and break in the same loop is not supported for Lua 5.1 target\")");
+            }
+            self.write_indent();
+            self.writeln("repeat");
+            self.indent();
+        }
         self.generate_block(&repeat_stmt.body);
+        if has_continue {
+            if self.strategy.supports_goto() {
+                self.write_indent();
+                self.writeln("::__continue::");
+            } else {
+                self.dedent();
+                self.write_indent();
+                self.writeln("until true");
+            }
+        }
         self.dedent();
         self.write_indent();
         self.write("until ");
@@ -595,8 +695,64 @@ impl CodeGenerator {
     }
 
     pub fn generate_block(&mut self, block: &Block) {
+        // Emit forward declarations for all classes in this block.
+        // This enables mutual recursion: class A can reference class B
+        // even if B is defined later in the same block.
+        self.emit_class_forward_declarations(block);
+
         for statement in block.statements.iter() {
             self.generate_statement(statement);
+        }
+    }
+
+    /// Pre-scan a block for class declarations and emit `local ClassName`
+    /// forward declarations. This allows classes to reference each other
+    /// regardless of definition order.
+    fn emit_class_forward_declarations(&mut self, block: &Block) {
+        let class_names: Vec<String> = block
+            .statements
+            .iter()
+            .filter_map(|stmt| {
+                if let Statement::Class(class_decl) = stmt {
+                    Some(self.resolve(class_decl.name.node).to_string())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        // Only emit forward declarations when there are 2+ classes
+        // (single class can't have mutual recursion)
+        if class_names.len() >= 2 {
+            for name in &class_names {
+                self.write_indent();
+                self.writeln(&format!("local {name}"));
+                self.forward_declared_classes.insert(name.clone());
+            }
+        }
+    }
+
+    /// Pre-scan top-level statements for class declarations and emit forward
+    /// declarations. Same logic as `emit_class_forward_declarations` but works
+    /// with a slice of statements (top-level program has no Block wrapper).
+    pub fn emit_top_level_class_forward_declarations(&mut self, statements: &[Statement]) {
+        let class_names: Vec<String> = statements
+            .iter()
+            .filter_map(|stmt| {
+                if let Statement::Class(class_decl) = stmt {
+                    Some(self.resolve(class_decl.name.node).to_string())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        if class_names.len() >= 2 {
+            for name in &class_names {
+                self.write_indent();
+                self.writeln(&format!("local {name}"));
+                self.forward_declared_classes.insert(name.clone());
+            }
         }
     }
 
@@ -777,4 +933,103 @@ impl CodeGenerator {
         self.writeln("-- finally block");
         self.generate_block(block);
     }
+}
+
+/// Check if a block contains a `continue` statement at the current loop level.
+/// Recurses into if/else/try/block but NOT into nested loops (those continues
+/// target the inner loop, not the outer one).
+pub fn block_contains_continue(block: &Block) -> bool {
+    for stmt in block.statements.iter() {
+        match stmt {
+            Statement::Continue(_) => return true,
+            Statement::If(if_stmt) => {
+                if block_contains_continue(&if_stmt.then_block) {
+                    return true;
+                }
+                for else_if in if_stmt.else_ifs.iter() {
+                    if block_contains_continue(&else_if.block) {
+                        return true;
+                    }
+                }
+                if let Some(else_block) = &if_stmt.else_block {
+                    if block_contains_continue(else_block) {
+                        return true;
+                    }
+                }
+            }
+            Statement::Block(inner_block) => {
+                if block_contains_continue(inner_block) {
+                    return true;
+                }
+            }
+            Statement::Try(try_stmt) => {
+                if block_contains_continue(&try_stmt.try_block) {
+                    return true;
+                }
+                for catch in try_stmt.catch_clauses.iter() {
+                    if block_contains_continue(&catch.body) {
+                        return true;
+                    }
+                }
+                if let Some(finally_block) = &try_stmt.finally_block {
+                    if block_contains_continue(finally_block) {
+                        return true;
+                    }
+                }
+            }
+            // Do NOT recurse into nested loops
+            Statement::While(_) | Statement::For(_) | Statement::Repeat(_) => {}
+            _ => {}
+        }
+    }
+    false
+}
+
+/// Check if a block contains a `break` statement at the current loop level.
+/// Same recursion rules as `block_contains_continue`.
+pub fn block_contains_break(block: &Block) -> bool {
+    for stmt in block.statements.iter() {
+        match stmt {
+            Statement::Break(_) => return true,
+            Statement::If(if_stmt) => {
+                if block_contains_break(&if_stmt.then_block) {
+                    return true;
+                }
+                for else_if in if_stmt.else_ifs.iter() {
+                    if block_contains_break(&else_if.block) {
+                        return true;
+                    }
+                }
+                if let Some(else_block) = &if_stmt.else_block {
+                    if block_contains_break(else_block) {
+                        return true;
+                    }
+                }
+            }
+            Statement::Block(inner_block) => {
+                if block_contains_break(inner_block) {
+                    return true;
+                }
+            }
+            Statement::Try(try_stmt) => {
+                if block_contains_break(&try_stmt.try_block) {
+                    return true;
+                }
+                for catch in try_stmt.catch_clauses.iter() {
+                    if block_contains_break(&catch.body) {
+                        return true;
+                    }
+                }
+                if let Some(finally_block) = &try_stmt.finally_block {
+                    if block_contains_break(finally_block) {
+                        return true;
+                    }
+                }
+            }
+            // Do NOT recurse into nested loops
+            Statement::While(_) | Statement::For(_) | Statement::Repeat(_) => {}
+            _ => {}
+        }
+    }
+    false
 }

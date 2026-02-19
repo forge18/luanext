@@ -108,7 +108,10 @@ fn test_multi_assign_fewer_values() {
     let c_is_nil: bool = executor
         .execute_with_result::<bool>("return c == nil")
         .unwrap();
-    assert!(c_is_nil, "c should be nil when there are fewer values than targets");
+    assert!(
+        c_is_nil,
+        "c should be nil when there are fewer values than targets"
+    );
 }
 
 #[test]

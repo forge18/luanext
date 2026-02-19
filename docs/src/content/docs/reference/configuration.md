@@ -38,6 +38,12 @@ compilerOptions:
     - "./lua_modules/?.luax"
   enforceNamespacePath: false
 
+  # Path aliases (TypeScript-style)
+  baseUrl: "."
+  paths:
+    "@/*": ["src/*"]
+    "@components/*": ["src/components/*"]
+
   # Formatting
   outputFormat: "readable"
   pretty: true
@@ -457,6 +463,86 @@ namespace MyApp.Utils  -- ✅ OK (matches path)
 namespace Other.Name  -- ❌ Error: Namespace doesn't match file path
 ```
 
+### `compilerOptions.baseUrl`
+
+**Type:** `string | null`
+**Default:** `null`
+
+Base directory for resolving path alias replacements. When set, the replacement paths in `paths` are resolved relative to this directory. When `null`, they resolve relative to the project root (where `luanext.config.yaml` is located).
+
+```yaml
+compilerOptions:
+  baseUrl: "."        # Project root (explicit)
+  # OR
+  baseUrl: "./src"    # Resolve aliases relative to src/
+  # OR
+  baseUrl: null       # Default: project root
+```
+
+**Example:** With `baseUrl: "./src"` and `paths: { "@/*": ["*"] }`, the import `@/utils` resolves to `src/utils.luax`.
+
+**Note:** `baseUrl` only affects how path alias replacement values are resolved. It does not change how relative imports (`./`, `../`) or package imports work.
+
+### `compilerOptions.paths`
+
+**Type:** `Record<string, string[]>`
+**Default:** `{}` (no aliases)
+
+Path alias mappings following TypeScript's `paths` semantics. Maps import patterns to filesystem paths, enabling cleaner imports in large projects.
+
+```yaml
+compilerOptions:
+  baseUrl: "."
+  paths:
+    "@/*": ["src/*"]
+    "@components/*": ["src/components/*"]
+    "@utils": ["src/shared/utils"]
+```
+
+**Pattern syntax:**
+
+- Each pattern may contain at most one `*` wildcard
+- `*` matches any string and is substituted into the replacement values
+- Patterns without `*` are exact matches
+- Multiple replacement paths are tried in order until one resolves a file
+- A bare `*` catch-all pattern matches any import
+
+**Specificity:** When multiple patterns match an import, the pattern with the longest prefix before `*` wins. For example, `@components/*` wins over `@/*` for the import `@components/Button`.
+
+**Examples:**
+
+```yaml
+# Wildcard alias
+paths:
+  "@/*": ["src/*"]
+# import { add } from "@/utils"  →  resolves to src/utils.luax
+
+# Exact alias (no wildcard)
+paths:
+  "@config": ["src/config/settings"]
+# import Config from "@config"  →  resolves to src/config/settings.luax
+
+# Multiple fallback paths
+paths:
+  "@lib/*": ["src/lib/*", "vendor/lib/*"]
+# Tries src/lib/foo.luax first, then vendor/lib/foo.luax
+
+# Multiple alias prefixes
+paths:
+  "@/*": ["src/*"]
+  "@components/*": ["src/ui/components/*"]
+  "@utils/*": ["src/shared/utils/*"]
+```
+
+**Generated Lua:** In require mode, alias imports are rewritten to relative `require()` paths:
+
+```lua
+-- Source: import { Button } from "@components/Button"
+-- Generated: local _mod = require("./src/ui/components/Button")
+```
+
+**Note:** The `@std/*` prefix is reserved for LuaNext standard library imports and is not affected by path alias configuration.
+
 ### `compilerOptions.outputFormat`
 
 **Type:** `"readable" | "compact" | "minified"`
@@ -656,6 +742,43 @@ include:
 
 exclude:
   - "**/node_modules/**"
+```
+
+### Path Aliases Configuration
+
+Clean imports for large projects:
+
+```yaml
+compilerOptions:
+  target: "5.4"
+  strictNullChecks: true
+  outDir: "dist"
+  baseUrl: "."
+  paths:
+    "@/*": ["src/*"]
+    "@components/*": ["src/ui/components/*"]
+    "@utils/*": ["src/shared/utils/*"]
+    "@config": ["src/config/settings"]
+
+include:
+  - "src/**/*.luax"
+
+exclude:
+  - "**/node_modules/**"
+  - "**/dist/**"
+```
+
+**Usage:**
+
+```lua
+-- Instead of fragile relative paths:
+import { Button } from "../../../ui/components/Button"
+import { formatDate } from "../../shared/utils/date"
+
+-- Use clean aliases:
+import { Button } from "@components/Button"
+import { formatDate } from "@utils/date"
+import Config from "@config"
 ```
 
 ## CLI Overrides

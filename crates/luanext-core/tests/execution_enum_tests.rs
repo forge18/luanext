@@ -180,9 +180,17 @@ fn test_rich_enum_field_access() {
     let executor = LuaExecutor::new().unwrap();
 
     let earth_mass: f64 = executor.execute_and_get(&lua_code, "earth_mass").unwrap();
-    let mercury_radius: f64 = executor.execute_and_get(&lua_code, "mercury_radius").unwrap();
-    assert!((earth_mass - 5.972e24).abs() / 5.972e24 < 0.001, "Earth mass should be ~5.972e24");
-    assert!((mercury_radius - 2.4397e6).abs() / 2.4397e6 < 0.001, "Mercury radius should be ~2.4397e6");
+    let mercury_radius: f64 = executor
+        .execute_and_get(&lua_code, "mercury_radius")
+        .unwrap();
+    assert!(
+        (earth_mass - 5.972e24).abs() / 5.972e24 < 0.001,
+        "Earth mass should be ~5.972e24"
+    );
+    assert!(
+        (mercury_radius - 2.4397e6).abs() / 2.4397e6 < 0.001,
+        "Mercury radius should be ~2.4397e6"
+    );
 }
 
 #[test]

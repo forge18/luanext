@@ -659,8 +659,8 @@ impl CodeGenerator {
             self.indent();
 
             // Skip re-binding identifier patterns that were pre-bound for guards
-            let skip_binding = arm.guard.is_some()
-                && matches!(&arm.pattern, Pattern::Identifier(_));
+            let skip_binding =
+                arm.guard.is_some() && matches!(&arm.pattern, Pattern::Identifier(_));
             if !skip_binding {
                 self.generate_pattern_bindings(&arm.pattern, "__match_value");
             }

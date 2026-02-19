@@ -90,7 +90,11 @@ impl ReExportFlatteningPass {
             match stmt {
                 Statement::Export(export_decl) => {
                     match &export_decl.kind {
-                        ExportKind::Named { specifiers, source: Some(source), is_type_only: _ } => {
+                        ExportKind::Named {
+                            specifiers,
+                            source: Some(source),
+                            is_type_only: _,
+                        } => {
                             // This is a re-export: export { x, y } from './other'
                             // Try to flatten the chain
                             let mut _flattened = false;
@@ -101,9 +105,13 @@ impl ReExportFlatteningPass {
                                 let exported_name_str = self.interner.resolve(exported_name.node);
 
                                 // Try to resolve via module graph
-                                if let Some((_original_module, _original_symbol)) =
-                                    self.resolve_reexport_source(module_path, &exported_name_str, source) {
-
+                                if let Some((_original_module, _original_symbol)) = self
+                                    .resolve_reexport_source(
+                                        module_path,
+                                        &exported_name_str,
+                                        source,
+                                    )
+                                {
                                     // Successfully resolved to original source
                                     // We could flatten this, but it requires arena allocation
                                     // for new Import + Export statements
@@ -148,7 +156,6 @@ impl ReExportFlatteningPass {
         // For now, return None (no flattening)
         None
     }
-
 }
 
 #[cfg(test)]
