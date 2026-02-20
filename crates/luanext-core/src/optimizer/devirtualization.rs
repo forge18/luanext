@@ -543,15 +543,12 @@ use super::{AstFeatures, WholeProgramPass};
 /// Replaces virtual method calls with direct calls when the class hierarchy
 /// allows safe devirtualization. Currently a stub during arena migration.
 pub struct DevirtualizationPass {
-    #[allow(dead_code)]
-    interner: Arc<StringInterner>,
     class_hierarchy: Option<ClassHierarchy>,
 }
 
 impl DevirtualizationPass {
-    pub fn new(interner: Arc<StringInterner>) -> Self {
+    pub fn new(_interner: Arc<StringInterner>) -> Self {
         Self {
-            interner,
             class_hierarchy: None,
         }
     }

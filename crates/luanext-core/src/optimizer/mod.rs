@@ -1033,8 +1033,6 @@ fn visit_expr_children<'arena>(
 /// Passes are organized into composite groups to minimize AST traversals.
 pub struct Optimizer<'arena> {
     level: OptimizationLevel,
-    #[allow(dead_code)]
-    handler: Arc<dyn DiagnosticHandler>,
     interner: Arc<StringInterner>,
 
     // Composite passes (merged traversals)
@@ -1061,12 +1059,11 @@ impl<'arena> Optimizer<'arena> {
     /// Create a new optimizer with the given optimization level
     pub fn new(
         level: OptimizationLevel,
-        handler: Arc<dyn DiagnosticHandler>,
+        _handler: Arc<dyn DiagnosticHandler>,
         interner: Arc<StringInterner>,
     ) -> Self {
         let mut optimizer = Self {
             level,
-            handler,
             interner,
             expr_pass: None,
             elim_pass: None,

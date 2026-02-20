@@ -14,7 +14,11 @@ use luanext_test_helpers::compile::compile_with_target;
 
 #[test]
 fn test_luajit_bitwise_and() {
-    let source = "const x: number = a & b";
+    let source = r#"
+        const a: number = 15
+        const b: number = 7
+        const x: number = a & b
+    "#;
     let lua_code = compile_with_target(source, LuaTarget::LuaJIT).unwrap();
     assert!(
         lua_code.contains("bit.band(a, b)"),
@@ -24,7 +28,11 @@ fn test_luajit_bitwise_and() {
 
 #[test]
 fn test_luajit_bitwise_or() {
-    let source = "const x: number = a | b";
+    let source = r#"
+        const a: number = 5
+        const b: number = 3
+        const x: number = a | b
+    "#;
     let lua_code = compile_with_target(source, LuaTarget::LuaJIT).unwrap();
     assert!(
         lua_code.contains("bit.bor(a, b)"),
@@ -34,7 +42,11 @@ fn test_luajit_bitwise_or() {
 
 #[test]
 fn test_luajit_bitwise_xor() {
-    let source = "const x: number = a ~ b";
+    let source = r#"
+        const a: number = 10
+        const b: number = 6
+        const x: number = a ~ b
+    "#;
     let lua_code = compile_with_target(source, LuaTarget::LuaJIT).unwrap();
     assert!(
         lua_code.contains("bit.bxor(a, b)"),
@@ -44,7 +56,10 @@ fn test_luajit_bitwise_xor() {
 
 #[test]
 fn test_luajit_shift_left() {
-    let source = "const x: number = a << 2";
+    let source = r#"
+        const a: number = 1
+        const x: number = a << 2
+    "#;
     let lua_code = compile_with_target(source, LuaTarget::LuaJIT).unwrap();
     assert!(
         lua_code.contains("bit.lshift(a, 2)"),
@@ -54,7 +69,10 @@ fn test_luajit_shift_left() {
 
 #[test]
 fn test_luajit_shift_right() {
-    let source = "const x: number = a >> 3";
+    let source = r#"
+        const a: number = 16
+        const x: number = a >> 3
+    "#;
     let lua_code = compile_with_target(source, LuaTarget::LuaJIT).unwrap();
     assert!(
         lua_code.contains("bit.rshift(a, 3)"),
@@ -64,7 +82,11 @@ fn test_luajit_shift_right() {
 
 #[test]
 fn test_luajit_integer_divide() {
-    let source = "const x: number = a // b";
+    let source = r#"
+        const a: number = 10
+        const b: number = 3
+        const x: number = a // b
+    "#;
     let lua_code = compile_with_target(source, LuaTarget::LuaJIT).unwrap();
     assert!(
         lua_code.contains("math.floor(a / b)"),
@@ -75,7 +97,11 @@ fn test_luajit_integer_divide() {
 #[test]
 fn test_luajit_no_preamble() {
     // LuaJIT has bit lib built-in — should NOT emit pure-Lua helper functions
-    let source = "const x: number = a & b";
+    let source = r#"
+        const a: number = 15
+        const b: number = 7
+        const x: number = a & b
+    "#;
     let lua_code = compile_with_target(source, LuaTarget::LuaJIT).unwrap();
     assert!(
         !lua_code.contains("_bit_band"),
@@ -143,7 +169,11 @@ fn test_luajit_local_still_works() {
 #[test]
 fn test_luajit_vs_lua51_preamble_difference() {
     // Lua 5.1 emits pure-Lua helper functions, LuaJIT does not
-    let source = "const x: number = a & b";
+    let source = r#"
+        const a: number = 15
+        const b: number = 7
+        const x: number = a & b
+    "#;
     let lua51_code = compile_with_target(source, LuaTarget::Lua51).unwrap();
     let luajit_code = compile_with_target(source, LuaTarget::LuaJIT).unwrap();
 
