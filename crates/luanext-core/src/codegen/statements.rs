@@ -1,4 +1,5 @@
 use super::super::config::OptimizationLevel;
+use super::strategies::GlobalStyle;
 use super::CodeGenerator;
 use luanext_parser::ast::pattern::{
     ArrayPattern, ArrayPatternElement, ObjectPattern, Pattern, PatternWithDefault,
@@ -77,27 +78,74 @@ impl CodeGenerator {
         }
     }
 
+    /// Check if this global should use `rawset(_G, ...)` style.
+    fn is_rawset_global(&self, kind: &VariableKind) -> bool {
+        matches!(kind, VariableKind::Global) && self.strategy.global_style() == GlobalStyle::Rawset
+    }
+
     /// Emit the appropriate variable declaration prefix for the given kind.
     /// For Local/Const: emits "local "
     /// For Global on Lua 5.5: emits "global "
-    /// For Global on other targets: emits nothing (bare assignment)
+    /// For Global with rawset: emits nothing (caller handles rawset)
     fn emit_var_prefix(&mut self, kind: &VariableKind) {
         match kind {
             VariableKind::Local | VariableKind::Const => {
                 self.write("local ");
             }
-            VariableKind::Global => {
-                if let Some(prefix) = self.strategy.global_declaration_prefix() {
-                    let prefix = prefix.to_string();
-                    self.write(&prefix);
-                }
-            }
+            VariableKind::Global => match self.strategy.global_style() {
+                GlobalStyle::NativeKeyword => self.write("global "),
+                GlobalStyle::Rawset => {} // handled by emit_rawset_assignment
+            },
         }
+    }
+
+    /// Emit a complete `rawset(_G, "name", <value>)` assignment.
+    /// The caller provides the value by writing between `emit_rawset_start` and `emit_rawset_end`.
+    /// Emit `rawset(_G, "name", ` — caller must follow with value and `emit_rawset_end()`.
+    fn emit_rawset_start(&mut self, name: &str) {
+        self.write(&format!("rawset(_G, \"{}\", ", name));
+    }
+
+    /// Emit the closing `)` for a rawset call.
+    fn emit_rawset_end(&mut self) {
+        self.write(")");
+    }
+
+    /// Emit a complete variable assignment: `name = value_str` or `rawset(_G, "name", value_str)`.
+    /// Use this for simple string-based value expressions (no need for generate_expression).
+    fn emit_var_assign(&mut self, kind: &VariableKind, name: &str, value_str: &str) {
+        self.write_indent();
+        if self.is_rawset_global(kind) {
+            self.emit_rawset_start(name);
+            self.write(value_str);
+            self.emit_rawset_end();
+        } else {
+            self.emit_var_prefix(kind);
+            self.write(name);
+            self.write(" = ");
+            self.write(value_str);
+        }
+        self.writeln("");
     }
 
     pub fn generate_variable_declaration(&mut self, decl: &VariableDeclaration) {
         match &decl.pattern {
-            Pattern::Identifier(_) | Pattern::Wildcard(_) => {
+            Pattern::Identifier(ident) => {
+                self.write_indent();
+                if self.is_rawset_global(&decl.kind) {
+                    let name = self.resolve(ident.node);
+                    self.emit_rawset_start(&name);
+                    self.generate_expression(&decl.initializer);
+                    self.emit_rawset_end();
+                } else {
+                    self.emit_var_prefix(&decl.kind);
+                    self.generate_pattern(&decl.pattern);
+                    self.write(" = ");
+                    self.generate_expression(&decl.initializer);
+                }
+                self.writeln("");
+            }
+            Pattern::Wildcard(_) => {
                 self.write_indent();
                 self.emit_var_prefix(&decl.kind);
                 self.generate_pattern(&decl.pattern);
@@ -107,18 +155,18 @@ impl CodeGenerator {
             }
             Pattern::Array(array_pattern) => {
                 // Generate temporary variable and destructuring assignments
+                // __temp is always local, even for global destructuring
                 self.write_indent();
-                self.emit_var_prefix(&decl.kind);
-                self.write("__temp = ");
+                self.write("local __temp = ");
                 self.generate_expression(&decl.initializer);
                 self.writeln("");
                 self.generate_array_destructuring(array_pattern, "__temp", &decl.kind);
             }
             Pattern::Object(obj_pattern) => {
                 // Generate temporary variable and destructuring assignments
+                // __temp is always local, even for global destructuring
                 self.write_indent();
-                self.emit_var_prefix(&decl.kind);
-                self.write("__temp = ");
+                self.write("local __temp = ");
                 self.generate_expression(&decl.initializer);
                 self.writeln("");
                 self.generate_object_destructuring(obj_pattern, "__temp", &decl.kind);
@@ -168,35 +216,40 @@ impl CodeGenerator {
                 }) => {
                     match pat {
                         Pattern::Identifier(ident) => {
-                            self.write_indent();
-                            self.emit_var_prefix(kind);
                             let resolved = self.resolve(ident.node);
-                            self.write(&resolved);
-                            self.write(&format!(" = {}[{}]", source, index));
-                            if let Some(default_expr) = default {
-                                self.write(" or ");
-                                self.generate_expression(default_expr);
+                            if default.is_none() {
+                                let value = format!("{}[{}]", source, index);
+                                self.emit_var_assign(kind, &resolved, &value);
+                            } else {
+                                self.write_indent();
+                                if self.is_rawset_global(kind) {
+                                    self.emit_rawset_start(&resolved);
+                                    self.write(&format!("{}[{}]", source, index));
+                                    self.write(" or ");
+                                    self.generate_expression(default.as_ref().unwrap());
+                                    self.emit_rawset_end();
+                                } else {
+                                    self.emit_var_prefix(kind);
+                                    self.write(&resolved);
+                                    self.write(&format!(" = {}[{}]", source, index));
+                                    self.write(" or ");
+                                    self.generate_expression(default.as_ref().unwrap());
+                                }
+                                self.writeln("");
                             }
-                            self.writeln("");
                         }
                         Pattern::Array(nested_array) => {
-                            // Nested array destructuring
+                            // Nested array destructuring — temp is always local
                             let temp_var = format!("__temp_{}", index);
-                            self.write_indent();
-                            self.emit_var_prefix(kind);
-                            self.write(&temp_var);
-                            self.write(&format!(" = {}[{}]", source, index));
-                            self.writeln("");
+                            let value = format!("{}[{}]", source, index);
+                            self.emit_var_assign(&VariableKind::Local, &temp_var, &value);
                             self.generate_array_destructuring(nested_array, &temp_var, kind);
                         }
                         Pattern::Object(nested_obj) => {
-                            // Nested object destructuring
+                            // Nested object destructuring — temp is always local
                             let temp_var = format!("__temp_{}", index);
-                            self.write_indent();
-                            self.emit_var_prefix(kind);
-                            self.write(&temp_var);
-                            self.write(&format!(" = {}[{}]", source, index));
-                            self.writeln("");
+                            let value = format!("{}[{}]", source, index);
+                            self.emit_var_assign(&VariableKind::Local, &temp_var, &value);
                             self.generate_object_destructuring(nested_obj, &temp_var, kind);
                         }
                         Pattern::Wildcard(_) | Pattern::Literal(_, _) => {
@@ -215,14 +268,9 @@ impl CodeGenerator {
                 }
                 ArrayPatternElement::Rest(ident) => {
                     // Rest element: collect remaining elements
-                    self.write_indent();
-                    self.emit_var_prefix(kind);
                     let resolved = self.resolve(ident.node);
-                    self.write(&resolved);
-                    self.write(" = {");
-                    self.write(&format!("table.unpack({}, {})", source, index));
-                    self.write("}");
-                    self.writeln("");
+                    let value = format!("{{table.unpack({}, {})}}", source, index);
+                    self.emit_var_assign(kind, &resolved, &value);
                     break; // Rest must be last
                 }
                 ArrayPatternElement::Hole => {
@@ -249,6 +297,46 @@ impl CodeGenerator {
         }
     }
 
+    /// Emit a variable assignment where the value involves property access (possibly computed)
+    /// and an optional default expression. Handles rawset for globals.
+    fn emit_destructured_assign(
+        &mut self,
+        kind: &VariableKind,
+        name: &str,
+        source: &str,
+        key_str: &str,
+        computed_key: &Option<Expression>,
+        default: Option<&Expression>,
+    ) {
+        // For non-computed keys without defaults, we can use the simple emit_var_assign
+        if computed_key.is_none() && default.is_none() {
+            let value = format!("{}.{}", source, key_str);
+            self.emit_var_assign(kind, name, &value);
+            return;
+        }
+
+        self.write_indent();
+        if self.is_rawset_global(kind) {
+            self.emit_rawset_start(name);
+            self.write_property_access(source, key_str, computed_key);
+            if let Some(default_expr) = default {
+                self.write(" or ");
+                self.generate_expression(default_expr);
+            }
+            self.emit_rawset_end();
+        } else {
+            self.emit_var_prefix(kind);
+            self.write(name);
+            self.write(" = ");
+            self.write_property_access(source, key_str, computed_key);
+            if let Some(default_expr) = default {
+                self.write(" or ");
+                self.generate_expression(default_expr);
+            }
+        }
+        self.writeln("");
+    }
+
     /// Generate object destructuring assignments
     pub fn generate_object_destructuring(
         &mut self,
@@ -263,36 +351,40 @@ impl CodeGenerator {
                 // { key: pattern } or { [expr]: pattern }
                 match value_pattern {
                     Pattern::Identifier(ident) => {
-                        self.write_indent();
-                        self.emit_var_prefix(kind);
                         let resolved = self.resolve(ident.node);
-                        self.write(&resolved);
-                        self.write(" = ");
-                        self.write_property_access(source, &key_str, &prop.computed_key);
-                        if let Some(default_expr) = &prop.default {
-                            self.write(" or ");
-                            self.generate_expression(default_expr);
-                        }
-                        self.writeln("");
+                        self.emit_destructured_assign(
+                            kind,
+                            &resolved,
+                            source,
+                            &key_str,
+                            &prop.computed_key,
+                            prop.default.as_ref(),
+                        );
                     }
                     Pattern::Array(nested_array) => {
+                        // Nested — temp is always local
                         let temp_var = format!("__temp_{}", key_str);
-                        self.write_indent();
-                        self.emit_var_prefix(kind);
-                        self.write(&temp_var);
-                        self.write(" = ");
-                        self.write_property_access(source, &key_str, &prop.computed_key);
-                        self.writeln("");
+                        self.emit_destructured_assign(
+                            &VariableKind::Local,
+                            &temp_var,
+                            source,
+                            &key_str,
+                            &prop.computed_key,
+                            None,
+                        );
                         self.generate_array_destructuring(nested_array, &temp_var, kind);
                     }
                     Pattern::Object(nested_obj) => {
+                        // Nested — temp is always local
                         let temp_var = format!("__temp_{}", key_str);
-                        self.write_indent();
-                        self.emit_var_prefix(kind);
-                        self.write(&temp_var);
-                        self.write(" = ");
-                        self.write_property_access(source, &key_str, &prop.computed_key);
-                        self.writeln("");
+                        self.emit_destructured_assign(
+                            &VariableKind::Local,
+                            &temp_var,
+                            source,
+                            &key_str,
+                            &prop.computed_key,
+                            None,
+                        );
                         self.generate_object_destructuring(nested_obj, &temp_var, kind);
                     }
                     Pattern::Wildcard(_) | Pattern::Literal(_, _) => {}
@@ -301,16 +393,14 @@ impl CodeGenerator {
                 }
             } else {
                 // Shorthand: { key } means { key: key }
-                self.write_indent();
-                self.emit_var_prefix(kind);
-                self.write(&key_str);
-                self.write(" = ");
-                self.write_property_access(source, &key_str, &prop.computed_key);
-                if let Some(default_expr) = &prop.default {
-                    self.write(" or ");
-                    self.generate_expression(default_expr);
-                }
-                self.writeln("");
+                self.emit_destructured_assign(
+                    kind,
+                    &key_str,
+                    source,
+                    &key_str,
+                    &prop.computed_key,
+                    prop.default.as_ref(),
+                );
             }
         }
 
@@ -324,9 +414,7 @@ impl CodeGenerator {
                 .map(|p| self.resolve(p.key.node))
                 .collect();
 
-            self.write_indent();
-            self.emit_var_prefix(kind);
-            self.writeln(&format!("{} = {{}}", rest_name));
+            self.emit_var_assign(kind, &rest_name, "{}");
             self.write_indent();
             self.writeln(&format!("for __k, __v in pairs({}) do", source));
             self.indent();

@@ -886,7 +886,7 @@ fn test_parallel_compilation_stress() {
 #[test]
 fn test_registry_exports_workflow() {
     let registry = ModuleRegistry::new();
-    let id = ModuleId::new(PathBuf::from("test.tl"));
+    let id = ModuleId::new(PathBuf::from("test.luax"));
     let symbol_table = Arc::new(SymbolTable::new());
 
     // Register as parsed

@@ -171,6 +171,10 @@ pub struct CodeGenerator {
     forward_declared_classes: std::collections::HashSet<String>,
     /// Alias source to resolved require path mapping (for Require mode path aliases)
     alias_require_map: std::collections::HashMap<String, String>,
+    /// Track `export * from` fallback sources for deferred merge in finalize_module
+    export_all_sources: Vec<String>,
+    /// Counter for generating unique `export * from` variable names
+    export_all_counter: usize,
 }
 
 impl CodeGenerator {
@@ -204,6 +208,8 @@ impl CodeGenerator {
             scope_hoisting_enabled: true,
             forward_declared_classes: Default::default(),
             alias_require_map: Default::default(),
+            export_all_sources: Vec::new(),
+            export_all_counter: 0,
         }
     }
 
@@ -354,8 +360,9 @@ impl CodeGenerator {
             self.writeln("-- ============================================================");
 
             // Generate registry tables (name -> id and id -> class)
-            self.writeln("__TypeRegistry = {}");
-            self.writeln("__TypeIdToClass = {}");
+            // Use `local` to avoid polluting global scope (strict mode compatibility)
+            self.writeln("local __TypeRegistry = {}");
+            self.writeln("local __TypeIdToClass = {}");
             self.writeln("");
 
             // Collect into a Vec to avoid borrow checker issues
@@ -842,9 +849,18 @@ impl CodeGenerator {
             return;
         }
 
-        if !self.exports.is_empty() || self.has_default_export {
+        let has_export_all = !self.export_all_sources.is_empty();
+        if !self.exports.is_empty() || self.has_default_export || has_export_all {
             self.writeln("");
             self.writeln("local M = {}");
+
+            // Merge `export * from` sources into M
+            let export_all_sources = self.export_all_sources.clone();
+            for source_var in &export_all_sources {
+                self.writeln(&format!("for __k, __v in pairs({}) do", source_var));
+                self.writeln("    M[__k] = __v");
+                self.writeln("end");
+            }
 
             let exports = self.exports.clone();
             for name in &exports {
@@ -1949,9 +1965,10 @@ end
     }
 
     #[test]
-    fn test_lua55_global_prefix() {
+    fn test_lua55_global_style() {
+        use crate::codegen::strategies::GlobalStyle;
         let strategy = crate::codegen::strategies::lua55::Lua55Strategy;
-        assert_eq!(strategy.global_declaration_prefix(), Some("global "));
+        assert_eq!(strategy.global_style(), GlobalStyle::NativeKeyword);
     }
 
     #[test]
@@ -2087,9 +2104,10 @@ end
     }
 
     #[test]
-    fn test_luajit_no_global_prefix() {
+    fn test_luajit_global_style_rawset() {
+        use crate::codegen::strategies::GlobalStyle;
         let strategy = crate::codegen::strategies::luajit::LuaJITStrategy;
-        assert!(strategy.global_declaration_prefix().is_none());
+        assert_eq!(strategy.global_style(), GlobalStyle::Rawset);
     }
 
     #[test]
@@ -2121,13 +2139,13 @@ end
     }
 
     #[test]
-    fn test_luajit_global_no_prefix() {
+    fn test_luajit_global_rawset() {
         let source = "global x = 42";
         let output = generate_code_with_target(source, LuaTarget::LuaJIT);
-        // LuaJIT has no global keyword — just emits bare assignment
+        // LuaJIT has no global keyword — uses rawset for strict-mode compatibility
         assert!(
-            output.contains("x = 42"),
-            "Expected bare 'x = 42' in output: {}",
+            output.contains("rawset(_G, \"x\", 42)"),
+            "Expected rawset(_G, \"x\", 42) in output: {}",
             output
         );
         assert!(

@@ -80,7 +80,8 @@ end
 const LUA52_BIT32_POLYFILL: &str = r#"-- bit32 polyfill for Lua 5.2 compatibility
 -- Provides the bit32 library API using pure Lua arithmetic.
 -- On a real Lua 5.2 runtime, this shadows the built-in bit32 (same API).
-bit32 = {}
+rawset(_G, "bit32", {})
+local bit32 = rawget(_G, "bit32")
 function bit32.band(a, b)
     local result = 0
     local bitval = 1

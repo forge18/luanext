@@ -505,7 +505,7 @@ impl CodeGenerator {
 
                     self.writeln("");
                     self.write_indent();
-                    self.write("function ");
+                    self.write("local function ");
                     self.write(&default_fn_name);
                     self.write("(self");
 

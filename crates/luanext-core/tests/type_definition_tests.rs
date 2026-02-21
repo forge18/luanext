@@ -4,7 +4,7 @@
 //! interfaces, generics, and utility types — are correctly erased from the
 //! generated Lua output while the type checker validates them correctly.
 //!
-//! NOTE: Tests for `.d.tl` file loading (declaration files for external Lua
+//! NOTE: Tests for `.d.luax` file loading (declaration files for external Lua
 //! libraries) require multi-file compilation infrastructure and live in the
 //! `luanext-cli/tests/` integration tests. This file covers single-file
 //! type definition patterns.

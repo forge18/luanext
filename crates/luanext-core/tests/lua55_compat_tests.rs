@@ -23,27 +23,26 @@ use luanext_test_helpers::compile::{compile, compile_with_target};
 use luanext_test_helpers::LuaExecutor;
 
 #[test]
-fn test_global_keyword_generates_without_local() {
-    // LuaNext `global` keyword is already supported and maps to Lua 5.5 global declarations.
-    // The generated Lua omits the `local` keyword — valid in Lua 5.4 as a global assignment.
+fn test_global_keyword_generates_rawset() {
+    // LuaNext `global` keyword on default target (Lua 5.4) uses rawset for strict-mode compat.
     let source = r#"
         global count: number = 42
     "#;
     let lua_code = compile(source).unwrap();
-    // Should not have `local count` — globals are emitted without `local`
+    // Should not have `local count` — globals are emitted via rawset
     assert!(
         !lua_code.contains("local count"),
         "global keyword should generate without 'local', got:\n{lua_code}"
     );
     assert!(
-        lua_code.contains("count = 42"),
-        "global variable should be assigned without local, got:\n{lua_code}"
+        lua_code.contains("rawset(_G, \"count\", 42)"),
+        "global variable should use rawset on pre-5.5 targets, got:\n{lua_code}"
     );
 }
 
 #[test]
 fn test_global_variable_accessible_at_runtime() {
-    // Globals defined without `local` are accessible from the Lua global table
+    // Globals defined via rawset(_G, ...) are accessible from the Lua global table
     let source = r#"
         global x: number = 100
     "#;

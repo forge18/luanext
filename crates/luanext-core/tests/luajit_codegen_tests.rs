@@ -137,13 +137,13 @@ fn test_luajit_continue_uses_goto() {
 }
 
 #[test]
-fn test_luajit_global_bare_assignment() {
-    // LuaJIT has no `global` keyword — just bare assignment
+fn test_luajit_global_rawset() {
+    // LuaJIT has no `global` keyword — uses rawset(_G, ...) for strict-mode compatibility
     let source = "global x: number = 42";
     let lua_code = compile_with_target(source, LuaTarget::LuaJIT).unwrap();
     assert!(
-        lua_code.contains("x = 42"),
-        "Expected bare 'x = 42' for LuaJIT global, got:\n{lua_code}"
+        lua_code.contains("rawset(_G, \"x\", 42)"),
+        "Expected rawset(_G, \"x\", 42) for LuaJIT global, got:\n{lua_code}"
     );
     assert!(
         !lua_code.contains("local x"),

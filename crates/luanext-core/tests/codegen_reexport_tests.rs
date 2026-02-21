@@ -335,18 +335,25 @@ fn test_codegen_export_all() {
     "#;
     let lua = generate_lua(source);
 
-    // Verify that we generate the for-loop pattern
+    // Verify module is loaded into a unique _reexport variable
     assert!(
-        lua.contains("for k, v in pairs(_mod)"),
-        "Should generate for-loop to copy all exports"
-    );
-    assert!(
-        lua.contains("exports[k] = v"),
-        "Should assign exports in for-loop"
+        lua.contains("_reexport = require"),
+        "Should load module into _reexport var, got:\n{lua}"
     );
 
-    // Verify module is loaded
-    assert!(lua.contains("_mod = require"), "Should load module");
+    // Verify deferred merge loop in finalize_module uses M table
+    assert!(
+        lua.contains("for __k, __v in pairs(_reexport)"),
+        "Should generate deferred merge loop, got:\n{lua}"
+    );
+    assert!(
+        lua.contains("M[__k] = __v"),
+        "Should assign to M table in merge loop, got:\n{lua}"
+    );
+    assert!(
+        lua.contains("return M"),
+        "Should return module table, got:\n{lua}"
+    );
 }
 
 #[test]
@@ -373,10 +380,10 @@ fn test_codegen_export_all_with_declarations() {
     "#;
     let lua = generate_lua(source);
 
-    // Verify both export * and local declarations are present
+    // Verify export * merge loop is present in finalized output
     assert!(
-        lua.contains("for k, v in pairs(_mod)"),
-        "Should have export * loop"
+        lua.contains("for __k, __v in pairs(_reexport)"),
+        "Should have export * merge loop, got:\n{lua}"
     );
 }
 
@@ -388,17 +395,24 @@ fn test_codegen_multiple_export_all() {
     "#;
     let lua = generate_lua(source);
 
-    // Verify both modules are loaded and copied
-    let for_loop_count = lua.matches("for k, v in pairs(_mod)").count();
+    // Verify both modules are loaded with unique variable names
     assert!(
-        for_loop_count >= 2,
-        "Should have for-loops for each export *"
+        lua.contains("_reexport = require"),
+        "First export * should use _reexport, got:\n{lua}"
+    );
+    assert!(
+        lua.contains("_reexport_2 = require"),
+        "Second export * should use _reexport_2, got:\n{lua}"
     );
 
-    // Both modules should be loaded
+    // Verify deferred merge loops for both sources
     assert!(
-        lua.matches("_mod =").count() >= 2,
-        "Both modules should be loaded"
+        lua.contains("for __k, __v in pairs(_reexport)"),
+        "Should have merge loop for first source, got:\n{lua}"
+    );
+    assert!(
+        lua.contains("for __k, __v in pairs(_reexport_2)"),
+        "Should have merge loop for second source, got:\n{lua}"
     );
 }
 
@@ -410,12 +424,16 @@ fn test_codegen_export_all_with_named_reexports() {
     "#;
     let lua = generate_lua(source);
 
-    // Verify both export * and named re-exports are present
+    // Verify export * merge loop is present
     assert!(
-        lua.contains("for k, v in pairs(_mod)"),
-        "Should have export * loop"
+        lua.contains("for __k, __v in pairs(_reexport)"),
+        "Should have export * merge loop, got:\n{lua}"
     );
-    assert!(lua.contains("_mod."), "Should have named re-export");
+    // Verify named re-export is present
+    assert!(
+        lua.contains("foo"),
+        "Should have named re-export symbol, got:\n{lua}"
+    );
 }
 
 #[test]
@@ -447,13 +465,13 @@ fn test_codegen_export_all_tree_shaking_selective_copy() {
 
     // With tree shaking, should generate individual assignments instead of for-loop
     assert!(
-        !lua.contains("for k, v in pairs(_mod)"),
-        "Should not use for-loop with tree shaking enabled"
+        !lua.contains("for __k, __v in pairs"),
+        "Should not use for-loop with tree shaking enabled, got:\n{lua}"
     );
-    // Check that both foo and bar are assigned from _mod (order may vary due to HashSet iteration)
+    // Check that both foo and bar are assigned from _reexport (order may vary due to HashSet iteration)
     assert!(
-        lua.contains("_mod.foo") && lua.contains("_mod.bar"),
-        "Should generate individual assignments for reachable exports"
+        lua.contains("_reexport.foo") && lua.contains("_reexport.bar"),
+        "Should generate individual assignments for reachable exports, got:\n{lua}"
     );
 }
 
@@ -515,14 +533,14 @@ fn test_codegen_export_all_no_tree_shaking() {
 
     let lua = codegen.generate(&mutable);
 
-    // Without tree shaking, should use for-loop to copy all exports
+    // Without tree shaking, should use deferred merge loop via finalize_module
     assert!(
-        lua.contains("for k, v in pairs(_mod)"),
-        "Should use for-loop without tree shaking"
+        lua.contains("for __k, __v in pairs(_reexport)"),
+        "Should use deferred merge loop without tree shaking, got:\n{lua}"
     );
     assert!(
-        lua.contains("exports[k] = v"),
-        "Should copy all exports with runtime loop"
+        lua.contains("M[__k] = __v"),
+        "Should assign to M table in merge loop, got:\n{lua}"
     );
 }
 

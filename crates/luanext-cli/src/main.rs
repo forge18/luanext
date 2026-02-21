@@ -509,7 +509,7 @@ fn is_excluded(path: &Path, exclude_patterns: &[String], base: &Path) -> bool {
         }
 
         // Check if path contains the pattern as a path component
-        // This handles patterns like "node_modules" matching "src/node_modules/file.tl"
+        // This handles patterns like "node_modules" matching "src/node_modules/file.luax"
         let pattern_as_component = format!("/{}/", pattern.trim_matches('/'));
         if path_str.contains(&pattern_as_component) {
             return true;
@@ -1006,7 +1006,7 @@ fn compute_relative_require_path(from_file: &std::path::Path, to_file: &std::pat
     let mut path_str = parts.join("/");
 
     // Strip known extensions
-    for ext in &[".luax", ".tl", ".d.tl", ".lua"] {
+    for ext in &[".luax", ".d.luax", ".lua"] {
         if path_str.ends_with(ext) {
             path_str = path_str[..path_str.len() - ext.len()].to_string();
             break;

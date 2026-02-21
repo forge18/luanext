@@ -817,8 +817,8 @@ impl ModuleGraph {
 /// Resolve a relative import source string (e.g., `./b`, `../utils`) to a canonical
 /// module path from the set of known modules.
 ///
-/// Tries the source path with common extensions (`.luax`, `.tl`, `.lua`) and
-/// directory index patterns (`index.luax`, `index.tl`).
+/// Tries the source path with common extensions (`.luax`, `.d.luax`, `.lua`) and
+/// directory index patterns (`index.luax`).
 pub fn resolve_relative_source(
     from_dir: &Path,
     source: &str,
@@ -839,7 +839,7 @@ pub fn resolve_relative_source(
     }
 
     // Try with extensions
-    for ext in &["luax", "tl", "lua"] {
+    for ext in &["luax", "d.luax", "lua"] {
         let with_ext = target.with_extension(ext);
         for known in known_modules {
             if paths_equal(known, &with_ext) {
@@ -849,12 +849,10 @@ pub fn resolve_relative_source(
     }
 
     // Try directory index patterns
-    for index_name in &["index.luax", "index.tl"] {
-        let index_path = target.join(index_name);
-        for known in known_modules {
-            if paths_equal(known, &index_path) {
-                return Some(known.clone());
-            }
+    let index_path = target.join("index.luax");
+    for known in known_modules {
+        if paths_equal(known, &index_path) {
+            return Some(known.clone());
         }
     }
 
@@ -956,9 +954,9 @@ fn pathdiff_relative(from_dir: &Path, to: &Path) -> Option<PathBuf> {
     Some(result)
 }
 
-/// Strip module file extensions (.luax, .tl, .lua) from a path string.
+/// Strip module file extensions (.luax, .d.luax, .lua) from a path string.
 fn strip_module_extension(path: &str) -> String {
-    for ext in &[".luax", ".tl", ".lua"] {
+    for ext in &[".luax", ".d.luax", ".lua"] {
         if let Some(stripped) = path.strip_suffix(ext) {
             return stripped.to_string();
         }

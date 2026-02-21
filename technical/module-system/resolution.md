@@ -70,13 +70,13 @@ impl ModuleResolver {
 
 ### Relative Path Resolution (Node-style)
 
-**Input**: `./utils` from `/project/src/main.tl`
+**Input**: `./utils` from `/project/src/main.luax`
 
 **Search order**:
-1. `/project/src/utils.tl` - Typed LuaNext file
-2. `/project/src/utils.d.tl` - Type declaration file
+1. `/project/src/utils.luax` - Typed LuaNext file
+2. `/project/src/utils.d.luax` - Type declaration file
 3. `/project/src/utils.lua` - Plain Lua (policy-dependent)
-4. `/project/src/utils/index.tl` - Directory with index
+4. `/project/src/utils/index.luax` - Directory with index
 
 **Implementation**:
 
@@ -91,7 +91,7 @@ fn resolve_relative(&self, source: &str, from: &Path) -> Result<ModuleId, Module
     let mut searched_paths = Vec::new();
 
     // Try direct file with extensions
-    for ext in &["tl", "d.tl"] {
+    for ext in &["tl", "d.luax"] {
         let path = target.with_extension(ext);
         searched_paths.push(path.clone());
         if self.fs.exists(&path) {
@@ -101,7 +101,7 @@ fn resolve_relative(&self, source: &str, from: &Path) -> Result<ModuleId, Module
 
     // Try .lua file if policy allows
     if matches!(self.config.lua_file_policy, LuaFilePolicy::RequireDeclaration) {
-        let decl_path = target.with_extension("d.tl");
+        let decl_path = target.with_extension("d.luax");
         if self.fs.exists(&decl_path) {
             return self.canonicalize(&decl_path);
         }
@@ -113,8 +113,8 @@ fn resolve_relative(&self, source: &str, from: &Path) -> Result<ModuleId, Module
         }
     }
 
-    // Try as directory with index.tl
-    let index_path = target.join("index.tl");
+    // Try as directory with index.luax
+    let index_path = target.join("index.luax");
     searched_paths.push(index_path.clone());
     if self.fs.exists(&index_path) {
         return self.canonicalize(&index_path);
@@ -129,11 +129,11 @@ fn resolve_relative(&self, source: &str, from: &Path) -> Result<ModuleId, Module
 **Input**: `foo.bar` (Lua-style package name)
 
 **Search order** (for each `module_paths` entry):
-1. `/project/foo/bar.tl`
-2. `/project/foo/bar.d.tl`
+1. `/project/foo/bar.luax`
+2. `/project/foo/bar.d.luax`
 3. `/project/foo/bar.lua` (policy-dependent)
-4. `/project/foo/bar/index.tl`
-5. `/project/lua_modules/foo/bar.tl` (next search path)
+4. `/project/foo/bar/index.luax`
+5. `/project/lua_modules/foo/bar.luax` (next search path)
 
 **Implementation**:
 
@@ -152,8 +152,8 @@ fn resolve_package(&self, source: &str) -> Result<ModuleId, ModuleError> {
             return Ok(resolved);
         }
 
-        // Try as directory with index.tl
-        let index_path = candidate.join("index.tl");
+        // Try as directory with index.luax
+        let index_path = candidate.join("index.luax");
         searched_paths.push(index_path.clone());
         if self.fs.exists(&index_path) {
             return self.canonicalize(&index_path);
@@ -170,8 +170,8 @@ fn resolve_package(&self, source: &str) -> Result<ModuleId, ModuleError> {
 
 ```rust
 pub enum ModuleKind {
-    Typed,        // .tl - TypedLua source
-    Declaration,  // .d.tl - Type declaration only
+    Typed,        // .luax - TypedLua source
+    Declaration,  // .d.luax - Type declaration only
     PlainLua,     // .lua - Plain Lua (policy-dependent)
 }
 ```
@@ -180,7 +180,7 @@ pub enum ModuleKind {
 
 ```rust
 pub enum LuaFilePolicy {
-    RequireDeclaration,  // .lua requires .d.tl for type info
+    RequireDeclaration,  // .lua requires .d.luax for type info
     Block,               // .lua imports disallowed entirely
 }
 ```
@@ -361,17 +361,17 @@ pub fn get_named_export(&self, id: &ModuleId, name: &str) -> Result<ExportedSymb
 ### Relative Imports
 
 ```typescript
-// From /project/src/main.tl
-import { utils } from './utils'          // /project/src/utils.tl
-import { types } from './lib/types'      // /project/src/lib/types.tl
-import { helper } from '../shared/help'  // /project/shared/help.tl
+// From /project/src/main.luax
+import { utils } from './utils'          // /project/src/utils.luax
+import { types } from './lib/types'      // /project/src/lib/types.luax
+import { helper } from '../shared/help'  // /project/shared/help.luax
 ```
 
 ### Package Imports (Lua-style)
 
 ```typescript
 // Lua-style package imports (dot-separated)
-import { bar } from 'foo.bar'  // Searches: foo/bar.tl in module_paths
+import { bar } from 'foo.bar'  // Searches: foo/bar.luax in module_paths
 
 // Configured module_paths (from luanext.config.yaml):
 module_paths:
@@ -519,19 +519,19 @@ fn visit(
 **Example**:
 
 ```
-a.tl: import { b_func } from './b'
-b.tl: import { c_func } from './c'
-c.tl: import { a_func } from './a'  // Cycle!
+a.luax: import { b_func } from './b'
+b.luax: import { c_func } from './c'
+c.luax: import { a_func } from './a'  // Cycle!
 ```
 
 **Error output**:
 
 ```
 Circular dependency detected:
-  /project/a.tl ->
-  /project/b.tl ->
-  /project/c.tl ->
-  /project/a.tl (cycle)
+  /project/a.luax ->
+  /project/b.luax ->
+  /project/c.luax ->
+  /project/a.luax (cycle)
 ```
 
 **Implementation** (`dependency_graph.rs:68`):
@@ -822,26 +822,26 @@ pub enum ModuleError {
 ```
 Cannot find module './utils'
 Searched paths:
-  - /project/src/utils.tl
-  - /project/src/utils.d.tl
+  - /project/src/utils.luax
+  - /project/src/utils.d.luax
   - /project/src/utils.lua
-  - /project/src/utils/index.tl
+  - /project/src/utils/index.luax
 ```
 
 **Circular dependency**:
 
 ```
 Circular dependency detected:
-  /project/a.tl ->
-  /project/b.tl ->
-  /project/c.tl ->
-  /project/a.tl (cycle)
+  /project/a.luax ->
+  /project/b.luax ->
+  /project/c.luax ->
+  /project/a.luax (cycle)
 ```
 
 **Export not found**:
 
 ```
-Module '/project/utils.tl' does not export 'nonexistent'
+Module '/project/utils.luax' does not export 'nonexistent'
 ```
 
 ### Integration with TypeCheckError
@@ -945,7 +945,7 @@ pub trait ModuleRegistry: Send + Sync + fmt::Debug {
 fn bench_module_resolution(b: &mut Bencher) {
     let resolver = setup_resolver();
     b.iter(|| {
-        resolver.resolve("./utils", Path::new("/project/src/main.tl"))
+        resolver.resolve("./utils", Path::new("/project/src/main.luax"))
     });
 }
 ```
@@ -959,7 +959,7 @@ fn bench_module_resolution(b: &mut Bencher) {
 **Invalid** (module cannot import itself):
 
 ```typescript
-// a.tl
+// a.luax
 import { foo } from './a'  // Error: Circular dependency
 ```
 
@@ -970,13 +970,13 @@ import { foo } from './a'  // Error: Circular dependency
 **Transitive exports**:
 
 ```typescript
-// utils.tl
+// utils.luax
 export const helper = () => {}
 
-// lib.tl
+// lib.luax
 export { helper } from './utils'  // Re-export from utils
 
-// main.tl
+// main.luax
 import { helper } from './lib'    // Resolves to utils.helper
 ```
 
@@ -1081,11 +1081,11 @@ mod tests {
 
     fn make_test_fs() -> Arc<MockFileSystem> {
         let mut fs = MockFileSystem::new();
-        fs.add_file("/project/src/main.tl", "-- main");
-        fs.add_file("/project/src/utils.tl", "-- utils");
-        fs.add_file("/project/src/types.d.tl", "-- types");
-        fs.add_file("/project/src/lib/index.tl", "-- lib");
-        fs.add_file("/project/lua_modules/foo/bar.tl", "-- foo.bar");
+        fs.add_file("/project/src/main.luax", "-- main");
+        fs.add_file("/project/src/utils.luax", "-- utils");
+        fs.add_file("/project/src/types.d.luax", "-- types");
+        fs.add_file("/project/src/lib/index.luax", "-- lib");
+        fs.add_file("/project/lua_modules/foo/bar.luax", "-- foo.bar");
         Arc::new(fs)
     }
 
@@ -1094,10 +1094,10 @@ mod tests {
         let fs = make_test_fs();
         let resolver = make_resolver(fs);
 
-        let result = resolver.resolve("./utils", Path::new("/project/src/main.tl"));
+        let result = resolver.resolve("./utils", Path::new("/project/src/main.luax"));
         assert!(result.is_ok());
         let id = result.unwrap();
-        assert!(id.as_str().contains("utils.tl"));
+        assert!(id.as_str().contains("utils.luax"));
     }
 }
 ```

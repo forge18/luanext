@@ -2,7 +2,7 @@
 //!
 //! These tests demonstrate that raw Lua `setmetatable()` works correctly
 //! for defining custom metamethods on plain tables. The type checker allows
-//! `setmetatable()` calls (declared in builtins.d.tl), and the runtime
+//! `setmetatable()` calls (declared in builtins.d.luax), and the runtime
 //! behavior is standard Lua metamethod dispatch.
 //!
 //! Note: These tests use raw Lua constructs since the type checker does not

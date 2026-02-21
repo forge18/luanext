@@ -36,7 +36,7 @@ LuaNext includes comprehensive execution testing to ensure that generated Lua co
 | **Language Features** | Verify all LuaNext features work | `execution_tests.rs`, `execution_untyped_tests.rs` | High |
 | **Lua Versions** | Ensure cross-version compatibility | `lua5X_compat_tests.rs` | Medium |
 | **Optimization** | Verify O0/O1/O2/O3 semantic equivalence | `execution_optimization_tests.rs` | High |
-| **Type Definitions** | Test `.d.tl` file support | `type_definition_tests.rs` | Medium |
+| **Type Definitions** | Test `.d.luax` file support | `type_definition_tests.rs` | Medium |
 | **Error Handling** | Validate error behavior | `runtime_error_tests.rs` | Medium |
 | **Stdlib** | Test standard library integration | `stdlib_execution_tests.rs` | Medium |
 | **Caching** | Verify incremental compilation | `cache_execution_tests.rs` | Medium |
@@ -1034,7 +1034,7 @@ criterion_main!(benches);
 
 ### Purpose
 
-Type definition files (`.d.tl`) provide type information for Lua libraries without requiring LuaNext source code. They enable:
+Type definition files (`.d.luax`) provide type information for Lua libraries without requiring LuaNext source code. They enable:
 - Type-checking external Lua libraries
 - Type-safe FFI bindings
 - Gradual migration from Lua to LuaNext
@@ -1042,10 +1042,10 @@ Type definition files (`.d.tl`) provide type information for Lua libraries witho
 ### Module Resolution
 
 When importing `./utils`, LuaNext searches in order:
-1. `utils.luax` or `utils.tl` - LuaNext source file
-2. `utils.d.tl` - Type declaration file
+1. `utils.luax` - LuaNext source file
+2. `utils.d.luax` - Type declaration file
 3. `utils.lua` - Plain Lua file (policy-dependent)
-4. `utils/index.luax` or `utils/index.tl` - Directory with index
+4. `utils/index.luax` - Directory with index
 
 See [technical/module-system/resolution.md](../technical/module-system/resolution.md) for details.
 
@@ -1053,7 +1053,7 @@ See [technical/module-system/resolution.md](../technical/module-system/resolutio
 
 **File**: `crates/luanext-core/tests/type_definition_tests.rs` (to be created)
 
-#### Test 1: Type Checker Respects `.d.tl`
+#### Test 1: Type Checker Respects `.d.luax`
 
 ```rust
 use tempfile::TempDir;
@@ -1063,8 +1063,8 @@ use std::fs;
 fn test_d_tl_type_checking() {
     let temp_dir = TempDir::new().unwrap();
 
-    // Create .d.tl file with type declarations
-    fs::write(temp_dir.path().join("math_ext.d.tl"), r#"
+    // Create .d.luax file with type declarations
+    fs::write(temp_dir.path().join("math_ext.d.luax"), r#"
         export function clamp(x: number, min: number, max: number): number
         export function lerp(a: number, b: number, t: number): number
     "#).unwrap();
@@ -1091,7 +1091,7 @@ fn test_d_tl_type_checking() {
 fn test_d_tl_type_errors() {
     let temp_dir = TempDir::new().unwrap();
 
-    fs::write(temp_dir.path().join("math_ext.d.tl"), r#"
+    fs::write(temp_dir.path().join("math_ext.d.luax"), r#"
         export function clamp(x: number, min: number, max: number): number
     "#).unwrap();
 
@@ -1112,15 +1112,15 @@ fn test_d_tl_type_errors() {
 }
 ```
 
-#### Test 3: Compilation Works with `.d.tl`
+#### Test 3: Compilation Works with `.d.luax`
 
 ```rust
 #[test]
 fn test_d_tl_compilation() {
     let temp_dir = TempDir::new().unwrap();
 
-    // Create .d.tl file
-    fs::write(temp_dir.path().join("math_ext.d.tl"), r#"
+    // Create .d.luax file
+    fs::write(temp_dir.path().join("math_ext.d.luax"), r#"
         export function double(x: number): number
     "#).unwrap();
 
@@ -1156,7 +1156,7 @@ fn test_d_tl_compilation() {
 fn test_d_tl_no_runtime_code() {
     let temp_dir = TempDir::new().unwrap();
 
-    fs::write(temp_dir.path().join("types.d.tl"), r#"
+    fs::write(temp_dir.path().join("types.d.luax"), r#"
         export type Point = { x: number, y: number }
         export type Vector = { x: number, y: number }
     "#).unwrap();

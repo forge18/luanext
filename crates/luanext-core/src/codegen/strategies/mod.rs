@@ -8,6 +8,16 @@ pub mod luajit;
 use luanext_parser::ast::expression::BinaryOp;
 use luanext_parser::string_interner::StringId;
 
+/// How global variable declarations are emitted in the target Lua version.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GlobalStyle {
+    /// Lua 5.5+: emit `global name = value`
+    NativeKeyword,
+    /// Pre-5.5: emit `rawset(_G, "name", value)` for strict-mode compatibility.
+    /// Uses `_G` (not `_ENV`) for universal compatibility across all Lua versions.
+    Rawset,
+}
+
 /// Strategy for Lua version-specific code generation
 pub trait CodeGenStrategy {
     /// Get the name of this strategy
@@ -43,10 +53,10 @@ pub trait CodeGenStrategy {
         false
     }
 
-    /// Generate the variable declaration prefix for a global variable.
-    /// Returns `Some("global ")` for Lua 5.5 (native global keyword),
-    /// `None` for all other targets (global = no prefix).
-    fn global_declaration_prefix(&self) -> Option<&str> {
-        None
+    /// How to emit global variable declarations.
+    /// Returns `GlobalStyle::NativeKeyword` for Lua 5.5 (emits `global name = value`),
+    /// `GlobalStyle::Rawset` for all other targets (emits `rawset(_G, "name", value)`).
+    fn global_style(&self) -> GlobalStyle {
+        GlobalStyle::Rawset
     }
 }

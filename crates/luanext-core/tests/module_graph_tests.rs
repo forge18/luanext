@@ -329,11 +329,11 @@ fn test_resolve_relative_source_ignores_absolute() {
 
 #[test]
 fn test_resolve_relative_source_tl_extension() {
-    let known = vec![PathBuf::from("/project/src/types.tl")];
+    let known = vec![PathBuf::from("/project/src/types.luax")];
     let from_dir = PathBuf::from("/project/src");
 
     let result = resolve_relative_source(&from_dir, "./types", &known);
-    assert_eq!(result, Some(PathBuf::from("/project/src/types.tl")));
+    assert_eq!(result, Some(PathBuf::from("/project/src/types.luax")));
 }
 
 #[test]

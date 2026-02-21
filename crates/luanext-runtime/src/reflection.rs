@@ -1,13 +1,10 @@
 //! Reflection runtime support for LuaNext.
 
-pub const TYPE_REGISTRY: &str = r#"__TypeRegistry = {}
-__TypeIdToClass = {}
-"#;
-
 pub const REFLECTION_MODULE: &str = r#"-- ============================================================
 -- Reflection Runtime Module
 -- ============================================================
-Reflect = {}
+rawset(_G, "Reflect", {})
+local Reflect = rawget(_G, "Reflect")
 
 -- O(1) instanceof check using ancestors table
 function Reflect.isInstance(obj, typeName)
@@ -54,9 +51,9 @@ function Reflect.forName(name)
         end
     end
     -- Fallback to global lookup for dynamically created types
-    _G = _G or getfenv(0)
-    if _G[name] and _G[name].__typeName == name then
-        return _G[name]
+    local cls = rawget(_G, name)
+    if cls and cls.__typeName == name then
+        return cls
     end
     return nil
 end

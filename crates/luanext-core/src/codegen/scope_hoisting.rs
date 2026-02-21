@@ -688,7 +688,7 @@ impl NameMangler {
         // Remove file extension
         let path = path
             .trim_end_matches(".lua")
-            .trim_end_matches(".tl")
+            .trim_end_matches(".luax")
             .trim_end_matches("/index");
 
         for ch in path.chars() {
@@ -1415,7 +1415,7 @@ mod tests {
         assert_eq!(mangled, "src_utils__helper");
 
         let mut mangler2 = NameMangler::new();
-        let mangled2 = mangler2.mangle_name("src/utils.tl", "helper");
+        let mangled2 = mangler2.mangle_name("src/utils.luax", "helper");
         assert_eq!(mangled2, "src_utils__helper");
     }
 

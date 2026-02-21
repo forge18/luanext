@@ -302,8 +302,16 @@ impl CodeGenerator {
             }
         };
 
+        // Use unique variable names to avoid shadowing when multiple export * appear
+        self.export_all_counter += 1;
+        let var_name = if self.export_all_counter == 1 {
+            "_reexport".to_string()
+        } else {
+            format!("_reexport_{}", self.export_all_counter)
+        };
+
         self.write_indent();
-        self.write("local _mod = ");
+        self.write(&format!("local {} = ", var_name));
         self.write(require_fn);
         self.write("(\"");
         self.write(&module_path);
@@ -330,32 +338,24 @@ impl CodeGenerator {
                     if i > 0 {
                         self.write(", ");
                     }
-                    self.write("_mod.");
+                    self.write(&var_name);
+                    self.write(".");
                     self.write(export_name);
                 }
                 self.writeln("");
+
+                // Push to exports so finalize_module includes them in M
+                for export_name in reachable_exports {
+                    self.exports.push(export_name);
+                }
             } else {
-                // Tree shaking enabled but no reachable_exports set, use for-loop as fallback
-                self.generate_export_all_fallback();
+                // Tree shaking enabled but no reachable_exports set, defer merge to finalize_module
+                self.export_all_sources.push(var_name);
             }
         } else {
-            // Tree shaking disabled, copy all exports at runtime
-            self.generate_export_all_fallback();
+            // Tree shaking disabled, defer merge to finalize_module
+            self.export_all_sources.push(var_name);
         }
-    }
-
-    fn generate_export_all_fallback(&mut self) {
-        // Generate: for k, v in pairs(_mod) do exports[k] = v end
-        self.write_indent();
-        self.writeln("for k, v in pairs(_mod) do");
-
-        self.indent();
-        self.write_indent();
-        self.writeln("exports[k] = v");
-        self.dedent();
-
-        self.write_indent();
-        self.writeln("end");
     }
 
     pub fn generate_namespace_declaration(
@@ -380,8 +380,12 @@ impl CodeGenerator {
         self.writeln(&format!("-- Namespace: {}", path.join(".")));
 
         // Create root namespace table (or use existing)
+        // Use rawget to avoid triggering strict mode's __index metamethod on _G
         self.write_indent();
-        self.writeln(&format!("local {} = {} or {{}}", path[0], path[0]));
+        self.writeln(&format!(
+            "local {} = rawget(_G, \"{}\") or {{}}",
+            path[0], path[0]
+        ));
 
         // Create nested namespace tables
         for i in 1..path.len() {

@@ -140,16 +140,17 @@ function LuaNext._markDeprecated(target, customMessage)
 end
 
 -- Export to global scope if not already defined (allows user overrides)
-if not readonly then
-    readonly = LuaNext.readonly
+-- Use rawget to avoid triggering strict mode's __index metamethod on _G
+if not rawget(_G, "readonly") then
+    rawset(_G, "readonly", LuaNext.readonly)
 end
 
-if not sealed then
-    sealed = LuaNext.sealed
+if not rawget(_G, "sealed") then
+    rawset(_G, "sealed", LuaNext.sealed)
 end
 
-if not deprecated then
-    deprecated = LuaNext.deprecated
+if not rawget(_G, "deprecated") then
+    rawset(_G, "deprecated", LuaNext.deprecated)
 end
 
 return LuaNext

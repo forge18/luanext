@@ -133,8 +133,8 @@ fn test_lua52_preamble_contains_bit32_polyfill() {
     "#;
     let lua_code = compile_with_target(source, LuaTarget::Lua52).unwrap();
     assert!(
-        lua_code.contains("bit32 = {}"),
-        "Lua 5.2 target should emit bit32 polyfill preamble, got:\n{lua_code}"
+        lua_code.contains("rawset(_G, \"bit32\", {})"),
+        "Lua 5.2 target should emit bit32 polyfill preamble via rawset, got:\n{lua_code}"
     );
     assert!(
         !lua_code.contains("_bit_band"),

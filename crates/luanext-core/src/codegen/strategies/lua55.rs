@@ -1,4 +1,4 @@
-use super::CodeGenStrategy;
+use super::{CodeGenStrategy, GlobalStyle};
 use luanext_parser::ast::expression::BinaryOp;
 use luanext_parser::string_interner::StringId;
 
@@ -60,7 +60,7 @@ impl CodeGenStrategy for Lua55Strategy {
         true
     }
 
-    fn global_declaration_prefix(&self) -> Option<&str> {
-        Some("global ")
+    fn global_style(&self) -> GlobalStyle {
+        GlobalStyle::NativeKeyword
     }
 }
