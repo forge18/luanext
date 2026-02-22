@@ -31,7 +31,7 @@ Shows type information and documentation on hover:
 - Class member info
 - Type-only imports show "*Imported as type-only*" note
 
-`[NOTE: PARTIAL]` Cross-file hover information may not fully resolve imported symbol types in all cases. Single-file hover is comprehensive.
+Cross-file hover resolves imported symbols via `provide_with_manager()`, which type-checks the source module and looks up the exported symbol's type. Shows "*Imported from `./module`*" annotation. Falls back to local-only hover (via trait `provide()`) when no `DocumentManager` is available. When the source module is not open in the editor, `DocumentManager::load_unopened_module()` reads the file from disk via `ModuleResolver::read_file()` and creates a temporary `Document` for type-checking.
 
 ### Find References
 
@@ -42,9 +42,7 @@ Finds all locations where a symbol is used:
 - Declarations
 - Assignments
 - Read accesses
-- Cross-file: follows import/export chains
-
-`[NOTE: PARTIAL]` Cross-file references may not capture all usages, particularly through re-export chains.
+- Cross-file: follows import/export chains and re-export chains via SymbolIndex
 
 ## Edit Features
 
@@ -65,7 +63,7 @@ Type-only imports show "(type-only import)" suffix in completion items.
 
 Helper: `get_type_only_imports()` collects type-only imported names for annotation.
 
-`[NOTE: PARTIAL]` Completion for imported symbols from other modules may not show all available exports.
+Cross-file completion resolves imported symbols via `DocumentManager` — loads the source module, type-checks it, and extracts members from the actual type. Shared import scanning logic lives in `features/import_utils.rs`.
 
 ### Rename
 
